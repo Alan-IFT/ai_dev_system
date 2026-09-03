@@ -71,6 +71,17 @@ def _section(text: str, anchor_or_head: str) -> str:
     return text[start:start + nxt.start()] if nxt else text[start:]
 
 
+def _mask_code(text: str) -> str:
+    """把围栏代码块与行内代码替换成等长空白：代码里的引用是举例，不是活引用。"""
+    NL = chr(10)
+    def blank(m):
+        return "".join(c if c == NL else " " for c in m.group(0))
+    fence = chr(96) * 3
+    text = re.sub(fence + ".*?" + fence, blank, text, flags=re.S)
+    text = re.sub(chr(96) + "[^" + chr(96) + NL + "]*" + chr(96), blank, text)
+    return text
+
+
 def _strip(cell: str) -> str:
     return re.sub(r"[*`~]", "", cell).strip()
 
@@ -228,6 +239,41 @@ def main() -> int:
             findings.append(Finding("C8", rel, None,
                 f"自行声明了语料版本号「{m.group(0)}」；版本号只允许出现在 PROJECT_STATUS.md 的 "
                 f"corpus_version（D-014 §7 单一副本）。此处应删除或改为指向该字段的链接"))
+
+    eff_ids = sorted(d for d, r in register.items() if _strip(r.get("状态", "")) in EFFECTIVE_STATES)
+
+    # ---- C9：决策日志里的散文计数须与表对账（Case C-005） ----
+    cnt_re = re.compile(r"当前生效规则数：\*\*(\d+)\*\*")
+    m = cnt_re.search(LOG.read_text(encoding="utf-8"))
+    if m and int(m.group(1)) != len(eff_ids):
+        findings.append(Finding("C9", str(LOG.relative_to(ROOT)), None,
+            f"散文写「生效规则数 {m.group(1)}」，与生效登记表实算 {len(eff_ids)} 条不一致"))
+
+    # ---- C10：散文里的「NN §M」引用须指向正文中真实存在的小节（Case C-003） ----
+    body_secs = {}
+    for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
+        body_secs[p.name[:2]] = set(re.findall(r"^## (\d)\. ", p.read_text(encoding="utf-8"), re.M))
+    LIVE_SKIP = ("docs/历史/", "docs/参考资料", "docs/输入材料", "docs/审计记录", ".staging/")
+    # 两种引用形态都要认：裸写「21 §6」，以及链接写法「[21 调度与拆分](21-调度与拆分.md) §6」
+    BODY_ALT = r"(1[0-2]|2[0-5]|3[0-3]|40)"
+    ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d)(?![\d.])")
+    ref_link = re.compile(r"\]\(\.?/?" + BODY_ALT + r"-[^)]*\)\s*§\s?(\d)(?![\d.])")
+    for p in sorted(ROOT.rglob("*.md")):
+        rel = p.relative_to(ROOT).as_posix()
+        if any(rel.startswith(s) for s in LIVE_SKIP): continue
+        text = _mask_code(p.read_text(encoding="utf-8"))
+        for rx, is_link in ((ref_bare, False), (ref_link, True)):
+          for mo in rx.finditer(text):
+            ch, sec = mo.group(1), mo.group(2)
+            if ch not in body_secs: continue
+            if not is_link:
+                pre = text[max(0, mo.start()-24):mo.start()]
+                if re.search(r"(WX-|SRC-|D-|T[1-6] |00[0-9] )\S*$", pre):
+                    continue  # 指向研究材料而不是正文
+            if sec not in body_secs[ch]:
+                ln = text[:mo.start()].count(chr(10)) + 1
+                findings.append(Finding("C10", rel, ln,
+                    f"引用了 {ch} 章的 §{sec}，但该章只有 §" + "/§".join(sorted(body_secs[ch]))))
 
     # ---- 报告 ----
     eff = [d for d, r in register.items() if _strip(r.get("状态", "")) in EFFECTIVE_STATES]
