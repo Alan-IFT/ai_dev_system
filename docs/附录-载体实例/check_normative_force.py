@@ -214,6 +214,21 @@ def main() -> int:
                     f"正文与追溯账本的原则编号对不上——正文有账本无：{miss or '无'}；"
                     f"账本有正文无：{extra or '无'}；账本内重复：{dup or '无'}"))
 
+    # ---- C8：语料版本号只允许一处（D-014 §7 的单一副本判据） ----
+    VERSION_SNAPSHOT_DIRS = ("docs/历史/", "docs/参考资料", "docs/输入材料", "docs/审计记录")
+    ver_re = re.compile(r"^(?:状态|当前版本)[：:]\s*`v\d+\.\d+[-\w]*`", re.M)
+    for p in sorted(ROOT.rglob("*.md")):
+        rel = p.relative_to(ROOT).as_posix()
+        if rel.startswith(".staging/") or any(rel.startswith(d) for d in VERSION_SNAPSHOT_DIRS):
+            continue  # 冻结快照与研究材料保留其被冻结时的版本号
+        if rel == "PROJECT_STATUS.md":
+            continue  # 唯一权威位置
+        m = ver_re.search(p.read_text(encoding="utf-8"))
+        if m:
+            findings.append(Finding("C8", rel, None,
+                f"自行声明了语料版本号「{m.group(0)}」；版本号只允许出现在 PROJECT_STATUS.md 的 "
+                f"corpus_version（D-014 §7 单一副本）。此处应删除或改为指向该字段的链接"))
+
     # ---- 报告 ----
     eff = [d for d, r in register.items() if _strip(r.get("状态", "")) in EFFECTIVE_STATES]
     print("D-014 规范效力检查器")
