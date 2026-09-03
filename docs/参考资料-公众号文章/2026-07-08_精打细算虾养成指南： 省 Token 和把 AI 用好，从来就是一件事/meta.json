@@ -1,0 +1,57 @@
+{
+  "scraper": {
+    "name": "wechat-article-scraper",
+    "version": "0.1.0",
+    "fetched_at": "2026-09-02T12:04:27+08:00"
+  },
+  "article": {
+    "url": "https://mp.weixin.qq.com/s/BBySdR4uz9ybhcB0lak3rw",
+    "title": "精打细算虾养成指南： 省 Token 和把 AI 用好，从来就是一件事",
+    "account": "腾讯技术工程",
+    "author": null,
+    "published_at": "2026-07-08T17:36:32+08:00",
+    "image_count": 15,
+    "images": [
+      "https://mmbiz.qpic.cn/sz_mmbiz_gif/pgebNmm1icyIiaBxue9IUJOnZ5D0eDRofUe5r2KJKGViaGUoDlic9icfxpYpmiacgYBnSxgRn2AOrctKGE2JxZaaRCpEtq7iax1GSBzF1dhBns8LWA/640?wx_fmt=gif&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=0",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyI59VdZgIs51DwzATGv708y8jictqfcH0icRpzhxz8No5lNLn6UJ4sb26411FA4z0riayhiaONibNaETdAoSypovdXMQvenmXHOlYjg/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=1",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyIL5OUX27y8FsS9CtNZPric8vBpCPBjoXOSichQ1Nia7ZtG1FRQIxkT938GhMCa8aOz3R0Nuu0BDB7hRFP9XdoEaen9J0ghicRNROM/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=2",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJLsllWic0cqccicj6Lk7AVFpINU74oibKeBpJoxPyvQQ5lvnMYVl26ibahkPU2uicuHaOXboTOChd9buS7I06kzBpC9WxFGPYja6Ms/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=3",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyKib7yRe9E15lrWibspvVTBtn1QUJ6gQT42cm8SZAGAIVUqvEWibGCW3CB1mib9E89expbBiba286ZyxoajXR6cZTGoDAJjBvvh14I8/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=4",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyLTIr0NrLWHKxeHDsFtgcogFgmicicODu3B5iasfhO4UIvdlhhLAP4vhz558dhn37VOGBZtGGsZIzuEMGJrGTjibYw8605KcFQKBUQ/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=5",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyKILyicTz0f7MhX40K1mrk97ubInaz3U6RL5wRibstUFyu6ACppxyoCQ71kiadPtBhrsEtwb8dzZt8KqPYkdy1c1QyeHz2IJO8e7g/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=6",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyJ7bRrGxkxt3Pfia7y6u2QIC13w76AMp6Cq0GQibmq3rFcvJ1ibUHD462UqhBgmwevhfmCiczB4ibQoxyxKEHrRh89ASZ0NOpmRQtkA/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=7",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyIDqLymmmU5j54Mxzz5GO6fSeVU0VzkdxmRKgBmR67OCUXMqcDfIicct9ickArn2zGCf6WnPBWiaVb74s2FvicYeBoeg0NtqM61biaE/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=8",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJ0jcx6EhYMUSyvYsbffHibRotNkVyzxR2nTibD4EMGIXG5BWWdPYefcbAInCy08STEYVnhpic8tBII35Q6qibJ6JibMFMolZQLl1pE/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=9",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJeyLUhCxjyWr23FicK0C8cchiaJiahAfO77Wlo1btYXgVc9OLbYojhVqwmspO4kXWlE31rMMIotr2uCQpKkmXMRPVjEUTxl1cRI4/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=10",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJUAiazrTVhicDxDyOk4NRd3Qt7tNRgXWTZQEQI4vfRtvvxZKQ7dLiamwbEhic6ribwsdwa2wdZcqQ7mu4jPIRChBDPqtPeGVHxichnM/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=11",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJ7TJiaymE4TwtKT7auUAFngHGpt3dcJAeFwjCExIjUWN9jP4b2hcj9JgmTcEZ49SwchojTIUXd3ZkvhfyKSnj3DMIDL07gCVCE/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=12",
+      "https://mmbiz.qpic.cn/sz_mmbiz_gif/pgebNmm1icyK6Uw54e16wmfandzPpicjUeNU9rS4AJcv0PwhNaFtmOeNZDkYqPM9d0ZwRkTDdT254ygE5Igkygpa2yQGGiaBpGyvIJbqXMJWxo/640?wx_fmt=gif&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=13",
+      "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJrD2pRO6jjCEhwXicictMIKP7CrAN9Wu6Mdy9yVBBFMQ6H1QWWChAB8gLAkWlgcjicp8Z745sNtl0243K02eia5GCVtNjH4KwDlcA/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=14"
+    ]
+  },
+  "downloaded_images": {
+    "https://mmbiz.qpic.cn/sz_mmbiz_gif/pgebNmm1icyIiaBxue9IUJOnZ5D0eDRofUe5r2KJKGViaGUoDlic9icfxpYpmiacgYBnSxgRn2AOrctKGE2JxZaaRCpEtq7iax1GSBzF1dhBns8LWA/640?wx_fmt=gif&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=0": "images/001.gif",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyI59VdZgIs51DwzATGv708y8jictqfcH0icRpzhxz8No5lNLn6UJ4sb26411FA4z0riayhiaONibNaETdAoSypovdXMQvenmXHOlYjg/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=1": "images/002.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyIL5OUX27y8FsS9CtNZPric8vBpCPBjoXOSichQ1Nia7ZtG1FRQIxkT938GhMCa8aOz3R0Nuu0BDB7hRFP9XdoEaen9J0ghicRNROM/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=2": "images/003.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJLsllWic0cqccicj6Lk7AVFpINU74oibKeBpJoxPyvQQ5lvnMYVl26ibahkPU2uicuHaOXboTOChd9buS7I06kzBpC9WxFGPYja6Ms/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=3": "images/004.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyKib7yRe9E15lrWibspvVTBtn1QUJ6gQT42cm8SZAGAIVUqvEWibGCW3CB1mib9E89expbBiba286ZyxoajXR6cZTGoDAJjBvvh14I8/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=4": "images/005.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyLTIr0NrLWHKxeHDsFtgcogFgmicicODu3B5iasfhO4UIvdlhhLAP4vhz558dhn37VOGBZtGGsZIzuEMGJrGTjibYw8605KcFQKBUQ/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=5": "images/006.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyKILyicTz0f7MhX40K1mrk97ubInaz3U6RL5wRibstUFyu6ACppxyoCQ71kiadPtBhrsEtwb8dzZt8KqPYkdy1c1QyeHz2IJO8e7g/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=6": "images/007.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/pgebNmm1icyJ7bRrGxkxt3Pfia7y6u2QIC13w76AMp6Cq0GQibmq3rFcvJ1ibUHD462UqhBgmwevhfmCiczB4ibQoxyxKEHrRh89ASZ0NOpmRQtkA/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=7": "images/008.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyIDqLymmmU5j54Mxzz5GO6fSeVU0VzkdxmRKgBmR67OCUXMqcDfIicct9ickArn2zGCf6WnPBWiaVb74s2FvicYeBoeg0NtqM61biaE/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=8": "images/009.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJ0jcx6EhYMUSyvYsbffHibRotNkVyzxR2nTibD4EMGIXG5BWWdPYefcbAInCy08STEYVnhpic8tBII35Q6qibJ6JibMFMolZQLl1pE/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=9": "images/010.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJeyLUhCxjyWr23FicK0C8cchiaJiahAfO77Wlo1btYXgVc9OLbYojhVqwmspO4kXWlE31rMMIotr2uCQpKkmXMRPVjEUTxl1cRI4/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=10": "images/011.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJUAiazrTVhicDxDyOk4NRd3Qt7tNRgXWTZQEQI4vfRtvvxZKQ7dLiamwbEhic6ribwsdwa2wdZcqQ7mu4jPIRChBDPqtPeGVHxichnM/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=11": "images/012.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJ7TJiaymE4TwtKT7auUAFngHGpt3dcJAeFwjCExIjUWN9jP4b2hcj9JgmTcEZ49SwchojTIUXd3ZkvhfyKSnj3DMIDL07gCVCE/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=12": "images/013.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_gif/pgebNmm1icyK6Uw54e16wmfandzPpicjUeNU9rS4AJcv0PwhNaFtmOeNZDkYqPM9d0ZwRkTDdT254ygE5Igkygpa2yQGGiaBpGyvIJbqXMJWxo/640?wx_fmt=gif&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=13": "images/014.gif",
+    "https://mmbiz.qpic.cn/mmbiz_png/pgebNmm1icyJrD2pRO6jjCEhwXicictMIKP7CrAN9Wu6Mdy9yVBBFMQ6H1QWWChAB8gLAkWlgcjicp8Z745sNtl0243K02eia5GCVtNjH4KwDlcA/640?wx_fmt=png&from=appmsg&tp=wxpic&wxfrom=5&wx_lazy=1#imgIndex=14": "images/015.png"
+  },
+  "failed_images": {},
+  "files": {
+    "html": "article.html",
+    "markdown": "article.md",
+    "text": "article.txt",
+    "raw": "raw.html",
+    "meta": "meta.json"
+  }
+}

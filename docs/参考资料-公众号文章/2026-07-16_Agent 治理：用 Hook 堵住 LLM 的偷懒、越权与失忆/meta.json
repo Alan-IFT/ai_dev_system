@@ -1,0 +1,59 @@
+{
+  "scraper": {
+    "name": "wechat-article-scraper",
+    "version": "0.1.0",
+    "fetched_at": "2026-09-02T12:04:23+08:00"
+  },
+  "article": {
+    "url": "https://mp.weixin.qq.com/s/ISwjIw5lj7JlcQJV7BOx5g",
+    "title": "Agent 治理：用 Hook 堵住 LLM 的偷懒、越权与失忆",
+    "account": "腾讯技术工程",
+    "author": "腾讯程序员",
+    "published_at": "2026-07-16T17:52:30+08:00",
+    "image_count": 16,
+    "images": [
+      "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj79H3xfgvsqK9TDxOBlcUa6W0EE5KBdxacd2Ql6QBmuhBJKIUS4PSZQ/640?wx_fmt=gif&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz905hBq2gOZfzr1VcYYibRaUmqFnWPt6oXA8ROIRm92AI2W2ibialf8iajia2ECibdBx1QPEK2PHNA38K3UE9Noibia4RW5wbiaPdI9IzuVsA/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz9070YdSLgoLFhBAncrzbA7cx5aUp5T6qg1ibCcDGjqqX5WyvibeA5Y175G4KytyzkVSQBmYPLDtPSO7pRTbmibvqMujQicetUJojVj8/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz906uFo4lNkqd9tzUFicgMjtEoVWArCxxH3rl3hrSnZZqIyQP4EHFasyRaB8qTDb4B4Kye7lOVfhuxFYCmM03DLPxzucibhQFBhNFI/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz907wHHKeneA6XauljYBd6boSKkBff2XiaQHDUEvO9FSff5JwDb88j2MZwf0hxPLpdXSS7kZasq6FyrZicbmA3ZpNtibZ50Ygicdkuyo/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907Sl4akfetY0dMrKia4cprS3iaM4OlTiaEjyGRiaBic0JDx15De57CV8zOEoKolL7TKpa1ZxicDtJTial1JHYEaws4kjn7V7fyl9ncTts/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905BMqicbVVMybF7a5HUh5ZHJ2KHMs3kfU0sKdlWX1YeHvdjxnnAYVq4icUENT5ibVKpjoicUOsBOHNjWUUCBExxXqFLibjEd2QErPZ4/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905JkrusYWCycLW50Bf7ra9WKQk5DNThiaNwia8yUyxSfPtSdLj9uy7kQBs13XBYYSYI2sWaMEN3CVHibkbVicmtC309UNxFt6SSfhI/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz9041ccsYAPFVicNT1gVIbFFtWXu6WnnF541jCeuY6QSLPrrPREHoJCFZka30jSEtheUb7micYDNuu9NsrdM3WC1MU1RCUyIHOookw/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz904bicicdTGeqcsT1kL7t8BVSboFdJJc7l7E8C8uffeicWbOZ2pCFWkGLxIgJGDvBbcnjRQTMp7cNPJ3a6coIR9hI0aibaD5C7YPjw4/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz907a21icu97b8Dj4gCOFHES4Y8khGcpPh6n6wO3Enmbe8K4nse2BjKHPpia8DVm29AK1ljMY1Pl12RaFtrDONVRXPJCAZ4Z8OFxUQ/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905xHdMDywCic6c9jw6CrvQjickIubcOp5Yp4DACVLrNOmvxvlPB5g1phFZEOCCSZianZCswwmouzuNJQqYDdxnrEHFuuJA2A0EQkw/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz904EWXtCLGFo103pIOKmLic5ZEcIeibrqEgAn8rYg50jiazRqyY0eGT7zeeeibOPBos8H3rJsySyyl03HS2qYyqlHgvLAn2cSia0NNJE/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz906o7ibWCEHXib5QTpHfziaWicpia0sq0VKYuzR1tOibS7PPuz4ddfqb4WUcsbu7kZrr0QUsnrUhoU4LCiadgyGbTv7VQoZI4K8qFc9icA8/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYjZ7Hx6Udjjk2BGLzC9ahJq7ibxDd1RGA0c9NYZc1husEsvb3tY4FcWPQ/640?wx_fmt=gif&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj5q5PQEOc5ibURPb03vnRibrxC3UR8xzdyATfiawTYRV2vJvBnAIcE1FeQ/640?wx_fmt=png&from=appmsg"
+    ]
+  },
+  "downloaded_images": {
+    "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj79H3xfgvsqK9TDxOBlcUa6W0EE5KBdxacd2Ql6QBmuhBJKIUS4PSZQ/640?wx_fmt=gif&from=appmsg": "images/001.gif",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz905hBq2gOZfzr1VcYYibRaUmqFnWPt6oXA8ROIRm92AI2W2ibialf8iajia2ECibdBx1QPEK2PHNA38K3UE9Noibia4RW5wbiaPdI9IzuVsA/640?wx_fmt=png&from=appmsg": "images/002.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz9070YdSLgoLFhBAncrzbA7cx5aUp5T6qg1ibCcDGjqqX5WyvibeA5Y175G4KytyzkVSQBmYPLDtPSO7pRTbmibvqMujQicetUJojVj8/640?wx_fmt=png&from=appmsg": "images/003.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz906uFo4lNkqd9tzUFicgMjtEoVWArCxxH3rl3hrSnZZqIyQP4EHFasyRaB8qTDb4B4Kye7lOVfhuxFYCmM03DLPxzucibhQFBhNFI/640?wx_fmt=png&from=appmsg": "images/004.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz907wHHKeneA6XauljYBd6boSKkBff2XiaQHDUEvO9FSff5JwDb88j2MZwf0hxPLpdXSS7kZasq6FyrZicbmA3ZpNtibZ50Ygicdkuyo/640?wx_fmt=png&from=appmsg": "images/005.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907Sl4akfetY0dMrKia4cprS3iaM4OlTiaEjyGRiaBic0JDx15De57CV8zOEoKolL7TKpa1ZxicDtJTial1JHYEaws4kjn7V7fyl9ncTts/640?wx_fmt=png&from=appmsg": "images/006.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905BMqicbVVMybF7a5HUh5ZHJ2KHMs3kfU0sKdlWX1YeHvdjxnnAYVq4icUENT5ibVKpjoicUOsBOHNjWUUCBExxXqFLibjEd2QErPZ4/640?wx_fmt=png&from=appmsg": "images/007.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905JkrusYWCycLW50Bf7ra9WKQk5DNThiaNwia8yUyxSfPtSdLj9uy7kQBs13XBYYSYI2sWaMEN3CVHibkbVicmtC309UNxFt6SSfhI/640?wx_fmt=png&from=appmsg": "images/008.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz9041ccsYAPFVicNT1gVIbFFtWXu6WnnF541jCeuY6QSLPrrPREHoJCFZka30jSEtheUb7micYDNuu9NsrdM3WC1MU1RCUyIHOookw/640?wx_fmt=png&from=appmsg": "images/009.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz904bicicdTGeqcsT1kL7t8BVSboFdJJc7l7E8C8uffeicWbOZ2pCFWkGLxIgJGDvBbcnjRQTMp7cNPJ3a6coIR9hI0aibaD5C7YPjw4/640?wx_fmt=png&from=appmsg": "images/010.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz907a21icu97b8Dj4gCOFHES4Y8khGcpPh6n6wO3Enmbe8K4nse2BjKHPpia8DVm29AK1ljMY1Pl12RaFtrDONVRXPJCAZ4Z8OFxUQ/640?wx_fmt=png&from=appmsg": "images/011.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905xHdMDywCic6c9jw6CrvQjickIubcOp5Yp4DACVLrNOmvxvlPB5g1phFZEOCCSZianZCswwmouzuNJQqYDdxnrEHFuuJA2A0EQkw/640?wx_fmt=png&from=appmsg": "images/012.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz904EWXtCLGFo103pIOKmLic5ZEcIeibrqEgAn8rYg50jiazRqyY0eGT7zeeeibOPBos8H3rJsySyyl03HS2qYyqlHgvLAn2cSia0NNJE/640?wx_fmt=png&from=appmsg": "images/013.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz906o7ibWCEHXib5QTpHfziaWicpia0sq0VKYuzR1tOibS7PPuz4ddfqb4WUcsbu7kZrr0QUsnrUhoU4LCiadgyGbTv7VQoZI4K8qFc9icA8/640?wx_fmt=png&from=appmsg": "images/014.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYjZ7Hx6Udjjk2BGLzC9ahJq7ibxDd1RGA0c9NYZc1husEsvb3tY4FcWPQ/640?wx_fmt=gif&from=appmsg": "images/015.gif",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj5q5PQEOc5ibURPb03vnRibrxC3UR8xzdyATfiawTYRV2vJvBnAIcE1FeQ/640?wx_fmt=png&from=appmsg": "images/016.png"
+  },
+  "failed_images": {},
+  "files": {
+    "html": "article.html",
+    "markdown": "article.md",
+    "text": "article.txt",
+    "raw": "raw.html",
+    "meta": "meta.json"
+  }
+}

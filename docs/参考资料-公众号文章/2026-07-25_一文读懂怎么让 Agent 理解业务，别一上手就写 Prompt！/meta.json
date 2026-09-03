@@ -1,0 +1,37 @@
+{
+  "scraper": {
+    "name": "wechat-article-scraper",
+    "version": "0.1.0",
+    "fetched_at": "2026-09-02T11:56:22+08:00"
+  },
+  "article": {
+    "url": "https://mp.weixin.qq.com/s/BlF50Z143CfJjeBsr-YrHQ",
+    "title": "一文读懂怎么让 Agent 理解业务，别一上手就写 Prompt！",
+    "account": "Datawhale",
+    "author": "陈思州",
+    "published_at": "2026-07-25T22:00:00+08:00",
+    "image_count": 5,
+    "images": [
+      "https://mmbiz.qpic.cn/mmbiz_png/zW6S9vt0cSibvCtf2miaMEiaElqHmxVEfzRCofbLL47nDFtF4KQBgySHRVaiar1CuBXibYQCGjd4rWhbJtqmSvm5UQt6wlFSeg5llUqG0QFlx9W0/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS863zQwwGsNdbTJQxDA2u2p9ibYiaibiaLH8RkIibls4yicpgic9icNAickNe7l5sr0eXbm4GHuPOtdpuqMy71Q6Q5TcBEeO962JoojRCzE/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS9gLQOVW7s0icSNgpOickhzmQp6YMG2xldue1yQbv8ia9U8rD7N5uBLKKz2fh7PRP3v7Gicic0ibAWibu0Fq78psWgUGAV95aGtT73c5g/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS95uNLLsYvTrm1MBelylMI8kpd7tPE3ibgmQ9rH5iauia3m2tq1M3C2jdSl5tyEtOXKoAXiaesn6jjlNsZyMgP1w3beDTTBgu5asjg/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/vI9nYe94fsGxu3P5YibTO899okS0X9WaLmQCtia4U8Eu1xWCz9t8Qtq9PH6T1bTcxibiaCIkGzAxpeRkRFYqibVmwSw/640?wx_fmt=other&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp#imgIndex=2"
+    ]
+  },
+  "downloaded_images": {
+    "https://mmbiz.qpic.cn/mmbiz_png/zW6S9vt0cSibvCtf2miaMEiaElqHmxVEfzRCofbLL47nDFtF4KQBgySHRVaiar1CuBXibYQCGjd4rWhbJtqmSvm5UQt6wlFSeg5llUqG0QFlx9W0/640?wx_fmt=png&from=appmsg": "images/001.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS863zQwwGsNdbTJQxDA2u2p9ibYiaibiaLH8RkIibls4yicpgic9icNAickNe7l5sr0eXbm4GHuPOtdpuqMy71Q6Q5TcBEeO962JoojRCzE/640?wx_fmt=png&from=appmsg": "images/002.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS9gLQOVW7s0icSNgpOickhzmQp6YMG2xldue1yQbv8ia9U8rD7N5uBLKKz2fh7PRP3v7Gicic0ibAWibu0Fq78psWgUGAV95aGtT73c5g/640?wx_fmt=png&from=appmsg": "images/003.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS95uNLLsYvTrm1MBelylMI8kpd7tPE3ibgmQ9rH5iauia3m2tq1M3C2jdSl5tyEtOXKoAXiaesn6jjlNsZyMgP1w3beDTTBgu5asjg/640?wx_fmt=png&from=appmsg": "images/004.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/vI9nYe94fsGxu3P5YibTO899okS0X9WaLmQCtia4U8Eu1xWCz9t8Qtq9PH6T1bTcxibiaCIkGzAxpeRkRFYqibVmwSw/640?wx_fmt=other&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp#imgIndex=2": "images/005.webp"
+  },
+  "failed_images": {},
+  "files": {
+    "html": "article.html",
+    "markdown": "article.md",
+    "text": "article.txt",
+    "raw": "raw.html",
+    "meta": "meta.json"
+  }
+}

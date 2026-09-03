@@ -1,0 +1,405 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AI 辅助开发系统架构",
+    "locale": "zh-CN",
+    "output": "ai-dev-system.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1140,
+      660
+    ],
+    "views": [
+      {
+        "id": "delivery-line",
+        "label": "交付线",
+        "focus": [
+          "human",
+          "intent",
+          "orch",
+          "agent",
+          "verify",
+          "state"
+        ],
+        "note": "意图 → 验收条目 → 工作项 → 实施 → 三态验证 → 状态转换；每一步的出口都是下一步能机器读取的工件。"
+      },
+      {
+        "id": "context-loop",
+        "label": "上下文闭环",
+        "focus": [
+          "skill",
+          "ctx",
+          "graph",
+          "memory",
+          "agent"
+        ],
+        "note": "执行者看到什么由上下文管理决定：先地图后正文、按触发加载 Skill、按置信态召回记忆、用完即外部化。"
+      },
+      {
+        "id": "memory-loop",
+        "label": "记忆闭环",
+        "focus": [
+          "agent",
+          "memory",
+          "human",
+          "skill"
+        ],
+        "note": "任务产生经验候选（只建议不写入）→ 人审或客观判定器晋升 → 成为项目知识或 Skill。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "human",
+      "type": "external",
+      "label": "人（所有者 / 审查者）",
+      "sublabel": "只在五处状态转换判断",
+      "pos": [
+        100,
+        60
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "intent",
+      "type": "frontend",
+      "label": "意图与验收条目",
+      "sublabel": "带 ID · 确认后冻结",
+      "pos": [
+        370,
+        60
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "状态工件",
+      "sublabel": "工作项 / 交接 / 项目状态",
+      "pos": [
+        910,
+        60
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "skill",
+      "type": "cloud",
+      "label": "Skill 方法库",
+      "sublabel": "方法约束 · 按触发加载",
+      "pos": [
+        100,
+        260
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "ctx",
+      "type": "backend",
+      "label": "上下文管理",
+      "sublabel": "装配 · 压缩 · 外部化",
+      "pos": [
+        370,
+        260
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "编排与调度",
+      "sublabel": "agent team / 流水线",
+      "pos": [
+        640,
+        260
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "切片 · 返工 · 上限"
+    },
+    {
+      "id": "verify",
+      "type": "security",
+      "label": "验证与证据",
+      "sublabel": "三态裁定 · Gate · 回读",
+      "pos": [
+        910,
+        260
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "memory",
+      "type": "database",
+      "label": "记忆",
+      "sublabel": "候选 → 审批 → 晋升",
+      "pos": [
+        100,
+        460
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "graph",
+      "type": "database",
+      "label": "代码图谱",
+      "sublabel": "由代码派生 · 缓存非权威",
+      "pos": [
+        370,
+        460
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "执行者",
+      "sublabel": "Agent / 子执行者",
+      "pos": [
+        640,
+        460
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "repo",
+      "type": "external",
+      "label": "代码仓库与运行环境",
+      "sublabel": "事实来源 · 回读目标",
+      "pos": [
+        910,
+        460
+      ],
+      "size": [
+        150,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "五个可替换部件",
+      "wraps": [
+        "skill",
+        "ctx",
+        "orch",
+        "memory",
+        "graph",
+        "agent"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "两个胶水（纪律，不可省略）",
+      "wraps": [
+        "state",
+        "verify"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "human-intent",
+      "from": "human",
+      "to": "intent",
+      "label": "确认意图",
+      "variant": "emphasis"
+    },
+    {
+      "id": "intent-orch",
+      "from": "intent",
+      "to": "orch",
+      "label": "派生工作项与验证用例",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "orch-agent",
+      "from": "orch",
+      "to": "agent",
+      "label": "派发切片",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 40
+    },
+    {
+      "id": "agent-verify",
+      "from": "agent",
+      "to": "verify",
+      "label": "产物 + 三态裁定",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "verify-state",
+      "from": "verify",
+      "to": "state",
+      "label": "证据 · 状态转换",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "state-orch",
+      "from": "state",
+      "to": "orch",
+      "label": "状态由事件推断 · 失败定向返工",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "ctx-agent",
+      "from": "ctx",
+      "to": "agent",
+      "label": "装配上下文",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "skill-ctx",
+      "from": "skill",
+      "to": "ctx",
+      "label": "按触发加载"
+    },
+    {
+      "id": "graph-ctx",
+      "from": "graph",
+      "to": "ctx",
+      "label": "先地图后正文",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "memory-ctx",
+      "from": "memory",
+      "to": "ctx",
+      "label": "按置信态召回",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "agent-repo",
+      "from": "agent",
+      "to": "repo",
+      "label": "读 · 改 · 运行",
+      "labelDy": 14
+    },
+    {
+      "id": "verify-repo",
+      "from": "verify",
+      "to": "repo",
+      "label": "发布后回读",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 40
+    },
+    {
+      "id": "agent-memory",
+      "from": "agent",
+      "to": "memory",
+      "label": "经验候选（只建议不写入）",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          715,
+          600
+        ],
+        [
+          175,
+          600
+        ]
+      ]
+    },
+    {
+      "id": "human-memory",
+      "from": "human",
+      "to": "memory",
+      "label": "审批晋升",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [
+        [
+          60,
+          92
+        ],
+        [
+          60,
+          492
+        ]
+      ]
+    },
+    {
+      "id": "memory-skill",
+      "from": "memory",
+      "to": "skill",
+      "label": "晋升为 Skill",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "五个可替换部件",
+      "items": [
+        "编排调度 / 上下文管理 / 代码图谱 / 记忆 / Skill，各自可换工具",
+        "图谱、记忆、Skill 都是缓存或方法，不是权威"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "两个胶水",
+      "items": [
+        "状态工件：靠持久工件恢复，状态由事件推断",
+        "验证与证据：未执行 / 无法核验 = 未定，不算通过"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "人的位置",
+      "items": [
+        "五处判断：确认意图、接受计划、批准集成、授权发布、抽查",
+        "四类问题：价值排序、范围边界、权限授予、不可逆选择"
+      ]
+    }
+  ]
+}

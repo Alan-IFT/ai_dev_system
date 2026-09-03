@@ -1,0 +1,45 @@
+{
+  "scraper": {
+    "name": "wechat-article-scraper",
+    "version": "0.1.0",
+    "fetched_at": "2026-09-02T11:56:08+08:00"
+  },
+  "article": {
+    "url": "https://mp.weixin.qq.com/s/cUiGeUUGyhuhBSn3n2n2_w",
+    "title": "重磅！Anthropic内部AI Native经验公开了！",
+    "account": "Datawhale",
+    "author": "Datawhale",
+    "published_at": "2026-08-26T22:22:15+08:00",
+    "image_count": 9,
+    "images": [
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cSichQdSkvjlpASoaAhibYsdzZoBx5ickw1McB5icR1YriakiaricSfkQGz5CJBZsI1ibicXDo11R03D8PuTBXQa0TuvhABD1aUb5jsQ8j7U/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS8P7ZHSUdD3FicJFNp4IAMYicUTvHpkQ3ibRV9M6KGRIqVs0g94QvRKRAArvMxich29o9I2sMwqiaLuiczUJUohrEFuDMJibjXRXia4S7k/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS9LJ5fpeIwAPpVREUjdic54tG7sYkgZ9EKVBnM8OU24vCNtoogv52OfccF0aCx1JOCxMWdHwhHAztNtj8AU1jqEk0pHQVtISadE/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/mmbiz_png/zW6S9vt0cSibPibLicKz1Gp9xKrQNB2DCVVAPRZTbZe6vKicKlFic50gIJ6vHIFpLVHibsNhgdUQxOOtgskvKS3HROkuwrFXqm91WIeTwMzyVH5sk/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS9NTPUeXk4oZia3HqhsfoDwzAsahBUCmaEQX50Hr00BibYnuMI0KnpHYPeciajReWsMd29puicBF5pbKfguFrGyxzhatK5zY7ZSOEQ/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cSic6PtBGG4SbCrScIf5pZcg8ekvQaQkxSgqP7BnBDeEPyH32Rqp7ITTXnHUYIqXtaAk759icTy0gt96aEwtCiaZ5GT2YJulAm1Ulo/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS99dE7dMqNsVtz1QzOLPc2PN7391q0sLjVkxAyPLxVda02L5QKkico5t95vLq9BCH5H6gPe0VoIXIPRgdkvHRlCMspRIE3EmRxY/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS8kg744t8ib3iaaviaEjaLIrKIc2Uef4JxGcrhXaZibr1cW8VzB2diaG6y478famdJ99p0PiafDG3rjKhHoQq62yhAoiaEheFBicZRUThg/640?wx_fmt=png",
+      "https://mmbiz.qpic.cn/mmbiz_png/vI9nYe94fsGxu3P5YibTO899okS0X9WaLmQCtia4U8Eu1xWCz9t8Qtq9PH6T1bTcxibiaCIkGzAxpeRkRFYqibVmwSw/640?wx_fmt=other&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp#imgIndex=20"
+    ]
+  },
+  "downloaded_images": {
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cSichQdSkvjlpASoaAhibYsdzZoBx5ickw1McB5icR1YriakiaricSfkQGz5CJBZsI1ibicXDo11R03D8PuTBXQa0TuvhABD1aUb5jsQ8j7U/640?wx_fmt=png": "images/001.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS8P7ZHSUdD3FicJFNp4IAMYicUTvHpkQ3ibRV9M6KGRIqVs0g94QvRKRAArvMxich29o9I2sMwqiaLuiczUJUohrEFuDMJibjXRXia4S7k/640?wx_fmt=png": "images/002.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS9LJ5fpeIwAPpVREUjdic54tG7sYkgZ9EKVBnM8OU24vCNtoogv52OfccF0aCx1JOCxMWdHwhHAztNtj8AU1jqEk0pHQVtISadE/640?wx_fmt=png": "images/003.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/zW6S9vt0cSibPibLicKz1Gp9xKrQNB2DCVVAPRZTbZe6vKicKlFic50gIJ6vHIFpLVHibsNhgdUQxOOtgskvKS3HROkuwrFXqm91WIeTwMzyVH5sk/640?wx_fmt=png": "images/004.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS9NTPUeXk4oZia3HqhsfoDwzAsahBUCmaEQX50Hr00BibYnuMI0KnpHYPeciajReWsMd29puicBF5pbKfguFrGyxzhatK5zY7ZSOEQ/640?wx_fmt=png": "images/005.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cSic6PtBGG4SbCrScIf5pZcg8ekvQaQkxSgqP7BnBDeEPyH32Rqp7ITTXnHUYIqXtaAk759icTy0gt96aEwtCiaZ5GT2YJulAm1Ulo/640?wx_fmt=png": "images/006.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS99dE7dMqNsVtz1QzOLPc2PN7391q0sLjVkxAyPLxVda02L5QKkico5t95vLq9BCH5H6gPe0VoIXIPRgdkvHRlCMspRIE3EmRxY/640?wx_fmt=png": "images/007.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/zW6S9vt0cS8kg744t8ib3iaaviaEjaLIrKIc2Uef4JxGcrhXaZibr1cW8VzB2diaG6y478famdJ99p0PiafDG3rjKhHoQq62yhAoiaEheFBicZRUThg/640?wx_fmt=png": "images/008.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/vI9nYe94fsGxu3P5YibTO899okS0X9WaLmQCtia4U8Eu1xWCz9t8Qtq9PH6T1bTcxibiaCIkGzAxpeRkRFYqibVmwSw/640?wx_fmt=other&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp#imgIndex=20": "images/009.webp"
+  },
+  "failed_images": {},
+  "files": {
+    "html": "article.html",
+    "markdown": "article.md",
+    "text": "article.txt",
+    "raw": "raw.html",
+    "meta": "meta.json"
+  }
+}

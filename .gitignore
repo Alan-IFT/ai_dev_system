@@ -1,0 +1,8 @@
+# 迁移期的旧版本快照，不纳入版本控制（内容已被 docs/历史/ 取代）
+.staging/
+
+# 系统与编辑器
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,57 @@
+{
+  "scraper": {
+    "name": "wechat-article-scraper",
+    "version": "0.1.0",
+    "fetched_at": "2026-09-02T12:04:32+08:00"
+  },
+  "article": {
+    "url": "https://mp.weixin.qq.com/s/UE-RZH9hnbBd06CVapFGrA",
+    "title": "从AI Coding到Harness Engineering的端到端工程开发实践",
+    "account": "腾讯技术工程",
+    "author": "腾讯程序员",
+    "published_at": "2026-07-03T17:36:00+08:00",
+    "image_count": 15,
+    "images": [
+      "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj79H3xfgvsqK9TDxOBlcUa6W0EE5KBdxacd2Ql6QBmuhBJKIUS4PSZQ/640?wx_fmt=gif&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz905ewwyWyLgqFEjerdfSh9MOglmDymGlBlVeRkjyRGwvgfskdT4UJW1rxxcy3a9OYZvFhSGiaB1p3kgvsBQyOiaLvGxdyTlqm1UibQ/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907yY148WGKgsgkZ8S7fySTogdn9CGSQUibF00RyXFqsiamDiacqSUOrEGeqyBibAHl8DfH9c0HaJmia6FibVb18octc9XNWjGKoMCW30/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz904U7ufyJFrJ3ChwYEdicu8gq9RGysRuglibgx0IOGmZhTDTWTLbc771EJhUG7slTeV0fH4GxDTYnngMFianhZJmkAQzcCQibcxQPU4/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905qFmiaSVPxeia0a0JDEpXibnOdxgnADF61eWyLhDv86royInibjTwspFwXDO8L52JPiaX8h9o6RdSMOyPsBrL4jVgNOibdmkv75XFicI/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz9068Sh0Eia2G2BmF3tajcNfEKV0am4snzBMicOc29riaDKe6QYTfGKcsGpN2Q72VR4tYFPGlOwvnQGOcqQedriaA5kxcYqMbyEhd3AI/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz906TpbbS2sM1qibDmbRxy9czSMGGichiadQuHXlufbwatpWEdu0KWZwCXHQ9RxguYa9klIkyWlYSfTQchNhGPW2PUy4LI7MaXCa25g/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz9042C3F4eOrkqIFMZrjlIv3YXPUd6ibicNZzmx4ic7qdqGGOTDBqmicyibMwiah6DR8HhdzmTibWoqeDnDWZvxX8rA5xDxKsrQb2xLRSicU/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907wJrdwp0Sw5LLDST65lT142iceLxtibWUDCpNrWCLUKKETLLicceMgIzIhyNPxfToU1cavgjq2EuiboMiaMpQibI3TUBDdibFapGxdj4/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907oKiayMIBdLoN0Pq8JaV22XDyHIWq9Ax5t2kTHwTKWmrU2mKqT2wTkIgP36TYt2whdeetH251icaWdHTl9RzE3IgnaMPiam6Isgo/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907Uxd1qGoJIA1DPC88FkcOoZEHohkBMD67xMe8yuUc3Y3QqcfxNialTYib12OBmKQYRImgZH433zZafzDrTxkvpialtUryobB7IpI/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz906r6SpQlzW0LPrdhHxFMWkIPBMOetzRjgaYJ1ibytZ9P8csJmKD0cBZibogz7MmE4cT6SnaBiaJAhJtXZGYBOncXiaamkCwD3hQScc/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz906Rf4reeYm8icznGEbeiaBnicQw7tbmvprQv8J7eWFCqJvUIkaK7wQYRLSdsHKDbVEJ9wFVWGTNkPu2lDwDcvbnic50MNsf7PLyZfc/640?wx_fmt=png&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYjZ7Hx6Udjjk2BGLzC9ahJq7ibxDd1RGA0c9NYZc1husEsvb3tY4FcWPQ/640?wx_fmt=gif&from=appmsg",
+      "https://mmbiz.qpic.cn/sz_mmbiz_png/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj5q5PQEOc5ibURPb03vnRibrxC3UR8xzdyATfiawTYRV2vJvBnAIcE1FeQ/640?wx_fmt=png&from=appmsg"
+    ]
+  },
+  "downloaded_images": {
+    "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj79H3xfgvsqK9TDxOBlcUa6W0EE5KBdxacd2Ql6QBmuhBJKIUS4PSZQ/640?wx_fmt=gif&from=appmsg": "images/001.gif",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz905ewwyWyLgqFEjerdfSh9MOglmDymGlBlVeRkjyRGwvgfskdT4UJW1rxxcy3a9OYZvFhSGiaB1p3kgvsBQyOiaLvGxdyTlqm1UibQ/640?wx_fmt=png&from=appmsg": "images/002.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907yY148WGKgsgkZ8S7fySTogdn9CGSQUibF00RyXFqsiamDiacqSUOrEGeqyBibAHl8DfH9c0HaJmia6FibVb18octc9XNWjGKoMCW30/640?wx_fmt=png&from=appmsg": "images/003.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz904U7ufyJFrJ3ChwYEdicu8gq9RGysRuglibgx0IOGmZhTDTWTLbc771EJhUG7slTeV0fH4GxDTYnngMFianhZJmkAQzcCQibcxQPU4/640?wx_fmt=png&from=appmsg": "images/004.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz905qFmiaSVPxeia0a0JDEpXibnOdxgnADF61eWyLhDv86royInibjTwspFwXDO8L52JPiaX8h9o6RdSMOyPsBrL4jVgNOibdmkv75XFicI/640?wx_fmt=png&from=appmsg": "images/005.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz9068Sh0Eia2G2BmF3tajcNfEKV0am4snzBMicOc29riaDKe6QYTfGKcsGpN2Q72VR4tYFPGlOwvnQGOcqQedriaA5kxcYqMbyEhd3AI/640?wx_fmt=png&from=appmsg": "images/006.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz906TpbbS2sM1qibDmbRxy9czSMGGichiadQuHXlufbwatpWEdu0KWZwCXHQ9RxguYa9klIkyWlYSfTQchNhGPW2PUy4LI7MaXCa25g/640?wx_fmt=png&from=appmsg": "images/007.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz9042C3F4eOrkqIFMZrjlIv3YXPUd6ibicNZzmx4ic7qdqGGOTDBqmicyibMwiah6DR8HhdzmTibWoqeDnDWZvxX8rA5xDxKsrQb2xLRSicU/640?wx_fmt=png&from=appmsg": "images/008.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907wJrdwp0Sw5LLDST65lT142iceLxtibWUDCpNrWCLUKKETLLicceMgIzIhyNPxfToU1cavgjq2EuiboMiaMpQibI3TUBDdibFapGxdj4/640?wx_fmt=png&from=appmsg": "images/009.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907oKiayMIBdLoN0Pq8JaV22XDyHIWq9Ax5t2kTHwTKWmrU2mKqT2wTkIgP36TYt2whdeetH251icaWdHTl9RzE3IgnaMPiam6Isgo/640?wx_fmt=png&from=appmsg": "images/010.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz907Uxd1qGoJIA1DPC88FkcOoZEHohkBMD67xMe8yuUc3Y3QqcfxNialTYib12OBmKQYRImgZH433zZafzDrTxkvpialtUryobB7IpI/640?wx_fmt=png&from=appmsg": "images/011.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/KVER9adz906r6SpQlzW0LPrdhHxFMWkIPBMOetzRjgaYJ1ibytZ9P8csJmKD0cBZibogz7MmE4cT6SnaBiaJAhJtXZGYBOncXiaamkCwD3hQScc/640?wx_fmt=png&from=appmsg": "images/012.png",
+    "https://mmbiz.qpic.cn/mmbiz_png/KVER9adz906Rf4reeYm8icznGEbeiaBnicQw7tbmvprQv8J7eWFCqJvUIkaK7wQYRLSdsHKDbVEJ9wFVWGTNkPu2lDwDcvbnic50MNsf7PLyZfc/640?wx_fmt=png&from=appmsg": "images/013.png",
+    "https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYjZ7Hx6Udjjk2BGLzC9ahJq7ibxDd1RGA0c9NYZc1husEsvb3tY4FcWPQ/640?wx_fmt=gif&from=appmsg": "images/014.gif",
+    "https://mmbiz.qpic.cn/sz_mmbiz_png/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj5q5PQEOc5ibURPb03vnRibrxC3UR8xzdyATfiawTYRV2vJvBnAIcE1FeQ/640?wx_fmt=png&from=appmsg": "images/015.png"
+  },
+  "failed_images": {},
+  "files": {
+    "html": "article.html",
+    "markdown": "article.md",
+    "text": "article.txt",
+    "raw": "raw.html",
+    "meta": "meta.json"
+  }
+}
