@@ -35,7 +35,10 @@ led_lines = len(read(ledger).splitlines()) if ledger.exists() else 0
 log = read(ROOT / "docs" / "决策日志.md")
 decisions = sorted(set(re.findall(r"^\| (D-\d{3}) \|", log, re.M)))
 reg = log.split("## 决策索引")[0]
-effective = sorted(set(re.findall(r"^\| (D-\d{3}) \| (?:试行|已接受) \|", reg, re.M)))
+# 状态格允许带强调标记：检查器用 _strip 去掉 ** 后比较，这里必须同口径，
+# 否则两个工具对同一张表数出不同的生效条数（C-009 同形问题，2026-09-03 实际发生过一次）。
+effective = sorted(set(re.findall(
+    r"^\| (D-\d{3}) \|\s*\**\s*(?:试行|已接受)\s*\**\s*\|", reg, re.M)))
 
 mds, links, bad = [], 0, 0
 SKIP = {".git", ".staging"}

@@ -166,16 +166,26 @@ def main() -> int:
 
     # ---- C1 / C5 / C6 逐文档 ----
     md_files = sorted({p for g in GOVERNED_GLOBS for p in ROOT.glob(g)})
+    # 上下文合同只进 C5 的扫描面（它是加载入口，一句过期的效力声明在这里最危险），
+    # 不进 C6 的 governed_by 要求——它不是规范正文。
+    # PROJECT_STATUS、README 与失败 Case 清单刻意不纳入：那里有对历史状态的叙述
+    # （形如"第十轮：账本层落地（D-056，提议）"），纳入即制造大批误伤（33 §2 P9 的 Thin 信号）。
+    c5_extra = [q for q in (ROOT / "CONTEXT_MANIFEST.md",) if q.exists()]
+    # C5 两种形态都要认（Case C-022）：括号形态「（均为提议）」，
+    # 与系动词形态「正文各章仍是`提议`」——00 §9 那句挂了四轮，只认括号形态时完全报不出。
+    _ST = "|".join(FORCE_STATES)
     state_copy_re = re.compile(
-        r"[（(]\s*(?:均为)?\s*[`「\"]?(" + "|".join(FORCE_STATES) + r")[`」\"]?\s*[）)]")
-
-    for p in md_files:
+        r"[（(]\s*(?:均为)?\s*[`「\"]?(" + _ST + r")[`」\"]?\s*[）)]"
+        r"|(?:仍是|仍为|全部是|全都是|一律是|均为|都是|是|为)\s*[`「\"](" + _ST + r")[`」\"]")
+    for p in md_files + c5_extra:
         rel = p.relative_to(ROOT).as_posix()
         text = p.read_text(encoding="utf-8")
         head = "\n".join(text.splitlines()[:12])
 
-        gm = re.search(r"^governed_by[：:]\s*(.+)$", head, re.M)
-        if not gm:
+        gm = None if p in c5_extra else re.search(r"^governed_by[：:]\s*(.+)$", head, re.M)
+        if p in c5_extra:
+            pass
+        elif not gm:
             findings.append(Finding("C6", rel, None,
                 "规范文档未在文件头 12 行内声明 governed_by（D-014 §7）"))
         else:
