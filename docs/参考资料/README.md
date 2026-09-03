@@ -15,6 +15,7 @@
 | 07 | [CoALA](07-coala.md) | A2 | Agent 认知/记忆分类的概念镜头 |
 | 08 | [Boris Cherny 访谈](08-boris-cherny-claude-code.md) | P1/V1 | 模型升级后的消融与验证纪律 |
 | 09 | [用户附件与一线观察](09-用户附件与观察.md) | P1/S1 | 用户提供的交付链、记忆与控制实践 |
+| 14 | [Google Antigravity：Teamwork](14-google-antigravity-teamwork.md) | V1 | pattern 是规格不是程序；候选配 falsifier；驳回路线带异议进下一轮；防作弊沙箱参照实现；Flash 档 + 编排替代更大模型 |
 
 阅读顺序建议：先读 01、02、03 建立交付/上下文基础；需要落地评估时读 04、08；讨论记忆时读 07、09；需要选 Agent 结构时读 05、06。
 
