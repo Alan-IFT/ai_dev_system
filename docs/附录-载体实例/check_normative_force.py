@@ -33,10 +33,10 @@ REQUIRED_FIELDS = {
 }
 
 # 允许出现状态值的位置：元治理正文（定义语义）与决策日志（唯一效力源）
-STATE_COPY_EXEMPT = {"docs/08-规范效力元治理.md", "docs/决策日志.md", "docs/待决策清单.md"}
+STATE_COPY_EXEMPT = {"docs/08-规范效力元治理.md", "docs/决策日志.md"}
 
 # 需要声明 governed_by 的规范文档
-GOVERNED_GLOBS = ("docs/[0-4]*.md", "docs/术语表.md", "docs/待决策清单.md", "docs/决策日志.md", "docs/架构确定.md")
+GOVERNED_GLOBS = ("docs/[0-4]*.md", "docs/术语表.md", "docs/决策日志.md", "docs/架构确定.md")
 
 
 class Finding:
