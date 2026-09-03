@@ -1,9 +1,9 @@
 ---
 contract_id: context-contract-research-001
-contract_revision: 12
+contract_revision: 13
 updated_at: 2026-09-03
 status: effective  # D-015 于 2026-09-03 进入`已接受`；本文件是它的载体实例，载体形态本身效力为零
-current_work_item: docs/决策日志.md#decision-index  # 归档第二份议程登记处，剩余真问题转为 D-058～D-062（第十七轮）
+current_work_item: docs/审计记录/009-默认加载集的体量与片段外延.md  # 第二十轮。**不要再把登记表填进这里**——第十七～十九轮填的是 `docs/决策日志.md#decision-index`，与下表第 5 项同一个 `path#fragment`，于是第 5 项"事实型不读"与 P2 第一层"含当前工作项"当场打架，也正是"第 5 项与本字段职责重复"这个错觉的成因
 ---
 
 # Default Context Contract
@@ -22,7 +22,7 @@ current_work_item: docs/决策日志.md#decision-index  # 归档第二份议程�
 
 | 顺序 | 精确路径或片段 | 交付型<br>（改条文、审计并落地） | 事实型<br>（查规范怎么说、影响面调查） | 用途 | 缺失时处理 |
 |---|---|:---:|:---:|---|---|
-| 1 | `CONTEXT_MANIFEST.md#required-context` | ● | ● | 确认本合同版本和加载边界 | 停止并报告入口缺失 |
+| 1 | `CONTEXT_MANIFEST.md`（**整份，含 front matter**） | ● | ● | 确认本合同版本和加载边界。此前写作 `#required-context`，而该锚点在 front matter **之后**——按下方新增的片段外延规则，那样写会把 `contract_revision` 与 `current_work_item` 排除在默认集之外，而解析规则 4 又要求核对它们 | 停止并报告入口缺失 |
 | 2 | `PROJECT_STATUS.md` | ● | ○ | 当前里程碑、风险和下一步 | 停止并请求恢复状态 |
 | 3 | `docs/决策日志.md#effective-register` | ● | ● | 确认当前哪些规则可阻断或授权 | 停止：无法确认效力时不得执行或授权 |
 | 4 | `docs/00-总览.md` | ● | ● | 四平面与 14 部件的入口，决定内容归属哪一章 | 停止并报告架构入口缺失 |
@@ -70,7 +70,8 @@ current_work_item: docs/决策日志.md#decision-index  # 归档第二份议程�
 ## Resolution rules
 
 1. 路径使用仓库相对 canonical path；相同 `path#fragment` 只加载一次。
-2. 链接不递归展开；“相关”“对应”“当前”等无法解析的描述不得由 Agent 猜测。
-3. 仓库指令文件只有在本清单列出且实际存在时才加载；不能假设一定有 `AGENTS.md`。
-4. 合同、工作项或[工作区身份](docs/20-状态工件.md#workspace-identity)冲突时失败关闭，先核对 ID、revision、updated_at 与工作区身份，再继续。
-5. 切换工作项或审议焦点时递增 `contract_revision`；历史版本归档但不进入默认上下文。
+2. **`#fragment` 的外延是"该锚点起，至下一个锚点之前"**；需要跨锚点时逐个列出，不得默读到文件末尾。（2026-09-04 新增。此前合同从未定义外延，同一项 `docs/决策日志.md#decision-index` 因此可以被读成 14,855 或 23,011 两个数——两个口径都自圆其说，而多算的 8,156 字符属于六个与决策索引无关的小节。见[审计记录 009](docs/审计记录/009-默认加载集的体量与片段外延.md)。）
+3. 链接不递归展开；“相关”“对应”“当前”等无法解析的描述不得由 Agent 猜测。
+4. 仓库指令文件只有在本清单列出且实际存在时才加载；不能假设一定有 `AGENTS.md`。
+5. 合同、工作项或[工作区身份](docs/20-状态工件.md#workspace-identity)冲突时失败关闭，先核对 ID、revision、updated_at 与工作区身份，再继续。
+6. 切换工作项或审议焦点时递增 `contract_revision`；历史版本归档但不进入默认上下文。
