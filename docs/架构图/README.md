@@ -2,7 +2,7 @@
 
 **当前版本：四个平面 · 十四个部件 · 一条交付线**（对应[架构确定](../架构确定.md)与[00 总览](../00-总览.md)，2026-09-03 更新）
 
-- `four-planes.architecture.html`：可交互成品（深浅主题、五个引导视图、路径追踪、导出 PNG/JPEG/WebP/SVG）。
+- `four-planes.architecture.html`：可交互成品（深浅主题、五个引导视图、六张说明卡、路径追踪、导出 PNG/JPEG/WebP/SVG）。
 - `four-planes.architecture.json`：图的源（Archify Typed JSON IR）。**改图改这个文件**，然后重新 `validate` 与 `deliver`。
 - `four-planes-preview-light.png` / `-dark.png`：4140×2460 预览，由成品页自身的 PNG 导出生成（不是截图）。
 
@@ -14,7 +14,8 @@
 | 连线 | 12，无证据标注 | 15，**括号内是明确画出该关系的独立来源数**（00 总览 §4） |
 | 节点标注 | 无 | **「归因 N」= 52 个来源中把该类失败归因到本部件的来源数**（00 总览 §6，即排查顺序） |
 | 引导视图 | 3（交付线 / 知识平面 / 控制与责任） | **5，即四个闭环 + 责任平面**（00 总览 §3） |
-| 卡片 | 3（三个平面） | 5（**六条不变量**、三个平面、**L0–L3 四档**） |
+| 卡片 | 3（三个平面） | **6**：六条不变量、三个平面、L0–L3 四档、**一次运行的两个属性**（产出类型 × 起点状态，00 §3） |
+| 图例 | Archify 默认的 Web 应用分类（前端 / 后端 / 数据库 / 安全 / 外部系统）——**对这张图完全不对** | 改写为这五类实际共享的**形态**：冻结的声明 / 执行动作 / 写下来并被回读 / 判定与阻断 / 人。颜色与布局未动 |
 
 ## 读法
 
@@ -29,7 +30,11 @@ archify validate architecture docs/架构图/four-planes.architecture.json
 archify deliver architecture docs/架构图/four-planes.architecture.json docs/架构图/four-planes.architecture.html --quality showcase
 ```
 
-`validate` 会逐条报出标签压组件、连线穿节点、走廊交叉、桌面视口下文字过密等问题，并给出可直接照抄的修法（`labelAt`、`labelDy`、`via` 坐标）。**showcase 档必须 0 错 0 警**——当前版本 9/9 artifact 检查通过。PNG 预览用成品页右上角「导出 → PNG（无损图像）」重出，两个主题各一张。
+`validate` 会逐条报出标签压组件、连线穿节点、走廊交叉、桌面视口下文字过密等问题，并给出可直接照抄的修法（`labelAt`、`labelDy`、`via` 坐标）。**showcase 档必须 0 错 0 警**——当前版本 9/9 artifact 检查通过。
+
+**PNG 预览的重出方式（此前没写下来，两次都是现摸索的）**：成品页右上角「导出 → PNG（无损图像）」，深浅主题各一张。浏览器沙箱里下载不生效，做法是钩住页面自己的 `URL.createObjectURL` 拿到 Blob，再同源 POST 回一个本地小服务落盘（跨端口会被 CORS 预检挡住，服务和页面必须同端口）。**导出前先确认 `document.documentElement.getAttribute("data-theme")` 是想要的那个**——2026-09-03 有一次点了主题按钮但没生效，深色那张被浅色覆盖了一遍。
+
+**`archify visual-check` 目前是 fail，是已知的**：四种视口下都报 `viewer/viewport-overflow`，即整页放不进一屏。**这不是缺陷，是取舍**——这一页是文档（图 + 六张说明卡），本来就要滚动；要消掉它只能删卡片，代价大于收益。改动前后诊断条数一致（6 溢出 + 1 可读性）即视为没有引入新问题。
 
 历史版本（保留供对照）：`three-planes.*`（三平面，人尚未单列）、`ai-dev-system.*`（五部件 + 两胶水，最初按示例画的）。
 
