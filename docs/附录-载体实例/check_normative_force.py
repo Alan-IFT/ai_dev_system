@@ -186,6 +186,34 @@ def main() -> int:
                     f"状态值副本「{m.group(0)}」；状态只允许存在于生效登记表与决策索引"
                     f"（D-014 §7）。此处应删除或改为指向生效登记表的链接"))
 
+    # ---- C7：每条原则在追溯记录中有且只有一条对应项（D-014 §9） ----
+    ledger_p = ROOT / "docs" / "追溯账本.md"
+    if ledger_p.exists():
+        ledger = ledger_p.read_text(encoding="utf-8")
+        for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
+            rel = p.relative_to(ROOT).as_posix()
+            num = p.name[:2]
+            _m = re.search(rf'<a id="ch-{num}"></a>', ledger)
+            if _m:
+                _rest = ledger[_m.end():]
+                _n = re.search(r'<a id="ch-\d\d"></a>', _rest)
+                sec = _rest[:_n.start()] if _n else _rest
+            else:
+                sec = ""
+            in_body = re.findall(r"^- \*\*(P\d+)", p.read_text(encoding="utf-8"), re.M)
+            in_ledger = re.findall(r"^\|\s*(P\d+)\s*\|", sec, re.M)
+            if not sec:
+                findings.append(Finding("C7", rel, None,
+                    f"追溯账本缺少 ch-{num} 的记录段"))
+                continue
+            miss = [x for x in in_body if x not in in_ledger]
+            extra = [x for x in in_ledger if x not in in_body]
+            dup = [x for x in set(in_ledger) if in_ledger.count(x) > 1]
+            if miss or extra or dup:
+                findings.append(Finding("C7", rel, None,
+                    f"正文与追溯账本的原则编号对不上——正文有账本无：{miss or '无'}；"
+                    f"账本有正文无：{extra or '无'}；账本内重复：{dup or '无'}"))
+
     # ---- 报告 ----
     eff = [d for d, r in register.items() if _strip(r.get("状态", "")) in EFFECTIVE_STATES]
     print("D-014 规范效力检查器")
