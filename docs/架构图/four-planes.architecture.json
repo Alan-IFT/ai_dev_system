@@ -2,18 +2,19 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "AI 辅助开发系统架构：四个平面 + 一条交付线",
+    "title": "AI 辅助开发系统架构：四个平面 · 十四个部件 · 一条交付线",
+    "subtitle": "标签里的数字是 52 个独立来源中把该类失败归因到本部件的来源数（00 总览 §6）；连线括号内是明确画出该关系的独立来源数（00 总览 §4）",
     "locale": "zh-CN",
     "output": "four-planes.architecture.html",
     "quality_profile": "showcase",
     "viewBox": [
-      1300,
-      700
+      1380,
+      820
     ],
     "views": [
       {
         "id": "delivery-line",
-        "label": "交付线",
+        "label": "交付闭环（主线）",
         "focus": [
           "human",
           "intent",
@@ -24,30 +25,53 @@
           "verify",
           "evidence"
         ],
-        "note": "人确认意图 → 验收条目派生工作项 → 每轮先读状态 → 派发切片 → 装配上下文 → 执行 → 环境回读与三态裁定 → 证据写回状态。"
+        "note": "人确认意图 → 派生工作项 → 每轮先读状态 → 派发切片 → 装配上下文 → 执行 → 环境回读与三态裁定 → 证据写回状态。"
       },
       {
-        "id": "knowledge-plane",
-        "label": "知识平面",
+        "id": "context-loop",
+        "label": "上下文闭环（执行平面内）",
         "focus": [
-          "intent",
           "knowledge",
-          "memory",
-          "ctx"
+          "ctx",
+          "agent",
+          "state"
         ],
-        "note": "项目知识是唯一记录源：短入口按需拉取，代码图谱是它的派生缓存；记忆经治理才晋升为知识。"
+        "note": "装配 → 使用 → 外部化。唯一清单按运行类型出视图；窗口外的完整产物按引用回源，不预先塞入。"
       },
       {
-        "id": "control-plane",
-        "label": "控制平面与责任平面",
+        "id": "memory-loop",
+        "label": "记忆闭环（执行 → 控制 → 知识）",
         "focus": [
+          "state",
           "verify",
-          "guard",
+          "memory",
+          "knowledge",
+          "evidence"
+        ],
+        "note": "经验候选 → 验证与治理 → 晋升为知识或方法。模型自身输出不得直接成为候选；入必有出。"
+      },
+      {
+        "id": "improve-loop",
+        "label": "改进闭环（控制平面内）",
+        "focus": [
           "evidence",
           "evolve",
-          "human"
+          "method",
+          "verify",
+          "guard"
         ],
-        "note": "验证者独立于生成者；守卫在模型控制流之外；证据喂给演进；超限与不可逆动作升级到人。"
+        "note": "观察 → 归因到层 → 可复现 Case → 修复 → 双路径验证 → 接受或回退 → 删减。"
+      },
+      {
+        "id": "accountability",
+        "label": "责任平面：人在哪里出现",
+        "focus": [
+          "human",
+          "intent",
+          "guard",
+          "verify"
+        ],
+        "note": "人只在五处状态转换出现：确认并冻结意图、授权不可逆动作、接收超限与门禁失败的升级、验收、批准演进。"
       }
     ]
   },
@@ -56,7 +80,7 @@
       "id": "human",
       "type": "external",
       "label": "人的检查点与授权",
-      "sublabel": "五处判断 · 授权不可逆 · 接收升级",
+      "sublabel": "五处判断 · 授权不可逆",
       "pos": [
         40,
         300
@@ -64,7 +88,8 @@
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 19"
     },
     {
       "id": "intent",
@@ -73,46 +98,49 @@
       "sublabel": "带 ID · 确认后冻结",
       "pos": [
         560,
-        100
+        90
       ],
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "不可省略 9"
     },
     {
       "id": "knowledge",
       "type": "database",
       "label": "项目知识",
-      "sublabel": "唯一记录源 · 含图谱缓存",
+      "sublabel": "唯一记录源 · 图谱是缓存",
       "pos": [
         820,
-        100
+        90
       ],
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 21"
     },
     {
       "id": "memory",
       "type": "database",
       "label": "记忆与知识治理",
-      "sublabel": "候选 · 置信态 · 过期",
+      "sublabel": "候选 → 治理 → 晋升",
       "pos": [
         1080,
-        100
+        90
       ],
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 21"
     },
     {
       "id": "state",
       "type": "database",
       "label": "状态工件",
-      "sublabel": "工作项 / 交接 / 进度",
+      "sublabel": "三类工件 · 一套状态机",
       "pos": [
         300,
         300
@@ -120,13 +148,14 @@
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 27"
     },
     {
       "id": "sched",
       "type": "backend",
       "label": "调度与拆分",
-      "sublabel": "单人流程 → agent team",
+      "sublabel": "切片 · 停机 · 重试预算",
       "pos": [
         560,
         300
@@ -134,13 +163,14 @@
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 19"
     },
     {
       "id": "ctx",
       "type": "backend",
       "label": "上下文装配",
-      "sublabel": "加载清单 · 压缩 · 方法库",
+      "sublabel": "唯一清单 · 视图 · 压缩",
       "pos": [
         820,
         300
@@ -148,13 +178,14 @@
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 29"
     },
     {
       "id": "agent",
       "type": "backend",
-      "label": "执行者与工具环境",
-      "sublabel": "模型 · 子执行者 · 沙箱",
+      "label": "执行者与模型",
+      "sublabel": "委托 · 隔离 · 结构化回传",
       "pos": [
         1080,
         300
@@ -162,63 +193,98 @@
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 8"
+    },
+    {
+      "id": "method",
+      "type": "backend",
+      "label": "方法库",
+      "sublabel": "怎么做才对 · 只增不减是病",
+      "pos": [
+        690,
+        430
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 11"
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "工具与执行环境",
+      "sublabel": "能做什么 · 回读为准",
+      "pos": [
+        1080,
+        430
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 18"
     },
     {
       "id": "evidence",
       "type": "security",
       "label": "证据与追踪",
-      "sublabel": "只追加日志 · 成本分解",
+      "sublabel": "凭什么说做过 · 花了什么",
       "pos": [
         300,
-        500
+        600
       ],
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 22"
     },
     {
       "id": "evolve",
       "type": "security",
       "label": "评估与演进",
-      "sublabel": "失败 Case · 减法 · 审计",
+      "sublabel": "变好还是变坏 · Add/Thin",
       "pos": [
         560,
-        500
+        600
       ],
       "size": [
         170,
         64
-      ]
-    },
-    {
-      "id": "verify",
-      "type": "security",
-      "label": "验证与测试",
-      "sublabel": "独立验证者 · 三态裁定",
-      "pos": [
-        1080,
-        500
       ],
-      "size": [
-        170,
-        64
-      ]
+      "tag": "归因 25"
     },
     {
       "id": "guard",
       "type": "security",
       "label": "守卫与权限边界",
-      "sublabel": "事实门禁 · 范围固化 · 超限升级",
+      "sublabel": "在模型控制流之外",
       "pos": [
         820,
-        500
+        600
       ],
       "size": [
         170,
         64
-      ]
+      ],
+      "tag": "归因 28"
+    },
+    {
+      "id": "verify",
+      "type": "security",
+      "label": "验证与测试",
+      "sublabel": "独立于生成 · 三态裁定",
+      "pos": [
+        1080,
+        600
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 32"
     }
   ],
   "boundaries": [
@@ -231,7 +297,7 @@
     },
     {
       "kind": "region",
-      "label": "知识平面：什么是真的、要做什么（资产）",
+      "label": "知识平面：什么是真的、要做什么（资产，换工具不丢）",
       "wraps": [
         "intent",
         "knowledge",
@@ -240,12 +306,14 @@
     },
     {
       "kind": "region",
-      "label": "执行平面：怎么做、怎么接着做（工具可换）",
+      "label": "执行平面：怎么做、怎么接着做（工具，随时可换）",
       "wraps": [
         "state",
         "sched",
         "ctx",
-        "agent"
+        "agent",
+        "method",
+        "tools"
       ]
     },
     {
@@ -261,7 +329,7 @@
   ],
   "connections": [
     {
-      "id": "human-intent",
+      "id": "c1",
       "from": "human",
       "to": "intent",
       "label": "确认并冻结意图",
@@ -275,145 +343,220 @@
         ],
         [
           250,
-          132
+          122
         ]
       ]
     },
     {
-      "id": "intent-sched",
+      "id": "c2",
       "from": "intent",
       "to": "sched",
-      "label": "派生工作项与用例",
+      "label": "派生工作项与用例（12）",
       "variant": "emphasis",
       "fromSide": "bottom",
       "toSide": "top",
       "labelDy": 26
     },
     {
-      "id": "knowledge-ctx",
-      "from": "knowledge",
-      "to": "ctx",
-      "label": "短入口按需拉取",
-      "fromSide": "bottom",
-      "toSide": "top",
-      "labelDy": 26
-    },
-    {
-      "id": "memory-knowledge",
-      "from": "memory",
-      "to": "knowledge",
-      "label": "治理后晋升",
-      "variant": "dashed"
-    },
-    {
-      "id": "state-sched",
+      "id": "c3",
       "from": "state",
       "to": "sched",
       "label": "每轮先读状态",
       "variant": "emphasis"
     },
     {
-      "id": "sched-ctx",
+      "id": "c4",
       "from": "sched",
       "to": "ctx",
       "label": "派发切片",
       "variant": "emphasis"
     },
     {
-      "id": "ctx-agent",
+      "id": "c5",
       "from": "ctx",
       "to": "agent",
       "label": "装配上下文",
       "variant": "emphasis"
     },
     {
-      "id": "agent-verify",
+      "id": "c6",
       "from": "agent",
       "to": "verify",
-      "label": "产物 · 环境回读",
+      "label": "环境回读与三态裁定（21）",
       "variant": "emphasis",
-      "fromSide": "bottom",
-      "toSide": "top",
-      "labelDy": 26
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1300,
+          332
+        ],
+        [
+          1300,
+          632
+        ]
+      ],
+      "labelSegment": 1,
+      "labelAt": [
+        1300,
+        548
+      ]
     },
     {
-      "id": "verify-evidence",
+      "id": "c7",
       "from": "verify",
       "to": "evidence",
-      "label": "三态裁定 · 证据",
+      "label": "裁定与定位（22）",
       "variant": "emphasis",
       "fromSide": "bottom",
       "toSide": "bottom",
       "via": [
         [
           1165,
-          600
+          730
         ],
         [
           385,
-          600
+          730
         ]
       ]
     },
     {
-      "id": "evidence-state",
+      "id": "c8",
       "from": "evidence",
       "to": "state",
-      "label": "状态由事件推断",
+      "label": "证据写回状态",
       "variant": "emphasis",
       "fromSide": "top",
       "toSide": "bottom",
-      "labelDy": -30
+      "labelDy": -40
     },
     {
-      "id": "evidence-evolve",
-      "from": "evidence",
-      "to": "evolve",
-      "label": "轨迹喂给演进",
+      "id": "k1",
+      "from": "knowledge",
+      "to": "ctx",
+      "label": "短入口按需拉取（24）",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 26
+    },
+    {
+      "id": "k2",
+      "from": "memory",
+      "to": "knowledge",
+      "label": "治理后晋升",
       "variant": "dashed"
     },
     {
-      "id": "guard-agent",
-      "from": "guard",
-      "to": "agent",
-      "label": "动作前阻断 · 范围固化",
-      "fromSide": "right",
-      "toSide": "left",
+      "id": "e1",
+      "from": "method",
+      "to": "ctx",
+      "label": "按条件加载方法条目",
+      "fromSide": "top",
+      "toSide": "bottom",
       "via": [
         [
-          1030,
-          532
+          775,
+          395
         ],
         [
-          1030,
-          332
+          905,
+          395
+        ]
+      ]
+    },
+    {
+      "id": "e2",
+      "from": "tools",
+      "to": "agent",
+      "label": "动作与副作用声明",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "g1",
+      "from": "guard",
+      "to": "ctx",
+      "label": "动作与阶段转换前阻断（29）",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "v1",
+      "from": "evidence",
+      "to": "evolve",
+      "label": "喂给演进（28）",
+      "variant": "dashed"
+    },
+    {
+      "id": "v2",
+      "from": "evolve",
+      "to": "method",
+      "label": "失败驱动规则增删（22）",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "via": [
+        [
+          645,
+          547
+        ],
+        [
+          775,
+          547
         ]
       ]
     }
   ],
   "cards": [
     {
+      "dot": "violet",
+      "title": "六条不变量（换任何工具都不变，与部件并列）",
+      "items": [
+        "① 控制平面独立于执行平面：验证者不是生成者，守卫在模型控制流之外",
+        "② 状态外置且朴素：编排靠读状态，不靠读对话",
+        "③ 知识单一权威：图谱与记忆是派生或候选，不是第二权威",
+        "④ 事实来自回读：模型可见的都被记录，证据喂给演进",
+        "⑤ 责任不可转移：人是稀缺资源，检查点集中在少数状态转换",
+        "⑥ 边界外不由我们控制：跨边界读只引用不复制，写须幂等留回执，结果未知即记未定"
+      ]
+    },
+    {
       "dot": "cyan",
       "title": "知识平面（资产，随项目积累）",
       "items": [
-        "意图与验收、项目知识、记忆与知识治理",
-        "代码图谱、记忆都是派生或候选，不是第二权威"
+        "意图与验收：带 ID、确认后冻结；对抗性发现必须取得自己的 ID",
+        "项目知识：唯一记录源，入口短、细节就近；派生缓存须声明并机械对账",
+        "记忆与知识治理：置信分强 / 弱 / 影子；注入即记账，无消费即删减"
       ]
     },
     {
       "dot": "emerald",
       "title": "执行平面（工具，随时可换）",
       "items": [
-        "状态、调度、上下文、方法库、工具环境、执行者",
-        "换工具只换这一层；agent team 是调度的团队级形态"
+        "换 AI 编程工具换的就是这一层，知识与控制两层不动",
+        "复杂度阶梯双向：确定性程序 → 单次调用 → Workflow → Agent → 多 Agent，降级同样有判据",
+        "上下文装配的唯一清单按运行类型出视图（D-015）；视图是投影，不是第二份清单"
       ]
     },
     {
       "dot": "rose",
       "title": "控制平面（纪律）与责任平面（人）",
       "items": [
-        "验证≠生成；守卫在模型控制流之外；证据喂给演进",
-        "人不可省略票数第一（21/52）：只在五处判断，授权不可逆动作，接收超限与门禁失败的升级"
+        "验证 ≠ 生成；守卫在模型控制流之外；证据与轨迹喂给演进",
+        "未执行与无法核验记为未定（UNDETERMINED），不折算为通过",
+        "人的不可省略票数第一（21/52）：自主度上限 = 可廉价可靠验证的量"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "L0 → L3 不是阶段，是同一套部件在不同规模下的形态",
+      "items": [
+        "L0 一人一工具：四平面都在，但全是文档与人工流程",
+        "L1 一人多会话：状态外置、交接两层、压缩当事件处理",
+        "L2 团队：验证与生成分离、写入权与生成权分离、第六条不变量通常在这一档第一次真正生效",
+        "L3 无人值守：前置是「不需要人在场就能拒绝坏输出的判定器」"
       ]
     }
   ]

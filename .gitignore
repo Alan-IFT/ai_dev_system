@@ -6,3 +6,6 @@ Thumbs.db
 .DS_Store
 .vscode/
 .idea/
+
+# Archify 交付的中间快照（内容与 *.architecture.json 相同）
+.archify-delivery-*/
