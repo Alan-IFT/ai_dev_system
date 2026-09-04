@@ -47,9 +47,43 @@ for p in ROOT.rglob("*.md"):
     mds.append(p)
     links += len(re.findall(r"\[[^\]]*\]\((?![a-zA-Z][\w+.-]*:|//)[^)\s]+\)", mask_code(read(p))))
 
+# ---- 失败 Case 清单的分组数（2026-09-04 新增）----------------------------------
+# 为什么加这一段：2026-09-04 的独立核查在三份活文档里查出 56/139 条断言不属实，
+# 其中超过一半是 Case 表的手写投影（§1 的 A 档「10」实为 26、读数一的「3 条」、
+# 读数七的「10→12」「105 条 90%」、PROJECT_STATUS 的「11 条绑到 6 条规则」「27 条 Case」）。
+# 判据：一个数若 (a) 是仓库当前状态的函数、(b) 有唯一可机械解析的权威载体、
+# (c) 却出现在权威之外的散文里，就交给脚本导出，不再手抄。
+cases_md = ROOT / "docs" / "失败Case清单.md"
+case_rows, grades, blocked, bound_rules = [], {}, {}, set()
+if cases_md.exists():
+    for ln in read(cases_md).splitlines():
+        if not ln.startswith("| C-"):
+            continue
+        col = [c.strip() for c in ln.split("|")]
+        # col[1]=id col[2]=观察到的失败 col[3]=等级 col[4]=本该防住它的规则 col[5]=被拦住了吗
+        if len(col) < 7:
+            continue
+        case_rows.append(col[1])
+        grades[col[3]] = grades.get(col[3], 0) + 1
+        key = col[5].replace("*", "")[:1] or "?"
+        blocked[key] = blocked.get(key, 0) + 1
+        for a, b in re.findall(r"(\d\d)[ 　]?(?:章[ 　]?)?§\s?\d[ 　]?(P\d+)", col[4]):
+            bound_rules.add(a + "-" + b)
+        for a, b in re.findall(r"(\d\d)-(P\d+)", col[4]):
+            bound_rules.add(a + "-" + b)
+bound_chapters = sorted({r[:2] for r in bound_rules})
+
 print("正文        %d 文件 / %d 行 / %d 字符 / %d 条原则" % (len(body), lines, chars, princ))
 print("追溯账本    %d 行（效力为零）" % led_lines)
 print("决策        %d 条，生效 %d 条（%s）" % (len(decisions), len(effective), "、".join(effective)))
 print("markdown    %d 个文件 / %d 条本地链接" % (len(mds), links))
+print("失败 Case    %d 条（等级 %s；被拦住了吗 %s）" % (
+    len(case_rows),
+    "、".join("%s=%d" % kv for kv in sorted(grades.items())),
+    "、".join("%s=%d" % kv for kv in sorted(blocked.items()))))
+print("已绑定原则  %d 条 / 共 %d 条（未绑 %d，%.0f%%）；已被证明有实例的章：%s" % (
+    len(bound_rules), princ, princ - len(bound_rules),
+    (princ - len(bound_rules)) * 100.0 / princ if princ else 0,
+    "、".join(bound_chapters)))
 print()
 print("断链数跑第二项自检：python docs/附录-载体实例/linkcheck.py")
