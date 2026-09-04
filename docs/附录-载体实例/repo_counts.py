@@ -62,11 +62,22 @@ if cases_md.exists():
         col = [c.strip() for c in ln.split("|")]
         # col[1]=id col[2]=观察到的失败 col[3]=等级 col[4]=本该防住它的规则 col[5]=被拦住了吗
         if len(col) < 7:
-            continue
+            # 列数不足不能静默跳过——那会让一行残缺的表悄悄少算（2026-09-04 核查指出）
+            raise SystemExit("失败Case清单.md 有一行列数不足，先修表：" + ln[:40])
         case_rows.append(col[1])
-        grades[col[3]] = grades.get(col[3], 0) + 1
-        key = col[5].replace("*", "")[:1] or "?"
-        blocked[key] = blocked.get(key, 0) + 1
+        # 剥强调标记后再比较，与 check_normative_force.py 的 _strip 同口径；
+        # 不剥的话「**A｜仓库可复核**」与「A｜仓库可复核」会被数成两档（同 C-009 形态）。
+        g = col[3].replace("*", "").strip()
+        grades[g] = grades.get(g, 0) + 1
+        # 取整格而不是首字符：首字符会把「不适用」切成「不」，凭空造出一个档位。
+        b = col[5].replace("*", "").strip()
+        for k in ("是", "否", "不适用", "算"):
+            if b.startswith(k):
+                b = k
+                break
+        else:
+            b = "其它"
+        blocked[b] = blocked.get(b, 0) + 1
         for a, b in re.findall(r"(\d\d)[ 　]?(?:章[ 　]?)?§\s?\d[ 　]?(P\d+)", col[4]):
             bound_rules.add(a + "-" + b)
         for a, b in re.findall(r"(\d\d)-(P\d+)", col[4]):
