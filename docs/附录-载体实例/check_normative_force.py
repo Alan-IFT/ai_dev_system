@@ -5,7 +5,7 @@
 校验：
   C1  所有 governed_by 引用的 decision_id 在决策索引中存在
   C2  生效登记表中每条记录的必需字段齐全（按状态区分）
-  C3  生效登记表中的「试行」条目未超过 expiry
+  C3  生效登记表中的「试行」条目 expiry 可解析（不可解析＝不合规）；已过期只作到期通告，不计入不合规
   C4  决策索引状态列与生效登记表一致
   C5  规范正文中不存在第三处状态值副本
   C6  所有规范文档都声明了 governed_by
@@ -92,6 +92,7 @@ def main() -> int:
         return 2
     log = LOG.read_text(encoding="utf-8")
     findings: list[Finding] = []
+    expired: list[Finding] = []  # 到期通告：不计入不合规项、不影响退出码
 
     # ---- 解析生效登记表 ----
     reg_block = _section(log, "生效登记表")
@@ -143,7 +144,7 @@ def main() -> int:
                 findings.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）的 expiry 不是可解析日期：{exp!r}"))
             elif _dt.date(*map(int, m.groups())) < today:
-                findings.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
+                expired.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）已于 {exp} 到期，按 D-014 §6 自动退回「提议」，"
                     f"须从生效登记表移除或重新批准（历史结果不追溯）"))
 
@@ -294,6 +295,12 @@ def main() -> int:
         print("  注意：生效规则集为空。任何『全部规则通过』的判定应计为 UNDETERMINED"
               "，不得视为 PASS（D-014 §4）。")
     print()
+    if expired:
+        print("到期通告  不计入不合规项，不影响退出码。按 08 §6 已自动退回「提议」，"
+              "须人决定续期或移出生效登记表，并在决策日志留下处置痕迹：")
+        for f in expired:
+            print("  " + str(f))
+        print()
     if not findings:
         print("PASS  未发现不合规项。")
         return 0
