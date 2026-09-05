@@ -78,10 +78,17 @@ if cases_md.exists():
         else:
             b = "其它"
         blocked[b] = blocked.get(b, 0) + 1
-        for a, b in re.findall(r"(\d\d)[ 　]?(?:章[ 　]?)?§\s?\d[ 　]?(P\d+)", col[4]):
-            bound_rules.add(a + "-" + b)
-        for a, b in re.findall(r"(\d\d)-(P\d+)", col[4]):
-            bound_rules.add(a + "-" + b)
+        # 2026-09-05：这一格以「无」开头（「无对应原则——…」「无——…」）时，它断言的正是
+        # "没有对应原则"，格里出现的 NN §M Pn 是它点名的反例或同型参照，不是绑定。原来
+        # 只抓形状不读语义，C-041 那格逐字「无对应原则——这不是某条原则失守，是全仓不存在
+        # [31 §2 P1] 所说的自动通道」被数成 31-P1 的绑定，"已被证明有实例的章"因此凭空
+        # 多出 31 章（见 Case C-042）。已知限制：判据是"整格以「无」开头"，不做语义分析。
+        rule_cell = col[4].replace("*", "").strip()
+        if not rule_cell.startswith("无"):
+            for a, b in re.findall(r"(\d\d)[ 　]?(?:章[ 　]?)?§\s?\d[ 　]?(P\d+)", col[4]):
+                bound_rules.add(a + "-" + b)
+            for a, b in re.findall(r"(\d\d)-(P\d+)", col[4]):
+                bound_rules.add(a + "-" + b)
 bound_chapters = sorted({r[:2] for r in bound_rules})
 
 print("正文        %d 文件 / %d 行 / %d 字符 / %d 条原则" % (len(body), lines, chars, princ))
