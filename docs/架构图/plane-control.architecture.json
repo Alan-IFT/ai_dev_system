@@ -1,0 +1,831 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "控制平面展开：做对了吗、失控了吗、怎么自我修正（纪律，可只用文档实现）",
+    "subtitle": "节点上的数字是 52 个独立来源中把该类失败归因到本部件的来源数（00 总览 §6）；连线括号内是明确画出该关系的独立来源数（00 总览 §4）",
+    "locale": "zh-CN",
+    "output": "plane-control.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1380,
+      964
+    ],
+    "views": [
+      {
+        "id": "one-adjudication",
+        "label": "一次判定是怎么发生的",
+        "focus": [
+          "exec",
+          "verify",
+          "indep",
+          "baseline",
+          "tri",
+          "evidence"
+        ],
+        "note": "执行产物 → 环境回读 → 独立验证者给出逐层三态与盲区 → 证据写回状态。基线在实施前冻结，阻断结论只对新增失败成立。"
+      },
+      {
+        "id": "one-block",
+        "label": "一次阻断是怎么发生的",
+        "focus": [
+          "exec",
+          "guard",
+          "block",
+          "scope",
+          "irrev",
+          "human"
+        ],
+        "note": "动作或阶段转换前阻断并回显原因；对未知默认关闭，应答缺席等于拒绝；门禁失败升级到人，不可逆动作只能由人授权。"
+      },
+      {
+        "id": "improve-loop",
+        "label": "改进闭环（在控制平面内）",
+        "focus": [
+          "trace",
+          "evolve",
+          "attrib",
+          "cases",
+          "addthin",
+          "human",
+          "knowledge"
+        ],
+        "note": "观察 → 归因到最早偏离层 → 可复现 Case → 修复 → 双路径验证 → 人批准接受或回退 → 删减。同层反复不改善即视为误诊，换层。"
+      },
+      {
+        "id": "docs-only",
+        "label": "为什么这一层可以只用文档实现",
+        "focus": [
+          "verify",
+          "guard",
+          "evidence",
+          "evolve"
+        ],
+        "note": "这几件事都是纪律：三态怎么写、什么不许做、拿什么当证据、凭什么增删。L0 全是文档与人工流程，工具只改形态不改职责。"
+      },
+      {
+        "id": "where-it-breaks",
+        "label": "后期变慢时最先失守的地方",
+        "focus": [
+          "verify",
+          "guard",
+          "evolve",
+          "evidence"
+        ],
+        "note": "按 00 §6 的失败归因数排查：验证与测试 32、守卫与权限边界 28 与 23、评估与演进 25、证据与追踪 22。"
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "冻结的声明"
+        },
+        "database": {
+          "label": "写下来并被回读"
+        },
+        "backend": {
+          "label": "执行动作"
+        },
+        "security": {
+          "label": "判定与阻断"
+        },
+        "external": {
+          "label": "人"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "exec",
+      "type": "backend",
+      "label": "执行平面",
+      "sublabel": "被判定与被阻断的一侧",
+      "pos": [
+        40,
+        415
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "human",
+      "type": "external",
+      "label": "人",
+      "sublabel": "授权与升级的终点",
+      "pos": [
+        690,
+        740
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "knowledge",
+      "type": "database",
+      "label": "知识平面",
+      "sublabel": "规则与方法增删的落点",
+      "pos": [
+        1080,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "verify",
+      "type": "security",
+      "label": "验证与测试",
+      "sublabel": "怎样证明做对了",
+      "pos": [
+        300,
+        220
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 32"
+    },
+    {
+      "id": "indep",
+      "type": "security",
+      "label": "验证者不是生成者",
+      "sublabel": "独立上下文 · 不读生产者自述",
+      "pos": [
+        560,
+        220
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "baseline",
+      "type": "frontend",
+      "label": "验证基线",
+      "sublabel": "实施前冻结 · 只判新增",
+      "pos": [
+        300,
+        350
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "tri",
+      "type": "security",
+      "label": "三态裁定",
+      "sublabel": "结论 + 其成立条件",
+      "pos": [
+        560,
+        350
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "evidence",
+      "type": "security",
+      "label": "证据与追踪",
+      "sublabel": "凭什么说做过 · 花了什么",
+      "pos": [
+        820,
+        220
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 22"
+    },
+    {
+      "id": "trace",
+      "type": "database",
+      "label": "轨迹与只追加记录",
+      "sublabel": "调用树 · 导出只是投影",
+      "pos": [
+        1080,
+        220
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "claim",
+      "type": "database",
+      "label": "完成主张绑定证据",
+      "sublabel": "缺项即主张不成立",
+      "pos": [
+        820,
+        350
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "守卫与权限边界",
+      "sublabel": "在模型控制流之外",
+      "pos": [
+        300,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 28"
+    },
+    {
+      "id": "block",
+      "type": "security",
+      "label": "对未知默认关闭",
+      "sublabel": "缺席与超时都是拒绝",
+      "pos": [
+        560,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "irrev",
+      "type": "frontend",
+      "label": "不可逆动作清单",
+      "sublabel": "授权只由人侧通道写入",
+      "pos": [
+        560,
+        610
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "scope",
+      "type": "frontend",
+      "label": "权限边界的维度",
+      "sublabel": "创建时固化 · 只能收窄",
+      "pos": [
+        300,
+        610
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "evolve",
+      "type": "security",
+      "label": "评估与演进",
+      "sublabel": "系统本身在变好还是变坏",
+      "pos": [
+        820,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 25"
+    },
+    {
+      "id": "cases",
+      "type": "database",
+      "label": "失败 Case 清单",
+      "sublabel": "已观察与已构造同等登记",
+      "pos": [
+        1080,
+        610
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "attrib",
+      "type": "security",
+      "label": "归因到最早偏离层",
+      "sublabel": "同层反复不改善即换层",
+      "pos": [
+        820,
+        610
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "addthin",
+      "type": "security",
+      "label": "Add 与 Thin",
+      "sublabel": "删减须有结构性刹车",
+      "pos": [
+        1080,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "控制平面：纪律，可以只用文档与人工流程实现，不必先有工具",
+      "wraps": [
+        "verify",
+        "indep",
+        "baseline",
+        "tri",
+        "evidence",
+        "trace",
+        "claim",
+        "guard",
+        "block",
+        "irrev",
+        "scope",
+        "evolve",
+        "cases",
+        "attrib",
+        "addthin"
+      ],
+      "pad": 46
+    },
+    {
+      "kind": "region",
+      "label": "验证与测试（30）：与生产者无关地判断做对了没有",
+      "wraps": [
+        "verify",
+        "indep",
+        "baseline",
+        "tri"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "证据与追踪（32）：可以被别人重新查验的记录",
+      "wraps": [
+        "evidence",
+        "trace",
+        "claim"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "守卫与权限边界（31）：由机制而不是措辞承担",
+      "wraps": [
+        "guard",
+        "block",
+        "irrev",
+        "scope"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "评估与演进（33）：新增与删减拿出同一种证据",
+      "wraps": [
+        "evolve",
+        "cases",
+        "attrib",
+        "addthin"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "d1",
+      "from": "exec",
+      "to": "verify",
+      "label": "执行事实由环境回读，不信模型自述（21）",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          255,
+          447
+        ],
+        [
+          255,
+          252
+        ]
+      ]
+    },
+    {
+      "id": "d2",
+      "from": "verify",
+      "to": "indep",
+      "label": "只挂载产出物与验收标准",
+      "variant": "emphasis",
+      "labelDy": 56
+    },
+    {
+      "id": "d3",
+      "from": "indep",
+      "to": "tri",
+      "label": "逐层三态并声明本层盲区",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "d4",
+      "from": "tri",
+      "to": "evidence",
+      "label": "逐层三态 · 盲区 · 双方身份",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          775,
+          382
+        ],
+        [
+          775,
+          252
+        ]
+      ]
+    },
+    {
+      "id": "d5",
+      "from": "evidence",
+      "to": "exec",
+      "label": "证据写回状态",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          905,
+          150
+        ],
+        [
+          125,
+          150
+        ]
+      ]
+    },
+    {
+      "id": "d6",
+      "from": "verify",
+      "to": "baseline",
+      "label": "进入实施前冻结验证基线",
+      "labelDy": 24
+    },
+    {
+      "id": "d7",
+      "from": "baseline",
+      "to": "tri",
+      "label": "只对新增失败下结论",
+      "labelDy": -26
+    },
+    {
+      "id": "b1",
+      "from": "tri",
+      "to": "guard",
+      "label": "三态裁定作为通过条件",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          645,
+          430
+        ],
+        [
+          385,
+          430
+        ]
+      ],
+      "labelAt": [
+        515,
+        428
+      ]
+    },
+    {
+      "id": "b2",
+      "from": "guard",
+      "to": "exec",
+      "label": "动作或阶段转换前阻断并回显原因（29）",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          125,
+          512
+        ]
+      ],
+      "labelAt": [
+        125,
+        497
+      ]
+    },
+    {
+      "id": "b3",
+      "from": "scope",
+      "to": "exec",
+      "label": "范围与预算在创建时固化、执行中只能收窄（15）",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [
+        [
+          15,
+          642
+        ],
+        [
+          15,
+          447
+        ]
+      ],
+      "labelAt": [
+        215,
+        688
+      ]
+    },
+    {
+      "id": "b4",
+      "from": "guard",
+      "to": "human",
+      "label": "超限、门禁失败、告警升级到人（21）",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          520,
+          512
+        ],
+        [
+          520,
+          772
+        ]
+      ],
+      "labelAt": [
+        520,
+        688
+      ]
+    },
+    {
+      "id": "b5",
+      "from": "human",
+      "to": "irrev",
+      "label": "不可逆动作只能由人授权（17）",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          775,
+          830
+        ],
+        [
+          645,
+          830
+        ]
+      ]
+    },
+    {
+      "id": "b7",
+      "from": "block",
+      "to": "evolve",
+      "label": "误报率、否决率与阻断记录",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          645,
+          455
+        ],
+        [
+          905,
+          455
+        ]
+      ]
+    },
+    {
+      "id": "e1",
+      "from": "claim",
+      "to": "trace",
+      "label": "验收证据须能回读原始记录",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1035,
+          382
+        ],
+        [
+          1035,
+          252
+        ]
+      ]
+    },
+    {
+      "id": "e2",
+      "from": "evidence",
+      "to": "claim",
+      "label": "完成主张绑定最小字段集",
+      "labelDy": 24
+    },
+    {
+      "id": "i1",
+      "from": "trace",
+      "to": "evolve",
+      "label": "轨迹 · 机制消费与误伤计数 · 成本分解",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          1165,
+          430
+        ],
+        [
+          1035,
+          430
+        ],
+        [
+          1035,
+          512
+        ]
+      ]
+    },
+    {
+      "id": "i2",
+      "from": "evolve",
+      "to": "attrib",
+      "label": "先定位最早偏离层",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "i3",
+      "from": "attrib",
+      "to": "cases",
+      "label": "登记为可复现 Case",
+      "variant": "dashed",
+      "labelAt": [
+        1035,
+        688
+      ]
+    },
+    {
+      "id": "i4",
+      "from": "cases",
+      "to": "addthin",
+      "label": "绑定 Case 不再复现即可删除",
+      "variant": "dashed"
+    },
+    {
+      "id": "i5",
+      "from": "human",
+      "to": "evolve",
+      "label": "晋升批准 · 回退决定",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          775,
+          512
+        ]
+      ],
+      "labelAt": [
+        775,
+        580
+      ]
+    },
+    {
+      "id": "i6",
+      "from": "addthin",
+      "to": "knowledge",
+      "label": "失败驱动规则与方法的增删（22）",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1295,
+          512
+        ],
+        [
+          1295,
+          122
+        ]
+      ]
+    },
+    {
+      "id": "i7",
+      "from": "trace",
+      "to": "knowledge",
+      "label": "证据与轨迹是评估、删减、到期审计的输入（28）",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "不变量：控制平面独立于执行平面（架构确定 §5.3 第一条）",
+      "items": [
+        "验证者不是生成者，守卫在模型控制流之外——换任何工具都不变",
+        "验证在独立上下文或独立模型中进行，只挂载产出物与验收标准，不读生产者的推理与自述（30 §2 P5）",
+        "结果记录双方身份，相同即判未定；交付证据里的执行事实由独立于生产者的环境重新取得，生产者自报只作候选（30 §2 P5）",
+        "结构性分离不随模型能力消解；它与「要求模型自我验证」的能力补偿类指令不是一回事（30 §2 P5）",
+        "控制→执行：动作或阶段转换前阻断并回显原因、独立验证者给出裁定与定位、范围与预算在创建时固化且执行中只能收窄（00 §4，29 / 22 / 15）",
+        "执行→控制：执行事实由环境回读不信模型自述、子执行者只回结构化结果、确定性判断先由程序做而模型只判残余（00 §4，21 / 18 / 18）"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "未执行与无法核验记为未定（UNDETERMINED），不折算为通过",
+      "items": [
+        "三态是通过 / 失败 / 未定；未定至少含未执行、无法核验、结果未知、生成者与验证者同一，须显式写出（30 §2 P1）",
+        "任何一态都不是一个标量，而是「结论 + 其成立条件」的一对；缺成立条件即记未定（30 §2 P1）",
+        "下游不得只消费结论标签；成立条件不被下游消费时，该次消费判未定（30 §2 P1）",
+        "含未定层的完成判定为未定，必须停止并报告；聚合分数不得把未定折算为部分通过（30 §2 P1）",
+        "每层只证明自己的覆盖范围并声明盲区，盲区随裁定一起交出，不由下游猜测（30 §2 P2）"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "守卫：约束力由机制承担，不由措辞承担",
+      "items": [
+        "自动进入必经路径、且失败使下一步无法进行的才是约束；更强烈的措辞不构成任何一级（31 §2 P1）",
+        "阻断判据必须是可直接观察的确定事实；代理指标只能提醒或产生候选，不得阻断（31 §2 P2）",
+        "对未知默认关闭：未登记动作、应答缺席、超时一律不放行；只能拒绝的守卫与能授权的机制必须分开（31 §2 P5）",
+        "有效能力沿请求链路单调收窄，至少在两个不同位置检查，按动作对象与参数判定而不按名称字符串（31 §2 P6）",
+        "拦截层须有独立于自身的失效探测；没有计数不得判定其有效（31 §2 P9）",
+        "豁免不是关闭 Gate，跳过也是豁免，两者留同样的记录并带失效时间（31 §2 P10）"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "证据：让「做过、做对了、花了什么」可以被别人重新查验",
+      "items": [
+        "主张、权威记录源、观察、验证结果、验收证据不可互换：把发起当完成、把「某处已存在」说成「当前已生效」都由此而来（32 §2 P1）",
+        "完成主张缺项即不成立，不得由摘要顶替原始证据（32 §2 P2）",
+        "轨迹的最小结构是调用树而不是时间序列；重试与中断是一等节点，缺配对即记为中断（32 §2 P6）",
+        "权威的是本地只追加的原始记录，导出与聚合只作派生投影，丢失必须显式可见（32 §2 P7）",
+        "成本按计费类别加权记账并声明价表版本，原始计数不代表成本（32 §2 P8）",
+        "状态转换处提取记忆候选并经治理写回知识平面（00 §4，15）"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "演进：新增与删减拿出同一种证据",
+      "items": [
+        "晋升链是唯一入口，晋升检查的是口径不是分数；实验结果不能自动升格为生产规范（33 §2 P6）",
+        "失败先定位最早偏离层再做子归因；同层修复反复不改善视为误诊，停止该层迭代转向工具、环境与数据层（33 §2 P7）",
+        "到期审计的日常观测、代际全删对照与周期清扫分工不同，代际审计不可被日常观测替代（33 §2 P8）",
+        "责任与结构类（安全、权限、不可逆边界、验证者分离）声明无到期，不因模型代际被当成补偿规则一起删掉（33 §2 P8）",
+        "删减不依赖策展者自觉，须有结构性刹车；删除门槛低于新增，健康度只能是下游结果与召回有用率、不能是条目数（33 §2 P9）",
+        "评估器与指标自身是被评估对象；判错即中止并作废本轮输出（33 §2 P10）"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "为什么这一层可以只用文档与人工流程实现",
+      "items": [
+        "控制平面是纪律，可以只用文档和人工流程实现，不必先有工具（00 §1）",
+        "L0 的验证：从验收条目派生几条真能跑的检查，关键结论换一个干净会话复核一次，跑不了的写「未定」，不留空（30 §3）",
+        "L0 的守卫：一份写下来的不可逆动作清单与当前权限范围；阻断只做判据确定的少数几条（31 §3）",
+        "L0 的证据：每条完成声明后面跟一段字段记录，证据放在能被重新打开的位置，不留在对话里（32 §3）",
+        "L0 的演进：一份失败 Case 清单加一次定期减法；每条规则写下时就绑定它防的失败与删除条件（33 §3）",
+        "升档的唯一条件是上一档的验证能力跟得上；自主度的上限永远是「能廉价可靠验证的量」（00 §7）"
+      ]
+    }
+  ]
+}

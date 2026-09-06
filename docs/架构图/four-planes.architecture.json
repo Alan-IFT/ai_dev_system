@@ -9,7 +9,7 @@
     "quality_profile": "showcase",
     "viewBox": [
       1380,
-      820
+      860
     ],
     "views": [
       {
@@ -71,7 +71,7 @@
           "guard",
           "verify"
         ],
-        "note": "人只在五处状态转换出现：确认并冻结意图、授权不可逆动作、接收超限与门禁失败的升级、验收、批准演进。"
+        "note": "人只在少数状态转换处出现：确认并冻结意图、授权不可逆动作、接收超限与门禁失败的升级、验收、批准演进。"
       }
     ],
     "legend": {
@@ -100,7 +100,7 @@
       "id": "human",
       "type": "external",
       "label": "人的检查点与授权",
-      "sublabel": "五处判断 · 授权不可逆",
+      "sublabel": "少数检查点 · 授权不可逆",
       "pos": [
         40,
         300
@@ -252,7 +252,7 @@
       "label": "证据与追踪",
       "sublabel": "凭什么说做过 · 花了什么",
       "pos": [
-        300,
+        820,
         600
       ],
       "size": [
@@ -282,7 +282,7 @@
       "label": "守卫与权限边界",
       "sublabel": "在模型控制流之外",
       "pos": [
-        820,
+        300,
         600
       ],
       "size": [
@@ -352,17 +352,13 @@
       "id": "c1",
       "from": "human",
       "to": "intent",
-      "label": "确认并冻结意图",
+      "label": "确认并冻结意图（19）",
       "variant": "emphasis",
-      "fromSide": "right",
+      "fromSide": "top",
       "toSide": "left",
       "via": [
         [
-          250,
-          332
-        ],
-        [
-          250,
+          125,
           122
         ]
       ]
@@ -381,8 +377,12 @@
       "id": "c3",
       "from": "state",
       "to": "sched",
-      "label": "每轮先读状态",
-      "variant": "emphasis"
+      "label": "每轮先读状态（20）",
+      "variant": "emphasis",
+      "labelAt": [
+        440,
+        400
+      ]
     },
     {
       "id": "c4",
@@ -418,7 +418,7 @@
       ],
       "labelSegment": 1,
       "labelAt": [
-        1300,
+        1240,
         548
       ]
     },
@@ -428,18 +428,8 @@
       "to": "evidence",
       "label": "裁定与定位（22）",
       "variant": "emphasis",
-      "fromSide": "bottom",
-      "toSide": "bottom",
-      "via": [
-        [
-          1165,
-          730
-        ],
-        [
-          385,
-          730
-        ]
-      ]
+      "fromSide": "left",
+      "toSide": "right"
     },
     {
       "id": "c8",
@@ -447,9 +437,26 @@
       "to": "state",
       "label": "证据写回状态",
       "variant": "emphasis",
-      "fromSide": "top",
-      "toSide": "bottom",
-      "labelDy": -40
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          905,
+          690
+        ],
+        [
+          500,
+          690
+        ],
+        [
+          500,
+          245
+        ],
+        [
+          385,
+          245
+        ]
+      ]
     },
     {
       "id": "k1",
@@ -496,18 +503,24 @@
     {
       "id": "g1",
       "from": "guard",
-      "to": "ctx",
+      "to": "state",
       "label": "动作与阶段转换前阻断（29）",
       "variant": "security",
       "fromSide": "top",
-      "toSide": "bottom"
+      "toSide": "bottom",
+      "labelAt": [
+        385,
+        450
+      ]
     },
     {
       "id": "v1",
       "from": "evidence",
       "to": "evolve",
       "label": "喂给演进（28）",
-      "variant": "dashed"
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right"
     },
     {
       "id": "v2",
@@ -527,12 +540,82 @@
           547
         ]
       ]
+    },
+    {
+      "id": "e3",
+      "from": "tools",
+      "to": "verify",
+      "label": "确定性判断先由程序做、模型只判残余（18）",
+      "labelDy": 20
+    },
+    {
+      "id": "a1",
+      "from": "guard",
+      "to": "human",
+      "label": "超限、门禁失败、告警升级到人（21）",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          245,
+          632
+        ],
+        [
+          245,
+          332
+        ]
+      ]
+    },
+    {
+      "id": "a2",
+      "from": "human",
+      "to": "guard",
+      "label": "不可逆动作只能由人授权（17）",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          125,
+          700
+        ],
+        [
+          385,
+          700
+        ]
+      ]
+    },
+    {
+      "id": "g2",
+      "from": "guard",
+      "to": "agent",
+      "label": "范围与预算在创建时固化、执行中只能收窄（15）",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          385,
+          780
+        ],
+        [
+          1335,
+          780
+        ],
+        [
+          1335,
+          245
+        ],
+        [
+          1165,
+          245
+        ]
+      ]
     }
   ],
   "cards": [
     {
       "dot": "violet",
-      "title": "六条不变量（换任何工具都不变，与部件并列）",
+      "title": "不变量（换任何工具都不变，与部件并列）",
       "items": [
         "① 控制平面独立于执行平面：验证者不是生成者，守卫在模型控制流之外",
         "② 状态外置且朴素：编排靠读状态，不靠读对话",
@@ -588,6 +671,16 @@
         "起点状态：从头／接手。两轴正交，四种组合各有不同的合法降级路径",
         "唯一上下文合同按运行类型出视图；视图是同一份清单的投影，不是第二份清单（00 §3、22-P1）",
         "实测：换运行类型才撞得见新形状的缺陷——改条文类运行只撞『该拦没拦住』，事实型撞『规则之间对不上』，接手撞『写着但从没被执行过』"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "这套图怎么读：细节在哪张图上",
+      "items": [
+        "本图只画平面之间的关系与一条交付线；部件内部的最小职责与接口，见知识、执行、控制、责任四张平面展开图",
+        "不变量分别落在哪些边上，见不变量专题图",
+        "同一套部件在不同规模下的形态，见 L0–L3 专题图",
+        "跨边界的权威侧与消费侧关系，见跨边界关系专题图"
       ]
     }
   ]

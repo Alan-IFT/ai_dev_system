@@ -1,0 +1,752 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "专题：架构级不变量分别落在哪些边上",
+    "locale": "zh-CN",
+    "output": "topic-invariants.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1380,
+      1240
+    ],
+    "views": [
+      {
+        "id": "independence",
+        "label": "第一条：独立性管住了哪几条边",
+        "focus": [
+          "inv1",
+          "guard",
+          "verify",
+          "state",
+          "fail1"
+        ],
+        "note": "阻断与裁定都从控制侧进入执行侧的状态工件。落点在 31 §2 P1、P6、P8 与 30 §2 P5：分离是结构，不随模型能力消解。"
+      },
+      {
+        "id": "state-knowledge",
+        "label": "第二条与第三条：状态与知识的权威",
+        "focus": [
+          "inv2",
+          "inv3",
+          "state",
+          "ctx",
+          "knowledge",
+          "evidence",
+          "fail2",
+          "fail3"
+        ],
+        "note": "每轮起点是读状态不回放对话（20 §1）；入口只做地图、细节就近，代码图谱与记忆只是派生或候选（11 §2 P2、P3，12 §2 P1）。"
+      },
+      {
+        "id": "facts",
+        "label": "第四条：事实从哪里来",
+        "focus": [
+          "inv4",
+          "tools",
+          "evidence",
+          "fail4"
+        ],
+        "note": "执行事实由环境回读取得，不信模型自述（24 §2 P5、P6）；回读缺席即无据可查，完成主张随之不成立（32 §2 P2）。"
+      },
+      {
+        "id": "accountability",
+        "label": "第五条：人出现在哪条边上",
+        "focus": [
+          "inv5",
+          "human",
+          "evidence",
+          "fail5"
+        ],
+        "note": "不可逆动作的授权只能由人产生，并作为授权记录进入证据（32 §1）。落点在 40 §2 P1、P2、P7 与 10 §2 P4。"
+      },
+      {
+        "id": "boundary",
+        "label": "第六条：跨边界的读、写与唤醒",
+        "focus": [
+          "inv6",
+          "external",
+          "knowledge",
+          "tools",
+          "sched",
+          "fail6"
+        ],
+        "note": "边界是一段关系，不是对象的属性。读、写、唤醒各落在一条边上，标注与落点在 11 §1、24 §1、21 §1 与 21 §2 P3。"
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "冻结的声明"
+        },
+        "database": {
+          "label": "写下来并被回读"
+        },
+        "backend": {
+          "label": "执行动作"
+        },
+        "security": {
+          "label": "判定与阻断"
+        },
+        "external": {
+          "label": "人"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "inv1",
+      "type": "frontend",
+      "pos": [
+        40,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "控制平面独立于执行平面",
+      "sublabel": "验证者不是生成者",
+      "tag": "第一条"
+    },
+    {
+      "id": "inv2",
+      "type": "frontend",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "状态外置且朴素",
+      "sublabel": "编排靠读状态不读对话",
+      "tag": "第二条"
+    },
+    {
+      "id": "inv3",
+      "type": "frontend",
+      "pos": [
+        40,
+        450
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "知识单一权威",
+      "sublabel": "图谱与记忆只是派生或候选",
+      "tag": "第三条"
+    },
+    {
+      "id": "inv4",
+      "type": "frontend",
+      "pos": [
+        40,
+        630
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "事实来自回读",
+      "sublabel": "环境回读与只追加日志",
+      "tag": "第四条"
+    },
+    {
+      "id": "inv5",
+      "type": "frontend",
+      "pos": [
+        40,
+        810
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "责任不可转移",
+      "sublabel": "检查点集中在少数状态转换",
+      "tag": "第五条"
+    },
+    {
+      "id": "inv6",
+      "type": "frontend",
+      "pos": [
+        40,
+        990
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "边界外不由我们控制",
+      "sublabel": "边界是一段关系，不是属性",
+      "tag": "第六条"
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "pos": [
+        300,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "守卫与权限边界",
+      "sublabel": "在模型控制流之外",
+      "tag": "归因 28"
+    },
+    {
+      "id": "ctx",
+      "type": "backend",
+      "pos": [
+        300,
+        270
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "上下文装配",
+      "sublabel": "唯一清单 · 视图 · 压缩",
+      "tag": "归因 29"
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "pos": [
+        300,
+        630
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "工具与执行环境",
+      "sublabel": "能做什么 · 回读为准",
+      "tag": "归因 18"
+    },
+    {
+      "id": "sched",
+      "type": "backend",
+      "pos": [
+        300,
+        990
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "调度与拆分",
+      "sublabel": "一次运行的起点 · 停机",
+      "tag": "归因 19"
+    },
+    {
+      "id": "verify",
+      "type": "security",
+      "pos": [
+        820,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "验证与测试",
+      "sublabel": "独立于生成 · 三态裁定",
+      "tag": "归因 32"
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "pos": [
+        820,
+        270
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "状态工件",
+      "sublabel": "一套状态机 · 一个完成定义",
+      "tag": "归因 27"
+    },
+    {
+      "id": "knowledge",
+      "type": "database",
+      "pos": [
+        820,
+        450
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "项目知识",
+      "sublabel": "唯一记录源 · 图谱是缓存",
+      "tag": "归因 21"
+    },
+    {
+      "id": "evidence",
+      "type": "security",
+      "pos": [
+        820,
+        630
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "证据与追踪",
+      "sublabel": "只追加记录 · 成本分解",
+      "tag": "归因 22"
+    },
+    {
+      "id": "human",
+      "type": "external",
+      "pos": [
+        820,
+        810
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "人的检查点与授权",
+      "sublabel": "少数检查点 · 授权不可逆",
+      "tag": "归因 19"
+    },
+    {
+      "id": "external",
+      "type": "external",
+      "pos": [
+        820,
+        990
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "外部权威侧",
+      "sublabel": "不归我们治理 · 不可单方撤销",
+      "tag": "场景相关"
+    },
+    {
+      "id": "fail1",
+      "type": "security",
+      "pos": [
+        1080,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "测试全绿仍出事",
+      "sublabel": "做完了但说不清对不对"
+    },
+    {
+      "id": "fail2",
+      "type": "security",
+      "pos": [
+        1080,
+        270
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "换个会话就失忆",
+      "sublabel": "中断后不知从哪继续"
+    },
+    {
+      "id": "fail3",
+      "type": "security",
+      "pos": [
+        1080,
+        450
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "按过期文档行事",
+      "sublabel": "文档与代码对不上"
+    },
+    {
+      "id": "fail4",
+      "type": "security",
+      "pos": [
+        1080,
+        630
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "完成声明查无实据",
+      "sublabel": "成本不知去向"
+    },
+    {
+      "id": "fail5",
+      "type": "security",
+      "pos": [
+        1080,
+        810
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "人被打断到麻木",
+      "sublabel": "验收积压无人真判"
+    },
+    {
+      "id": "fail6",
+      "type": "security",
+      "pos": [
+        1080,
+        990
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "label": "无人触发则永不启动",
+      "sublabel": "重跑灌入重复记录"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "不变量：换任何工具都不变",
+      "wraps": [
+        "inv1",
+        "inv2",
+        "inv3",
+        "inv4",
+        "inv5",
+        "inv6"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "被约束的关系：括号内是明确画出该关系的独立来源数",
+      "wraps": [
+        "guard",
+        "ctx",
+        "tools",
+        "sched",
+        "verify",
+        "state",
+        "knowledge",
+        "evidence",
+        "human",
+        "external"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "按部件的诊断表：失守时的症状",
+      "wraps": [
+        "fail1",
+        "fail2",
+        "fail3",
+        "fail4",
+        "fail5",
+        "fail6"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "d1",
+      "from": "inv1",
+      "to": "guard",
+      "label": "落点 31 · 30",
+      "variant": "dashed"
+    },
+    {
+      "id": "d2",
+      "from": "inv2",
+      "to": "ctx",
+      "label": "落点 22 · 20",
+      "variant": "dashed"
+    },
+    {
+      "id": "d3",
+      "from": "inv3",
+      "to": "knowledge",
+      "label": "落点 11 · 12",
+      "variant": "dashed"
+    },
+    {
+      "id": "d4",
+      "from": "inv4",
+      "to": "tools",
+      "label": "落点 24 · 32",
+      "variant": "dashed"
+    },
+    {
+      "id": "d5",
+      "from": "inv5",
+      "to": "human",
+      "label": "落点 40 · 10",
+      "variant": "dashed"
+    },
+    {
+      "id": "d6",
+      "from": "inv6",
+      "to": "sched",
+      "label": "落点 21 · 11 · 24",
+      "variant": "dashed"
+    },
+    {
+      "id": "r1",
+      "from": "guard",
+      "to": "state",
+      "label": "第一条｜动作与阶段转换前阻断（29）",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          122
+        ],
+        [
+          560,
+          302
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "verify",
+      "to": "state",
+      "label": "第一条｜独立验证者给出裁定与定位（22）",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 26
+    },
+    {
+      "id": "r3",
+      "from": "state",
+      "to": "ctx",
+      "label": "第二条｜读状态，不回放对话（20）",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          905,
+          360
+        ],
+        [
+          520,
+          360
+        ],
+        [
+          520,
+          302
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "knowledge",
+      "to": "ctx",
+      "label": "第三条｜短入口按需拉取，不全量推送（24）",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "via": [
+        [
+          905,
+          420
+        ],
+        [
+          385,
+          420
+        ]
+      ]
+    },
+    {
+      "id": "r6",
+      "from": "tools",
+      "to": "evidence",
+      "label": "第四条｜环境回读，不信模型自述（21）",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "r7",
+      "from": "human",
+      "to": "evidence",
+      "label": "第五条｜不可逆动作只能由人授权（17）",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "r8",
+      "from": "external",
+      "to": "sched",
+      "label": "第六条｜唤醒不等于授权",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "r9",
+      "from": "tools",
+      "to": "external",
+      "label": "第六条｜写限阶段窗口、幂等、留回执",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          385,
+          740
+        ],
+        [
+          22,
+          740
+        ],
+        [
+          22,
+          958
+        ],
+        [
+          905,
+          958
+        ]
+      ]
+    },
+    {
+      "id": "r10",
+      "from": "external",
+      "to": "knowledge",
+      "label": "第六条｜读只引用不复制",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          905,
+          1120
+        ],
+        [
+          1330,
+          1120
+        ],
+        [
+          1330,
+          410
+        ],
+        [
+          905,
+          410
+        ]
+      ]
+    },
+    {
+      "id": "f1",
+      "from": "verify",
+      "to": "fail1",
+      "label": "失守"
+    },
+    {
+      "id": "f2",
+      "from": "state",
+      "to": "fail2",
+      "label": "失守"
+    },
+    {
+      "id": "f3",
+      "from": "knowledge",
+      "to": "fail3",
+      "label": "失守"
+    },
+    {
+      "id": "f4",
+      "from": "evidence",
+      "to": "fail4",
+      "label": "失守"
+    },
+    {
+      "id": "f5",
+      "from": "human",
+      "to": "fail5",
+      "label": "失守"
+    },
+    {
+      "id": "f6",
+      "from": "external",
+      "to": "fail6",
+      "label": "跨边界纪律失守"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "不变量是架构级内容",
+      "items": [
+        "不变量与平面接口是架构级内容，与部件并列，不是部件的下属内容（架构确定 §5.3 末段）。",
+        "它们是各章原则的公共前提，本身不隶属于任何一个部件（00 总览 §5）。",
+        "D-043 的「新增内容须归属某个部件」针对的是部件级内容，不约束这一类。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "这张图怎么读",
+      "items": [
+        "左列是不变量，虚线指向它的落点部件，标签是落点章号——虚线是落点指向，不是数据流。",
+        "中间的实线是被它约束的那条关系；括号内是明确画出该关系的独立来源数（00 总览 §4）。",
+        "右列是那条关系失守时的症状原句，部件上的「归因 N」是把该类失败归因到它的来源数（00 总览 §6）。",
+        "第六条的症状原句是「跨系统重跑灌入重复记录、审计对不上；接入方一变链路就断；无人触发则永不启动」（00 总览 §6）。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "每条不变量的原文结论",
+      "items": [
+        "控制平面独立于执行平面：验证者不是生成者，守卫在模型控制流之外。",
+        "状态外置且朴素：一份进度、一份清单、一份交接，编排靠读状态不读对话。",
+        "项目知识是唯一记录源，入口短、细节就近；代码图谱和记忆都是它的派生或候选，不是第二权威。",
+        "执行事实来自环境回读与只追加日志，模型可见的都被记录；证据喂给演进。",
+        "责任不可转移：人是稀缺资源，检查点集中在少数状态转换，不可逆动作只能由人授权。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "第六条：边界是一段关系",
+      "items": [
+        "每一次跨边界的读、写、依赖或唤醒都有一个权威侧与一个消费侧；要判定的是这段关系与我方在其中的角色。",
+        "同一对象在不同关系里角色可以不同，不是给对象贴一个内 / 外标签。",
+        "判定的同时登记这段关系的可执行前提：对象是否可重读、是否有可比对的版本、写入者是否唯一。任一为否，依赖它的推论即不成立。",
+        "由此得默认取向：跨边界多读少写。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "第六条的证伪信号",
+      "items": [
+        "跨边界纪律在实际使用中反复被绕过，说明不变量的约束力不足以替代章节。",
+        "出现一条既不属于这些推论、也无法由「外部」判据推出的跨边界纪律，说明这里确有部件级内容。",
+        "任一出现即说明选项 D 不成立，应回到把这些纪律升为一等部件（架构确定 §6.4）。"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "同一条不变量管住的其余边（00 总览 §4）",
+      "items": [
+        "第一条还管住「范围与预算在创建时固化、执行中只能收窄（15）」与「确定性判断先由程序做，模型只判残余（18）」。",
+        "第三条还管住「状态转换处提取记忆候选并经治理写回（15）」——记忆是候选，不是第二权威。",
+        "第四条还管住「证据与轨迹是评估、删减、到期审计的输入（28）」。",
+        "第五条还管住「超限、门禁失败、告警升级到人（21）」与「人确认并冻结意图（19）」。",
+        "这些边在总图上已经画出；本图只画每条不变量最能说明它的那几条。"
+      ]
+    }
+  ]
+}

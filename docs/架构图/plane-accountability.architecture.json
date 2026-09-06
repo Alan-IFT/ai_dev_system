@@ -1,0 +1,661 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "责任平面展开：只有人能承担的那部分判断（不可转移）",
+    "subtitle": "连线括号内是明确画出该关系的独立来源数（00 总览 §4）；节点标签上的数字来自 00 总览 §2 的来源统计",
+    "locale": "zh-CN",
+    "output": "plane-accountability.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1380,
+      1054
+    ],
+    "views": [
+      {
+        "id": "where",
+        "label": "人出现在哪里",
+        "focus": [
+          "human",
+          "t-intent",
+          "t-evolve",
+          "t-accept",
+          "t-irrev",
+          "t-escalate",
+          "t-audit"
+        ],
+        "note": "检查点集中在少数状态转换处，不散布在动作流里；人不进入动作级关键路径，构建期的动作不弹确认，只在集成与发布这类转换前要人（40 §2 P1）。"
+      },
+      {
+        "id": "escalation",
+        "label": "升级链：谁把什么升级到人",
+        "focus": [
+          "control",
+          "t-escalate",
+          "t-irrev",
+          "m-channel",
+          "human"
+        ],
+        "note": "控制平面把超限、门禁失败与告警升级到人（21）；反向地不可逆动作只能由人授权（17）。总图上这两条要横跨全图，这里是它们的落点。"
+      },
+      {
+        "id": "bandwidth",
+        "label": "怎样不把人耗干",
+        "focus": [
+          "q-intake",
+          "m-bandwidth",
+          "f-numb",
+          "m-preapproved",
+          "t-audit"
+        ],
+        "note": "提问前须穷尽可读事实；预批准动作集事先枚举、慢变可审计；判断带宽是检查点数量的上限，判不动的必须合并或移除（40 §2 P2、P3、P6）。"
+      },
+      {
+        "id": "l3",
+        "label": "L3 无人值守时人还在哪里",
+        "focus": [
+          "human",
+          "t-audit",
+          "t-irrev",
+          "t-accept",
+          "m-preapproved"
+        ],
+        "note": "人只出现在少数状态转换处，其余交给事实门禁；并行流数量按验收队列长度回调；每次自动决策留下可抽查的记录（40 §3）。"
+      },
+      {
+        "id": "nontransfer",
+        "label": "不变量：责任不可转移",
+        "focus": [
+          "human",
+          "t-irrev",
+          "t-accept",
+          "f-numb"
+        ],
+        "note": "人是稀缺资源，检查点集中在少数状态转换，不可逆动作只能由人授权（架构确定 §5.3 第五条）；评价者不能是被评价者本人（架构确定 §4）。"
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "冻结的声明"
+        },
+        "database": {
+          "label": "写下来并被回读"
+        },
+        "backend": {
+          "label": "执行动作"
+        },
+        "security": {
+          "label": "判定与阻断"
+        },
+        "external": {
+          "label": "人"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "t-audit",
+      "type": "security",
+      "label": "抽查自动决策",
+      "sublabel": "风险加权的抽样复核",
+      "pos": [
+        560,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "q-intake",
+      "type": "security",
+      "label": "上交给人的问题",
+      "sublabel": "提问前须穷尽可读事实",
+      "pos": [
+        300,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "m-preapproved",
+      "type": "frontend",
+      "label": "预批准动作集",
+      "sublabel": "事先枚举、慢变、可审计",
+      "pos": [
+        820,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "knowledge",
+      "type": "database",
+      "label": "知识平面",
+      "sublabel": "意图、验收条目与记忆治理",
+      "pos": [
+        40,
+        285
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "t-intent",
+      "type": "frontend",
+      "label": "确认并冻结意图",
+      "sublabel": "判断：什么算做完",
+      "pos": [
+        300,
+        285
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "t-irrev",
+      "type": "security",
+      "label": "授权不可逆动作",
+      "sublabel": "判断：粒度与反向方案",
+      "pos": [
+        820,
+        285
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "t-evolve",
+      "type": "security",
+      "label": "批准晋升与演进",
+      "sublabel": "判断：哪条经验能成知识",
+      "pos": [
+        300,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "human",
+      "type": "external",
+      "label": "人的检查点与授权",
+      "sublabel": "人是稀缺资源，检查点集中",
+      "pos": [
+        550,
+        478
+      ],
+      "size": [
+        190,
+        68
+      ],
+      "tag": "不可省略 21"
+    },
+    {
+      "id": "t-escalate",
+      "type": "security",
+      "label": "接收升级",
+      "sublabel": "判断：机器判不动的剩余风险",
+      "pos": [
+        820,
+        675
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "control",
+      "type": "security",
+      "label": "控制平面",
+      "sublabel": "门禁、验证、证据与演进",
+      "pos": [
+        1080,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "exec",
+      "type": "backend",
+      "label": "执行平面",
+      "sublabel": "状态转换、调度与执行",
+      "pos": [
+        40,
+        675
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "t-accept",
+      "type": "security",
+      "label": "验收与风险接受",
+      "sublabel": "判断：由非生产者接受结果",
+      "pos": [
+        300,
+        675
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "m-bandwidth",
+      "type": "database",
+      "label": "判断带宽度量",
+      "sublabel": "耗时、频率、否决率与队列",
+      "pos": [
+        560,
+        675
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "m-channel",
+      "type": "security",
+      "label": "人侧授权通道",
+      "sublabel": "模型不可写入，入参须一致",
+      "pos": [
+        820,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "f-numb",
+      "type": "security",
+      "label": "判不动即合并或移除",
+      "sublabel": "打断到麻木、积压无人真判",
+      "pos": [
+        560,
+        870
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "归因 19"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "责任平面：人，不可转移",
+      "wraps": [
+        "t-audit",
+        "q-intake",
+        "m-preapproved",
+        "t-intent",
+        "t-irrev",
+        "t-evolve",
+        "human",
+        "t-escalate",
+        "t-accept",
+        "m-bandwidth",
+        "m-channel",
+        "f-numb"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "hq",
+      "from": "q-intake",
+      "to": "human",
+      "label": "价值排序、范围边界、权限授予、不可逆选择",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "h6",
+      "from": "human",
+      "to": "t-audit",
+      "label": "抽查自动决策",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": 75,
+      "labelDy": -215
+    },
+    {
+      "id": "h1",
+      "from": "human",
+      "to": "t-intent",
+      "label": "确认意图，冻结后改动回原批准人",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "h2",
+      "from": "human",
+      "to": "t-evolve",
+      "label": "晋升批准与事后否决",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelDx": -80,
+      "labelDy": -40
+    },
+    {
+      "id": "h3",
+      "from": "human",
+      "to": "t-accept",
+      "label": "完成判定与风险接受不下放",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "h4",
+      "from": "human",
+      "to": "t-irrev",
+      "label": "不可逆动作的授权与豁免批准",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "hm",
+      "from": "human",
+      "to": "m-channel",
+      "label": "授权只能由人产生",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelDy": -35
+    },
+    {
+      "id": "h5",
+      "from": "human",
+      "to": "t-escalate",
+      "label": "接收需要人裁决的例外",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "h7",
+      "from": "human",
+      "to": "m-bandwidth",
+      "label": "每个检查点记录自己的带宽度量",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDx": -60,
+      "labelDy": 90
+    },
+    {
+      "id": "x1",
+      "from": "t-intent",
+      "to": "knowledge",
+      "label": "人确认并冻结意图（19）",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelAt": [
+        255,
+        220
+      ]
+    },
+    {
+      "id": "x2",
+      "from": "t-evolve",
+      "to": "knowledge",
+      "label": "成为权威由归属人批准",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          125,
+          512
+        ]
+      ],
+      "labelAt": [
+        212,
+        512
+      ]
+    },
+    {
+      "id": "x3",
+      "from": "t-irrev",
+      "to": "control",
+      "label": "不可逆动作只能由人授权（17）",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          1165,
+          317
+        ]
+      ],
+      "labelAt": [
+        1077,
+        317
+      ]
+    },
+    {
+      "id": "x4",
+      "from": "control",
+      "to": "t-escalate",
+      "label": "超限、门禁失败、告警升级到人（21）",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          1165,
+          610
+        ],
+        [
+          1035,
+          610
+        ],
+        [
+          1035,
+          707
+        ]
+      ],
+      "labelAt": [
+        1100,
+        610
+      ]
+    },
+    {
+      "id": "x5",
+      "from": "exec",
+      "to": "t-accept",
+      "label": "只交机器结果与可复查证据，不自封完成",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "labelAt": [
+        255,
+        805
+      ],
+      "via": [
+        [
+          125,
+          805
+        ],
+        [
+          385,
+          805
+        ]
+      ]
+    },
+    {
+      "id": "x6",
+      "from": "t-accept",
+      "to": "exec",
+      "label": "状态转换处的确认、授权与有效豁免",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelAt": [
+        255,
+        610
+      ]
+    },
+    {
+      "id": "x7",
+      "from": "m-preapproved",
+      "to": "control",
+      "label": "免审批集合的枚举、扫描与复审",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1315,
+          122
+        ],
+        [
+          1315,
+          512
+        ]
+      ],
+      "labelAt": [
+        1210,
+        220
+      ]
+    },
+    {
+      "id": "x8",
+      "from": "m-channel",
+      "to": "control",
+      "label": "非模型组件核对入参一致才放行",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        1035,
+        430
+      ]
+    },
+    {
+      "id": "y1",
+      "from": "t-irrev",
+      "to": "m-preapproved",
+      "label": "可枚举、留回执、粒度已划定才可预批准",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        905,
+        220
+      ]
+    },
+    {
+      "id": "y3",
+      "from": "m-bandwidth",
+      "to": "f-numb",
+      "label": "否决率为零或队列变长即不再产生判断",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        700,
+        830
+      ]
+    },
+    {
+      "id": "y4",
+      "from": "t-accept",
+      "to": "m-bandwidth",
+      "label": "否决率与验收队列时长是必测量",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        515,
+        805
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "不变量：责任不可转移",
+      "items": [
+        "人是稀缺资源，检查点集中在少数状态转换，不可逆动作只能由人授权（架构确定 §5.3 第五条）",
+        "人单列为第四平面：在不可省略投票中以 21 票居首，远高于第二名的验证与测试（架构确定 §4、§5.1）",
+        "评价者不能是被评价者本人；责任是不随模型能力消解的独立维度（架构确定 §4）",
+        "把人放在控制平面会让人读成控制手段之一，而它实际上是控制平面本身的授权来源与最终收敛点（架构确定 §4）"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "人出现在哪些状态转换上",
+      "items": [
+        "检查点集中在状态转换处：确认意图、接受计划、批准集成、授权发布、抽查自动决策（40 §2 P1）",
+        "人不进入动作级关键路径：构建期的动作不弹确认，只在集成与发布这类转换前要人（40 §2 P1）",
+        "触发责任的转移不等于判断责任的转移（40 §2 P1）",
+        "只上交价值排序、范围边界、权限授予与不可逆选择，提交时附已查证的事实与待决选项两栏，缺前者退回（40 §2 P3）"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "授权长什么样才算数",
+      "items": [
+        "授权是带参数的结构化决定：方式、范围、批准人、时间窗、动作的粒度与反向方案，而不是一次无上下文的是与否（40 §2 P5）",
+        "粒度由「能否作为一个整体撤销或补偿」划定；段界即状态转换，闸门触发、重放起点与证据绑定都以它为准（40 §2 P5）",
+        "「无反向方案」这一事实本身也须呈现并被明确接受——它是授权的准入条件，不是事后登记的一栏（40 §2 P5）",
+        "不可逆动作的授权只能由人产生，经模型不可写入的通道传递；执行前由非模型组件核对实际入参与被授权记录一致后才放行（40 §2 P5）",
+        "预批准动作集由具名责任人事先枚举并批准，与仍需判断的操作说明分开声明；交互式确认不得沉淀为永久授权（40 §2 P6）"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "让人判得动，也别把人耗干",
+      "items": [
+        "判断带宽是检查点数量的上限，判不动的必须合并或移除（40 §2 P2）",
+        "否决率与验收队列时长是必测量：否决率长期为零或队列持续变长，都说明它已不再产生判断（40 §2 P2）",
+        "并行自主流的数量上限等于人能认真审查的数量；审查者可以标注「无法判断」，这本身触发该检查点的复审（40 §2 P2）",
+        "呈现顺序固定：待裁决项、证据与推荐在前，全文与差异作附录；不可逆性与变更预览必须显示（40 §2 P4）",
+        "面向人的数字由确定性程序重算，模型只做命名与解释，摘要只作索引不作证据（40 §2 P4）",
+        "这一层失守的样子：人被打断到麻木；验收积压无人真判（00 §6）"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "完成与风险落在谁身上",
+      "items": [
+        "人接受产品结果，执行者提供机器结果与可复查证据，不自封完成；最终验收由非生产者完成（40 §2 P7）",
+        "实现者不能自行接受其产生的重大风险；风险接受记录风险描述、可能性与影响、受影响用户或数据、剩余风险、责任人与期限（40 §2 P7）",
+        "外行加 AI 可以提出挑战，不能替代有验证能力者的最终判断；非专业操作者的验证点放在集成之前，作为输入而不是验收（40 §2 P8）",
+        "具名位置空缺时（原批准人、权威记录源的指派人、条目归属人、升级目标），状态转换记未定并转为显式阻塞，不由执行者代行，也不由下一个接手者默认继承（40 §2 P5）"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "这一平面从 L0 到 L3 的形态",
+      "items": [
+        "L0 一人一工具：确认由同一个人在同一处做；问题攒起来一次问，附上已经查到的事实与待决选项",
+        "L1 一人多会话：确认点有固定的呈现顺序；不可逆动作单列一张清单，逐次确认并记下方式、范围与时间窗",
+        "L2 团队：检查点带耗时与否决率统计，判不动的合并或移除；预批准动作集与操作说明分开维护，变更走审批并抽样复核",
+        "L3 无人值守：人只出现在少数状态转换处，其余交给事实门禁；并行流数量按验收队列长度回调；每次自动决策留下可抽查的记录"
+      ]
+    }
+  ]
+}

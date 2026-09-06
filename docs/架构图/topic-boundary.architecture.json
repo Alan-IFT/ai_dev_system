@@ -1,0 +1,607 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "专题：边界是一段关系——第六条不变量的权威侧与消费侧",
+    "locale": "zh-CN",
+    "output": "topic-boundary.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1380,
+      1064
+    ],
+    "views": [
+      {
+        "id": "consume",
+        "label": "我方在消费侧",
+        "focus": [
+          "peer",
+          "cRead",
+          "cWrite",
+          "cAvail",
+          "cWake",
+          "undetermined",
+          "skipRecord"
+        ],
+        "note": "这类主张的记录源归对方治理。读只引用不复制；写限阶段窗口、幂等、留回执；依赖分必需与推荐；唤醒不等于授权。"
+      },
+      {
+        "id": "authority",
+        "label": "我方在权威侧",
+        "focus": [
+          "peer",
+          "aClaim",
+          "aContract",
+          "aAck",
+          "aPromote"
+        ],
+        "note": "同一个对方，换一段关系就换一个角色：这一次它来消费我方主张。对偶与消费侧逐条对应，晋升不与「不复制」冲突。"
+      },
+      {
+        "id": "prereq",
+        "label": "可执行前提怎么否掉一条推论",
+        "focus": [
+          "preReread",
+          "preVersion",
+          "preWriter",
+          "notHold",
+          "undetermined"
+        ],
+        "note": "可重读 / 可比对版本 / 单写入者随判定一并登记。任一为否，依赖它的推论即不成立，须显式声明替代或整体记未定。"
+      },
+      {
+        "id": "unknown",
+        "label": "结果未知怎么办",
+        "focus": [
+          "cWrite",
+          "undetermined",
+          "cAvail",
+          "skipRecord"
+        ],
+        "note": "回执缺失就不许记成败：结果未知即记未定（UNDETERMINED），未成功进待补偿；推荐项跳过要留一条带失效期的记录。"
+      },
+      {
+        "id": "wake",
+        "label": "唤醒不等于授权 / 不等于受理",
+        "focus": [
+          "crossing",
+          "peer",
+          "cWake",
+          "aAck"
+        ],
+        "note": "入向：外部事件可以启动一次运行，但判定器须先于触发器就位。出向：我方发出的唤醒不等于对方已受理。"
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "冻结的声明"
+        },
+        "database": {
+          "label": "写下来并被回读"
+        },
+        "backend": {
+          "label": "执行动作"
+        },
+        "security": {
+          "label": "判定与阻断"
+        },
+        "external": {
+          "label": "人 / 外部权威侧"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "crossing",
+      "type": "backend",
+      "label": "一次跨边界动作",
+      "sublabel": "读 · 写 · 依赖 · 唤醒",
+      "pos": [
+        560,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "judge",
+      "type": "security",
+      "label": "判定这段关系",
+      "sublabel": "不是给对象贴内 / 外标签",
+      "pos": [
+        560,
+        240
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "peer",
+      "type": "external",
+      "label": "对方：外部权威侧",
+      "sublabel": "不归我们管 · 角色随关系而变",
+      "pos": [
+        560,
+        390
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "cRead",
+      "type": "backend",
+      "label": "读只引用不复制",
+      "sublabel": "不在项目内建第二份副本",
+      "pos": [
+        300,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "cAvail",
+      "type": "security",
+      "label": "可用性不保证",
+      "sublabel": "必需缺失即阻塞",
+      "pos": [
+        300,
+        240
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "cWrite",
+      "type": "backend",
+      "label": "写只在阶段窗口内",
+      "sublabel": "必须幂等 · 必须留回执",
+      "pos": [
+        300,
+        390
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "cWake",
+      "type": "security",
+      "label": "唤醒不等于授权",
+      "sublabel": "判定器先于触发器就位",
+      "pos": [
+        300,
+        540
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "skipRecord",
+      "type": "database",
+      "label": "带失效期的记录",
+      "sublabel": "推荐项缺失才可跳过",
+      "pos": [
+        40,
+        240
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "undetermined",
+      "type": "database",
+      "label": "未定与待补偿",
+      "sublabel": "未定（UNDETERMINED）",
+      "pos": [
+        40,
+        390
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "aClaim",
+      "type": "database",
+      "label": "对外暴露的主张",
+      "sublabel": "带版本与观察时间",
+      "pos": [
+        820,
+        390
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "aContract",
+      "type": "security",
+      "label": "改口径前先登记",
+      "sublabel": "受影响的消费者与兼容窗口",
+      "pos": [
+        820,
+        240
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "aAck",
+      "type": "backend",
+      "label": "唤醒不等于受理",
+      "sublabel": "与回执同构的应答语义",
+      "pos": [
+        820,
+        540
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "aPromote",
+      "type": "backend",
+      "label": "外部内容须经晋升",
+      "sublabel": "落地的是主张不是副本",
+      "pos": [
+        820,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "defaultStance",
+      "type": "frontend",
+      "label": "默认取向：多读少写",
+      "sublabel": "读错可重读，写错不一定撤得回",
+      "pos": [
+        560,
+        540
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "preReread",
+      "type": "security",
+      "label": "对象是否可重读",
+      "sublabel": "可重读才能事后对账",
+      "pos": [
+        40,
+        690
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "preVersion",
+      "type": "security",
+      "label": "是否有可比对的版本",
+      "sublabel": "有版本才能做新鲜度比对",
+      "pos": [
+        300,
+        690
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "preWriter",
+      "type": "security",
+      "label": "写入者是否唯一",
+      "sublabel": "单写入者幂等才等于安全",
+      "pos": [
+        560,
+        690
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "notHold",
+      "type": "security",
+      "label": "依赖它的推论不成立",
+      "sublabel": "显式声明替代或整体记未定",
+      "pos": [
+        300,
+        840
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "landing",
+      "type": "database",
+      "label": "内部 / 外部标注",
+      "sublabel": "标为外部的适用第六条不变量",
+      "pos": [
+        1080,
+        90
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "falsify",
+      "type": "security",
+      "label": "证伪信号",
+      "sublabel": "回到升为一等部件",
+      "pos": [
+        1080,
+        690
+      ],
+      "size": [
+        170,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "边界判据：权威记录源不由本项目治理，或其上已发生的事我们不能单方面撤销——满足任一即为外部",
+      "wraps": [
+        "crossing",
+        "judge",
+        "peer"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "关系甲：我方在消费侧（权威侧是对方）",
+      "wraps": [
+        "cRead",
+        "cAvail",
+        "cWrite",
+        "cWake",
+        "skipRecord",
+        "undetermined"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "关系乙：我方在权威侧（消费侧是对方）",
+      "wraps": [
+        "aClaim",
+        "aContract",
+        "aAck",
+        "aPromote"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "这段关系的可执行前提：判定的同时一并登记",
+      "wraps": [
+        "preReread",
+        "preVersion",
+        "preWriter"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "n1",
+      "from": "crossing",
+      "to": "judge",
+      "label": "每一次都要判定这段关系",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "n2",
+      "from": "judge",
+      "to": "peer",
+      "label": "按判据认定：这一侧不归我们管",
+      "labelDy": 24
+    },
+    {
+      "id": "n3",
+      "from": "peer",
+      "to": "cRead",
+      "label": "我方读它的记录源",
+      "variant": "emphasis"
+    },
+    {
+      "id": "n4",
+      "from": "cWrite",
+      "to": "peer",
+      "label": "我方向它写入",
+      "variant": "emphasis",
+      "labelDy": 40
+    },
+    {
+      "id": "n5",
+      "from": "aClaim",
+      "to": "peer",
+      "label": "它来消费我方主张",
+      "variant": "emphasis",
+      "labelAt": [
+        905,
+        478
+      ]
+    },
+    {
+      "id": "n6",
+      "from": "peer",
+      "to": "aPromote",
+      "label": "外部内容进入项目内",
+      "labelDy": 63
+    },
+    {
+      "id": "n7",
+      "from": "peer",
+      "to": "defaultStance",
+      "label": "已发生的事我们撤不回",
+      "labelDy": 64
+    },
+    {
+      "id": "n8",
+      "from": "cWrite",
+      "to": "undetermined",
+      "label": "结果未知即记未定，未成功进待补偿",
+      "labelDy": 56
+    },
+    {
+      "id": "n9",
+      "from": "cAvail",
+      "to": "skipRecord",
+      "label": "推荐项缺失可跳过"
+    },
+    {
+      "id": "n10",
+      "from": "aContract",
+      "to": "aClaim",
+      "label": "既往输出是否追认、追认到哪一天一并裁决",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "n11",
+      "from": "preReread",
+      "to": "notHold",
+      "label": "不可重读：以完整性证明替代对账",
+      "variant": "security"
+    },
+    {
+      "id": "n12",
+      "from": "preVersion",
+      "to": "notHold",
+      "label": "无可比对版本：不适用新鲜度比对",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "n13",
+      "from": "preWriter",
+      "to": "notHold",
+      "label": "写入者不唯一：须声明冲突处置",
+      "variant": "security"
+    },
+    {
+      "id": "n14",
+      "from": "landing",
+      "to": "falsify",
+      "label": "纪律反复被绕过，或出现判据与推论覆盖不了的跨边界纪律",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "n15",
+      "from": "peer",
+      "to": "cWake",
+      "label": "外部事件可以启动一次运行",
+      "fromSide": "bottom",
+      "toSide": "right"
+    },
+    {
+      "id": "n16",
+      "from": "aAck",
+      "to": "peer",
+      "label": "我方发出的唤醒"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "边界是一段关系，不是对象的一个属性",
+      "items": [
+        "每一次跨边界的读、写、依赖或唤醒，都有一个权威侧与一个消费侧。",
+        "要判定的是这段关系与我方在其中的角色，不是给对象贴一个内 / 外标签。",
+        "同一对象在不同关系里角色可以不同；同一事实可以在两侧各有一个身份，此时按主张模型对齐（11 §2 P1）。",
+        "满足任一即为外部：权威记录源不由本项目治理；或其上已发生的事我们不能单方面撤销（架构确定 §6.4）。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "我方在消费侧时的推论",
+      "items": [
+        "读只引用不复制：外部记录源不在项目内建第二份副本，引用带版本与观察时间。",
+        "写只在声明的阶段窗口内发生、必须幂等、必须留回执；结果未知即记未定（UNDETERMINED），未成功进待补偿。",
+        "可用性不保证：跨边界依赖分必需与推荐，必需缺失即阻塞，推荐缺失可跳过但须留带失效期的记录。",
+        "唤醒不等于授权：外部事件可以启动一次运行，但自动触发的前提是判定器先于触发器就位。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "我方在权威侧时的对偶",
+      "items": [
+        "我方对外暴露的主张带版本与观察时间。",
+        "改变已被外部消费的口径或契约之前，须登记受影响的消费者与兼容窗口；既往对外输出是否追认、追认到哪一天随该登记一并裁决。",
+        "我方发出的唤醒不等于对方已受理，须有与回执同构的应答语义。",
+        "外部内容进入项目内须经晋升，落地的是带来源、观察时间与失效条件的主张而不是副本；判据是「是否声称对同一类主张有权威」，因此晋升不与「不复制」冲突（11 §2 P1、P2）。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "判定的同时登记这段关系的可执行前提",
+      "items": [
+        "对象是否可重读、是否有可比对的版本、写入者是否唯一。",
+        "任一为否，依赖该前提的推论即不成立，须显式声明替代或整体记未定（UNDETERMINED）。",
+        "不可重读者以采集时的完整性证明替代事后对账；无可比对版本者不适用新鲜度比对；写入者不唯一者须声明冲突处置，此时幂等不等价于安全。",
+        "读侧标注为不可重读的对象，任何会改变它的写动作以「必需观察已采集」为前置。",
+        "判不清是否外部时，按我方处于消费侧处理，并把可执行前提全部登记为「否」（架构确定 §6.4）。"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "默认取向：跨边界多读少写",
+      "items": [
+        "它是推出来的结论而不是抄来的条款：读错了可以重读，写错了不一定撤得回（架构确定 §6.4）。",
+        "跨系统重跑灌入重复记录、审计对不上；接入方一变链路就断；无人触发则永不启动——诊断表里这一行指向的不是某个部件，而是这条不变量（00 §6）。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "不设新部件，与它的证伪信号",
+      "items": [
+        "与外部系统的读写、以及一次运行由谁发起，不是第 15、16 个部件：它们是同一件事的两个方向——那一侧不归我们管（00 §2）。",
+        "全部纪律收敛为一条「外部」判据加这一条不变量，落在权威记录源的指派、工具登记与一次运行的起点上的一行标注（11 §1、24 §1、21 §1）。",
+        "不变量与平面接口是架构级内容，与部件并列，不受「新增内容须归属某个部件」约束（D-043 澄清）。",
+        "证伪信号：跨边界纪律在实际使用中反复被绕过；或出现一条既不属于这些推论、也无法由「外部」判据推出的跨边界纪律——即回到「升为一等部件」（架构确定 §6.4）。"
+      ]
+    }
+  ]
+}
