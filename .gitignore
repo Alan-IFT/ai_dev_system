@@ -12,3 +12,5 @@ Thumbs.db
 
 # archify visual-check 的副产物（可随时重跑生成）
 docs/架构图/*.visual-check.*
+# 跑脚本产生的字节码（可随时重跑生成）
+__pycache__/

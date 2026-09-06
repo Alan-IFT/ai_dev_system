@@ -59,7 +59,10 @@ if cases_md.exists():
     for ln in read(cases_md).splitlines():
         if not ln.startswith("| C-"):
             continue
-        col = [c.strip() for c in ln.split("|")]
+        _m = mask_code(ln)
+        _cut = [i for i, ch in enumerate(_m) if ch == "|"]
+        _b = [-1] + _cut + [len(ln)]
+        col = [ln[_b[i]+1:_b[i+1]].strip() for i in range(len(_b)-1)]
         # col[1]=id col[2]=观察到的失败 col[3]=等级 col[4]=本该防住它的规则 col[5]=被拦住了吗
         if len(col) < 7:
             # 列数不足不能静默跳过——那会让一行残缺的表悄悄少算（2026-09-04 核查指出）
