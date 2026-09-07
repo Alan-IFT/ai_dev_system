@@ -1,0 +1,69 @@
+# retail-core 项目配置 —— 命令、路径、栈、兼容策略、预算的唯一权威位置
+standard_version: "1.0"
+project_name: retail-core
+project_stage: production          # pre_release | production
+maintainer: Alan
+default_branch: main
+updated_at: 2026-08-25
+
+stack:
+  backend: python==3.12  fastapi==0.115  sqlalchemy==2.0  alembic==1.13
+  frontend: typescript==5.5  react==18.3  vite==5
+  data: postgresql==16  redis==7  rabbitmq==3.13
+  infra: docker  kubernetes(k3s)  github-actions
+
+paths:
+  entry: AGENTS.md
+  index: docs/INDEX.md
+  status: docs/state/STATUS.md
+  work: docs/state/work
+  handoff: docs/state/handoff
+  artifacts: docs/state/artifacts        # 不进版本控制，见 .gitignore
+  acceptance: docs/product/acceptance
+  architecture: docs/architecture
+  decisions: docs/decisions
+  playbook: docs/knowledge/PLAYBOOK.md
+  failures: docs/knowledge/FAILURES.md
+  skills: .agents/skills                 # .claude/skills 是指向这里的符号链接
+
+# 全部从仓库根执行。不适用的检查写 reason 而不是删掉。
+commands:
+  setup:      { cwd: ".", run: "make setup" }
+  dev:        { cwd: ".", run: "make dev" }                       # 起 api + web + 依赖容器
+  format:     { cwd: ".", run: "ruff format . && npm -w apps/admin-web run format" }
+  lint:       { cwd: ".", run: "ruff check . && mypy services packages && npm -w apps/admin-web run lint" }
+  test_unit:  { cwd: ".", run: "pytest tests/unit -q" }
+  test_integ: { cwd: ".", run: "pytest tests/integration -q --maxfail=5" }   # 需要 make dev 起的容器
+  test_e2e:   { cwd: ".", run: "npm -w apps/admin-web run e2e" }
+  build:      { cwd: ".", run: "make build" }
+  migrate:    { cwd: ".", run: "alembic upgrade head" }           # prod 由发布流程执行，agent 不直接跑
+  deps_audit: { cwd: ".", run: "pip-audit && npm audit --audit-level=high" }
+  secrets:    { cwd: ".", run: "gitleaks detect --no-banner" }
+  check_deps:     { cwd: ".", run: "python tools/check_deps.py" }
+  check_contracts:{ cwd: ".", run: "python tools/check_contracts.py" }
+  check_docs:     { cwd: ".", run: "python tools/check_docs_fresh.py" }
+  check_receipts: { cwd: ".", run: "python tools/check_receipts.py --env staging" }
+  check_handoff:  { cwd: ".", run: "python tools/check_handoff.py" }
+
+environments:
+  local:   { db: "postgres://localhost:5432/retail_dev", identity: "git rev-parse HEAD" }
+  staging: { url: "https://staging.retail.example", identity: "GET /health -> {version, migration_head}" }
+  prod:    { url: "https://retail.example",         identity: "GET /health -> {version, migration_head}" }
+
+compatibility:
+  policy: >
+    已有 60 家门店与两年数据。数据：迁移一律 expand/contract，破坏性 schema 变更须 ADR；
+    保留期内不删列。接口：对外 API 按 MAJOR 版本共存，废弃通知期 90 天；
+    内部事件契约共存期 ≥ 2 个发布周期。客户端：POS 厂商适配器至少支持当前与前一个版本。
+  data_retention: "流水 3 年；日志 90 天；会员信息按合规要求"
+
+budgets:                       # 参数，来自标准 01 §3.7 与 03 §11
+  agents_md_lines: 150
+  status_lines: 80
+  work_item_lines: 150
+  handoff_lines: 60
+  module_doc_lines: 200
+  default_context_tokens: 12000
+  work_item_stale_days: 5      # in_progress 超过即巡检转 blocked
+  docs_fresh_max_commits: 8    # 模块 source_rev 落后超过即报
+  release_observe_hours: 24
