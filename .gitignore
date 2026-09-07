@@ -14,3 +14,6 @@ Thumbs.db
 docs/架构图/*.visual-check.*
 # 跑脚本产生的字节码（可随时重跑生成）
 __pycache__/
+
+# Claude Code 交付的预览图（可随时重跑生成）
+Claude outputs/
