@@ -1,6 +1,6 @@
 # 示例项目：连锁零售中台 `retail-core`
 
-这是一个**虚构但按真实规模写的**项目文档树，用来展示 [01](../01-项目管理标准.md) / [02](../02-项目架构描述规范.md) / [03](../03-Agent信息获取与上下文管理.md) 三份标准在一个大型项目里长什么样。数字、日期、人名、提交号都是示例值，但每一处形态都是标准要求的形态。
+这是一个**虚构但按真实规模写的**项目文档树，展示[管理](../01-项目管理标准.md)、[架构](../02-项目架构描述规范.md)、[Agent 上下文](../03-Agent信息获取与上下文管理.md)与[运行维护](../04-可靠性安全与运行维护.md)怎样落到项目工件。数字、日期、人名、提交号都是示例值，不能作为真实项目证据。原有历史快照保留当时场景；2026-09-08 补充运行维护计划，并修正活入口的三态和测试纪律。
 
 ## 项目背景
 
@@ -26,12 +26,13 @@
 | 故障手册、发布记录 | [runbooks/](docs/runbooks/RB-03-POS流水回传中断.md) · [releases/](docs/releases/v2.4.0.md) |
 | 方法库（skills） | [.agents/skills/](.agents/skills/README.md) |
 | 检查器清单 | [tools/README.md](tools/README.md) |
+| 运行目标、恢复演练、灰度发布、维护与漏洞响应怎样串起来 | [运行维护演练包](docs/operations/README.md)；均为待执行计划 |
 
 ## 文档树
 
 ```text
 retail-core/
-├─ AGENTS.md                       工具入口（96 行）
+├─ AGENTS.md                       工具入口与唯一加载合同
 ├─ CLAUDE.md                       @AGENTS.md
 ├─ governance/
 │  ├─ project.yaml                 栈、命令、路径、兼容策略、预算
@@ -54,6 +55,7 @@ retail-core/
 │  │  ├─ handoff/ WI-0151-2026-09-05.md
 │  │  └─ artifacts/（不进版本控制，只留 .gitkeep 与索引）
 │  ├─ knowledge/  PLAYBOOK.md · FAILURES.md · glossary.md
+│  ├─ operations/  README · SVC-inventory · DR-inventory · REL-inventory-next · RISK-maintenance
 │  ├─ runbooks/   RB-03-POS流水回传中断.md
 │  └─ releases/   v2.4.0.md
 ├─ .agents/skills/  README · takeover/ · inventory-migration/ · pos-adapter/ · import-template/
@@ -61,4 +63,4 @@ retail-core/
 └─ services/ apps/ packages/ tests/（代码，本示例不含）
 ```
 
-示例只展开了三到四个模块、四份 ADR、三个工作项——其余在各自的索引里以一行出现。**这不是省略：真实项目里 agent 每次也只该看见这么多。**
+示例有选择地展开部分模块、决策与任务，其余只给索引形态；因此不是可运行的完整产品仓库。Agent 的实际读取量由任务判断需要决定，不由示例展开数量决定。原 `STANDARD_VERSION` 表示初版采用背景，本次候选补充的修订范围以本页说明和标准入口为准。

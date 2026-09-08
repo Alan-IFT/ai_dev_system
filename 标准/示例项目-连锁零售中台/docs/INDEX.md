@@ -34,5 +34,6 @@
 | `knowledge/glossary.md` | 本项目特有术语 | 术语 | 遇到不认识的词时 |
 | `runbooks/RB-*.md` | 故障排查与运维操作 | 操作 | 出故障时 |
 | `releases/v*.md` | 版本包含的工作项、证据、限制、回滚 | 发布 | 回溯时 |
+| [operations/README.md](operations/README.md) | 运行责任、恢复、发布和维护风险的虚构演练入口 | 运行计划索引 | 上线、恢复、接班和周期维护时 |
 | `../.agents/skills/README.md` | 方法库清单 | — | description 常驻 |
 | `../tools/README.md` | 检查器清单与验收记录 | — | 改检查器时 |

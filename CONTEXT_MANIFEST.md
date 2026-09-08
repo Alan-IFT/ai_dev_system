@@ -1,9 +1,9 @@
 ---
 contract_id: context-contract-research-001
-contract_revision: 13
-updated_at: 2026-09-03
+contract_revision: 14
+updated_at: 2026-09-08
 status: effective  # D-015 于 2026-09-03 进入`已接受`；本文件是它的载体实例，载体形态本身效力为零
-current_work_item: docs/审计记录/009-默认加载集的体量与片段外延.md  # 第二十轮。**不要再把登记表填进这里**——第十七～十九轮填的是 `docs/决策日志.md#decision-index`，与下表第 5 项同一个 `path#fragment`，于是第 5 项"事实型不读"与 P2 第一层"含当前工作项"当场打架，也正是"第 5 项与本字段职责重复"这个错觉的成因
+current_work_item: 标准/本轮完善记录.md  # 用户要求以逐篇资料调研完善候选标准；旧审计仍保留在其原路径。
 ---
 
 # Default Context Contract
