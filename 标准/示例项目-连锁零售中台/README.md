@@ -16,6 +16,7 @@
 |---|---|
 | 18 个月里每个月发生了什么、文档怎么变、**旧做法会在哪一步死掉** | [维护时间线.md](维护时间线.md) |
 | 一次高影响任务（契约破坏性变更）从开到关的每一步读什么写什么 | [一次任务的完整走法.md](一次任务的完整走法.md) |
+| 一条反馈怎样进入后续任务，怎样验证、收窄或撤销 | [反馈跨任务生效演练.md](反馈跨任务生效演练.md)；待执行计划，含重复提醒、误归类和检查器停跑分支 |
 | 工具入口长什么样 | [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) |
 | 项目配置、闸门、例外 | [governance/](governance/project.yaml) |
 | 文档地图 | [docs/INDEX.md](docs/INDEX.md) |
@@ -32,6 +33,7 @@
 
 ```text
 retail-core/
+├─ 反馈跨任务生效演练.md             教学计划，不改变下列历史工件
 ├─ AGENTS.md                       工具入口与唯一加载合同
 ├─ CLAUDE.md                       @AGENTS.md
 ├─ governance/
