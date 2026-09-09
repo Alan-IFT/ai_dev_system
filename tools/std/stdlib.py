@@ -184,12 +184,33 @@ def parse_yaml_subset(text):
 CONFIG_CANDIDATES = ("governance/project.yaml", "governance/project.yml")
 
 
-def load_config(root):
-    """读 governance/project.yaml。
+def load_config(root, config_path=None):
+    """读配置。默认读 <root>/governance/project.yaml。
+
+    config_path 给了就读那个文件，可以在被扫描项目之外——这样才能在不往被测项目
+    写任何东西的前提下扫只读项目。此时 cfg["_root"] 仍是被扫描的 root，
+    cfg["_path"] 记配置文件的真实路径。
 
     返回 (cfg, problem)。problem 非 None 时 cfg 为 {}，调用方据此记 UNDETERMINED，
     不得取默认值当事实（契约 §5）。
     """
+    if config_path is not None:
+        p = os.path.abspath(config_path)
+        if not os.path.isfile(p):
+            return {}, "指定的外部配置 %s 不存在（--config）；本工具不回退去猜项目布局" % p
+        try:
+            with io.open(p, encoding="utf-8") as fh:
+                cfg = parse_yaml_subset(fh.read())
+        except ConfigError as exc:
+            return {}, "指定的外部配置 %s 无法无歧义解析：%s" % (p, exc)
+        except OSError as exc:
+            return {}, "指定的外部配置 %s 读不了：%s" % (p, exc)
+        if not isinstance(cfg, dict):
+            return {}, "指定的外部配置 %s 的顶层不是映射" % p
+        cfg["_path"] = p
+        cfg["_root"] = root
+        return cfg, None
+
     for rel in CONFIG_CANDIDATES:
         p = os.path.join(root, rel)
         if os.path.isfile(p):

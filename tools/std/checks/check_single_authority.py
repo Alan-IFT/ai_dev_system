@@ -23,7 +23,18 @@ from stdlib import (  # noqa: E402
 )
 
 NAME = "single-authority"
-STANDARD_REFS = ["01 §1 G2", "01 §2 N2", "01 §3.4"]
+STANDARD_REFS = ["01 §1 G2", "01 §2 N2", "01 §3.4", "01 §5.10"]
+
+# 判据 2、3 的对象是"文档"。01 §1 G2 的检查方式限定为「同一数值/状态/清单」，
+# §2 N2 的举例限定为「值」，§3.4 禁止的关系写的是「文档 A 复制文档 B 的一段」，
+# §5.10 反向确认它管的是文档↔代码而不是代码↔代码。源码之间等价的重复实现按
+# 02 §4「公共能力清单」的失败处置记入技术债，不由本检查器判失败。
+#
+# 注意：过滤发生在**出报告时**，不在收集时。收集阶段照旧扫全部跟踪文本，
+# 只有当一组重复的**全部出现位置**都落在非文档文件时才丢弃。这样
+# 「文档抄了代码里的一段」（§5.10 的对象）仍然报得出来。
+_DOC_SUFFIXES = (".md", ".markdown", ".txt", ".rst", ".adoc", ".org")
+_MAX_DISCARDED_SAMPLES = 5       # 汇总那条未定里给几个代表位置
 
 # 01 §3.7 没给这两个的数值，取本工具默认并在 evidence 里注明（契约 §5）
 _DEFAULT_MIN_LINES = 3
@@ -77,6 +88,11 @@ def unquote_git_path(p):
 def effective_chars(s):
     """去掉空白与纯标点后的有效字符。"""
     return u"".join(ch for ch in s if ch not in _PUNCT and not ch.isspace())
+
+
+def is_doc(rel):
+    """按后缀判断是不是"文档"。见 _DOC_SUFFIXES 上方的依据。"""
+    return os.path.splitext(rel.replace("\\", "/"))[1].lower() in _DOC_SUFFIXES
 
 
 _RE_HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
@@ -302,12 +318,20 @@ def scope(cfg):
     frozen = cfg_get(cfg, "layout.frozen", []) or []
     return {
         "covered": [
-            u"git 跟踪的 UTF-8 文本文件：内容逐字节相同的成组报出",
-            u"跨文件重复的实质文本段落（默认连续 %d 行、有效字符 ≥%d）"
+            u"git 跟踪的 UTF-8 文本文件：内容逐字节相同的成组报出（不分文档与源码）",
+            u"跨文件重复的实质文本段落（默认连续 %d 行、有效字符 ≥%d），"
+            u"只要有一处落在文档里就报——包括「文档抄了源码里的一段」（01 §5.10）"
             % (_DEFAULT_MIN_LINES, _DEFAULT_MIN_CHARS),
-            u"同一「数字+量词+名词」组合出现在两个以上文件（只报未定，不判失败）",
+            u"同一「数字+量词+名词」组合出现在两个以上文件、且至少一处在文档里"
+            u"（只报未定，不判失败）",
+            u"算文档的后缀：%s" % u" ".join(_DOC_SUFFIXES),
         ],
         "not_covered": [
+            u"判据 2、3 不判「全部出现位置都在非文档文件」的重复——源码与配置之间"
+            u"等价的重复实现归 02 §4 公共能力清单，按技术债处置，不在这里判失败；"
+            u"这些组汇总成一条未定，不静默丢弃",
+            u"不把 .yaml / .json / .html 等配置与产物算作文档：它们之间的结构性重复"
+            u"不进判据 2、3（判据 1 的逐字节相同仍然看它们）",
             u"不看非文本文件（二进制、含 NUL 或非 UTF-8 的文件）",
             u"不看未被 git 跟踪的文件（未提交、被 .gitignore 排除的一律不看）",
             u"不看单个大于 %d 字节的文件" % _MAX_FILE_BYTES,
@@ -362,6 +386,13 @@ def _run(cfg):
         else u"阈值取自 project.yaml：连续 %d 行 / 有效字符 %d" % (min_lines, min_chars)
     scanned = u"扫了 %d 个文本文件；排除归档与派生 %d 个，跳过二进制 %d 个、超大 %d 个、读不了 %d 个" % (
         len(files), notes["excluded"], notes["skipped_binary"], notes["skipped_big"], notes["unreadable"])
+    doc_count = sum(1 for rel, _t, _d in files if is_doc(rel))
+    doc_note = u"其中算文档的 %d 个（后缀 %s）" % (doc_count, u" ".join(_DOC_SUFFIXES))
+    no_doc_reason = (
+        u"扫到的 %d 个文本文件里没有一个是文档（后缀 %s）。判据 2、3 的对象是文档"
+        u"（01 §1 G2 限定「同一数值/状态/清单」、§3.4 限定「文档 A 复制文档 B」），"
+        u"空集上说不出「全部通过」，按 01 §2 N1 记未定" % (len(files), u" ".join(_DOC_SUFFIXES))
+    )
 
     # 判据 1
     dupes = _identical_files(files)
@@ -393,10 +424,14 @@ def _run(cfg):
             why=u"01 §2 N2 副本即缺陷", evidence=scanned,
         ))
 
-    # 判据 2
+    # 判据 2。收集阶段照旧扫全部文本，出报告时才分流：一组重复的全部出现位置
+    # 都落在非文档文件才丢弃；只要有一处在文档里就照常报（含「文档抄代码」）。
     blocks = _duplicate_blocks(files, min_lines, min_chars, dup_rels)
-    shown = 0
+    doc_blocks, code_blocks = [], []
     for rep in blocks:
+        (doc_blocks if any(is_doc(r) for r, _ln in rep["places"]) else code_blocks).append(rep)
+    shown = 0
+    for rep in doc_blocks:
         if shown >= _MAX_FINDINGS_PER_KIND:
             break
         shown += 1
@@ -405,23 +440,51 @@ def _run(cfg):
             NAME, FAIL,
             u"%d 行实质文本重复出现在 %d 处：%s" % (rep["length"], len(rep["places"]), places),
             where=u"%s:%d" % (rep["places"][0][0], rep["places"][0][1]),
-            why=u"01 §3.4 禁止的关系：文档 A 复制文档 B 的一段，应改为引用；01 §2 N2 副本即缺陷",
+            why=u"01 §3.4 禁止的关系：文档 A 复制文档 B 的一段，应改为引用；01 §2 N2 副本即缺陷；"
+                u"文档抄源码的一段见 01 §5.10「模块文档只引用不复制」",
             evidence=u"首行：%s；%s" % (rep["first"][:80], thresh_note),
         ))
-    if len(blocks) > shown:
+    if len(doc_blocks) > shown:
         out.append(finding(
-            NAME, UNDETERMINED, u"还有 %d 处重复文本块未逐条列出" % (len(blocks) - shown),
+            NAME, UNDETERMINED, u"还有 %d 处重复文本块未逐条列出" % (len(doc_blocks) - shown),
             reason=u"单类结果上限 %d 条；未列出的不等于没问题（契约 §2）" % _MAX_FINDINGS_PER_KIND,
             why=u"01 §3.4",
         ))
-    if not blocks:
+    if code_blocks:
         out.append(finding(
-            NAME, PASS, u"没有跨文件重复的实质文本块",
-            why=u"01 §3.4 复制应改为引用", evidence=u"%s；%s" % (thresh_note, scanned),
+            NAME, UNDETERMINED,
+            u"另有 %d 组重复文本块的全部出现位置都在非文档文件，本检查器不判" % len(code_blocks),
+            reason=u"判据 2 的对象是文档（01 §1 G2 限定「同一数值/状态/清单」、§3.4 限定"
+                   u"「文档 A 复制文档 B 的一段」）。源码与配置之间等价的重复实现按 "
+                   u"02 §4 公共能力清单的失败处置「记入技术债并指定收敛方向」，"
+                   u"不由本检查器判失败，也不当成通过",
+            why=u"契约 §1：判据本身不适用记未定",
+            evidence=u"代表位置：%s%s" % (
+                u"、".join(u"%s:%d" % (rep["places"][0][0], rep["places"][0][1])
+                          for rep in code_blocks[:_MAX_DISCARDED_SAMPLES]),
+                u"（共 %d 组，只列前 %d 组）" % (len(code_blocks), _MAX_DISCARDED_SAMPLES)
+                if len(code_blocks) > _MAX_DISCARDED_SAMPLES else u""),
         ))
+    if not doc_blocks:
+        if not doc_count:
+            out.append(finding(
+                NAME, UNDETERMINED, u"没有可比对的文档文件，判据 2 给不出结论",
+                reason=no_doc_reason,
+                why=u"01 §2 N1：空集上的「全部通过」记未定",
+                evidence=u"%s；%s" % (scanned, doc_note),
+            ))
+        else:
+            out.append(finding(
+                NAME, PASS, u"没有跨文件重复的实质文本块（至少一处在文档里的）",
+                why=u"01 §3.4 复制应改为引用",
+                evidence=u"%s；%s；%s" % (thresh_note, scanned, doc_note),
+            ))
 
-    # 判据 3：一律未定
-    claims = _count_claims(files)
+    # 判据 3：一律未定。分流规则同判据 2——全部出现位置都在非文档文件才丢弃。
+    all_claims = _count_claims(files)
+    claims, code_claims = {}, {}
+    for key, places in all_claims.items():
+        (claims if any(is_doc(r) for r in places) else code_claims)[key] = places
     shown = 0
     for key in sorted(claims, key=lambda k: (k[1], k[2], k[0])):
         if shown >= _MAX_FINDINGS_PER_KIND:
@@ -444,11 +507,38 @@ def _run(cfg):
             reason=u"单类结果上限 %d 条；未列出的不等于没问题（契约 §2）" % _MAX_FINDINGS_PER_KIND,
             why=u"01 §1 G2",
         ))
-    if not claims:
+    if code_claims:
+        samples = sorted(
+            u"%s:%d" % (r, v[0])
+            for key in sorted(code_claims, key=lambda k: (k[1], k[2], k[0]))[:_MAX_DISCARDED_SAMPLES]
+            for r, v in [sorted(code_claims[key].items())[0]]
+        )
         out.append(finding(
-            NAME, PASS, u"没有同一「数字+量词+名词」组合跨文件出现",
-            why=u"01 §1 G2 别处引用写链接、不抄值", evidence=scanned,
+            NAME, UNDETERMINED,
+            u"另有 %d 组重复数值声明的全部出现位置都在非文档文件，本检查器不判" % len(code_claims),
+            reason=u"判据 3 的对象是文档里的值（01 §1 G2、§2 N2）。源码与配置之间的同形数字"
+                   u"多为常量与样板，等价的重复实现按 02 §4 公共能力清单记入技术债，"
+                   u"不由本检查器判，也不当成通过",
+            why=u"契约 §1：判据本身不适用记未定",
+            evidence=u"代表位置：%s%s" % (
+                u"、".join(samples),
+                u"（共 %d 组，只列前 %d 组）" % (len(code_claims), _MAX_DISCARDED_SAMPLES)
+                if len(code_claims) > _MAX_DISCARDED_SAMPLES else u""),
         ))
+    if not claims:
+        if not doc_count:
+            out.append(finding(
+                NAME, UNDETERMINED, u"没有可比对的文档文件，判据 3 给不出结论",
+                reason=no_doc_reason,
+                why=u"01 §2 N1：空集上的「全部通过」记未定",
+                evidence=u"%s；%s" % (scanned, doc_note),
+            ))
+        else:
+            out.append(finding(
+                NAME, PASS, u"没有同一「数字+量词+名词」组合跨文件出现在文档里",
+                why=u"01 §1 G2 别处引用写链接、不抄值",
+                evidence=u"%s；%s" % (scanned, doc_note),
+            ))
     return out
 
 
@@ -492,6 +582,42 @@ _SHARED = u"""退款口径由结算模块单独维护，别处引用它的接口
 抄写会在下一次口径变化时留下一份不会更新的旧值。
 因此本节只给出指针，具体数值到结算模块文档去读。
 """
+
+# 源码样例。刻意不用 # 注释行——那会被 _RE_HEADING 当成标题行滤掉，测不出东西。
+_PY_A = u'''import json
+
+
+def load_manifest(path, tenant):
+    with open(path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+    payload["tenant"] = tenant
+    return payload
+'''
+
+_PY_B = u'''import os
+
+
+def resolve_workspace(base, name):
+    target = os.path.join(base, "workspaces", name)
+    os.makedirs(target, exist_ok=True)
+    return target
+'''
+
+# 两个 .py 共有的样板段落：三行以上、有效字符足够，跨文件重复但不该判失败。
+_PY_BOILER = u'''
+def guard_tenant(request, registry):
+    tenant = request.headers.get("X-Tenant-Id") or registry.default_tenant
+    if tenant not in registry.known_tenants:
+        raise PermissionError("unknown tenant: %s" % tenant)
+    return tenant
+'''
+
+# .py 的模块 docstring 里的一段散文，被 .md 原样抄走——这正是 01 §5.10 的对象。
+_PY_WITH_DOCSTRING = u'"""结算模块。\n\n' + _SHARED + u'"""\n' + _PY_A
+
+
+def _statuses(cfg):
+    return [f["status"] for f in run(cfg)]
 
 
 def selftest():
@@ -558,5 +684,106 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"正例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # ---- 以下五条覆盖"判据 2、3 只判文档"这次收窄的边界。每条一个独立临时仓，
+    #      不把 .py 与 .md 混在同一仓里断言 `FAIL in got`——那样分不清 FAIL 来自谁。
+
+    # 边界一：重复只出现在源码之间 → 不得判 FAIL，须留下汇总的那条未定
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {
+                "doc.md": _UNIQ_A,
+                "svc/alpha.py": _PY_A + _PY_BOILER,
+                "svc/beta.py": _PY_B + _PY_BOILER,
+            })
+            res = run(cfg)
+        got = [f["status"] for f in res]
+        summarized = [f for f in res if f["status"] == UNDETERMINED
+                      and u"都在非文档文件" in f["title"]]
+        ok = FAIL not in got and len(summarized) == 1
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"边界一：重复只在 .py 之间应不判 FAIL，且汇总成一条未定",
+            evidence=u"实得 %s；汇总条数 %d" % (got, len(summarized)),
+            why=u"01 §1 G2 的对象是文档里的值；源码重复实现归 02 §4 技术债（契约 §1 记未定）",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"边界一自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 边界二：.md 抄了 .py 里的一段 → 仍须判 FAIL，且落点在 .md 不在 .py
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {
+                "doc.md": _UNIQ_B + u"\n" + _SHARED,
+                "svc/settle.py": _PY_WITH_DOCSTRING,
+            })
+            res = run(cfg)
+        fails = [f for f in res if f["status"] == FAIL]
+        ok = (len(fails) == 1
+              and (fails[0].get("where") or u"").startswith(u"doc.md:")
+              and u"svc/settle.py" in fails[0]["title"])
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"边界二：文档抄源码的一段仍须判 FAIL，落点在 .md",
+            evidence=u"FAIL %d 条；where=%s；title=%s" % (
+                len(fails),
+                fails[0].get("where") if fails else u"（无）",
+                fails[0]["title"][:70] if fails else u"（无）"),
+            why=u"01 §5.10 模块文档只引用不复制——收窄不得把这一类误杀",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"边界二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 边界三：一个文档都没有的仓 → 判据 2、3 记未定，不得记 PASS
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {"svc/alpha.py": _PY_A, "svc/beta.py": _PY_B})
+            res = run(cfg)
+        got = [f["status"] for f in res]
+        nodoc = [f for f in res if f["status"] == UNDETERMINED
+                 and u"没有可比对的文档文件" in f["title"]]
+        ok = FAIL not in got and len(nodoc) == 2 and got.count(PASS) == 1
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"边界三：纯代码仓的判据 2、3 须记未定，不得记 PASS",
+            evidence=u"实得 %s；未定（无文档）%d 条" % (got, len(nodoc)),
+            why=u"01 §2 N1：空集上的「全部通过」判未定（判据 1 的 PASS 照旧，它不收窄）",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"边界三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 边界四（回归点）：两份逐字节相同的 .py，判据 1 未收窄，仍须判 FAIL
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {"svc/alpha.py": _PY_A, "vendor/alpha.py": _PY_A})
+            res = run(cfg)
+        fails = [f for f in res if f["status"] == FAIL and u"逐字节相同" in f["title"]]
+        ok = len(fails) == 1
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"边界四：两份逐字节相同的 .py 仍须判 FAIL（判据 1 不收窄）",
+            evidence=u"实得 %s" % [f["status"] for f in res],
+            why=u"01 §2 N2 副本即缺陷；整份复制在代码里同样是缺陷",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"边界四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 边界五：文档集合不止 .md——两份 .txt 的重复段落仍须判 FAIL
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {
+                "notes/a.txt": _UNIQ_A + u"\n" + _SHARED,
+                "notes/b.rst": _UNIQ_B + u"\n" + _SHARED,
+            })
+            got = _statuses(cfg)
+        ok = FAIL in got
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"边界五：.txt 与 .rst 之间的重复段落仍须判 FAIL",
+            evidence=u"实得 %s" % got,
+            why=u"文档不只有 .md；收窄到单一后缀会静默漏报",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"边界五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     return results
