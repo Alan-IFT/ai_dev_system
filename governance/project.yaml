@@ -1,0 +1,65 @@
+# 本仓库对《项目管理标准》的采用记录。
+# 这个仓库既是标准的产地，也是它的第一个采用者——自己不用的标准不可信。
+standard_version: "2026-09-10"
+tier: L1                              # 一人多会话；依据 templates/文件树与落地路径.md §8
+
+layout:
+  entry:
+    - CONTEXT_MANIFEST.md             # 本仓库的入口叫这个名字，不叫 AGENTS.md
+  docs_root: docs
+  work_root: docs/state/work
+  artifacts:                          # 本仓库的工件叫别的名字，按 01 §3.1「可按职责合并映射」登记
+    status: PROJECT_STATUS.md
+    # acceptance 故意不填：本仓库确实没有验收条目工件，留着让它报 FAIL
+  frozen:                             # 只读区：抓来的原文与历史归档，不承担更新义务
+    - docs/参考资料-公众号文章
+    - docs/参考资料
+    - docs/参考资料-Claude
+    - docs/历史
+    - docs/审计记录
+    - docs/输入材料
+    - .staging
+
+budgets:
+  entry_lines: 150
+  status_lines: 80
+  work_item_lines: 150
+  stale_days: 90
+  work_item_stale_days: 14
+
+tailoring:
+  - check: cross-repo
+    applicable: false
+    reason: 单仓项目，01 §3.8 记不适用
+
+derived:                              # 派生工件：改源不改产物（01 §3.4、02 §9）
+  - artifact: docs/架构图/ai-dev-system.architecture.html
+    source: docs/架构图/ai-dev-system.architecture.json
+    regen: archify deliver architecture docs/架构图/ai-dev-system.architecture.json docs/架构图/ai-dev-system.architecture.html --quality showcase
+  - artifact: docs/架构图/four-planes.architecture.html
+    source: docs/架构图/four-planes.architecture.json
+    regen: archify deliver architecture docs/架构图/four-planes.architecture.json docs/架构图/four-planes.architecture.html --quality showcase
+  - artifact: docs/架构图/plane-accountability.architecture.html
+    source: docs/架构图/plane-accountability.architecture.json
+    regen: archify deliver architecture docs/架构图/plane-accountability.architecture.json docs/架构图/plane-accountability.architecture.html --quality showcase
+  - artifact: docs/架构图/plane-control.architecture.html
+    source: docs/架构图/plane-control.architecture.json
+    regen: archify deliver architecture docs/架构图/plane-control.architecture.json docs/架构图/plane-control.architecture.html --quality showcase
+  - artifact: docs/架构图/plane-execution.architecture.html
+    source: docs/架构图/plane-execution.architecture.json
+    regen: archify deliver architecture docs/架构图/plane-execution.architecture.json docs/架构图/plane-execution.architecture.html --quality showcase
+  - artifact: docs/架构图/plane-knowledge.architecture.html
+    source: docs/架构图/plane-knowledge.architecture.json
+    regen: archify deliver architecture docs/架构图/plane-knowledge.architecture.json docs/架构图/plane-knowledge.architecture.html --quality showcase
+  - artifact: docs/架构图/three-planes.architecture.html
+    source: docs/架构图/three-planes.architecture.json
+    regen: archify deliver architecture docs/架构图/three-planes.architecture.json docs/架构图/three-planes.architecture.html --quality showcase
+  - artifact: docs/架构图/topic-boundary.architecture.html
+    source: docs/架构图/topic-boundary.architecture.json
+    regen: archify deliver architecture docs/架构图/topic-boundary.architecture.json docs/架构图/topic-boundary.architecture.html --quality showcase
+  - artifact: docs/架构图/topic-invariants.architecture.html
+    source: docs/架构图/topic-invariants.architecture.json
+    regen: archify deliver architecture docs/架构图/topic-invariants.architecture.json docs/架构图/topic-invariants.architecture.html --quality showcase
+  - artifact: docs/架构图/topic-l0-l3.architecture.html
+    source: docs/架构图/topic-l0-l3.architecture.json
+    regen: archify deliver architecture docs/架构图/topic-l0-l3.architecture.json docs/架构图/topic-l0-l3.architecture.html --quality showcase
