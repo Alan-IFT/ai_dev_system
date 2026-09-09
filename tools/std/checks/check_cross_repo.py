@@ -25,7 +25,9 @@ from stdlib import (  # noqa: E402
 NAME = "cross-repo"
 STANDARD_REFS = ["01 §3.8"]
 
-# 退役仓里"可被当作现行规则读入"的默认清单；项目可用 project.yaml 的 rule_files 覆盖。
+# 退役仓里"可被当作现行规则读入"的默认清单；项目可用 project.yaml 的
+# layout.rule_files 覆盖。**只认这一种拼法**：此处曾另有一个顶层 rule_files 的回退，
+# 同一事实两种写法本身就是 01 §2 N2 的副本缺陷，已删。契约 §5 也只文档化 layout.rule_files。
 _DEFAULT_RULE_FILES = [".harness/rules/", ".claude/", "AGENTS.md", "CLAUDE.md"]
 
 # 失效标记：出现在文件前若干行即认为已标为失效。
@@ -153,7 +155,7 @@ def _list_md(repo, known):
 
 
 def _expand_rule_files(repo_abs, patterns):
-    """把 rule_files 的条目展开成实际存在的文件路径。以 / 结尾的按目录递归。"""
+    """把 layout.rule_files 的条目展开成实际存在的文件路径。以 / 结尾的按目录递归。"""
     out, truncated = [], False
     for pat in patterns:
         pat = str(pat).replace("\\", "/").strip()
@@ -245,7 +247,7 @@ def _find_entry(repo, entry_names):
 
 def scope(cfg):
     entries = cfg_get(cfg, "layout.entry", []) or []
-    rule_files = cfg_get(cfg, "rule_files") or cfg_get(cfg, "layout.rule_files") or _DEFAULT_RULE_FILES
+    rule_files = cfg_get(cfg, "layout.rule_files") or _DEFAULT_RULE_FILES
     return {
         "covered": [
             "repos 里声明的每个仓：路径是否存在、根下有没有 .git、有没有 layout.entry 里的入口文件（%s）"
@@ -254,7 +256,7 @@ def scope(cfg):
             "各应用仓的入口能否在两跳内出现指向系统仓的引用（系统仓 name、其目录名、或解析进系统仓的相对链接）",
             "系统仓的入口里有没有出现每个 repos 条目的 name，且该名字所在行上有没有状态词"
             "（01 §3.8 各仓状态在系统级入口登记）",
-            "role 为 retired/archived 的仓根下，rule_files（%s）展开出的文件前 %d 行有没有失效标记"
+            "role 为 retired/archived 的仓根下，layout.rule_files（%s）展开出的文件前 %d 行有没有失效标记"
             % (", ".join(map(str, rule_files)), _MARKER_HEAD_LINES),
             "各仓 *.md 里 markdown 链接语法写的跨仓相对路径，解析后是否存在",
         ],
@@ -270,7 +272,7 @@ def scope(cfg):
             "只按仓根下有没有 .git 认仓库身份，不校验 git 元数据、远端、submodule 关系",
             "跨仓引用只扫 *.md，且只认 markdown 链接语法；不看 *.sh、*.json、*.yaml、*.service 里的路径，也不看正文裸路径",
             "失效标记只看文件前 %d 行；写在更后面的失效说明本检查器看不见" % _MARKER_HEAD_LINES,
-            "退役仓的规则文件清单以 rule_files 为准；清单外的位置（如仓内子目录的另一套 agents）不看",
+            "退役仓的规则文件清单以 layout.rule_files 为准；清单外的位置（如仓内子目录的另一套 agents）不看",
             "不读 git 历史，不判断某个仓是不是事实上已经停更",
         ],
     }
@@ -601,19 +603,19 @@ def _check_retired(cfg, repos, entry_names):
     dead = [r for r in repos if r["role"] in _DEAD_ROLES]
     if not dead:
         return out
-    patterns = cfg_get(cfg, "rule_files") or cfg_get(cfg, "layout.rule_files")
+    patterns = cfg_get(cfg, "layout.rule_files")
     used_default = patterns is None
     if used_default:
         patterns = list(_DEFAULT_RULE_FILES)
     if not isinstance(patterns, list):
         return [finding(
-            NAME, UNDETERMINED, "rule_files 不是列表，退役仓一条判不了",
-            reason="rule_files = %r" % (patterns,),
+            NAME, UNDETERMINED, "layout.rule_files 不是列表，退役仓一条判不了",
+            reason="layout.rule_files = %r" % (patterns,),
             why="01 §3.8'退役仓在停止使用的同一次变更里，其入口与规则文件必须被标为失效或删除'",
         )]
     patterns = [str(p) for p in patterns] + [str(e) for e in entry_names]
-    note = "rule_files 用的是缺省清单 %s（项目未在 project.yaml 里校准）" % _DEFAULT_RULE_FILES \
-        if used_default else "rule_files 取自 project.yaml"
+    note = "layout.rule_files 用的是缺省清单 %s（项目未在 project.yaml 里校准）" % _DEFAULT_RULE_FILES \
+        if used_default else "layout.rule_files 取自 project.yaml"
 
     for r in dead:
         if not r["_exists"]:

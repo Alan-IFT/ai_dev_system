@@ -67,7 +67,7 @@ def selftest() -> list[dict]:
     """见第 3 节。返回两条 Finding：反例与正例各一。"""
 ```
 
-`cfg` 除了第 5 节那些项目参数，还带两个下划线开头的键，由 `stdlib.load_config` 注入，**是本契约的一部分**（此前只有实现知道，检查器全靠它定位被扫描项目，写下来是为了新检查器不必去读 `stdlib` 才知道该用什么）：
+`cfg` 除了第 5 节那些项目参数，还有若干下划线开头的键。其中两个由 `stdlib.load_config` 无条件注入，**是本契约的一部分**（此前只有实现知道，检查器全靠它定位被扫描项目，写下来是为了新检查器不必去读 `stdlib` 才知道该用什么）：
 
 | 键 | 含义 | 检查器该怎么用 |
 |---|---|---|
@@ -75,6 +75,8 @@ def selftest() -> list[dict]:
 | `cfg["_path"]` | 配置文件的实际路径 | 只用于报告与证据。它是相对路径（`governance/project.yaml`）还是绝对路径（`--config` 给的外部配置），决定了输出里要不要标注"外部配置" |
 
 这两个键的名字带下划线是为了与项目自己写的配置项区分：**项目的 `project.yaml` 里写 `_root` 或 `_path` 无效**——`load_config` 解析完会原地覆盖它们。
+
+除这两个之外，检查器**自己**也可以约定下划线开头的注入口，只在自检里往 `cfg` 里塞、`load_config` 不产生也不覆盖。目前有一个：`check_links` 的 `_links_files`（由 `check_links.selftest` 注入，取代 `git ls-files` 的结果，让自检不碰真实仓库的 git 索引，见第 3 节）。**这类键不是项目配置项，项目不要写**——`load_config` 不会覆盖它，写了会被检查器当真采信，等于让被检查方自己指定检查范围。新增这类注入口要在本节登记，因为"`cfg` 里都有什么"是契约面，不是实现细节。
 
 `Finding` 的字段：
 
@@ -100,6 +102,7 @@ def selftest() -> list[dict]:
 
 ```yaml
 standard_version: "2026-09-10"     # 采用的标准修订，见 标准/README.md
+tier: L1                            # 必填：L0 | L1 | L2 | L3，决定该有哪些工件
 tailoring:                          # 裁剪：不适用的部分与理由
   - check: cross-repo
     applicable: false
@@ -109,12 +112,36 @@ layout:
     - CLAUDE.md
     - AGENTS.md
   docs_root: docs
+  work_root: docs/state/work        # 工作项目录
+  artifacts:                        # 本项目给分档工件起的实际路径，键是工件 role
+    status: PROJECT_STATUS.md
   frozen:                           # 只读归档区，不参与新鲜度与更新义务
     - docs/features
+  rule_files:                       # 退役仓里"会被当成现行规则读入"的位置
+    - .claude/
+    - AGENTS.md
 budgets:                             # 参数，项目可改；默认见 01 §3.7
   entry_lines: 150
   status_lines: 80
   work_item_lines: 150
+  stale_days: 90                     # 文档多久不动算陈旧
+  work_item_stale_days: 14           # 进行中的工作项多久不动算失活
+  duplicate_min_lines: 3             # 重复文本判据的下限
+  duplicate_min_chars: 60
+metadata_fields:                     # 01 §3.5 的日期字段名
+  - updated_at
+metadata_required:                   # 哪些路径前缀下的文档必须带元信息
+  - docs/decisions
+work_item_done_states:               # 工作项的完成态词
+  - done
+  - 完成
+work_item_in_progress_states:        # 工作项的进行中态词
+  - in_progress
+  - 进行中
+derived:                             # 派生工件：改源不改产物，见 01 §3.4
+  - artifact: docs/map.html
+    source: docs/map.json
+    regen: make map
 repos:                               # 多仓系统，见 01 §3.8；单仓省略
   - name: control-plane
     path: .
@@ -123,7 +150,33 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 
 **只用块状列表（短横线），不要用 `[a, b]` 这种流式写法**——解析器按"歧义即拒绝"拒收它，本文此前的示例写成流式，照抄会让整份配置解析失败，已改正。
 
-**缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外：`budgets` 有标准默认值，可取默认但要在 `evidence` 里注明"用的是标准默认值，项目未校准"。
+上面每个键的类型、是否必填、以及缺了会怎样：
+
+| 键 | 类型 | 必填 | 缺省行为 |
+|---|---|---|---|
+| `tier` | 字符串 `L0`/`L1`/`L2`/`L3` | **是** | `check_layout` 整条记 `UNDETERMINED`——不猜该项目该有哪些工件。取值不在四档内同样记未定，不归到最近的一档 |
+| `tailoring` | 列表，每项 `check` / `applicable` / `reason` | 否 | 视为没裁剪任何检查。`check` 可写检查器短名，也可写 `layout:<role>` 或裸 `<role>` 单裁一个工件 |
+| `layout.entry` | 字符串列表 | 否 | `entry-budget` 与 `cross-repo` 的入口相关判据记 `UNDETERMINED`——不猜哪份是入口；只有 `check_layout` 退回分档快照里的候选名判存在性 |
+| `layout.docs_root` | 字符串 | 否 | **两个检查器不一致**：`check_layout` 退回常量 `docs`，`freshness` 记 `UNDETERMINED`（不猜文档放在哪）。想让 `freshness` 跑起来就必须写 |
+| `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`，并在 `evidence` 里注明用的是默认 |
+| `layout.artifacts` | 映射，`<role>: 路径` | 否 | 按分档快照里的候选路径猜；给了就只认它，不再猜候选。role 名见 `check_layout` 的 `_TIER_ITEMS`（`entry`/`acceptance`/`status`/`playbook`/`failures`/…） |
+| `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
+| `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
+| `budgets.entry_lines` | 正整数 | 否 | 取 01 §3.7 默认 150 并注明未校准；不是正整数记 `UNDETERMINED` |
+| `budgets.status_lines` | 正整数 | 否 | 01 §3.7 的 `STATUS.md` 上限 80。**目前没有检查器读它** |
+| `budgets.work_item_lines` | 正整数 | 否 | 01 §3.7 的工作项上限 150。**目前没有检查器读它** |
+| `budgets.stale_days` | 正整数 | 否 | 取常量 90 并注明未校准；不是正整数记 `UNDETERMINED` |
+| `budgets.work_item_stale_days` | 正整数 | 否 | 取常量 14 并注明未校准；不是正整数记 `UNDETERMINED` |
+| `budgets.duplicate_min_lines` | 整数 ≥2 | 否 | 取常量 3 并注明未校准 |
+| `budgets.duplicate_min_chars` | 整数 ≥1 | 否 | 取常量 60 并注明未校准 |
+| `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准 |
+| `metadata_required` | 路径前缀列表 | 否 | 按目录名约定判：路径里出现 `acceptance`/`architecture`/`modules`/`contracts`/`decisions`/`runbooks` 之一即算需要元信息。给了就只认这份清单 |
+| `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | 取常量 `done`/`完成`/`delivered` 并注明未校准 |
+| `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
+| `derived` | 列表，每项 `artifact` / `source` / `regen` | 否 | `check_derived` 整条记 `SKIP`——不猜哪些文件是生成的 |
+| `repos` | 列表，每项 `name` / `path` / `role` | 否 | `cross-repo` 记 `UNDETERMINED`（不足两个条目同样记未定）。`role` 取 `system`/`app`/`retired`/`archived` |
+
+**缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键，以及 `layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。`layout.docs_root` 是半个例外：`check_layout` 兜底、`freshness` 记未定——这处不一致是实现现状，不是有意设计。除这些之外的键缺失一律记 `UNDETERMINED`。
 
 配置也可由 `check_all --config PATH` 从被扫描项目之外给出，此时 `_root` 仍是被扫描项目、`_path` 记配置的实际路径；这是扫描只读/第三方项目而不往其中写入任何文件的唯一受支持方式；外部配置缺失或解析失败一律记 `UNDETERMINED`，不回退到 `<root>/governance/`。
 

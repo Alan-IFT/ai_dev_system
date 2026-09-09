@@ -108,10 +108,12 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 - **自检样本自己可能有盲区。** 真实教训：`git ls-files` 曾因 `core.quotepath` 把中文路径输出成
   转义形式，成批产生假 FAIL，而当时的自检是**通过**的——因为样本里的路径全是 ASCII。自检绿
   不等于在你的仓库里也对。新增检查器时，反例样本要包含你项目里真实存在的形态。
-- CONTRACT.md §5 的字段表落后于实现：`tier`、`layout.work_root`/`artifacts`/`rule_files`、`derived`、
-  `metadata_fields`/`metadata_required`、顶层 `rule_files`、两个 `work_item_*_states`、两个 duplicate
-  阈值与两个 stale 阈值在被读却没写进 §5；反过来 §5 写了的 `standard_version`、`budgets.status_lines`
-  与 `budgets.work_item_lines` 没有检查器读。以实现为准。
+- CONTRACT.md §5 的字段表已按实现补齐（`tier`、`layout.work_root`/`artifacts`/`rule_files`、`derived`、
+  `metadata_fields`/`metadata_required`、两个 `work_item_*_states`、两个 duplicate 阈值与两个 stale
+  阈值），顶层 `rule_files` 这个重复拼法已从代码里删掉，只留 `layout.rule_files`。**剩下的缺口是反向的**：
+  §5 写了的 `standard_version`、`budgets.status_lines` 与 `budgets.work_item_lines` 仍然没有检查器读。
+- **"§5 的键集合 == 实现读的键集合"目前只能靠人核对，没有机械手段。** 现在两边一致是一次人工 grep
+  比对的结果，不是自检保证的；往检查器里加一个新配置键而忘了写进 §5，没有任何东西会报警。
 
 ## 本仓库自己的采用结果
 
