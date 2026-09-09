@@ -30,6 +30,118 @@ from stdlib import (  # noqa: E402
 
 CHECKS_DIR = os.path.join(HERE, "checks")
 
+IDENTITY_CHECK = "tool-identity"
+
+
+# --------------------------------------------------------------------------
+# 检查器版本身份（契约 §8）
+# --------------------------------------------------------------------------
+
+def _sha256_file(path):
+    import hashlib
+    try:
+        with io.open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError as exc:
+        return "读不了：%s" % exc
+
+
+def _git_line(args):
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", HERE] + list(args),
+                             capture_output=True, text=True, encoding="utf-8", timeout=60)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, "跑不了 git：%s" % exc
+    if out.returncode != 0:
+        return None, "git 退出码 %d" % out.returncode
+    return (out.stdout or ""), None
+
+
+def tool_identity():
+    """本次跑的这套检查器是哪一套。
+
+    身份是**内容哈希**，不是提交号：提交号覆盖不了工作区未提交的改动，而决定行为的
+    是文件内容。`CONTRACT.md` 也算进去——`_contract_examples_selftest` 会读它，
+    它进闸门，就必须进身份。提交号与 `--porcelain` 只作旁证与 dirty 标记。
+    """
+    import hashlib
+
+    files = [("check_all.py", os.path.join(HERE, "check_all.py")),
+             ("stdlib.py", os.path.join(HERE, "stdlib.py")),
+             ("CONTRACT.md", os.path.join(HERE, "CONTRACT.md"))]
+    if os.path.isdir(CHECKS_DIR):
+        for fn in sorted(os.listdir(CHECKS_DIR)):
+            if fn.startswith("check_") and fn.endswith(".py"):
+                files.append(("checks/" + fn, os.path.join(CHECKS_DIR, fn)))
+
+    digests = [(rel, _sha256_file(path)) for rel, path in files]
+    joined = "\n".join("%s %s" % (rel, h) for rel, h in digests)
+    combined = hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+    head, head_err = _git_line(["rev-parse", "HEAD"])
+    porcelain, por_err = _git_line(["status", "--porcelain", "--", HERE])
+    if porcelain is None:
+        dirty, dirty_detail = None, por_err
+    else:
+        lines = [ln for ln in porcelain.splitlines() if ln.strip()]
+        dirty, dirty_detail = bool(lines), "；".join(ln.strip() for ln in lines[:12])
+
+    return {
+        "digest": combined,
+        "files": digests,
+        "git_head": (head or "").strip() or head_err,
+        "dirty": dirty,
+        "dirty_detail": dirty_detail,
+    }
+
+
+def identity_line(ident):
+    """一行摘要，给文本输出的头部。"""
+    if ident.get("dirty") is True:
+        flag = "工作区 dirty（哈希已含未提交改动）"
+    elif ident.get("dirty") is False:
+        flag = "工作区干净"
+    else:
+        flag = "工作区状态未知：%s" % ident.get("dirty_detail")
+    return ("检查器身份 · sha256:%s（%d 个文件，含 CONTRACT.md）· git %s · %s"
+            % (ident["digest"][:16], len(ident["files"]),
+               (ident.get("git_head") or "未知")[:12], flag))
+
+
+def identity_block(ident):
+    """逐文件哈希，写成本工具自己的 yaml 子集能解析的形状。"""
+    lines = ["tool_identity_digest: %s" % ident["digest"],
+             "tool_identity_git_head: %s" % (ident.get("git_head") or "未知"),
+             "tool_identity_dirty: %s" % ident.get("dirty"),
+             "tool_identity_files:"]
+    lines += ["  - %s %s" % (rel, h) for rel, h in ident["files"]]
+    if ident.get("dirty_detail"):
+        lines.append("tool_identity_dirty_detail: %s" % ident["dirty_detail"])
+    return "\n".join(lines)
+
+
+def _identity_finding(ident):
+    return finding(
+        IDENTITY_CHECK, SKIP, identity_line(ident),
+        where="tools/std/",
+        reason="这不是判定，是记录，故不计三态。依据契约 §8：符合性报告不钉检查器版本身份"
+               "就不可复算——曾发生过扫描期间检查器被并行改写，同一项目旧版 30 条 FAIL、"
+               "新版 9 条，两份报告都自称是『对该项目的结论』",
+        evidence=identity_block(ident),
+    )
+
+
+def _identity_void_finding(before, after):
+    return finding(
+        IDENTITY_CHECK, UNDETERMINED, "扫描期间检查器自身被改动，本次结论作废",
+        where="tools/std/",
+        reason="扫描前后的检查器内容哈希不一致，说明这份报告是两套检查器混出来的，"
+               "不可复算。请等检查器稳定后重跑（契约 §8）",
+        why="契约 §8 / 01 §2 N1：拿不准是哪一套跑出来的结论，不记通过也不记失败",
+        evidence="扫描前 %s\n扫描后 %s" % (identity_block(before), identity_block(after)),
+    )
+
 
 def discover():
     mods = []
@@ -51,25 +163,39 @@ def discover():
 
 
 def _gated_by_selftest(name, mod):
-    """契约 §3：自检不过或没有自检的检查器，其结论作废。返回 (ok, findings)。"""
+    """契约 §3：自检不过或没有自检的检查器，其结论作废。
+
+    返回 `(ok, gate_findings, results)`。第三项是**闸门这一次实际拿到的那份自检结果**，
+    给 `--selftest` 分支原样打印用。
+
+    为什么要把它带出来：闸门是拿这一次的结果判的，`--selftest` 从前又自己调了一遍
+    再打印，于是**报告展示的证据不是闸门据以放行的那份证据**。各检查器的自检里有
+    `datetime.date.today()`、临时目录与 git，任何一次抖动都会让两份对不上。
+    这与"结论对、证据错"是同一类问题。
+
+    **禁止在这里做任何 memo / 缓存。** `_entry_smoke_selftest` 会嵌套跑一遍
+    `run_all(selftest_only=False)`（还会再跑两遍 `main`），缓存会跨嵌套泄漏，
+    闸门就不再是"这次扫描前刚跑过"，而是"某一次跑过、且不知道是哪一次"。
+    嵌套那几次是**另一次扫描的闸门**，不是重复，不该被消掉。
+    """
     if not hasattr(mod, "selftest"):
         return False, [finding(
             name, UNDETERMINED, "检查器没有自检",
             reason="契约 §3 要求每个检查器自带反例；没有反例就无法证明它抓得住违规",
             why="01 §5.6 守卫存在不等于守卫在执行",
-        )]
+        )], []
     try:
         results = mod.selftest()
     except Exception as exc:
-        return False, [undetermined_from_exception(name, exc, "跑自检")]
+        return False, [undetermined_from_exception(name, exc, "跑自检")], []
     bad = [r for r in results if r.get("status") != PASS]
     if bad:
         return False, [finding(
             name, UNDETERMINED, "检查器自检未通过，其对本仓库的结论作废",
             reason="; ".join("%s（%s）" % (r.get("title"), r.get("evidence")) for r in bad),
             why="契约 §3 / 01 §5.6：检查器故障按未定处置，不按通过记",
-        )]
-    return True, []
+        )], results
+    return True, [], results
 
 
 def _contract_examples_selftest():
@@ -189,6 +315,38 @@ def _entry_smoke_selftest():
             if u"外部配置" not in text:
                 raise AssertionError("--config 下 render 应标注外部配置")
 
+            # 3b) 契约 §8：身份块要出现在文本输出头部，不能只写在契约散文里
+            if u"检查器身份" not in text or u"sha256:" not in text:
+                raise AssertionError("文本输出头部没有检查器身份块")
+
+            # 3c) 缺陷四：--config 指向**项目内部**时，不许标"外部配置"
+            inside_cfg = os.path.join(proj, "inside-project.yaml")
+            with io.open(inside_cfg, "w", encoding="utf-8") as fh:
+                fh.write(_SMOKE_CONFIG)
+            f2, c2 = run_all(proj, selftest_only=False, config_path=inside_cfg)
+            t2 = render(f2, proj, c2, show_scope=False)
+            if u"外部配置" in t2:
+                raise AssertionError("--config 指向项目内部时不应标注外部配置：%r"
+                                     % t2.splitlines()[:4])
+            if u"（在被扫描项目内）" not in t2:
+                raise AssertionError("--config 指向项目内部时应如实标注在项目内")
+
+            # 3d) 跨盘符不许崩：commonpath / relpath 在 C: 对 D: 上抛 ValueError，
+            #     而 render 是在全部检查跑完之后才走到这一步的，崩在这里等于白跑一整轮。
+            for a, b in ((r"C:\proj", r"D:\elsewhere\project.yaml"),
+                         (r"C:\proj", r"C:\project\x.yaml"),
+                         (r"c:\proj", r"C:\proj\governance\project.yaml")):
+                outside, why_o = config_outside_root(a, b)
+                if outside is None:
+                    raise AssertionError("config_outside_root(%r,%r) 判不了：%s" % (a, b, why_o))
+            if os.name == "nt":
+                if config_outside_root(r"C:\proj", r"D:\x\y.yaml")[0] is not True:
+                    raise AssertionError("跨盘符应判为项目外")
+                if config_outside_root(r"C:\proj", r"C:\project\x.yaml")[0] is not True:
+                    raise AssertionError("C:/proj 不该把 C:/project/x.yaml 吞成内部")
+                if config_outside_root(r"c:\proj", r"C:\proj\g\p.yaml")[0] is not False:
+                    raise AssertionError("盘符大小写不同应归一化后判为项目内")
+
             # 4) main 整条走一遍（argparse + 输出 + 退出码），不允许抛异常
             for argv in ([proj, "--config", cfg_path, "--no-scope"],
                          [proj, "--config", cfg_path, "--json"]):
@@ -199,6 +357,11 @@ def _entry_smoke_selftest():
                     raise AssertionError("main(%r) 退出码 %r 不在 {0,1,2}" % (argv, code))
                 if not sink.getvalue().strip():
                     raise AssertionError("main(%r) 什么都没输出" % (argv,))
+                if "--json" in argv:
+                    data = json.loads(sink.getvalue())
+                    ids = [f for f in data if f.get("check") == IDENTITY_CHECK]
+                    if len(ids) != 1 or "tool_identity_digest" not in (ids[0].get("evidence") or ""):
+                        raise AssertionError("--json 里没有检查器身份字段")
     except Exception as exc:  # noqa: BLE001
         out.append(finding(
             "entry-smoke", FAIL, "入口冒烟自检没跑通：check_all 自己就跑不起来",
@@ -212,7 +375,8 @@ def _entry_smoke_selftest():
         where="tools/std/check_all.py",
         why="契约 §3：守卫存在不等于守卫在执行——入口本身也要有反例",
         evidence="run_all 返回二元组、findings 三态合法、render 出覆盖边界与外部配置标注、"
-                 "main 两种 argv 退出码合法且有输出",
+                 "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
+                 "跨盘符与盘符大小写不崩、main 两种 argv 退出码合法且有输出",
     ))
     return out
 
@@ -222,6 +386,9 @@ def run_all(root, selftest_only=False, config_path=None):
     渲染覆盖边界时由调用方把 cfg 传回去，不再各自重新加载（重新加载会
     在配置读不到时打出一整屏"未配置"的假边界）。"""
     findings = []
+    # 契约 §8：扫描前后各取一次身份，期间检查器自己被改过就作废重跑。
+    ident_before = tool_identity()
+    findings.append(_identity_finding(ident_before))
     mods = discover()
     if not mods:
         findings.append(finding(
@@ -237,9 +404,10 @@ def run_all(root, selftest_only=False, config_path=None):
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))
                 continue
-            ok, gate = _gated_by_selftest(name, mod)
-            findings.extend(gate if not ok else mod.selftest())
-        return findings, None
+            ok, gate, results = _gated_by_selftest(name, mod)
+            # 打印闸门**这一次**拿到的那份结果，不再重跑一遍。
+            findings.extend(gate if not ok else results)
+        return _sealed(findings, ident_before), None
 
     cfg, problem = load_config(root, config_path)
     if problem:
@@ -248,13 +416,13 @@ def run_all(root, selftest_only=False, config_path=None):
             reason=problem,
             why="契约 §5：缺配置不取默认值当事实",
         ))
-        return findings, None
+        return _sealed(findings, ident_before), None
 
     for name, mod, err in mods:
         if err is not None:
             findings.append(undetermined_from_exception(name, err, "加载检查器"))
             continue
-        ok, gate = _gated_by_selftest(name, mod)
+        ok, gate, _results = _gated_by_selftest(name, mod)
         if not ok:
             findings.extend(gate)
             continue
@@ -264,7 +432,19 @@ def run_all(root, selftest_only=False, config_path=None):
             findings.append(undetermined_from_exception(name, exc, "跑 %s" % name))
             continue
         findings.extend(res or [])
-    return findings, cfg
+    return _sealed(findings, ident_before), cfg
+
+
+def _sealed(findings, ident_before):
+    """收尾：再取一次身份，与开扫时比对。不一致就**整份作废**。
+
+    作废是真的作废——把已有的 findings 全丢掉，只留一条未定。留着它们再加一句
+    "本结论存疑"，读报告的人还是会去看那些条目。
+    """
+    ident_after = tool_identity()
+    if ident_after["digest"] == ident_before["digest"]:
+        return findings
+    return [_identity_void_finding(ident_before, ident_after)]
 
 
 def scopes(cfg):
@@ -280,6 +460,32 @@ def scopes(cfg):
     return out
 
 
+def config_outside_root(root, path):
+    """`--config` 给的配置落在被扫描项目之外还是之内。返回 (True/False/None, 原因)。
+
+    从前的判据是"`_path` 是不是绝对路径"——那是**假的溯源陈述**：
+    `--config <项目内部的绝对路径>` 会被报告成"外部配置，不在被扫描项目内"。
+    结论（配置从哪读的）对，陈述（它在不在项目内）错，与派生工件那条同类。
+
+    实现上避开三个坑（都实测过）：
+
+    - `os.path.commonpath` / `os.path.relpath` **跨盘符抛 ValueError**（`C:` 对 `D:`）。
+      `render` 是在全部检查跑完之后才调它的，崩在这里等于白跑一整轮，所以不用这两个函数。
+    - `abspath` 不归一化盘符大小写（`c:/` != `C:/`），必须 `normcase`。
+    - 前缀比较必须**带分隔符**，否则 `C:/proj` 会把 `C:/project/x.yaml` 判成内部。
+    """
+    try:
+        r = os.path.normcase(os.path.abspath(str(root or ".")))
+        p = os.path.normcase(os.path.abspath(str(path)))
+    except (OSError, ValueError) as exc:  # 归一化本身出问题也不许崩，按判不了处理
+        return None, "路径归一化失败：%s: %s" % (type(exc).__name__, exc)
+    seps = [os.sep] + ([os.altsep] if os.altsep else [])
+    r = r.rstrip("".join(seps))
+    if p == r:
+        return False, ""
+    return (not any(p.startswith(r + sep) for sep in seps)), ""
+
+
 def render(findings, root, cfg=None, show_scope=True):
     """渲染。cfg 是 run_all 已经加载好的配置，本函数不再自己读配置。
 
@@ -292,8 +498,18 @@ def render(findings, root, cfg=None, show_scope=True):
         counts[f["status"]] = counts.get(f["status"], 0) + 1
 
     buf.append("标准检查 · %s" % os.path.abspath(root))
-    if cfg and os.path.isabs(str(cfg.get("_path") or "")):
-        buf.append("配置 · %s（外部配置，不在被扫描项目内）" % cfg["_path"])
+    for f in findings:
+        if f.get("check") == IDENTITY_CHECK and f.get("status") == SKIP:
+            buf.append(f["title"])
+            break
+    if cfg and cfg.get("_path"):
+        outside, why_outside = config_outside_root(cfg.get("_root"), cfg.get("_path"))
+        if outside is True:
+            buf.append("配置 · %s（外部配置，不在被扫描项目内）" % cfg["_path"])
+        elif outside is False:
+            buf.append("配置 · %s（在被扫描项目内）" % cfg["_path"])
+        else:
+            buf.append("配置 · %s（在不在项目内判不了：%s）" % (cfg["_path"], why_outside))
     buf.append("  通过 %d   失败 %d   未定 %d   不适用 %d"
                % (counts[PASS], counts[FAIL], counts[UNDETERMINED], counts[SKIP]))
     buf.append("")

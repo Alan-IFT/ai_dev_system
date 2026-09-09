@@ -43,8 +43,22 @@ _IMPORTANT_DIRS = frozenset((
 ))
 
 
-def _requires_metadata(cfg, rel):
-    """该文档是否属于 01 §3.5 要求带元信息的那一类。"""
+def _metadata_requirement(cfg, rel):
+    """该文档属不属于 01 §3.5 要求带元信息的那一类。
+
+    返回三值，**不再返回硬布尔**：
+
+    - `"required"`   —— 项目配置命中，或路径里出现约定的目录名；
+    - `"not_required"` —— 项目配了 `metadata_required` 而本文件不在清单内。
+      这是**项目自己的声明**，是确定结论，可以记 SKIP；
+    - `"unknown"`    —— 项目没配，目录名约定也没命中。
+      "这份文档算不算 01 §3.5 的六类"要看内容，不是机械可判定的（契约 §7），
+      所以**不能**记成 SKIP（"不适用"是确定结论），按 01 §2 N1 记未定。
+
+    这条改动的由来：NFBY 的 runbook 放在 `docs/ops/`，本仓的文档树是中文名
+    （`docs/架构图`、`docs/审计记录`），两处的目录名约定命中率分别是 0/9 与 0/35。
+    原实现把 100% 的未命中输出成 SKIP「不要求元信息」——那是在拿"我没看"冒充"不适用"。
+    """
     parts = [p for p in str(rel).replace("\\", "/").split("/") if p]
     override = cfg_get(cfg, "metadata_required")
     if isinstance(override, list) and override:
@@ -52,9 +66,13 @@ def _requires_metadata(cfg, rel):
         for pre in override:
             pre = str(pre).replace("\\", "/").strip("/")
             if pre and (joined == pre or joined.startswith(pre + "/")):
-                return True
-        return False
-    return any(seg in _IMPORTANT_DIRS for seg in parts[:-1])
+                return "required"
+        return "not_required"
+    if any(seg in _IMPORTANT_DIRS for seg in parts[:-1]):
+        return "required"
+    return "unknown"
+
+
 _DEFAULT_WORK_ROOT = "docs/state/work"
 _DEFAULT_IN_PROGRESS = ("in_progress", "进行中")
 
@@ -250,9 +268,43 @@ def _agg(status, title, paths, reason, why=""):
 # 契约接口
 # --------------------------------------------------------------------------
 
+def _classify_stats(cfg):
+    """本次 docs_root 下各分类各有几份。纯按路径算，不读文件内容。
+
+    只为把覆盖边界说准：契约 §2 要求写明"没检查什么"，而"有多少份文档根本没被分类"
+    正是这个检查器最大的盲区——它此前一个字都没写。取不到时返回 None，不猜。
+    """
+    docs_root = cfg_get(cfg, "layout.docs_root")
+    root = cfg.get("_root") or "."
+    if not docs_root:
+        return None
+    try:
+        files, problem = _markdown_under(root, docs_root)
+    except Exception:  # noqa: BLE001  覆盖边界不该把主流程带崩
+        return None
+    if problem or files is None:
+        return None
+    stats = {"required": 0, "not_required": 0, "unknown": 0, "frozen": 0}
+    for rel in files:
+        if in_frozen(cfg, rel):
+            stats["frozen"] += 1
+            continue
+        stats[_metadata_requirement(cfg, rel)] += 1
+    stats["scanned"] = stats["required"] + stats["not_required"] + stats["unknown"]
+    return stats
+
+
 def scope(cfg):
     docs_root = cfg_get(cfg, "layout.docs_root")
     work_root = cfg_get(cfg, "layout.work_root") or _DEFAULT_WORK_ROOT
+    stats = _classify_stats(cfg)
+    if stats is None:
+        cls = ("本次未能统计分类结果（未配 docs_root 或列不出 git 跟踪的文档）")
+    else:
+        cls = ("本次参与分类的 %d 份文档里（另有归档区 %d 份不参与），判定为需要元信息 %d 份、"
+               "项目声明不需要 %d 份、**未能分类 %d 份**"
+               % (stats["scanned"], stats["frozen"], stats["required"],
+                  stats["not_required"], stats["unknown"]))
     return {
         "covered": [
             "layout.docs_root（当前 %r）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
@@ -261,6 +313,12 @@ def scope(cfg):
             "是否超 budgets.work_item_stale_days" % work_root,
         ],
         "not_covered": [
+            "**不判断一份文档到底属不属于 01 §3.5 的六类**（验收、架构、模块、契约、ADR、"
+            "runbook）。未配 metadata_required 时只按目录名约定（%s）识别，"
+            "这是约定不是判定，会两头误：runbook 放在 docs/ops/ 认不出，中文目录树"
+            "（docs/架构图、docs/审计记录）天然零命中；反过来叫 architecture 的目录里也可能"
+            "放着别的东西。%s。未能分类的不逐份记不适用，整轮汇总成一条未定"
+            % ("/".join(sorted(_IMPORTANT_DIRS)), cls),
             "不判断文档内容是否仍然正确，只判它的日期字段——内容对不对不是机械可判定的（契约 §7）",
             "不判断超期文档是否真的过期：超期只记未定，交人确认它是否仍然有效（01 §2 N1）",
             "不看归档区 layout.frozen 里的任何文件（01 §3.1：一次性对齐工件不承担更新义务）",
@@ -334,7 +392,7 @@ def _check_docs(cfg, root, today, base):
             reason="空集上说不出'全部文档都新鲜'（01 §2 N1：X 为空集时'全部 X 通过'判未定）",
         )]
 
-    out, frozen = [], []
+    out, frozen, unclassified = [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -347,13 +405,17 @@ def _check_docs(cfg, root, today, base):
 
         value, hit = _find_field(text[:_HEAD_CHARS], names)
         if value is None or not _clean(value):
-            if not _requires_metadata(cfg, rel):
+            need = _metadata_requirement(cfg, rel)
+            if need == "not_required":
                 out.append(finding(
                     NAME, SKIP, "不要求元信息：%s" % rel, where=str(rel),
-                    reason="01 §3.5 的元信息要求只覆盖重要文档（验收、架构、模块、契约、ADR、"
-                           "runbook）；本文件不在该清单内。索引类文档按 §3.2 由链接检查发现过期，"
-                           "不靠日期",
+                    reason="项目在 project.yaml 的 metadata_required 里给出了清单，本文件不在其内。"
+                           "这是项目自己的声明，故记不适用（01 §3.5 的元信息要求只覆盖重要文档："
+                           "验收、架构、模块、契约、ADR、runbook）",
                 ))
+                continue
+            if need == "unknown":
+                unclassified.append(rel)
                 continue
             out.append(finding(
                 NAME, FAIL, "缺日期字段：%s" % rel, where="%s:1" % rel,
@@ -398,6 +460,19 @@ def _check_docs(cfg, root, today, base):
     if frozen:
         out.append(_agg(SKIP, "归档区文档不参与新鲜度", frozen,
                         reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
+    if unclassified:
+        # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
+        # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
+        out.append(_agg(
+            UNDETERMINED, "缺日期字段，且判不了它们属不属于 01 §3.5 的六类", unclassified,
+            reason="项目未配 metadata_required，且这些路径里没有出现 acceptance / architecture / "
+                   "modules / contracts / decisions / runbooks 任一目录名。"
+                   "『这份文档算不算验收/架构/模块/契约/ADR/runbook』要看内容，"
+                   "本工具只按目录名约定识别，机械判不了（契约 §7），故按 01 §2 N1 记未定，"
+                   "不记不适用——不适用是确定结论，这里没有结论。"
+                   "要给出定论，在 project.yaml 写 metadata_required（路径前缀清单，"
+                   "**整体替换**目录名约定，不是追加）",
+            why="01 §3.5 元信息要求覆盖六类重要文档；01 §2 N1 判不了的不记通过也不记不适用"))
     return out
 
 
@@ -543,16 +618,41 @@ def _git_init(tmp):
     return None
 
 
-def _sample(tmp, doc_text, work_text):
-    # 放在 architecture/ 下：01 §3.5 的元信息要求只覆盖重要文档，
-    # 样本必须落在那个清单内，否则反例会被 _requires_metadata 正确地 SKIP 掉。
-    _write(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
-    _write(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
-    err = _git_init(tmp)
+def _cfg(tmp, extra=None):
     cfg = {"_root": tmp,
            "layout": {"docs_root": "docs", "work_root": "work"},
            "budgets": {"stale_days": 90, "work_item_stale_days": 14}}
-    return cfg, err
+    if extra:
+        cfg.update(extra)
+    return cfg
+
+
+def _sample(tmp, doc_text, work_text):
+    # 放在 architecture/ 下：这份样本是**照着被测约定造的**，所以它只能证明
+    # "约定命中时判得对"，结构上永远抓不到"约定与标准不匹配"那一类缺陷。
+    # 那一类由下面的 _sample_unconventional 覆盖。
+    _write(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
+    _write(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
+    err = _git_init(tmp)
+    return _cfg(tmp), err
+
+
+def _sample_unconventional(tmp, work_text, metadata_required=None):
+    """路径**不匹配任何目录名约定**的两份无日期文档，其中一份是中文名。
+
+    造法：一份用真实踩过的形态（NFBY 的 runbook 在 `docs/ops/`，目录名不在
+    `_IMPORTANT_DIRS` 里），一份用本工具自己仓库的形态（中文目录 + 中文文件名，
+    一套英文目录名约定对它零命中）。中文名那份是关键——上面那份还能靠加
+    `*runbook*` 文件名模式蒙对，中文树连蒙的机会都没有。
+    """
+    _write(os.path.join(tmp, "docs", "ops", "pitr-runbook.md"),
+           "# PITR 恢复手册\n\n正文：按时间点恢复的操作步骤。\n")
+    _write(os.path.join(tmp, "docs", "运维", "数据恢复手册.md"),
+           "# 数据恢复手册\n\n正文：故障后的数据恢复步骤。\n")
+    _write(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
+    err = _git_init(tmp)
+    extra = {"metadata_required": list(metadata_required)} if metadata_required else None
+    return _cfg(tmp, extra), err
 
 
 def selftest():
@@ -595,5 +695,48 @@ def selftest():
             "正例：昨天更新的文档 + 昨天刚转换的进行中工作项，应各判一条 PASS",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：把正常样本判成违规的检查器同样不可用",
+        ))
+
+    work_fresh = ("# WI-0001\n\n状态：**in_progress**\n\n## 状态转换记录\n\n"
+                  "| from → to | 时间 |\n|---|---|\n| planned → in_progress | %s |\n" % fresh)
+
+    # 反例三：路径不匹配约定（含中文名），未配 metadata_required。
+    # 必须落到聚合未定，**不得**出现逐份 SKIP「不要求元信息」——那是拿"没看"冒充"不适用"。
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample_unconventional(tmp, work_fresh)
+        res = run(cfg) if not err else []
+        skips = [f for f in res if f["status"] == SKIP and "不要求元信息" in (f["title"] or "")]
+        aggs = [f for f in res if f["status"] == UNDETERMINED and "判不了它们" in (f["title"] or "")]
+        ev = (aggs[0].get("evidence") or "") if aggs else ""
+        ok = ((not err) and not skips and len(aggs) == 1
+              and "docs/ops/pitr-runbook.md" in ev and "docs/运维/数据恢复手册.md" in ev)
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "反例三：路径不匹配目录名约定（含中文名）的无日期文档，"
+            "未配 metadata_required 时须记聚合未定，不得逐份记不适用",
+            evidence="实得 %s；逐份 SKIP %d 条，聚合未定 %d 条，证据 %r%s"
+                     % ([f["status"] for f in res], len(skips), len(aggs), ev[:160],
+                        ("；git 准备失败：%s" % err) if err else ""),
+            why="契约 §7 只做机械判定 + 01 §2 N1 判不了记未定；SKIP 是确定结论，"
+                "『这份算不算重要文档』不是机械可判定的",
+        ))
+
+    # 反例四：同一样本配上 metadata_required。同时钉死它的**替换语义**：
+    # 只写 docs/ops，中文那份就从"未分类"变成"项目声明不需要"，而不是继续按目录名约定判。
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample_unconventional(tmp, work_fresh, metadata_required=["docs/ops"])
+        res = run(cfg) if not err else []
+        fails = [f for f in res if f["status"] == FAIL and "pitr-runbook" in (f["title"] or "")]
+        skips = [f for f in res if f["status"] == SKIP and "数据恢复手册" in (f["title"] or "")]
+        aggs = [f for f in res if f["status"] == UNDETERMINED and "判不了它们" in (f["title"] or "")]
+        ok = (not err) and len(fails) == 1 and len(skips) == 1 and not aggs
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "反例四：配了 metadata_required: [docs/ops] 后，命中的判 FAIL、未命中的判不适用，"
+            "不再有未分类（钉死『替换而非追加』的语义）",
+            evidence="实得 %s；命中 FAIL %d 条，未命中 SKIP %d 条，残留聚合未定 %d 条%s"
+                     % ([f["status"] for f in res], len(fails), len(skips), len(aggs),
+                        ("；git 准备失败：%s" % err) if err else ""),
+            why="契约 §5：metadata_required 给了就只认它，整体替换目录名约定",
         ))
     return results

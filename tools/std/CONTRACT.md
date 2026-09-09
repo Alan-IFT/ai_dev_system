@@ -72,7 +72,9 @@ def selftest() -> list[dict]:
 | 键 | 含义 | 检查器该怎么用 |
 |---|---|---|
 | `cfg["_root"]` | **被扫描项目的根**，`check_all` 的位置参数原样传入，可能是相对路径 | 检查器定位工件一律用它拼路径（`os.path.join(cfg["_root"], rel)`），**不得**用 `os.getcwd()` 或检查器自己的 `__file__` |
-| `cfg["_path"]` | 配置文件的实际路径 | 只用于报告与证据。它是相对路径（`governance/project.yaml`）还是绝对路径（`--config` 给的外部配置），决定了输出里要不要标注"外部配置" |
+| `cfg["_path"]` | 配置文件的实际路径 | 只用于报告与证据。**它落在 `_root` 之内还是之外**，决定了输出里标"外部配置，不在被扫描项目内"还是"在被扫描项目内"。判据是路径包含关系，不是"绝对还是相对"——`--config` 完全可以指向项目内部的绝对路径，那时标"外部配置"是一句**假的溯源陈述** |
+
+`_path` 在不在项目内由 `check_all.config_outside_root(root, path)` 判，返回 `True`（在外）/ `False`（在内）/ `None`（判不了）。它**不用** `os.path.commonpath` 与 `os.path.relpath`：这两个函数跨盘符会抛 `ValueError`，而调用点在全部检查跑完之后，崩在那里等于白跑一整轮。实现是 `normcase(abspath(...))` 加带分隔符的前缀比较——`normcase` 是因为 `abspath` 不归一化盘符大小写（`c:/` 与 `C:/`），带分隔符是因为 `C:/proj` 不该把 `C:/project/x.yaml` 吞成内部。这三点各有一条入口冒烟断言。
 
 这两个键的名字带下划线是为了与项目自己写的配置项区分：**项目的 `project.yaml` 里写 `_root` 或 `_path` 无效**——`load_config` 解析完会原地覆盖它们。
 
@@ -170,7 +172,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `budgets.duplicate_min_lines` | 整数 ≥2 | 否 | 取常量 3 并注明未校准 |
 | `budgets.duplicate_min_chars` | 整数 ≥1 | 否 | 取常量 60 并注明未校准 |
 | `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准 |
-| `metadata_required` | 路径前缀列表 | 否 | 按目录名约定判：路径里出现 `acceptance`/`architecture`/`modules`/`contracts`/`decisions`/`runbooks` 之一即算需要元信息。给了就只认这份清单 |
+| `metadata_required` | 路径前缀列表 | 否 | 见下方专段。给了就**只认这份清单**；没给则按目录名约定判，约定也没命中的**记未定，不记不适用** |
 | `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | 取常量 `done`/`完成`/`delivered` 并注明未校准 |
 | `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
 | `derived` | 列表，每项 `artifact` / `source` / `regen` | 否 | `check_derived` 整条记 `SKIP`——不猜哪些文件是生成的 |
@@ -178,13 +180,23 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 
 **缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键，以及 `layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。`layout.docs_root` 是半个例外：`check_layout` 兜底、`freshness` 记未定——这处不一致是实现现状，不是有意设计。除这些之外的键缺失一律记 `UNDETERMINED`。
 
+### `metadata_required` 的两件事，都容易踩
+
+**一、它是整体替换，不是追加。** 一旦写了它，目录名约定就**整份失效**。项目只写 `docs/ops`（因为注意到 runbook 在那儿），`docs/architecture`、`docs/decisions` 会**同时失去**元信息要求，而报告只会安静地把它们记成"不要求元信息"。要保留原有约定就得把它们一并写进清单。
+
+**二、不配它的后果，是"未定"而不是"不适用"。** `freshness` 判一份文档属不属于 01 §3.5 的六类（验收、架构、模块、契约、ADR、runbook），靠的是路径里有没有出现那几个目录名。这是**约定，不是判定**，两头都会错：NFBY 的 runbook 放在 `docs/ops/`，9 份全部落空；本仓是中文文档树（`docs/架构图`、`docs/审计记录`），35 份 100% 落空。反过来，叫 `architecture` 的目录里也可能放着别的东西。
+
+所以未配 `metadata_required` 且目录名约定未命中时，那些缺日期字段的文档**不逐份记 `SKIP`**——`SKIP`（不适用）是确定结论，而"这份文档算不算重要文档"要看内容，按 §7 机械判不了。它们汇总成**整轮一条 `UNDETERMINED`**，证据里列出路径。代价是这类项目的退出码从 0/1 变 2；收益是"这里没看"从报告末尾的不适用堆里挪到了未定区。配了 `metadata_required` 之后，命中记 `FAIL`、未命中记 `SKIP`，两边都是确定结论。
+
 配置也可由 `check_all --config PATH` 从被扫描项目之外给出，此时 `_root` 仍是被扫描项目、`_path` 记配置的实际路径；这是扫描只读/第三方项目而不往其中写入任何文件的唯一受支持方式；外部配置缺失或解析失败一律记 `UNDETERMINED`，不回退到 `<root>/governance/`。
 
 ---
 
 ## 6. 输出
 
-默认人读的文本：先给三态计数，再按 `FAIL` → `UNDETERMINED` → `SKIP` 排，`PASS` 只给计数不逐条列。`--json` 输出机器可读的 Finding 数组，供上层工具消费。
+默认人读的文本：先给**检查器身份行**（见 §8），再给三态计数，再按 `FAIL` → `UNDETERMINED` → `SKIP` 排，`PASS` 只给计数不逐条列。`--json` 输出机器可读的 Finding 数组，供上层工具消费。
+
+身份块在 `--json` 里是数组中一条 `check: "tool-identity"` 的 Finding，状态 `SKIP`（它是记录不是判定，不计三态、不影响退出码），逐文件哈希放在 `evidence` 里。这样 `--json` 仍然是一个 Finding 数组，不必为它改顶层形状。
 
 **不输出分数、不输出百分比、不输出"健康度"。** 依据 [01 §4.8](../../标准/01-项目管理标准.md#delivery-metrics)：合成指标会把未定折算成部分通过。
 
@@ -195,3 +207,30 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 能机械判定的才写成检查器。**判不了的写进走查清单交给人**，不要做成"用模型判一下"的检查器——那会让检查结果本身不可重复（见 [04 §6.2](../../标准/04-可靠性安全与运行维护.md#agent-run-observability)）。
 
 具体地：文件是否存在、链接是否可达、行数是否超预算、同一字符串是否出现在两处、时间戳是否超期、字段是否齐全——可以。某段文字写得好不好、某条规则该不该存在、某个设计是否合理——不可以。
+
+---
+
+## 8. 报告必须钉住检查器自己的版本身份
+
+来自一次实跑：扫描一个外部项目的过程中，本工具被另一条线并行改写；旧版对同一项目给 30 条 `FAIL`，新版给 9 条。两份报告都自称是"对该项目的结论"，而**没有任何字段能分辨它们是哪一套跑出来的**。结论：符合性报告不钉检查器版本身份就**不可复算**。
+
+**身份是内容哈希，不是提交号。** 提交号覆盖不了工作区未提交的改动——上面那次正是未提交态；决定行为的是文件内容，不是提交指针。
+
+- 进哈希的文件：`checks/check_*.py` 逐个 + `stdlib.py` + `check_all.py` + **`CONTRACT.md`**。契约进身份是因为 `_contract_examples_selftest` 会读它、它进自检闸门，改了它就可能改变放行与否。
+- 各文件 sha256，外加一个合并摘要（把 `路径 哈希` 逐行拼起来再 sha256）。
+- `git rev-parse HEAD` 与 `git status --porcelain` 只作**旁证与 dirty 标记**，不作身份。
+- **脏工作区允许扫**，但报告必须显式标 `dirty` 并附逐文件哈希。
+- **扫描前后各取一次**，摘要与文件集合都必须一致（新增一个 `check_*.py` 也算变）。不一致则本次结论**作废**——不是加一句"存疑"，是把已有结论整份丢掉，只留一条 `UNDETERMINED` 说明作废原因，等检查器稳定后重跑。
+
+**这一节约束的是工具，不是人的自觉。** 一条只有人能遵守的报告纪律放进契约，既越出"每个检查器必须满足的接口与行为"这个范围，又必然被忘——那正是 [M-10](../../标准/参考资料/M-10-守卫的执行点.md) 说的"守卫存在不等于守卫在执行"。所以：`check_all` 自己在文本输出头部与 `--json` 里产出身份块，`_entry_smoke_selftest` 有对应断言（文本含身份行、`--json` 含 `tool_identity_digest`）。
+
+`--json` 里那条 Finding 的 `evidence` 长这样，它同时是本工具 yaml 子集能解析的形状：
+
+```yaml
+tool_identity_digest: f24d0d3ec39ff5551c006cdc55574a7dc8d6cd1a0fee4d644a55895f6f032ba8
+tool_identity_git_head: a3b66cca003121ee1fe4aea034b069b216277461
+tool_identity_dirty: True
+tool_identity_files:
+  - check_all.py 0a59ea87bc6b56431fddf7ad3fbd07a75b14312c51f1001322b6cf6752301d69
+  - CONTRACT.md 2b19a50dbb67d7569b0c69f23073f507b4382e34ed9887d666375ab0437ac319
+```
