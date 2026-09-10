@@ -103,7 +103,6 @@ def selftest() -> list[dict]:
 项目根的 `governance/project.yaml`，检查器只从这里取项目相关参数，**不硬编码路径**：
 
 ```yaml
-standard_version: "2026-09-10"     # 采用的标准修订，见 标准/README.md
 tier: L1                            # 必填：L0 | L1 | L2 | L3，决定该有哪些工件
 tailoring:                          # 裁剪：不适用的部分与理由
   - check: cross-repo
@@ -149,6 +148,8 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
     path: .
     role: system                     # system | app | retired | archived
 ```
+
+**采用的标准修订不在本文件。** 它由 `governance/STANDARD_VERSION` 承载（[01 §3.1](../../标准/01-项目管理标准.md) 的文档树与 [§8](../../标准/01-项目管理标准.md#adoption) 都定在那儿），由 `check_adoption` 读出并把值原样写进报告证据。此处从前有过一个 `standard_version` 键，与标准正文并列成两处权威而**没有任何检查器读它**，已删除；采用项目 `project.yaml` 里若还留着这一行，属可选清理，删不删都不产生后果。`check_adoption` **不拿读到的值与工具侧任何常量比对**——工具仓 0 个标签，那个值指不到可获取的制品，比了就是编。
 
 **只用块状列表（短横线），不要用 `[a, b]` 这种流式写法**——解析器按"歧义即拒绝"拒收它，本文此前的示例写成流式，照抄会让整份配置解析失败，已改正。
 

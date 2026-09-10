@@ -40,7 +40,7 @@ retail-core/
 │  ├─ project.yaml                 栈、命令、路径、兼容策略、预算
 │  ├─ GATES.md                     G1–G8 + 项目自加的 G9–G11
 │  ├─ exceptions.md                例外登记（带到期）
-│  └─ STANDARD_VERSION             1.0
+│  └─ STANDARD_VERSION             采用的标准修订与采用日期
 ├─ docs/
 │  ├─ INDEX.md
 │  ├─ product/

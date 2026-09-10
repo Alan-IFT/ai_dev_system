@@ -1,5 +1,5 @@
 # retail-core 项目配置 —— 命令、路径、栈、兼容策略、预算的唯一权威位置
-standard_version: "1.0"
+# 采用的标准修订不在本文件，见 governance/STANDARD_VERSION（01 §8）
 project_name: retail-core
 project_stage: production          # pre_release | production
 maintainer: Alan
