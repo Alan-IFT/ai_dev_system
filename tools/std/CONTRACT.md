@@ -155,6 +155,8 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
   - name: control-plane
     path: .
     role: system                     # system | app | retired | archived
+    former_names:                    # 可选：这个仓改名前叫过什么
+      - control-plane-ops
 ```
 
 **采用的标准修订不在本文件。** 它由 `governance/STANDARD_VERSION` 承载（[01 §3.1](../../标准/01-项目管理标准.md) 的文档树与 [§8](../../标准/01-项目管理标准.md#adoption) 都定在那儿），由 `check_adoption` 读出并把值原样写进报告证据。此处从前有过一个 `standard_version` 键，与标准正文并列成两处权威而**没有任何检查器读它**，已删除；采用项目 `project.yaml` 里若还留着这一行，属可选清理，删不删都不产生后果。`check_adoption` **不拿读到的值与工具侧任何常量比对**——工具仓 0 个标签，那个值指不到可获取的制品，比了就是编。
@@ -184,6 +186,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
 | `derived` | 列表，每项 `artifact` / `source` / `regen` | 否 | `check_derived` 整条记 `SKIP`——不猜哪些文件是生成的 |
 | `repos` | 列表，每项 `name` / `path` / `role` | 否 | `cross-repo` 记 `UNDETERMINED`（不足两个条目同样记未定）。`role` 取 `system`/`app`/`retired`/`archived` |
+| `repos[].former_names` | 字符串列表 | 否 | **不声明就一字不查**——不猜哪个名字是旧名（判据八）。别名与任何在册 `name` 相撞时该项记 `UNDETERMINED` 且不扫描：那种情况下命中的多半是在役引用 |
 
 **缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键，以及 `layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。`layout.docs_root` 是半个例外：`check_layout` 兜底、`freshness` 记未定——这处不一致是实现现状，不是有意设计。除这些之外的键缺失一律记 `UNDETERMINED`。
 

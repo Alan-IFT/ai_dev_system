@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -19,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, is_tailored_out, undetermined_from_exception,
+    cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "cross-repo"
@@ -37,6 +38,9 @@ _MARKERS_EN = ("retired", "archived", "deprecated")
 
 _ROLES = ("system", "app", "retired", "archived")
 _DEAD_ROLES = ("retired", "archived")
+
+# 判据八的唯一豁免：同一行上写了改名标记词。豁免写在被检查的那一行上，不设清单。
+_RENAME_MARKERS = ("前身", "曾用名", "改名", "更名", "formerly", "renamed")
 
 # 系统级入口里"登记了状态"的词。§3.8 要求登记的是状态，不只是名字。
 _STATUS_TOKENS = (
@@ -229,6 +233,7 @@ def _load_repos(cfg):
             "_real": abspath,
             "_exists": os.path.isdir(abspath),
             "_is_git": os.path.isdir(abspath) and _is_git_repo(abspath),
+            "former_names": item.get("former_names"),
         })
     return repos, None
 
@@ -248,6 +253,13 @@ def _find_entry(repo, entry_names):
 def scope(cfg):
     entries = cfg_get(cfg, "layout.entry", []) or []
     rule_files = cfg_get(cfg, "layout.rule_files") or _DEFAULT_RULE_FILES
+    al = ["%s 的旧名 %s" % (i.get("name"), a) for i in (cfg_get(cfg, "repos") or [])
+          if isinstance(i, dict) and isinstance(i.get("former_names"), list)
+          for a in i["former_names"]]
+    former = (
+        "repos[].former_names 声明的历史别名（%s）：是否仍以独立记号出现在**别的仓**的 git 跟踪文本里"
+        "（判据八）。它补的正是本检查器判据四声明不看的那一片——判据四只看 *.md 里的 markdown 链接语法，"
+        "判据八用 git grep 扫全部跟踪文件里的裸词，两条判据在此互相指认" % "、".join(al)) if al else None
     return {
         "covered": [
             "repos 里声明的每个仓：路径是否存在、根下有没有 .git、有没有 layout.entry 里的入口文件（%s）"
@@ -259,8 +271,15 @@ def scope(cfg):
             "role 为 retired/archived 的仓根下，layout.rule_files（%s）展开出的文件前 %d 行有没有失效标记"
             % (", ".join(map(str, rule_files)), _MARKER_HEAD_LINES),
             "各仓 *.md 里 markdown 链接语法写的跨仓相对路径，解析后是否存在",
-        ],
-        "not_covered": [
+        ] + ([former] if former else []),
+        "not_covered": ([] if former else [
+            "repos[].former_names 未声明，仓的历史别名一字未查——不声明就不猜哪个名字是旧名（判据八）",
+        ]) + [
+            "判据八不判某处指称是历史记述还是当现称用——那是人的裁定（契约 §7）；只按'出现在谁的仓里'"
+            "机械分层，自仓那一层一律记未定",
+            "判据八只扫根下有 .git 的仓的 git 跟踪文件，layout.frozen 下的路径不扫；"
+            "同一行上写了改名标记词（%s）即豁免，豁免只认同一行、不设可以偷偷加东西的清单"
+            % "/".join(_RENAME_MARKERS),
             "不判断工件归属得对不对——'这条事实该放哪个仓'是人的判断（01 §3.8 归属判据、契约 §7）",
             "不判断入口内容是否真的只是投影：只判有没有指向系统仓，不判系统级规则正文有没有被抄进来",
             "登记一条只按'名字 + 同一行的状态词'判：名字出现但同行没有状态词一律记未定（不记通过也不记失败），"
@@ -329,6 +348,7 @@ def _run(cfg):
 
     out.extend(_check_retired(cfg, repos, entry_names if entry_names else []))
     out.extend(_check_links(repos))
+    out.extend(_check_former_names(cfg, repos))
     return out
 
 
@@ -757,6 +777,92 @@ def _check_links(repos):
 
 
 # --------------------------------------------------------------------------
+# 判据八：仓的历史别名还在被别的仓当作现称使用
+# --------------------------------------------------------------------------
+
+def _git_grep(repo_real, needle):
+    """一次子进程召回。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
+    cmd = ["git", "-C", repo_real, "--no-optional-locks", "-c", "core.quotepath=false",
+           "grep", "-I", "-n", "-F", "-e", needle, "--", "."]
+    try:
+        p = subprocess.run(cmd, capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, "跑不了 git grep：%s" % exc
+    if p.returncode not in (0, 1):   # 1 = 一条都没命中，是正常出口
+        return None, "git grep 退出码 %d：%s" % (
+            p.returncode, (p.stderr or b"").decode("utf-8", "replace").strip()[:160])
+    rows = [ln.split(":", 2) for ln in (p.stdout or b"").decode("utf-8", "replace").splitlines()]
+    return [(h[0].replace("\\", "/"), h[1], h[2].strip()[:120]) for h in rows if len(h) == 3], None
+
+
+def _check_former_names(cfg, repos):
+    """未声明 former_names 则一字不查（见 scope）。声明了才召回、才分层。"""
+    out, names, todo = [], set(r["name"] for r in repos), []
+    for r in repos:
+        fn = r["former_names"]
+        if fn is None:
+            continue
+        if not isinstance(fn, list):
+            out.append(finding(NAME, UNDETERMINED, "仓 %s 的历史别名读不出来" % r["name"],
+                               reason="former_names = %r，不是列表；契约 §5：取值有歧义时不猜" % (fn,),
+                               why="01 §3.8'跨仓引用按契约处理'"))
+            continue
+        for a in [str(x).strip() for x in fn if str(x).strip()]:
+            if a in names:        # ←—— 挡住大批误报的四行，不许省
+                out.append(finding(
+                    NAME, UNDETERMINED, "仓 %s 的历史别名 %r 与在册仓名相撞，本项不扫描" % (r["name"], a),
+                    reason="repos 里已有一个仓就叫 %r：按它召回，命中的是现名的正常引用而不是旧名的死指针" % a,
+                    why="契约 §1.1：召回前提不成立时记未定，绝不产出 FAIL"))
+                continue
+            todo.append((r, a))
+    if not todo:
+        return out
+    cross, mine, errs = [], [], []
+    for owner, alias in todo:
+        for r in [x for x in repos if x["_is_git"]]:
+            hits, err = _git_grep(r["_real"], alias)
+            if err:
+                errs.append("%s / %s：%s" % (r["name"], alias, err))
+                continue
+            for rel, no, line in hits:
+                if in_frozen(cfg, rel) or not _name_appears(line, alias):
+                    continue
+                if any((m in line) or (m in line.lower()) for m in _RENAME_MARKERS):
+                    continue
+                (mine if r["_abs"] == owner["_abs"] else cross).append(
+                    "%s/%s:%s（%s 的旧名 %s）" % (r["name"], rel, no, owner["name"], alias))
+    al = "、".join("%s←%s" % (o["name"], a) for o, a in todo)
+    how = "（逐仓一次 git grep -I -n -F，命中行再过 _name_appears 词边界复核；同行写了 %s 任一改名标记的" \
+          "已豁免；layout.frozen 下的路径与根下没有 .git 的仓不扫）" % "/".join(_RENAME_MARKERS)
+    if errs:
+        out.append(finding(NAME, UNDETERMINED, "有 %d 次历史别名召回没跑成" % len(errs),
+                           reason="；".join(errs[:_MAX_LISTED]),
+                           why="契约 §2：召回跑不成是'没看'，不推定'没有命中'"))
+    if cross:
+        out.append(finding(
+            NAME, FAIL, "历史别名仍被别的仓当作现称使用：%d 文件 / %d 行"
+                        % (len(set(x.split(":")[0] for x in cross)), len(cross)),
+            where=cross[0].split("（")[0],
+            why="01 §3.8'跨仓引用按契约处理'：仓改名之后，别的仓里写着旧名的那一行就是一条指向不存在的仓的"
+                "指针，顺着它走的人和会话到不了目标；改名方要么同批改掉全部引用方、要么留一个转发指针",
+            evidence="别名：%s；共 %d 行，列前 %d：%s%s"
+                     % (al, len(cross), min(len(cross), _MAX_LISTED),
+                        "；".join(cross[:_MAX_LISTED]), how)))
+    elif not errs:
+        out.append(finding(NAME, PASS, "%d 个历史别名在别的仓里都不再被当作现称使用" % len(todo),
+                           evidence="别名：%s；扫了 %d 个仓%s"
+                                    % (al, len([r for r in repos if r["_is_git"]]), how)))
+    if mine:
+        out.append(finding(
+            NAME, UNDETERMINED, "历史别名在它自己那个仓里还出现 %d 行" % len(mine),
+            reason="自己仓里写自己的旧名，是历史记述还是当现称用机械分不了——这一层的裁定归读报告的人（契约 §7）",
+            why="01 §3.8：只有'别的仓写旧名'才是确定的断指针；自仓这一层按 01 §2 N1 记未定，不记失败",
+            evidence="共 %d 行，列前 %d：%s" % (len(mine), min(len(mine), _MAX_LISTED),
+                                            "；".join(mine[:_MAX_LISTED]))))
+    return out
+
+
+# --------------------------------------------------------------------------
 # 自检：反例与正例各一（契约 §3）
 # --------------------------------------------------------------------------
 
@@ -805,6 +911,24 @@ def _sample(tmp, bad):
     }
 
 
+def _alias_probe(body, former):
+    """判据八的两仓样本，必须是**真** git 仓（git grep 只看索引）。只取判据八那几条。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        for nm in ("sys", "app"):
+            d = os.path.join(tmp, nm)
+            _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
+            if nm == "app":
+                _mk(os.path.join(d, "docs", "note.md"), body + u"\n")
+            for arg in (["init", "-q"], ["add", "-A"]):
+                subprocess.run(["git", "-C", d] + arg, capture_output=True, timeout=60)
+        got = [f for f in run({
+            "_root": tmp, "layout": {"entry": ["CLAUDE.md"]},
+            "repos": [{"name": "sys", "path": "sys", "role": "system", "former_names": former},
+                      {"name": "app", "path": "app", "role": "app"}],
+        }) if u"历史别名" in f["title"]]
+    return [f["status"] for f in got], " | ".join(f["title"] for f in got) or "无"
+
+
 def selftest():
     results = []
     try:
@@ -839,6 +963,24 @@ def selftest():
                             "；".join("%s/%s（%s）" % (f["status"], f["title"], f.get("reason") or f.get("evidence"))
                                      for f in other) or "无"),
                 why="契约 §3 静默失效探测：正例误报 FAIL 的检查器同样不可用",
+            ))
+
+        for want, title, probes in (
+            ([FAIL], "判据八反例：历史别名出现在别的仓里，应判 FAIL",
+             [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"])]),
+            ([PASS], "判据八正例：别的仓里没有出现历史别名，应判 PASS",
+             [(u"现行清单见 ../sys/docs/list.md。", ["SYS_OLD"])]),
+            ([PASS, UNDETERMINED],
+             "判据八收窄反例：同行带改名标记不得报；别名撞在册仓名必须记未定且不扫描",
+             [(u"SYS_OLD 已更名为 sys，清单见 ../sys/docs/list.md。", ["SYS_OLD"]),
+              (u"现行清单见 app/docs/list.md。", ["app"])]),
+        ):
+            got = [_alias_probe(b, f) for b, f in probes]
+            results.append(finding(
+                NAME, PASS if [g[0] for g in got] == [[w] for w in want] else FAIL, title,
+                evidence="期望 %s，实得 %s" % (want, "；".join("%s：%s" % g for g in got)),
+                why="契约 §3 静默失效探测：抓不出违规、或对正例误报的检查器，其结论作废；"
+                    "契约 §1.1：召回前提不成立时记未定不产 FAIL，豁免只认被检查的那一行、不设清单",
             ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
