@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, read_text, tracked_files,
+    cfg_get, finding, is_tailored_out, read_text, tracked_files,
     undetermined_from_exception,
 )
 
@@ -285,7 +285,10 @@ def scope(cfg):
     work_root = cfg_get(cfg, "layout.work_root") or _DEFAULT_WORK_ROOT
     return {
         "covered": [
-            "layout.work_root（当前 %r）下 git 跟踪的 *.md 中状态为已完成的工作项" % work_root,
+            "layout.work_root（当前 %r）下 git 跟踪的 *.md 中状态为已完成的工作项，"
+            "**包括落在 layout.frozen 里的**：frozen 的语义是「不承担更新义务」（01 §3.1），"
+            "而本检查判的是「这条完成声明当初成不成立」，与要不要更新无关；"
+            "把 frozen 当跳过条件，等于把 §3.1 的一条豁免搬到一条它不适用的判据上" % work_root,
             "它们证据段里每条证据的六字段（01 §4.2）是否齐全、值是否为空或占位",
             "两种写法：加粗条目行下的编号字段，以及表头能映射到六字段的字段表",
         ],
@@ -295,7 +298,6 @@ def scope(cfg):
             "不打开证据里引用的 artifacts 文件或 CI 链接，不核对它们存在与否",
             "不核对证据是否逐条绑到验收 ID（01 §4.1 done 行要求绑），也不追进验收文件核对主张",
             "不判断 01 §4.2 ④ 里「跨边界后采集」这一条是否满足——那要看证据内容",
-            "不看归档区 layout.frozen 里的历史工作项（01 §3.1：一次性对齐工件不承担更新义务）",
             "不看未被 git 跟踪的文件，不看 .md 以外的文件，不看 PR/提交说明里承载的轻量简记"
             "（01 §4.1 允许该写法，本工具读不到）",
             "不判断文档内容是否仍然正确，也不判断日期新旧——那是 freshness 检查器的事",
@@ -347,11 +349,8 @@ def _run(cfg):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
 
-    out, frozen, nostatus, other = [], [], [], []
+    out, nostatus, other = [], [], []
     for rel in files:
-        if in_frozen(cfg, rel):
-            frozen.append(rel)
-            continue
         try:
             text = read_text(os.path.join(root, rel))
         except OSError as exc:
@@ -369,9 +368,6 @@ def _run(cfg):
 
         out.extend(_check_one(rel, text, status, note))
 
-    if frozen:
-        out.append(_agg(SKIP, "归档区的历史工作项不查证据", frozen,
-                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if nostatus:
         out.append(_agg(SKIP, "工作项目录下没有状态字段的文件", nostatus,
                         reason="读不到状态字段，不当作工作项（README、索引之类）"))
@@ -491,11 +487,14 @@ def _git_init(tmp):
     return None
 
 
-def _sample(tmp, body):
+def _sample(tmp, body, frozen=None):
     _write(os.path.join(tmp, "work", "WI-0001-x.md"),
            "# WI-0001\n\n状态：**done**\n\n## 验收证据\n\n" + body)
     err = _git_init(tmp)
-    return {"_root": tmp, "layout": {"work_root": "work"}}, err
+    layout = {"work_root": "work"}
+    if frozen is not None:
+        layout["frozen"] = frozen
+    return {"_root": tmp, "layout": layout}, err
 
 
 def selftest():
@@ -524,5 +523,20 @@ def selftest():
             "正例：六字段齐全且限制非空，应判 PASS",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：把合规样本判成违规的检查器同样不可用",
+        ))
+
+    # frozen 不是跳过条件。没有这条，「解开 frozen 耦合」就只是一句注释：
+    # 上一版把整个 work_root 划进 frozen 就能让本检查一条对象都取不到，
+    # 而那正是一次真实扫描里"覆盖对象为零"的成因。
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _FIVE, frozen=["work"])
+        got = [f["status"] for f in run(cfg)] if not err else []
+        ok = (not err) and got == [FAIL]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "反例：落在 layout.frozen 里的已完成工作项，缺⑥仍应判 FAIL",
+            evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
+            why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
+                "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
         ))
     return results

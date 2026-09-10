@@ -242,8 +242,7 @@ def _contract_examples_selftest():
     return out
 
 
-_SMOKE_CONFIG = u"""standard_version: "2026-09-10"
-layout:
+_SMOKE_CONFIG = u"""layout:
   entry:
     - CLAUDE.md
   docs_root: docs

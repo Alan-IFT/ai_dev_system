@@ -23,8 +23,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, is_tailored_out, undetermined_from_exception,
+    FAIL, PASS, SKIP,
+    finding, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "adoption"
@@ -39,13 +39,12 @@ _REL = "governance/STANDARD_VERSION"
 _VERSION_KEYS = ("standard_version", "version", "adopted_version", "标准版本", "采用版本")
 # §8 要求可追溯"何时采用的哪一版"，日期字段名放宽到这几个等价写法。
 _ADOPTED_KEYS = ("adopted_at", "adopted", "adoption_date", "采用日期", "采用时间")
-_TAILORING_KEYS = ("tailoring", "tailored", "裁剪", "裁剪理由")
 
 _KEY_LINE = re.compile(r"^([A-Za-z_][A-Za-z0-9_.\-]*|[一-鿿]+)\s*:\s*(.*)$")
 
 
 def _parse(text):
-    """把 STANDARD_VERSION 拆开。返回 (版本值, 采用日期, 裁剪行, 键值对列表)。
+    """把 STANDARD_VERSION 拆开。返回 (版本值, 采用日期, 键值对列表)。
 
     实物形状取自 `标准/示例项目-连锁零售中台/governance/STANDARD_VERSION`：
 
@@ -57,7 +56,7 @@ def _parse(text):
     即版本值；也接受 `version: 1.0` 这种写法。`#` 开头的行当注释。
     这不是 YAML——`stdlib.parse_yaml_subset` 会在首行那个裸值上直接抛错。
     """
-    version, adopted, tailoring_lines, pairs = None, None, [], []
+    version, adopted, pairs = None, None, []
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -74,9 +73,7 @@ def _parse(text):
             version = val
         elif adopted is None and low in _ADOPTED_KEYS and val:
             adopted = val
-        elif low in _TAILORING_KEYS:
-            tailoring_lines.append(line)
-    return version, adopted, tailoring_lines, pairs
+    return version, adopted, pairs
 
 
 def scope(cfg):
@@ -92,10 +89,12 @@ def scope(cfg):
             "不与工具侧任何常量比对（check_all 的 _SMOKE_CONFIG、check_layout 的 _SNAPSHOT_DATE 都不比）；"
             "没有可比制品还比，结论就是编的",
             "不判裁剪内容是否合理、是否完整——那是内容判断，契约 §7 说了不做",
-            "不判裁剪理由该记在哪一处：上游两处说法不一致，本检查对该项记未定，不自行裁决",
+            "不判裁剪登记齐不齐、记在哪一处：`标准/README.md` 要求与版本记在同一处，"
+            "契约 §5 把 tailoring 定在 governance/project.yaml，两处说法相反——"
+            "规则本身还不存在，按契约 §4『why 追不到标准条款的检查项不进本工具』，"
+            "本检查对该项不产出任何发现：调和该由上游做，不由每份报告里塞一条恒定未定代劳",
             "不核实 adopted_at 的日期是否属实，也不判它与版本发布时间的先后",
             "只看 %s 这一个位置：01 §3.1 把它定在这里，项目挪了位置本检查报缺失而不去猜" % _REL,
-            "不读 governance/project.yaml 的 standard_version 字段——该字段已按本轮裁决从契约 §5 删除",
         ],
     }
 
@@ -118,7 +117,6 @@ def run(cfg):
                 "『我原来是哪一版』无从回答，§4.7『标准升级』那一行也就没有可执行的起点",
             evidence="按 cfg[_root] 拼出的路径不存在：%s" % path,
         ))
-        out.append(_tailoring_undetermined(cfg, None))
         return out
 
     try:
@@ -127,7 +125,7 @@ def run(cfg):
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)]
 
-    version, adopted, tailoring_lines, pairs = _parse(text)
+    version, adopted, pairs = _parse(text)
     raw_head = "；".join(ln.strip() for ln in text.splitlines() if ln.strip())[:200] or "（空文件）"
 
     if not version:
@@ -169,40 +167,7 @@ def run(cfg):
                      "本检查不核实这个日期是否属实，也不判它与版本发布的先后。" % adopted,
         ))
 
-    out.append(_tailoring_undetermined(cfg, tailoring_lines))
     return out
-
-
-def _tailoring_undetermined(cfg, tailoring_lines):
-    """裁剪登记记在哪一处：上游两处说法相反，本检查不裁决，记未定。
-
-    这是本轮测评查出的第五处口径冲突。检查器不替上游做决定——按契约 §1，
-    判不了就记未定，不猜、不降级为通过。
-    """
-    in_yaml = cfg_get(cfg, "tailoring", None)
-    n_yaml = len(in_yaml) if isinstance(in_yaml, list) else (0 if in_yaml is None else 1)
-    if tailoring_lines is None:
-        in_file = "（文件不存在，没法看）"
-    elif tailoring_lines:
-        in_file = "有 %d 行：%s" % (len(tailoring_lines), "；".join(tailoring_lines)[:120])
-    else:
-        in_file = "没有任何裁剪行"
-    return finding(
-        NAME, UNDETERMINED, "裁剪理由该记在哪一处，上游两处说法不一致，本检查不裁决",
-        where=_REL,
-        reason="`标准/README.md` 第 3 行要求采用项目把版本记进 governance/STANDARD_VERSION，"
-               "『并在**同一处**记下自己裁剪掉的部分与理由』；"
-               "而 `tools/std/CONTRACT.md` §5 把 tailoring 定在 governance/project.yaml，"
-               "`stdlib.is_tailored_out` 也只读后者。两处说法相反，"
-               "『裁剪登记齐不齐』的机械判据无从建立，待上游调和后再定。",
-        why="01 §8 第三条：采用方按 §4.7 做减法要**记录**——要求是明的，"
-            "但『记在哪一处』两份上游文本相反，机械判不了（契约 §1：未定不降级为通过）",
-        evidence="governance/project.yaml 的 tailoring 条目数：%d\n"
-                 "%s 里的裁剪行：%s\n"
-                 "顺带说明：本检查器自己被裁剪与否，走的也是 project.yaml 的 tailoring"
-                 "（stdlib.is_tailored_out），即实现侧当前只认那一处。"
-                 % (n_yaml, _REL, in_file),
-    )
 
 
 # --------------------------------------------------------------------------
@@ -275,16 +240,16 @@ def selftest():
     """
     results = []
     cases = [
-        (None, (FAIL, UNDETERMINED),
+        (None, (FAIL,),
          "反例：文件缺失应判 FAIL（01 §8 第一条）"),
-        (u"\n   \n", (FAIL, FAIL, UNDETERMINED),
+        (u"\n   \n", (FAIL, FAIL),
          "反例：空文件——版本与采用日期都读不出，两条 FAIL"),
-        (u"adopted_at: 2025-03-03\n", (FAIL, PASS, UNDETERMINED),
+        (u"adopted_at: 2025-03-03\n", (FAIL, PASS),
          "反例：只有采用日期、读不出版本值应判 FAIL"),
-        (u"1.0\n", (PASS, FAIL, UNDETERMINED),
+        (u"1.0\n", (PASS, FAIL),
          "反例：只有版本值、没有采用日期应判 FAIL（§8 要求可追溯何时采用的哪一版）"),
-        (_COMPLETE, (PASS, PASS, UNDETERMINED),
-         "正例：示例项目的实物形状应判 PASS，且裁剪那条仍为 UNDETERMINED"),
+        (_COMPLETE, (PASS, PASS),
+         "正例：示例项目的实物形状应判 PASS，本检查器对该输入不再产出任何未定"),
     ]
     try:
         with tempfile.TemporaryDirectory() as tmp:

@@ -114,6 +114,26 @@ _RE_COUNT_CLAIM = re.compile(
 # 一律记未定，不会因此升格为失败。
 _CLAIM_NOUN_KEY = 2
 
+# markdown 链接构造：链接文本与链接目标都不是"这份文档在声明一个数值"，
+# 而是"这份文档在指向另一份文档"。本仓实测：`[40 人的检查点与授权](...)` 这个
+# 文件名被当成一条数值声明，本仓实测这一条就吃掉 21 个文件位。
+# （这里刻意不把那个形态原样抄进注释——抄了本文件自己就成了它的第 N 处出现。）
+# 判据 2 用 _RE_ONLY_LINK 挡掉了**整行只有链接**的行，但这些命中都在表格行与
+# 正文句子里（`README.md:37` 是「责任平面：[40 …](…)」），整行判挡不住。
+# 所以按构造挡：把链接整段换成等长空格，同一行里链接之外的数值照常参与判定。
+_RE_MD_LINK = re.compile(r"\[[^\]\n]*\]\([^)\n]*\)")
+
+# 一组要出现在几个文件才报。阈值 2 时本仓 31 组里 20 组是"2 个文件"，
+# 其中经人工逐条核对真候选 0 个；N2 点名的"版本号、条数、状态摘要"那一类
+# （架构部件数、来源数、原则条数）实测都出现在 3 个以上文件。
+# 不做成配置键：这是判据自身的召回位置，不是项目参数（契约 §5 不新增键）。
+_CLAIM_MIN_FILES = 3
+
+
+def _mask_links(raw):
+    """把整行里的 markdown 链接构造换成等长空格，其余字符原样保留。"""
+    return _RE_MD_LINK.sub(lambda m: u" " * (m.end() - m.start()), raw)
+
 
 def _is_structural(line):
     """目录、索引、链接行、标题行这类天然重复的结构，不算实质文本。"""
@@ -303,11 +323,12 @@ def _count_claims(files):
     claims = {}
     for rel, text, _data in files:
         for lineno, raw in prose_lines(text):
-            for m in _RE_COUNT_CLAIM.finditer(raw):
+            line = _mask_links(raw)
+            for m in _RE_COUNT_CLAIM.finditer(line):
                 num = m.group(1).replace(u",", u"").replace(u"，", u"")
                 key = (num, m.group(2), m.group(3)[:_CLAIM_NOUN_KEY])
                 claims.setdefault(key, {}).setdefault(rel, (lineno, m.group(0)))
-    return {k: v for k, v in claims.items() if len(v) > 1}
+    return {k: v for k, v in claims.items() if len(v) >= _CLAIM_MIN_FILES}
 
 
 # --------------------------------------------------------------------------
@@ -322,8 +343,8 @@ def scope(cfg):
             u"跨文件重复的实质文本段落（默认连续 %d 行、有效字符 ≥%d），"
             u"只要有一处落在文档里就报——包括「文档抄了源码里的一段」（01 §5.10）"
             % (_DEFAULT_MIN_LINES, _DEFAULT_MIN_CHARS),
-            u"同一「数字+量词+名词」组合出现在两个以上文件、且至少一处在文档里"
-            u"（只报未定，不判失败）",
+            u"同一「数字+量词+名词」组合出现在 %d 个以上文件、且至少一处在文档里"
+            u"（只报未定，不判失败）" % (_CLAIM_MIN_FILES - 1),
             u"算文档的后缀：%s" % u" ".join(_DOC_SUFFIXES),
         ],
         "not_covered": [
@@ -339,6 +360,10 @@ def scope(cfg):
             u"不跨仓库比对（跨仓副本归 check_cross_repo）",
             u"不看代码块（``` 围栏之间）里的重复，除非整文件逐字节相同",
             u"不看标题行、目录/索引行、纯链接行、表格分隔行这类天然重复的结构",
+            u"判据 3 不看 markdown 链接构造里的数字（链接文本与链接目标都换成空格再匹配）"
+            u"——那是指向另一份文档，不是在声明一个数值；同一行链接之外的数值照常判",
+            u"判据 3 不报只出现在 2 个文件的组：本仓实测这一档 20 组、真候选 0 组。"
+            u"召回换准确的取舍写在这里，不是漏判——需要更高召回时改 _CLAIM_MIN_FILES",
             u"不看只读归档区 layout.frozen：%s（01 §3.1）" % (u"、".join(map(str, frozen)) or u"（未配置）"),
             u"不看 project.yaml 里已声明为派生的工件（归 derived-artifacts）",
             u"不判断成组的两份里哪一份该是权威——那是人的取舍，不是机械判定",
@@ -654,22 +679,48 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
-    # 探测三：同一数值声明出现在两个文件，按判据 3 应得未定而非失败
+    # 探测三：同一数值声明出现在 _CLAIM_MIN_FILES 个文件，按判据 3 应得未定而非失败。
+    # 文件数跟着阈值走：阈值从 2 收到 3 那次，这条曾是唯一会当场变红的自检项。
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            cfg = _mkrepo(tmp, {
+            files = {
                 "m.md": _UNIQ_A + u"\n当前共有 192 份归档，按季度清点一次。\n",
                 "n.md": _UNIQ_B + u"\n仓库里 192 份归档由资料员保管。\n",
-            })
+                "o.md": _UNIQ_C + u"\n异地机房另存 192 份归档的副本。\n",
+            }
+            cfg = _mkrepo(tmp, dict(list(files.items())[:_CLAIM_MIN_FILES]))
             got = [f["status"] for f in run(cfg)]
         ok = UNDETERMINED in got and FAIL not in got
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            u"探测三：重复数值声明应判未定、不得升格为失败",
+            u"探测三：重复数值声明出现在 %d 个文件应判未定、不得升格为失败" % _CLAIM_MIN_FILES,
             evidence=u"实得 %s" % got, why=u"契约 §1 未定不可静默升格",
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"探测三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 探测三之二（本次收窄的反例）：同一个数字只出现在 markdown 链接文本里，
+    # 出现在足够多的文件也不得报——它是指向另一份文档，不是在声明一个数值。
+    # 没有这条，"链接构造不算"就只是一句注释；本仓那 21 个文件位正是这个形态。
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            body = {}
+            for i, uniq in enumerate((_UNIQ_A, _UNIQ_B, _UNIQ_C), 1):
+                body["k%d.md" % i] = uniq + u"\n责任平面：[40 人的检查点与授权](docs/40-x.md)\n"
+            res = run(_mkrepo(tmp, body))
+        hits = [f for f in res if u"同一数值声明" in f["title"]]
+        ok = not hits and FAIL not in [f["status"] for f in res]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"探测三之二：只出现在链接文本里的数字，跨 3 个文件也不报",
+            evidence=u"命中 %d 条：%s" % (
+                len(hits), u"；".join(f["title"] for f in hits) or u"（无）"),
+            why=u"01 §1 G2 的对象是被声明的数值；链接是指针不是数值，"
+                u"把文件名当数值会把一份索引报成 21 处重复",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(
+            NAME, FAIL, u"探测三之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:

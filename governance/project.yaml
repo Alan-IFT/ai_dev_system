@@ -7,7 +7,9 @@ layout:
   entry:
     - CONTEXT_MANIFEST.md             # 本仓库的入口叫这个名字，不叫 AGENTS.md
   docs_root: docs
-  work_root: docs/state/work
+  # work_root 不配：本仓库确实没有工作项目录（git ls-files 里没有任何 WI-* 或
+  # state/ 条目），原先写的 docs/state/work 并不存在，是一句假事实。删掉之后
+  # evidence/freshness 会按默认常量记一条未定并注明用的是默认——那是诚实结果。
   artifacts:                          # 本仓库的工件叫别的名字，按 01 §3.1「可按职责合并映射」登记
     status: PROJECT_STATUS.md
     # acceptance 故意不填：本仓库确实没有验收条目工件，留着让它报 FAIL
@@ -22,8 +24,6 @@ layout:
 
 budgets:
   entry_lines: 150
-  status_lines: 80
-  work_item_lines: 150
   stale_days: 90
   work_item_stale_days: 14
 

@@ -82,7 +82,8 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 哪个仓库、哪个版本、哪个提交号**，否则"结论是用哪份工具跑出来的"无从复算。
 
 **这里有一个尚未兑现的前提。** 按版本取用工具的**标签机制还没有建立**：本仓有远端但没有任何
-标签，`standard_version` 指不到任何可获取的制品，也没有检查器读它。当前只能按路径直接调用
+标签，`governance/STANDARD_VERSION` 里的版本值指不到任何可获取的制品——`check_adoption`
+读得出它并把值原样写进证据，但核不了那个值背后有没有可取用的东西。当前只能按路径直接调用
 一份具体的工作副本。这是已知缺口，不是已经跑通的流程。
 
 ## 加一个自己的检查器
@@ -110,8 +111,9 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
   不等于在你的仓库里也对。新增检查器时，反例样本要包含你项目里真实存在的形态。
 - CONTRACT.md §5 的字段表已按实现补齐（`tier`、`layout.work_root`/`artifacts`/`rule_files`、`derived`、
   `metadata_fields`/`metadata_required`、两个 `work_item_*_states`、两个 duplicate 阈值与两个 stale
-  阈值），顶层 `rule_files` 这个重复拼法已从代码里删掉，只留 `layout.rule_files`。**剩下的缺口是反向的**：
-  §5 写了的 `standard_version`、`budgets.status_lines` 与 `budgets.work_item_lines` 仍然没有检查器读。
+  阈值），顶层 `rule_files` 这个重复拼法已从代码里删掉，只留 `layout.rule_files`。反向的缺口
+  （§5 写了但没有检查器读的键）已清空：`standard_version` 随 D-088 删除，
+  `budgets.status_lines` 与 `budgets.work_item_lines` 本轮从 §5 与本仓配置里一并删掉。
 - **"§5 的键集合 == 实现读的键集合"目前只能靠人核对，没有机械手段。** 现在两边一致是一次人工 grep
   比对的结果，不是自检保证的；往检查器里加一个新配置键而忘了写进 §5，没有任何东西会报警。
 

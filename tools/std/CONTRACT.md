@@ -123,8 +123,6 @@ layout:
     - AGENTS.md
 budgets:                             # 参数，项目可改；默认见 01 §3.7
   entry_lines: 150
-  status_lines: 80
-  work_item_lines: 150
   stale_days: 90                     # 文档多久不动算陈旧
   work_item_stale_days: 14           # 进行中的工作项多久不动算失活
   duplicate_min_lines: 3             # 重复文本判据的下限
@@ -166,8 +164,6 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
 | `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
 | `budgets.entry_lines` | 正整数 | 否 | 取 01 §3.7 默认 150 并注明未校准；不是正整数记 `UNDETERMINED` |
-| `budgets.status_lines` | 正整数 | 否 | 01 §3.7 的 `STATUS.md` 上限 80。**目前没有检查器读它** |
-| `budgets.work_item_lines` | 正整数 | 否 | 01 §3.7 的工作项上限 150。**目前没有检查器读它** |
 | `budgets.stale_days` | 正整数 | 否 | 取常量 90 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.work_item_stale_days` | 正整数 | 否 | 取常量 14 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.duplicate_min_lines` | 整数 ≥2 | 否 | 取常量 3 并注明未校准 |
