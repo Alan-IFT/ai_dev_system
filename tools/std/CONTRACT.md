@@ -26,6 +26,16 @@
 
 `check_all` 的退出码：有任一 `FAIL` → 1；无 FAIL 但有 `UNDETERMINED` → 2；全 PASS/SKIP → 0。**调用方不得把 2 当成功。**
 
+### 1.1 判据落空只能记未定，不许升格为 FAIL、也不许新增配置键去救
+
+**判据靠猜测得出的结论只能是 `PASS` 或 `UNDETERMINED`，永不产出 `FAIL`。**
+
+这里的"猜测"指判据的召回依据不是项目自己声明的事实，而是工具单方面的一份约定：**目录名、文件后缀、字段名、标记词，以及从模板快照抄来的候选路径**。约定命中了可以记 `PASS`——东西确实在那儿，这是看见的事实；约定落空只说明"工具没在它猜的地方找到"，推不出"这个项目没有"，所以记 `UNDETERMINED`。要把某项判成 `FAIL`，先让项目在 `project.yaml` 里声明落点：**声明之后仍然不成立，那才是确定的违规。**
+
+两次实测教训，都是用不确定的前提产出了确定的结论：`check_layout` 按模板候选路径没找到 ★ 工件就判缺失，而外部项目只是把它放在别的名字下；`check_layout` 的状态字段曾是英文单值 `status`，本仓 `PROJECT_STATUS.md` 头部写的是「状态：进行中」，被报成"缺状态字段"。前者已改判未定，后者的词表已并进 `stdlib.STATUS_FIELDS`。
+
+**判据落空的处置是记未定，不是在 §5 里新增一个配置键。** 判据自身的召回位置（阈值、词表、候选清单）不是项目参数，把它做成键，等于让每个采用方替工具修判据；键会一直加下去，而报告并不因此更可信。项目要表达的只有一件事——"这东西在我这儿叫什么、放在哪"，那属于 `layout.artifacts` 一类的**落点声明**，与救判据是两回事。
+
 ---
 
 ## 2. 每个检查器必须声明覆盖边界
@@ -160,7 +170,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `layout.entry` | 字符串列表 | 否 | `entry-budget` 与 `cross-repo` 的入口相关判据记 `UNDETERMINED`——不猜哪份是入口；只有 `check_layout` 退回分档快照里的候选名判存在性 |
 | `layout.docs_root` | 字符串 | 否 | **两个检查器不一致**：`check_layout` 退回常量 `docs`，`freshness` 记 `UNDETERMINED`（不猜文档放在哪）。想让 `freshness` 跑起来就必须写 |
 | `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`，并在 `evidence` 里注明用的是默认 |
-| `layout.artifacts` | 映射，`<role>: 路径` | 否 | 按分档快照里的候选路径猜；给了就只认它，不再猜候选。role 名见 `check_layout` 的 `_TIER_ITEMS`（`entry`/`acceptance`/`status`/`playbook`/`failures`/…） |
+| `layout.artifacts` | 映射，`<role>: 路径` | 否 | 按分档快照里的候选路径找；给了就只认它，不再猜候选。**★ 工件（入口/验收/状态）没声明落点时，候选未命中记 `UNDETERMINED` 而不是 `FAIL`**（§1.1）；声明了却不存在才是 `FAIL`。role 名见 `check_layout` 的 `_TIER_ITEMS`（`entry`/`acceptance`/`status`/`playbook`/`failures`/…） |
 | `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
 | `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
 | `budgets.entry_lines` | 正整数 | 否 | 取 01 §3.7 默认 150 并注明未校准；不是正整数记 `UNDETERMINED` |
@@ -176,6 +186,23 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `repos` | 列表，每项 `name` / `path` / `role` | 否 | `cross-repo` 记 `UNDETERMINED`（不足两个条目同样记未定）。`role` 取 `system`/`app`/`retired`/`archived` |
 
 **缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键，以及 `layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。`layout.docs_root` 是半个例外：`check_layout` 兜底、`freshness` 记未定——这处不一致是实现现状，不是有意设计。除这些之外的键缺失一律记 `UNDETERMINED`。
+
+### 01 §3.7 给了六项篇幅预算，本工具只执行其中一项
+
+按 §2「未覆盖的部分不是没问题，是没看」，这里把边界写死：
+
+| 01 §3.7 的预算项 | 默认值 | 本工具 |
+|---|---|---|
+| `AGENTS.md`（入口） | 150 行 | **执行**：`check_entry_budget` 读 `budgets.entry_lines`，对象是 `layout.entry` 列出的文件 |
+| `INDEX.md` | 每份文档一行 | **无检查器** |
+| `STATUS.md` | 80 行 | **无检查器** |
+| 工作项 | 150 行 | **无检查器** |
+| 交接 | 60 行 | **无检查器** |
+| 模块文档 | 200 行 | **无检查器** |
+
+后五项**没有任何检查器执行**，报告里既不会 PASS 也不会 FAIL，连一条未定都不会出现——它们根本没被看过。按 [01 §1 G5](../../标准/01-项目管理标准.md)（高价值规则要有检查方式），它们在本工具的覆盖范围内**目前等于没有**。采用项目要么自建检查器把它们接上，要么在 `tailoring` 里登记不适用，别把"报告没报"当成"没超预算"。
+
+**这五项不对应任何配置键，也不要为它们加键。** 加一个没有读者的键，等于在配置里写一句不会被执行的承诺——`budgets.status_lines` 与 `budgets.work_item_lines` 这两个键正是因为这个原因被删掉的。缺的是检查器，不是键；键要跟着检查器一起来（§1.1）。
 
 ### `metadata_required` 的两件事，都容易踩
 

@@ -18,7 +18,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
     cfg_get, finding, is_tailored_out, undetermined_from_exception,
 )
 
@@ -44,6 +44,11 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 # （01 §3.1 明说「文件路径可按 §3.1 合并映射」，所以命中任一即算存在）。
 # 项目可用 governance/project.yaml 的 layout.artifacts.<role> 指定自己的路径，
 # 指定了就只认它，不再猜候选。
+#
+# **候选路径列不是判据依据，是提示。** 它只有两个用途：项目没声明时试着找一下，
+# 以及未命中时把这份清单写进 evidence，告诉采用方"该往哪儿放，或该在
+# layout.artifacts 里改成哪儿"。候选落空推不出"该工件不存在"——按契约 §1/§7，
+# ★ 角色未声明且候选未命中时记 UNDETERMINED，不记 FAIL。
 # --------------------------------------------------------------------------
 
 _TEMPLATE_SOURCE = "templates/文件树与落地路径.md"
@@ -83,7 +88,9 @@ _TIER_ITEMS = {
 _TIER_ORDER = ["L0", "L1", "L2", "L3"]
 
 _DEFAULT_DATE_FIELDS = ["updated_at"]   # 01 §3.5 的字段名
-_STATUS_FIELD = "status"                # 01 §3.5：draft | active | superseded | retired
+# 状态字段名取自 stdlib.STATUS_FIELDS（01 §3.5：draft | active | superseded | retired，
+# 中文文档写「状态：进行中」同样算）。此前这里是英文单值 "status"，与 freshness/evidence
+# 手上的三词表不一致，对本仓 PROJECT_STATUS.md 产出过一条假 FAIL。
 _META_HEAD_LINES = 40                   # 元信息在"头部"，只看头部若干行
 
 
@@ -171,12 +178,15 @@ def scope(cfg):
             "只在项目根、layout.entry（%s）与 layout.docs_root（%s）下解析工件路径"
             % (", ".join(map(str, entries)) or "未配置", docs_root),
             "对存在的 markdown 工件查 01 §3.5 的头部元信息：日期字段 %s 与状态字段 %s"
-            % ("/".join(fields) + ("（默认值）" if used_default else ""), _STATUS_FIELD),
+            % ("/".join(fields) + ("（默认值）" if used_default else ""),
+               "/".join(STATUS_FIELDS)),
         ],
         "not_covered": [
             "不判断文档内容对不对——那不是机械可判定的（契约 §7）",
             "不判断某个工件该不该存在：裁剪是人的决定，只看它有没有在 tailoring 里登记",
             "不扫全仓：只看 layout.entry 与 layout.docs_root 下的候选路径，别处同名文件看不见",
+            "★ 工件未在 layout.artifacts 里声明落点时，候选路径只当提示用：未命中记未定，"
+            "不记 FAIL——候选来自模板快照，落空只说明工具没在它猜的地方找到（契约 §1/§7）",
             "分档清单是 %s 于 %s 的快照，源文件改了这里不会自动变；两边不一致时以源文件为准"
             % (_TEMPLATE_SOURCE, _SNAPSHOT_DATE),
             "只看元信息字段在不在，不看它的值对不对、日期是不是已经过期",
@@ -268,11 +278,25 @@ def _run(cfg):
               "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(cand_list))
 
         if hit is None:
-            if star:
+            if star and override:
+                # 项目自己声明了它在哪，那条路径上没有东西 —— 这是确定的缺失。
                 out.append(finding(
                     NAME, FAIL, "★ %s 类工件缺失（%s）" % (label, role),
                     where=cand_list[0],
                     why="01 §3.1：入口、验收、状态是最小起点（★），少一件这套管理就没有落点",
+                    evidence="项目在 layout.artifacts.%s 声明了它，该路径下没有。%s" % (role, src),
+                ))
+            elif star:
+                # 未声明 + 候选未命中。候选路径只是本工具从模板抄来的一份猜测，
+                # 用它落空推不出"这个仓真的没有验收/状态工件"——它可能就在别的名字下。
+                # 契约 §1/§7：判据靠猜测得出的结论只能是 PASS 或 UNDETERMINED。
+                out.append(finding(
+                    NAME, UNDETERMINED, "★ %s 类工件没找到（%s）" % (label, role),
+                    where=cand_list[0],
+                    reason="项目未在 layout.artifacts.%s 里声明它在哪，工具只按快照候选路径找过；"
+                           "候选落空不等于该工件不存在" % role,
+                    why="01 §3.1：入口、验收、状态是最小起点（★）。要把它判成缺失，"
+                        "先在 layout.artifacts 里声明落点——声明后仍然没有才记 FAIL",
                     evidence="候选都不存在。%s" % src,
                 ))
             else:
@@ -312,8 +336,8 @@ def _run(cfg):
         missing = []
         if not any(_has_field(head, f) for f in date_fields):
             missing.append("日期字段（%s）" % "/".join(date_fields))
-        if not _has_field(head, _STATUS_FIELD):
-            missing.append("状态字段（%s）" % _STATUS_FIELD)
+        if not any(_has_field(head, f) for f in STATUS_FIELDS):
+            missing.append("状态字段（%s）" % "/".join(STATUS_FIELDS))
         if missing:
             out.append(finding(
                 NAME, FAIL, "%s 头部缺元信息：%s" % (rel, "、".join(missing)),
@@ -350,21 +374,42 @@ def selftest():
             cfg = {
                 "_root": tmp,
                 "tier": "L0",
+                "layout": {"entry": ["CONTEXT.md"], "docs_root": "docs",
+                           "artifacts": {"status": "WORK.md"}},
+            }
+            # 同一个仓，但没在 layout.artifacts 里声明状态工件在哪
+            cfg_undeclared = {
+                "_root": tmp,
+                "tier": "L0",
                 "layout": {"entry": ["CONTEXT.md"], "docs_root": "docs"},
             }
 
             # 正例：L0 五件齐、元信息齐 → 全 PASS
             got_ok = [f["status"] for f in run(cfg)]
 
-            # 反例：删掉 ★ 状态工件 → 必须有 FAIL
+            # 反例：声明了状态工件在 WORK.md，删掉它 → 必须有 FAIL
             os.remove(os.path.join(tmp, "WORK.md"))
             got_bad = [f["status"] for f in run(cfg)]
 
+            # 探测：同样缺 WORK.md，但项目没声明落点 → 只许未定，不许 FAIL。
+            # 候选路径是本工具从模板抄来的猜测，落空推不出"该仓没有状态工件"。
+            res_und = run(cfg_undeclared)
+            got_und = [f["status"] for f in res_und]
+            star_und = [f for f in res_und
+                        if f["status"] == UNDETERMINED and f["title"].startswith("★ ")]
+
             results.append(finding(
                 NAME, PASS if FAIL in got_bad else FAIL,
-                "反例：L0 缺 ★ 状态工件 WORK.md 应判 FAIL",
+                "反例：layout.artifacts 声明了 ★ 状态工件却不存在，应判 FAIL",
                 evidence="实得 %s" % got_bad,
                 why="契约 §3 静默失效探测；判据 01 §3.1 的 ★ 三类",
+            ))
+            results.append(finding(
+                NAME, PASS if (FAIL not in got_und and star_und) else FAIL,
+                "探测：★ 工件未声明落点且候选未命中，应判未定、不得判 FAIL",
+                evidence="实得 %s；★ 未定 %d 条" % (got_und, len(star_und)),
+                why="契约 §1/§7：判据靠猜测（这里是模板快照的候选路径）得出的结论"
+                    "只能是 PASS 或 UNDETERMINED",
             ))
             results.append(finding(
                 NAME, PASS if (got_ok and set(got_ok) == {PASS}) else FAIL,

@@ -20,7 +20,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
     cfg_get, finding, is_tailored_out, read_text, tracked_files,
     undetermined_from_exception,
 )
@@ -30,7 +30,7 @@ STANDARD_REFS = ["01 §1 G4", "01 §2 N1", "01 §3.1", "01 §4.1", "01 §4.2"]
 
 _DEFAULT_WORK_ROOT = "docs/state/work"
 _DEFAULT_DONE_STATES = ("done", "完成", "delivered")
-_STATUS_FIELDS = ("状态", "status", "state")
+# 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _EVIDENCE_HEADINGS = ("证据",)
 _HEAD_CHARS = 4000
 _LIST_CAP = 12
@@ -357,7 +357,7 @@ def _run(cfg):
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
-        raw, _hit = _find_field(text[:_HEAD_CHARS], _STATUS_FIELDS)
+        raw, _hit = _find_field(text[:_HEAD_CHARS], STATUS_FIELDS)
         if raw is None:
             nostatus.append(rel)
             continue

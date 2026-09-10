@@ -104,8 +104,12 @@ _RE_FENCE = re.compile(r"^\s*(```|~~~)")
 _RE_WS = re.compile(r"\s+")
 
 # 数字 + 量词 + 名词。误报率高，按判据 3 一律记未定。
+# 首位不取 0：中文行文不把计数写成前导零（「01 个」「02 条」不成句），带前导零的
+# 两位数在文档里一律是编号。本仓实测这一处收窄消掉的正是 `01 项目管理标`（10 文件）
+# 与 `02 条款`（4 文件）两组编号噪声，`44 篇公众号文`、`52 个独立来源`、
+# `1614 个同名文件` 等真候选一条不少。反例见 selftest 的「探测三之三」。
 _RE_COUNT_CLAIM = re.compile(
-    u"(?<![0-9.])([0-9]{2,}(?:[,，][0-9]{3})*)\\s*"
+    u"(?<![0-9.])([1-9][0-9]+(?:[,，][0-9]{3})*)\\s*"
     u"(个|份|条|张|处|项|次|篇|轮|页|套|组|类|种|台|块|人|家|款|批|行|列|字|步)"
     u"([\\u4e00-\\u9fa5A-Za-z][\\u4e00-\\u9fa5A-Za-z_·]{0,3})"
 )
@@ -126,7 +130,7 @@ _RE_MD_LINK = re.compile(r"\[[^\]\n]*\]\([^)\n]*\)")
 # 一组要出现在几个文件才报。阈值 2 时本仓 31 组里 20 组是"2 个文件"，
 # 其中经人工逐条核对真候选 0 个；N2 点名的"版本号、条数、状态摘要"那一类
 # （架构部件数、来源数、原则条数）实测都出现在 3 个以上文件。
-# 不做成配置键：这是判据自身的召回位置，不是项目参数（契约 §5 不新增键）。
+# 不做成配置键：这是判据自身的召回位置，不是项目参数（契约 §1.1）。
 _CLAIM_MIN_FILES = 3
 
 
@@ -362,6 +366,8 @@ def scope(cfg):
             u"不看标题行、目录/索引行、纯链接行、表格分隔行这类天然重复的结构",
             u"判据 3 不看 markdown 链接构造里的数字（链接文本与链接目标都换成空格再匹配）"
             u"——那是指向另一份文档，不是在声明一个数值；同一行链接之外的数值照常判",
+            u"判据 3 不看带前导零的两位数（「01 项」「02 条」这种文档编号）："
+            u"中文行文不把计数写成前导零。代价是真写成「05 份」的计数声明也看不见",
             u"判据 3 不报只出现在 2 个文件的组：本仓实测这一档 20 组、真候选 0 组。"
             u"召回换准确的取舍写在这里，不是漏判——需要更高召回时改 _CLAIM_MIN_FILES",
             u"不看只读归档区 layout.frozen：%s（01 §3.1）" % (u"、".join(map(str, frozen)) or u"（未配置）"),
@@ -721,6 +727,36 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, u"探测三之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 探测三之三（本次收窄的反例）：带前导零的两位数是文档编号，不是计数声明。
+    # 跨 _CLAIM_MIN_FILES 个文件出现也不得报。同一批里再放一条真计数声明
+    # （`44 篇公众号文`）作对照——它必须照常报出来，否则这次收窄就是把判据关掉了。
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            body = {}
+            for i, uniq in enumerate((_UNIQ_A, _UNIQ_B, _UNIQ_C), 1):
+                body["z%d.md" % i] = (
+                    uniq
+                    + u"\n口径以 01 项目管理标准 的小节号为准，不另抄一份。\n"
+                    + u"\n本轮共收 44 篇公众号文章，逐篇留了摘录。\n")
+            res = run(_mkrepo(tmp, body))
+        titles = [f["title"] for f in res if u"同一数值声明" in f["title"]]
+        noise = [t for t in titles if u"01 项" in t]
+        real = [t for t in titles if u"44 篇" in t]
+        ok = not noise and len(real) == 1 and FAIL not in [f["status"] for f in res]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"探测三之三：文档编号「01 项…」跨 3 个文件不得报，"
+            u"同批的真计数声明「44 篇…」必须照报",
+            evidence=u"编号噪声命中 %d 条：%s；真计数命中 %d 条：%s" % (
+                len(noise), u"；".join(noise) or u"（无）",
+                len(real), u"；".join(real) or u"（无）"),
+            why=u"01 §1 G2 的对象是被声明的数值；文档编号是标识不是数值。"
+                u"收窄若过头会连真计数一起吃掉，所以两侧一起钉",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(
+            NAME, FAIL, u"探测三之三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:

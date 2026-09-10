@@ -3,7 +3,7 @@ contract_id: context-contract-research-001
 contract_revision: 14
 updated_at: 2026-09-08
 status: effective  # D-015 于 2026-09-03 进入`已接受`；本文件是它的载体实例，载体形态本身效力为零
-current_work_item: 标准/本轮完善记录.md  # 用户要求以逐篇资料调研完善候选标准；旧审计仍保留在其原路径。
+current_work_item: docs/审计记录/本轮完善记录.md  # 用户要求以逐篇资料调研完善候选标准；该记录 2026-09-10 归档到 docs/审计记录/，工作项未切换、故 revision 不递增。
 ---
 
 # Default Context Contract

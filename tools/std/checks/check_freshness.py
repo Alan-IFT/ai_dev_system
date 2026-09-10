@@ -23,7 +23,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, read_text, tracked_files,
     undetermined_from_exception,
 )
@@ -79,7 +79,7 @@ _DEFAULT_IN_PROGRESS = ("in_progress", "进行中")
 _HEAD_CHARS = 4000        # 元信息只在文件头找；正文里再出现同名字段不算
 _LIST_CAP = 12            # 聚合类 Finding 的证据里最多列几条路径
 
-_STATUS_FIELDS = ("状态", "status", "state")
+# 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _TRANSITION_FIELDS = ("last_transition_at", "state_changed_at", "最后状态转换时间", "状态更新时间")
 _TRANSITION_HEADINGS = ("状态转换记录", "状态转换", "转换记录", "transition")
 
@@ -520,7 +520,7 @@ def _check_work_items(cfg, root, today, base):
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
-        raw, _hit = _find_field(text[:_HEAD_CHARS], _STATUS_FIELDS)
+        raw, _hit = _find_field(text[:_HEAD_CHARS], STATUS_FIELDS)
         if raw is None:
             nostatus.append(rel)
             continue

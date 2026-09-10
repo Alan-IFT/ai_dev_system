@@ -12,7 +12,9 @@ layout:
   # evidence/freshness 会按默认常量记一条未定并注明用的是默认——那是诚实结果。
   artifacts:                          # 本仓库的工件叫别的名字，按 01 §3.1「可按职责合并映射」登记
     status: PROJECT_STATUS.md
-    # acceptance 故意不填：本仓库确实没有验收条目工件，留着让它报 FAIL
+    # 本仓库确实没有验收条目工件。声明落点是为了让它报 FAIL 而不是未定——
+    # "我没有这件工件" 与 "我没告诉你它在哪" 是两件事，前者是失败，后者才是未定。
+    acceptance: docs/product/acceptance/
   frozen:                             # 只读区：抓来的原文与历史归档，不承担更新义务
     - docs/参考资料-公众号文章
     - docs/参考资料

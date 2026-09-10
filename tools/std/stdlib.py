@@ -17,6 +17,15 @@ SKIP = "SKIP"
 
 STATUSES = (PASS, FAIL, UNDETERMINED, SKIP)
 
+# 01 §3.5 的「状态」字段在文档头部叫什么。中英两写都算。
+#
+# 放进 stdlib 是因为它此前有三份不一致的副本：`check_layout` 只认英文单值
+# `"status"`，`check_freshness` 与 `check_evidence` 各持一份 ("状态","status","state")。
+# 同一事实三份副本违反 01 §1 G2；更要紧的是那份英文单值已经产出过一条假 FAIL
+# （本仓 `PROJECT_STATUS.md` 头部写的是「状态：进行中」，被报成"缺状态字段"），
+# 那是 01 §2 N1 禁止的确定性错误结论。**新增写法只在这里加，不在检查器里另起一张表。**
+STATUS_FIELDS = (u"状态", u"status", u"state")
+
 
 def finding(check, status, title, where=None, why="", reason="", evidence=""):
     """构造一条 Finding。status 非法即抛——不允许悄悄产生第四种状态。"""
