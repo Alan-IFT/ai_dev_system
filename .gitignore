@@ -10,6 +10,9 @@ Thumbs.db
 # Archify 交付的中间快照（内容与 *.architecture.json 相同）
 .archify-delivery-*/
 
+# archify 的派生产物：只有 *.architecture.json 源入库，产物本地重出（docs/架构图/README.md）
+docs/架构图/*.html
+docs/架构图/*.png
 # archify visual-check 的副产物（可随时重跑生成）
 docs/架构图/*.visual-check.*
 # 跑脚本产生的字节码（可随时重跑生成）

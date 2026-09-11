@@ -1,5 +1,8 @@
 # 架构图（Archify 生成）
 
+> **产物不入库**：本目录只提交 `<名字>.architecture.json` 源。要看图，先按下方[改图与重新生成](#改图与重新生成)里的 `archify deliver` 命令重出到本地；
+> HTML 与 PNG 已被 `.gitignore` 忽略，不会被误提交，因此 git 里看不到它们不是缺文件。
+
 **当前版本：一张总图 + 四张平面展开图 + 三张专题图，共八张**（对应[架构确定](../架构确定.md)与[00 总览](../00-总览.md)，2026-09-06 更新）
 
 每张图都是 `<名字>.architecture.json`（图的源，Archify Typed JSON IR）+ `<名字>.architecture.html`（可交互成品：深浅主题、引导视图、说明卡、路径追踪、导出 PNG/JPEG/WebP/SVG）+ `<名字>-preview-light/-dark.png`（4140 宽预览，由成品页自身的 PNG 导出生成，不是截图）。**改图改 JSON**，然后重新 `validate` 与 `deliver`。
