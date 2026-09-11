@@ -177,7 +177,8 @@ def scope(cfg):
             "按 project.yaml 的 tier（当前 %s）查该档要求的工件在不在" % (tier or "未声明"),
             "只在项目根、layout.entry（%s）与 layout.docs_root（%s）下解析工件路径"
             % (", ".join(map(str, entries)) or "未配置", docs_root),
-            "对存在的 markdown 工件查 01 §3.5 的头部元信息：日期字段 %s 与状态字段 %s"
+            "只对 acceptance / status 两角色的 markdown 工件查 01 §3.5 的头部元信息："
+            "日期字段 %s 与状态字段 %s"
             % ("/".join(fields) + ("（默认值）" if used_default else ""),
                "/".join(STATUS_FIELDS)),
         ],
@@ -191,6 +192,9 @@ def scope(cfg):
             % (_TEMPLATE_SOURCE, _SNAPSHOT_DATE),
             "只看元信息字段在不在，不看它的值对不对、日期是不是已经过期",
             "目录型工件不逐份判其下文档的元信息",
+            "不判其余角色（入口、方法与坑、实时状态源、会话交接等）的头部元信息——01 §3.5 点名的是"
+            "验收、架构、模块、契约、ADR、runbook 六类；它们过期怎么被发现按 01 §3.2 各自那一列"
+            "（入口看行数超预算、方法与坑看条目只增不减、工作项看状态超期无转换），不由本检查器判",
         ],
     }
 
@@ -326,7 +330,10 @@ def _run(cfg):
         % "/".join(date_fields) if used_default_fields else \
         "元信息日期字段取自 project.yaml 的 metadata_fields：%s" % "/".join(date_fields)
 
+    # 01 §3.5 只点名验收等六类，§3.2 给 entry/playbook/work 的过期发现方式都不是元信息头；其余角色不判
     for role, label, rel in md_to_check:
+        if role not in ("acceptance", "status"):
+            continue
         path = os.path.join(root, rel.replace("/", os.sep))
         try:
             head = _head(path)
@@ -355,7 +362,7 @@ def _run(cfg):
 
 
 def selftest():
-    """反例与正例各一。见契约 §3：抓不出违规的检查器，其结论作废。"""
+    """反例两条（工件缺失、元信息缺失）、探测一条、正例一条。见契约 §3：抓不出违规的检查器，其结论作废。"""
     results = []
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -387,7 +394,16 @@ def selftest():
             # 正例：L0 五件齐、元信息齐 → 全 PASS
             got_ok = [f["status"] for f in run(cfg)]
 
-            # 反例：声明了状态工件在 WORK.md，删掉它 → 必须有 FAIL
+            # 反例二：声明了状态工件在 WORK.md，文件在但头部元信息被抽掉 → 必须有 FAIL。
+            # 元信息判定只对 acceptance / status 两角色执行，不声明这两角色的项目上它一条都不跑，
+            # 这条反例是它还活着的唯一证据（契约 §3）。
+            w("WORK.md", "# 标题\n")
+            res_nometa = run(cfg)
+            got_nometa = [f["status"] for f in res_nometa]
+            nometa_fail = [f["title"] for f in res_nometa
+                           if f["status"] == FAIL and "头部缺元信息" in f["title"]]
+
+            # 反例一：声明了状态工件在 WORK.md，删掉它 → 必须有 FAIL
             os.remove(os.path.join(tmp, "WORK.md"))
             got_bad = [f["status"] for f in run(cfg)]
 
@@ -403,6 +419,12 @@ def selftest():
                 "反例：layout.artifacts 声明了 ★ 状态工件却不存在，应判 FAIL",
                 evidence="实得 %s" % got_bad,
                 why="契约 §3 静默失效探测；判据 01 §3.1 的 ★ 三类",
+            ))
+            results.append(finding(
+                NAME, PASS if nometa_fail else FAIL,
+                "反例：声明的 ★ 状态工件缺头部元信息，应判 FAIL",
+                evidence="实得 %s；元信息 FAIL %s" % (got_nometa, nometa_fail),
+                why="01 §3.5 要求重要文档头部带 status 与 updated_at；契约 §3 静默失效探测",
             ))
             results.append(finding(
                 NAME, PASS if (FAIL not in got_und and star_und) else FAIL,
