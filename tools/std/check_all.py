@@ -38,10 +38,12 @@ IDENTITY_CHECK = "tool-identity"
 # --------------------------------------------------------------------------
 
 def _sha256_file(path):
+    """行尾归一化后再哈希（契约 §8）：CRLF / CR 一律作 LF，其余字节不动。"""
     import hashlib
     try:
         with io.open(path, "rb") as fh:
-            return hashlib.sha256(fh.read()).hexdigest()
+            data = fh.read().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        return hashlib.sha256(data).hexdigest()
     except OSError as exc:
         return "读不了：%s" % exc
 
@@ -345,6 +347,24 @@ def _entry_smoke_selftest():
                     raise AssertionError("C:/proj 不该把 C:/project/x.yaml 吞成内部")
                 if config_outside_root(r"c:\proj", r"C:\proj\g\p.yaml")[0] is not False:
                     raise AssertionError("盘符大小写不同应归一化后判为项目内")
+
+            # 3e) 契约 §8：身份对行尾归一化——同内容的 LF / CRLF / 裸 CR 副本身份相等，改一个字节则不等。
+            #     来自 2026-09-11：同一提交的 tools/std 在两种克隆里得到两枚身份，两次 dirty 都报干净。
+            eol = {}
+            for name, data in (("lf", b"a\nb\n"), ("crlf", b"a\r\nb\r\n"),
+                               ("cr", b"a\rb\n"), ("mut", b"a\nb!\n")):
+                sample = os.path.join(tmp, "eol-" + name)
+                with io.open(sample, "wb") as fh:
+                    fh.write(data)
+                eol[name] = _sha256_file(sample)
+            if eol["lf"] != eol["crlf"]:
+                raise AssertionError("契约 §8：同内容的 LF/CRLF 副本身份应相等，实得 %s / %s"
+                                     % (eol["lf"][:16], eol["crlf"][:16]))
+            if eol["lf"] != eol["cr"]:
+                raise AssertionError("契约 §8：裸 CR 也应归一，实得 %s / %s"
+                                     % (eol["lf"][:16], eol["cr"][:16]))
+            if eol["lf"] == eol["mut"]:
+                raise AssertionError("契约 §8：内容不同的文件身份不应相等")
 
             # 4) main 整条走一遍（argparse + 输出 + 退出码），不允许抛异常
             for argv in ([proj, "--config", cfg_path, "--no-scope"],
