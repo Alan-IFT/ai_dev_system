@@ -16,13 +16,10 @@ layout:
     # "我没有这件工件" 与 "我没告诉你它在哪" 是两件事，前者是失败，后者才是未定。
     acceptance: docs/product/acceptance/
   frozen:                             # 只读区：抓来的原文与历史归档，不承担更新义务
-    - docs/参考资料-公众号文章
+    - docs/归档                       # 已消化的输入目录归档区，见 docs/归档/README.md
     - docs/参考资料
     - docs/参考资料-Claude
-    - docs/历史
     - docs/审计记录
-    - docs/输入材料
-    - .staging
 
 budgets:
   entry_lines: 150

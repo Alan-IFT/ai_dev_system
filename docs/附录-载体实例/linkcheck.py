@@ -76,7 +76,7 @@ def main():
             if not os.path.exists(p):
                 bad.append((f, tgt, "路径不存在"))
                 continue
-            # 目录型链接（如 ../参考资料-公众号文章/）没有 README.md 也算通过
+            # 目录型链接（如 ../归档/参考资料-公众号文章/）没有 README.md 也算通过
             if anc and not os.path.isdir(p):
                 if anc not in anchors.get(os.path.normpath(p), set()):
                     bad.append((f, tgt, "锚点不存在"))

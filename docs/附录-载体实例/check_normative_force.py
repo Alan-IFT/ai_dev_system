@@ -237,7 +237,7 @@ def main() -> int:
                     f"账本有正文无：{extra or '无'}；账本内重复：{dup or '无'}"))
 
     # ---- C8：语料版本号只允许一处（D-014 §7 的单一副本判据） ----
-    VERSION_SNAPSHOT_DIRS = ("docs/历史/", "docs/参考资料", "docs/输入材料", "docs/审计记录")
+    VERSION_SNAPSHOT_DIRS = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     ver_re = re.compile(r"^(?:状态|当前版本)[：:]\s*`v\d+\.\d+[-\w]*`", re.M)
     for p in sorted(ROOT.rglob("*.md")):
         rel = p.relative_to(ROOT).as_posix()
@@ -264,7 +264,7 @@ def main() -> int:
     body_secs = {}
     for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
         body_secs[p.name[:2]] = set(re.findall(r"^## (\d)\. ", p.read_text(encoding="utf-8"), re.M))
-    LIVE_SKIP = ("docs/历史/", "docs/参考资料", "docs/输入材料", "docs/审计记录", ".staging/")
+    LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章", ".staging/")
     # 两种引用形态都要认：裸写「21 §6」，以及链接写法「[21 调度与拆分](21-调度与拆分.md) §6」
     BODY_ALT = r"(1[0-2]|2[0-5]|3[0-3]|40)"
     ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d)(?![\d.])")
