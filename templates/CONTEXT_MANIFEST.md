@@ -33,9 +33,12 @@ current_work_item: <精确路径或 null>
 
 ## Excluded by default
 
+- 采用的《项目管理标准》四章全文；`NN §x.y` 引用按节读，不通读；
+
 ## Resolution rules
 
 - 链接不递归展开；
 - 同一 canonical `path#fragment` 只加载一次；
 - 不猜测“相关/当前/对应”等动态描述；
 - 合同、工作项、worktree 或 HEAD 冲突时失败关闭。
+- 「NN §x.y」式引用不是 `#片段`：以该标题行起、至下一个同级或更高级标题前为外延（`grep -n "^#\{2,3\} x\.y[ .]" NN-*.md` 定位）；命中 0 行记未定，不退回通读整章。
