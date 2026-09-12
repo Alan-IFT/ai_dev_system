@@ -1,6 +1,6 @@
 # 项目管理标准（AI 协作开发 · 大型项目长期维护）
 
-**候选实现修订：`2026-09-13.1`。** 这个值同时是标准仓 `release` 分支上的 git tag 名，采用项目按这个 tag 把标准内嵌进自己的 `.std/`（取用与升级命令见 [tools/std/README](../tools/std/README.md) 的「接入一个项目」，本文不复述）。采用项目把这个值记进自己的 `governance/STANDARD_VERSION`；裁剪登记记进 `governance/project.yaml` 的 `tailoring`，`STANDARD_VERSION` 不抄裁剪内容、需要提及时只留一行指针；**本目录此后的修改不自动对已采用项目生效**，升不升级、升到哪一版由采用项目自己决定。本目录修订不改变研究正文的生效登记。
+**候选实现修订：`2026-09-13.2`。** 这个值同时是标准仓 `release` 分支上的 git tag 名，采用项目按这个 tag 把标准内嵌进自己的 `.std/`（取用与升级命令见 [tools/std/README](../tools/std/README.md) 的「接入一个项目」，本文不复述）。采用项目把这个值记进自己的 `governance/STANDARD_VERSION`；裁剪登记记进 `governance/project.yaml` 的 `tailoring`，`STANDARD_VERSION` 不抄裁剪内容、需要提及时只留一行指针；**本目录此后的修改不自动对已采用项目生效**，升不升级、升到哪一版由采用项目自己决定。本目录修订不改变研究正文的生效登记。
 
 这套标准回答一件事：**一个由人和 AI 编程工具共同开发的大型软件项目，怎样在多年后仍然能被继续维护。** 它覆盖项目管理、架构描述、Agent 协作，以及上线后的可靠性、安全和恢复责任；不规定通用代码风格，不绑定某个工具。
 

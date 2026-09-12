@@ -90,28 +90,23 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 `tier` 是必填的，不写就得到一条未定。工具来源由 `.std/` 的 subtree 提交与
 `governance/STANDARD_VERSION` 承载，不在 yaml 里另记。
 
-**取用、升级、发布三条命令线。** `<tag>` 就是写进 `governance/STANDARD_VERSION` 的那个值，日期
-格式（如 `2026-09-12`），打在标准仓 `release` 分支的发布提交上；同一天第二次及以后的发布在日期后加 `.1`、`.2`（如 `2026-09-12.1`），日期本身不改。
+**取用、升级、发布三条命令线。** tag 仍打在每个发布提交上，日期格式（如 `2026-09-12`），打在
+标准仓 `release` 分支的发布提交上；同一天第二次及以后的发布在日期后加 `.1`、`.2`（如
+`2026-09-12.1`），日期本身不改。`main` 永远指向最新发布，取用与升级两条命令都直接用 `main`，
+README 里的命令零编辑复制即用；要钉某一版，把命令里的 `main` 换成 tag 名即可。
 
 - **取用**（采用项目里执行一次）：
-  `git subtree add --prefix=.std https://github.com/Alan-IFT/ai-dev-std.git <tag> --squash`。
-  之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`，
-  `governance/STANDARD_VERSION` 记下这个 `<tag>`。
-- **提示**：取用与升级只差一个词——`.std/` 不存在用 `add`，已存在用 `pull`，其余参数不变（
-  `--prefix=.std <url> <tag> --squash`）；升级前后的越界检测、读差异、改
-  `governance/STANDARD_VERSION` 是判断步骤，命令代替不了，不能靠这条 alias 跳过。可选一条本机
-  alias（一次性设置，不进仓库）把两条命令合成一条：
-  `git config --global alias.std '!f(){ u=https://github.com/Alan-IFT/ai-dev-std.git; if [ -d .std ]; then git subtree pull --prefix=.std $u "$1" --squash; else git subtree add --prefix=.std $u "$1" --squash; fi; }; f'`，
-  之后 `git std <tag>` 一条命令兼取用与升级。`!` 开头的 alias 由 Git 自带的 sh 执行，PowerShell 下
-  同样可用；alias 是本机配置、不随仓库走，这是有意的——标准不携带宿主配置，见标准仓
-  `docs/09-跨工具通用性.md`。
+  `git subtree add --prefix=.std https://github.com/Alan-IFT/ai-dev-std.git main --squash`。
+  之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`；
+  `.std/标准/README.md` 第 3 行「候选实现修订」的值就是拉到的版本，写进
+  `governance/STANDARD_VERSION`。
 - **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
   提交的内容落在仓根、不在 `.std/` 下，路径过滤看不到它）；每次 add/pull 各贡献 1 条 merge 提交，
   条数 = 取用 1 次 + 升级次数，多出来的任何一条就是项目在 `.std/` 里改了标准，先把改动合并回标准仓
   或撤掉再 pull：同一行上游也改了 git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移
   只有 log 能看见。**工作区须干净**——`git subtree` 的 ensure_clean 对已跟踪文件的改动直接 die，
   有改动先 `git stash push`，pull 完再 `git stash pop`。确认干净后
-  `git subtree pull --prefix=.std <remote> <新 tag> --squash`。换上游地址（如从私有仓换到公开仓）
+  `git subtree pull --prefix=.std <remote> main --squash`。换上游地址（如从私有仓换到公开仓）
   时，`<remote>` 直接换成新地址即可——`--squash` 合并的是本地这条 squash 提交链，不依赖上游历史、
   也不要求与本地已有 squash 共有祖先；2026-09-13 有采用项目从重新起根的公开仓拉取，实测无冲突。项
   目的 ref 空间里没有标准仓的 tag（squash 不带 tag 过来），读差异改用
@@ -120,8 +115,9 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
   首次取用那条 squash 提交的消息形如 `Squashed '.std/' content from commit <sha>`，没有 `..`，之后
   每次升级的才是 `changes from <旧>..<新>`），`git diff <旧 squash sha> <新 squash sha>` 就是这次
   升级里 `.std/` 的差异；手头有标准仓检出时 `git diff <旧 tag> <新 tag>` 与此等价——`release` 分
-  支是线性的，两者都是完整的升级差异。读完差异再改 `governance/STANDARD_VERSION`，**在 pull 之后改
-  ，不要先改再 pull**：pull 认的是当前 `.std/` 的内容，先改版本号只会让文件和记录对不上。
+  支是线性的，两者都是完整的升级差异。读完差异再改 `governance/STANDARD_VERSION`（值取
+  `.std/标准/README.md` 第 3 行），**在 pull 之后改，不要先改再 pull**：pull 认的是当前 `.std/`
+  的内容，先改版本号只会让文件和记录对不上。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
   `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
