@@ -97,6 +97,14 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
   `git subtree add --prefix=.std https://github.com/Alan-IFT/ai-dev-std.git <tag> --squash`。
   之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`，
   `governance/STANDARD_VERSION` 记下这个 `<tag>`。
+- **提示**：取用与升级只差一个词——`.std/` 不存在用 `add`，已存在用 `pull`，其余参数不变（
+  `--prefix=.std <url> <tag> --squash`）；升级前后的越界检测、读差异、改
+  `governance/STANDARD_VERSION` 是判断步骤，命令代替不了，不能靠这条 alias 跳过。可选一条本机
+  alias（一次性设置，不进仓库）把两条命令合成一条：
+  `git config --global alias.std '!f(){ u=https://github.com/Alan-IFT/ai-dev-std.git; if [ -d .std ]; then git subtree pull --prefix=.std $u "$1" --squash; else git subtree add --prefix=.std $u "$1" --squash; fi; }; f'`，
+  之后 `git std <tag>` 一条命令兼取用与升级。`!` 开头的 alias 由 Git 自带的 sh 执行，PowerShell 下
+  同样可用；alias 是本机配置、不随仓库走，这是有意的——标准不携带宿主配置，见标准仓
+  `docs/09-跨工具通用性.md`。
 - **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
   提交的内容落在仓根、不在 `.std/` 下，路径过滤看不到它）；每次 add/pull 各贡献 1 条 merge 提交，
   条数 = 取用 1 次 + 升级次数，多出来的任何一条就是项目在 `.std/` 里改了标准，先把改动合并回标准仓
