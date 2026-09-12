@@ -39,6 +39,11 @@ _MARKERS_EN = ("retired", "archived", "deprecated")
 _ROLES = ("system", "app", "retired", "archived")
 _DEAD_ROLES = ("retired", "archived")
 
+# 01 §3.8 对 archived 的定义就是"已移出工作区，只在远端"。所以这类条目的 path 可省略，
+# 且本地目录不存在不是缺陷——要求它在本机有检出才是把定义读反了（那会逼项目在配置里
+# 写一条随机器漂移的本机绝对路径副本）。凡需读该仓本地文件的判据对它一律记不适用。
+_ARCHIVED_ABSENT = "archived 仓按 01 §3.8 不在工作区，未核本地检出"
+
 # 判据八的唯一豁免：同一行上写了改名标记词。豁免写在被检查的那一行上，不设清单。
 _RENAME_MARKERS = ("前身", "曾用名", "改名", "更名", "formerly", "renamed")
 
@@ -120,6 +125,11 @@ def _norm(path):
 
 def _is_git_repo(path):
     return os.path.exists(os.path.join(path, ".git"))
+
+
+def _archived_absent(r):
+    """这个条目是不是「声明为 archived 且本机没有检出」。见 _ARCHIVED_ABSENT。"""
+    return r["role"] == "archived" and not r["_exists"]
 
 
 def _link_targets(text):
@@ -222,17 +232,21 @@ def _load_repos(cfg):
         name = str(item.get("name") or "").strip()
         path = str(item.get("path") or "").strip()
         role = str(item.get("role") or "").strip()
-        if not name or not path:
-            return None, "repos 第 %d 项缺 name 或 path" % i
-        abspath = os.path.abspath(os.path.join(root, path))
+        if not name:
+            return None, "repos 第 %d 项缺 name" % i
+        if not path and role != "archived":
+            return None, "repos 第 %d 项缺 path（只有 role: archived 可省略：%s）" % (i, _ARCHIVED_ABSENT)
+        abspath = os.path.abspath(os.path.join(root, path)) if path else None
+        exists = bool(abspath) and os.path.isdir(abspath)
         repos.append({
             "name": name,
             "path": path,
+            "_where": path or "（未声明 path）",
             "role": role,
-            "_abs": _norm(abspath),
+            "_abs": _norm(abspath) if abspath else None,
             "_real": abspath,
-            "_exists": os.path.isdir(abspath),
-            "_is_git": os.path.isdir(abspath) and _is_git_repo(abspath),
+            "_exists": exists,
+            "_is_git": exists and _is_git_repo(abspath),
             "former_names": item.get("former_names"),
         })
     return repos, None
@@ -275,6 +289,10 @@ def scope(cfg):
         "not_covered": ([] if former else [
             "repos[].former_names 未声明，仓的历史别名一字未查——不声明就不猜哪个名字是旧名（判据八）",
         ]) + [
+            "role: archived 的条目按 01 §3.8 的定义（已移出工作区，只在远端）可不给 path；"
+            "省略 path 或 path 在本机不存在时，判据二按定义记通过，凡需读该仓本地文件的各条"
+            "（入口、失效头、跨仓引用）对它记不适用——不核远端那一份里有什么。"
+            "给了 path 且目录在，则照读照判；role: retired 不享受这条",
             "判据八不判某处指称是历史记述还是当现称用——那是人的裁定（契约 §7）；只按'出现在谁的仓里'"
             "机械分层，自仓那一层一律记未定",
             "判据八只扫根下有 .git 的仓的 git 跟踪文件，layout.frozen 下的路径不扫；"
@@ -397,7 +415,15 @@ def _check_roles(repos):
 def _check_reachable(repos):
     out = []
     for r in repos:
-        if not r["_exists"]:
+        if _archived_absent(r):
+            out.append(finding(
+                NAME, PASS, "仓 %s 声明 role: archived，本机无检出即符合定义" % r["name"],
+                where=r["_where"],
+                evidence="%s（%s）" % (
+                    _ARCHIVED_ABSENT,
+                    "条目未给 path" if not r["path"] else "给了 path %s 但本机没有这个目录" % r["path"]),
+            ))
+        elif not r["_exists"]:
             out.append(finding(
                 NAME, UNDETERMINED, "仓 %s 的 path 在本机不存在：%s" % (r["name"], r["path"]),
                 where=r["path"],
@@ -428,6 +454,14 @@ def _check_reachable(repos):
 def _check_entry_exists(repos, entries, entry_names):
     out = []
     for r in repos:
+        if _archived_absent(r):
+            out.append(finding(
+                NAME, SKIP, "仓 %s 的入口记不适用（archived，本地无检出）" % r["name"],
+                where=r["_where"], reason=_ARCHIVED_ABSENT,
+                why="01 §3.8 要求每个仓有自己的入口；该仓的入口只在远端，本机读不到，"
+                    "既不记通过也不记未定",
+            ))
+            continue
         if not r["_exists"]:
             continue
         path, nm = entries.get(r["name"], (None, None))
@@ -638,6 +672,14 @@ def _check_retired(cfg, repos, entry_names):
         if used_default else "layout.rule_files 取自 project.yaml"
 
     for r in dead:
+        if _archived_absent(r):
+            out.append(finding(
+                NAME, SKIP, "退役仓 %s 的失效标记记不适用（archived，本地无检出）" % r["name"],
+                where=r["_where"], reason=_ARCHIVED_ABSENT,
+                why="01 §3.8 要求退役仓的入口与规则文件已标失效或删除；本机没有这些文件可读，"
+                    "既不记通过也不记未定",
+            ))
+            continue
         if not r["_exists"]:
             continue  # 判据二已记未定
         try:
@@ -699,6 +741,14 @@ def _check_retired(cfg, repos, entry_names):
 def _check_links(repos):
     out = []
     known = [r for r in repos if r["_exists"]]
+    for r in repos:
+        if _archived_absent(r):
+            out.append(finding(
+                NAME, SKIP, "仓 %s 的跨仓引用记不适用（archived，本地无检出）" % r["name"],
+                where=r["_where"], reason=_ARCHIVED_ABSENT,
+                why="01 §3.8'跨仓引用按契约处理'：本机没有它的 *.md 可扫；"
+                    "别的仓指向它的引用仍按那些仓自己那一条判",
+            ))
     if len(known) < 2:
         out.append(finding(
             NAME, UNDETERMINED, "本机可读的仓不足两个，跨仓引用判不了",
@@ -911,6 +961,25 @@ def _sample(tmp, bad):
     }
 
 
+def _sample_archived(tmp):
+    """archived 且不给 path 的样本：本机只有 sys 与 app 两个检出，arch 只在远端。"""
+    for nm in ("sys", "app"):
+        _mk_repo(tmp, nm)
+    _mk(os.path.join(tmp, "sys", "CLAUDE.md"),
+        "# 系统仓\n\n本系统由这几个仓组成：sys（system）、app（active）、arch（archived，已移出工作区）。\n")
+    _mk(os.path.join(tmp, "app", "CLAUDE.md"),
+        "# 应用仓 app\n\n本仓特有约束见下。系统级权威在 [系统仓](../sys/CLAUDE.md)。\n")
+    return {
+        "_root": tmp,
+        "layout": {"entry": ["CLAUDE.md"]},
+        "repos": [
+            {"name": "sys", "path": "sys", "role": "system"},
+            {"name": "app", "path": "app", "role": "app"},
+            {"name": "arch", "role": "archived"},
+        ],
+    }
+
+
 def _alias_probe(body, former):
     """判据八的两仓样本，必须是**真** git 仓（git grep 只看索引）。只取判据八那几条。"""
     with tempfile.TemporaryDirectory() as tmp:
@@ -963,6 +1032,31 @@ def selftest():
                             "；".join("%s/%s（%s）" % (f["status"], f["title"], f.get("reason") or f.get("evidence"))
                                      for f in other) or "无"),
                 why="契约 §3 静默失效探测：正例误报 FAIL 的检查器同样不可用",
+            ))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            arch_dir = os.path.join(tmp, "arch")
+            os.makedirs(arch_dir)
+            got = run(_sample_archived(arch_dir))
+            und = [f for f in got if f["status"] == UNDETERMINED]
+            bad = [f for f in got if f["status"] == FAIL]
+            reach = [f for f in got if f["status"] == PASS and "arch" in f["title"]
+                     and "archived" in f["title"]]
+            skips = [f for f in got if f["status"] == SKIP and "arch" in f["title"]]
+            # 入口、失效头、跨仓引用三条对它都得记不适用
+            ok = bool(reach) and len(skips) >= 3 and not und and not bad
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "archived 无 path 夹具：判据二应 PASS，需读其本地文件的各条应记不适用，全程不得出现未定",
+                evidence="实得 %d 条：判据二 PASS %d 条、不适用 %d 条、未定 %d 条、失败 %d 条；"
+                         "非 PASS/SKIP 明细：%s"
+                         % (len(got), len(reach), len(skips), len(und), len(bad),
+                            "；".join("%s/%s（%s）" % (f["status"], f["title"],
+                                                    f.get("reason") or f.get("evidence"))
+                                     for f in und + bad) or "无"),
+                why="01 §3.8 把 archived 定义为'已移出工作区，只在远端'；"
+                    "要求它在本机有检出才算过，就是把定义读反（契约 §1.1 的反向："
+                    "把定义允许的状态记成判不了，会逼项目写一条随机器漂移的本机绝对路径）",
             ))
 
         for want, title, probes in (
