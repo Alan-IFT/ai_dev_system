@@ -103,15 +103,17 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
   或撤掉再 pull：同一行上游也改了 git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移
   只有 log 能看见。**工作区须干净**——`git subtree` 的 ensure_clean 对已跟踪文件的改动直接 die，
   有改动先 `git stash push`，pull 完再 `git stash pop`。确认干净后
-  `git subtree pull --prefix=.std <remote> <新 tag> --squash`。项目的 ref 空间里没有标准仓的 tag
-  （squash 不带 tag 过来），读差异改用 `git log --oneline --all --grep="Squashed '.std/'"` 列出
-  squash 提交（形如 `Squashed '.std/' changes from <旧 sha>..<新 sha>`，消息里就是标准仓 `release`
-  分支的旧新提交；首次取用那条 squash 提交的消息形如 `Squashed '.std/' content from commit <sha>`，没有
-  `..`，之后每次升级的才是 `changes from <旧>..<新>`），`git diff <旧 squash sha> <新 squash sha>`
-  就是这次升级里 `.std/` 的差异；手头
-  有标准仓检出时 `git diff <旧 tag> <新 tag>` 与此等价——`release` 分支是线性的，两者都是完整的
-  升级差异。读完差异再改 `governance/STANDARD_VERSION`，**在 pull 之后改，不要先改再 pull**：pull
-  认的是当前 `.std/` 的内容，先改版本号只会让文件和记录对不上。
+  `git subtree pull --prefix=.std <remote> <新 tag> --squash`。换上游地址（如从私有仓换到公开仓）
+  时，`<remote>` 直接换成新地址即可——`--squash` 合并的是本地这条 squash 提交链，不依赖上游历史、
+  也不要求与本地已有 squash 共有祖先；2026-09-13 有采用项目从重新起根的公开仓拉取，实测无冲突。项
+  目的 ref 空间里没有标准仓的 tag（squash 不带 tag 过来），读差异改用
+  `git log --oneline --all --grep="Squashed '.std/'"` 列出 squash 提交（形如
+  `Squashed '.std/' changes from <旧 sha>..<新 sha>`，消息里就是标准仓 `release` 分支的旧新提交；
+  首次取用那条 squash 提交的消息形如 `Squashed '.std/' content from commit <sha>`，没有 `..`，之后
+  每次升级的才是 `changes from <旧>..<新>`），`git diff <旧 squash sha> <新 squash sha>` 就是这次
+  升级里 `.std/` 的差异；手头有标准仓检出时 `git diff <旧 tag> <新 tag>` 与此等价——`release` 分
+  支是线性的，两者都是完整的升级差异。读完差异再改 `governance/STANDARD_VERSION`，**在 pull 之后改
+  ，不要先改再 pull**：pull 认的是当前 `.std/` 的内容，先改版本号只会让文件和记录对不上。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
   `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
