@@ -29,9 +29,9 @@ M-03 及 01 的交付流和度量修改落盘后，才读本篇；本卡先写�
 
 ## 最终机械核验（2026-09-08，共享工作区当时快照）
 
-工作目录：`C:/Programs/AI辅助开发规范及工作流确定`。显式使用本机已安装的 Python 3.12.10，不改 pyenv 配置。以下是原始输出与退出码；共享仓库会继续变化，计数仅指此次观察。
+工作目录：本仓根目录。显式使用本机已安装的 Python 3.12.10，不改 pyenv 配置。以下是原始输出与退出码；共享仓库会继续变化，计数仅指此次观察。
 
-效力命令：`C:/Users/yangx/.pyenv/pyenv-win/versions/3.12.10/python.exe docs/附录-载体实例/check_normative_force.py`
+效力命令：`<本机 python 3.12> docs/附录-载体实例/check_normative_force.py`
 
 ```text
 D-014 规范效力检查器
@@ -41,7 +41,7 @@ PASS  未发现不合规项。
 exit_code: 0
 ```
 
-链接命令：`C:/Users/yangx/.pyenv/pyenv-win/versions/3.12.10/python.exe docs/附录-载体实例/linkcheck.py`
+链接命令：`<本机 python 3.12> docs/附录-载体实例/linkcheck.py`
 
 ```text
 markdown 353 个文件 / 5383 条本地链接 / 0 条断链

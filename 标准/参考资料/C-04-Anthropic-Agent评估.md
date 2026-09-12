@@ -28,7 +28,7 @@
 
 ## 本执行者收尾检查记录
 
-2026-09-08，按用户指定 C: 工作区运行。系统 `python` shim 首次调用因未配置版本而失败，没有执行检查；随后使用已发现的解释器 `C:/Users/yangx/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`，设置 `PYTHONIOENCODING=utf-8` 后分别执行 `docs/附录-载体实例/check_normative_force.py` 和 `docs/附录-载体实例/linkcheck.py`。最后一次检查原始输出如下；数字只代表该次共享工作区快照：
+2026-09-08，按用户指定 C: 工作区运行。系统 `python` shim 首次调用因未配置版本而失败，没有执行检查；随后使用已发现的解释器 `<本机 python 解释器>`，设置 `PYTHONIOENCODING=utf-8` 后分别执行 `docs/附录-载体实例/check_normative_force.py` 和 `docs/附录-载体实例/linkcheck.py`。最后一次检查原始输出如下；数字只代表该次共享工作区快照：
 
 ```text
 D-014 规范效力检查器

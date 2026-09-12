@@ -5,7 +5,9 @@
 
 ## 一条命令
 
-`python <标准仓>/tools/std/check_all.py <项目根>`
+在采用项目根执行：`python .std/tools/std/check_all.py .`
+
+`.std/` 是标准（含本工具）内嵌进项目的目录，怎么取进来见下文「接入一个项目」。
 
 退出码：`0` 本次执行的检查全过；`1` 有 FAIL；`2` 没有 FAIL 但有判不了的项。
 **`2` 不是成功**——把 2 吞成成功，等于把"没检查"记成"检查通过"，而这正是本工具要拦的事。
@@ -69,22 +71,41 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 
 ## 接入一个项目
 
-**工具集中放一处，不拷进每个项目。** 采用项目只放自己的 `governance/project.yaml`，调用形状
-就是上面那条命令。理由：拷一份进项目，副本会停在拷贝当天的修订而配置里的版本号照旧——跑得
-动、报 PASS、结论已不可信，这是静默失效；集中放一处，哪天取不到工具就跑不起来，记的是未定，
-诚实。**未定优于假通过是这套工具存在的理由，它自己的部署方式不能选会假通过的那条。**
+**标准与工具按 tag 以 `git subtree` 内嵌进采用项目的 `.std/`。** 采用项目自己只写
+`governance/` 那两个文件（`project.yaml`、`STANDARD_VERSION`），标准正文、模板和本工具由 subtree
+带进来，clone 即用、离线可跑，不再按绝对路径去调一份仓外的工作副本。**这份副本不会静默失效：**
+会静默失效的是无版本的手工拷贝——副本停在拷贝当天而配置里的版本号照旧，跑得动、报 PASS、结论
+已不可信；而内嵌进来的这份就是按 tag 取的，`STANDARD_VERSION` 记的就是那个 tag，二者由取用命令
+本身构造出来，不会各自漂。副本只能由一次显式的 `subtree pull` 移动，它同时移动代码和版本号
+（[01 §8](../../标准/01-项目管理标准.md#adoption)：由项目显式评估并升级，不在任务中自动跟随）。
+**未定优于假通过仍是这套工具存在的理由，它自己的部署方式不能选会假通过的那条：**内嵌的是哪一版
+由 tag 与 `STANDARD_VERSION` 双写钉住，实际跑的是哪份代码由 CONTRACT.md §8 的身份哈希钉住；取不到、
+对不上就该记未定，不得按"大概是那一版"往下判。
 另外 01 §3.8 与[试点通过条件](../../标准/覆盖与采用检查.md#pilot-exit)第 3 条已把"两份 +
-同步机制"判为待删对象，处置是合并而不是同步。
+同步机制"判为待删对象：`.std/` 是只读内嵌，项目不得在里面改标准——改了就是第二处权威，处置是
+把改动合并回标准仓再 `pull`，不是就地同步。
 
 配置字段的语义见 CONTRACT.md §5，实例见本仓
 [`governance/project.yaml`](../../governance/project.yaml)——照实文件抄，本文不另立字段表；
 `tier` 是必填的，不写就得到一条未定。除采用的标准修订外，`project.yaml` 还应记下**工具来自
 哪个仓库、哪个版本、哪个提交号**，否则"结论是用哪份工具跑出来的"无从复算。
 
-**这里有一个尚未兑现的前提。** 按版本取用工具的**标签机制还没有建立**：本仓有远端但没有任何
-标签，`governance/STANDARD_VERSION` 里的版本值指不到任何可获取的制品——`check_adoption`
-读得出它并把值原样写进证据，但核不了那个值背后有没有可取用的东西。当前只能按路径直接调用
-一份具体的工作副本。这是已知缺口，不是已经跑通的流程。
+**取用、升级、发布三条命令线。** `<tag>` 就是写进 `governance/STANDARD_VERSION` 的那个值，日期
+格式（如 `2026-09-12`），打在标准仓 `release` 分支的发布提交上。
+
+- **取用**（采用项目里执行一次）：
+  `git subtree add --prefix=.std git@github.com:Alan-IFT/ai_dev_system.git <tag> --squash`。
+  之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`，
+  `governance/STANDARD_VERSION` 记下这个 `<tag>`。
+- **升级**：`git subtree pull --prefix=.std <remote> <新 tag> --squash`。先读
+  `git diff <旧 tag> <新 tag>` 评估，再改 `governance/STANDARD_VERSION`。`release` 分支是线性的，
+  两个 tag 之间的 diff 就是升级差异。
+- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
+  `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
+  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std` → 写／更新根
+  `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
+  `git commit -m "release <tag>：来自 main <sha>"` → `git tag <tag>` → push 分支与 tag。
+  每次发布提交接在上一次之上，不用 orphan 重建——重建会让两个 tag 间的 diff 不再是升级差异。
 
 ## 加一个自己的检查器
 
