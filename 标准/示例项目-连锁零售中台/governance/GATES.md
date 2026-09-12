@@ -18,6 +18,31 @@
 | **G12 交接完整性** | 每次会话结束 | `check_handoff` | 最新交接含 HEAD、分支、`state_revision`、下一原子动作 | 拒收交接 | 无 | 反例：删掉 HEAD 行，须 FAIL |
 | **G13 回执对账** | 每日及未知写结果后 | `check_receipts` | 按稳定动作 ID 核对预期动作、接收方实际效果与回执；无缺失/额外/重复或结果不一致，未知单列 | 停止依赖写并对账；确认影响按事故流程 | 无 | 注入总数相等但漏一笔/重一笔的反例；检查须能检出 |
 
+## 命令
+
+**全部从仓库根执行。** 上表「检查器」列里的名字就是这里的名字；本节是这些命令的唯一位置，别处写链接不抄命令行。
+
+| 名字 | 命令 | 备注 |
+|---|---|---|
+| `setup` | `make setup` | |
+| `dev` | `make dev` | 起 api + web + 依赖容器 |
+| `format` | `ruff format . && npm -w apps/admin-web run format` | G1 |
+| `lint` | `ruff check . && mypy services packages && npm -w apps/admin-web run lint` | G2 |
+| `test_unit` | `pytest tests/unit -q` | G3 |
+| `test_integ` | `pytest tests/integration -q --maxfail=5` | G4；需要 `dev` 起的容器 |
+| `test_e2e` | `npm -w apps/admin-web run e2e` | 不设门，发布前人工跑 |
+| `build` | `make build` | G5 |
+| `migrate` | `alembic upgrade head` | prod 由发布流程执行，agent 不直接跑 |
+| `deps_audit` | `pip-audit && npm audit --audit-level=high` | G6 |
+| `secrets` | `gitleaks detect --no-banner` | G7 |
+| `check_deps` | `python tools/check_deps.py` | G9 |
+| `check_contracts` | `python tools/check_contracts.py` | G10 |
+| `check_docs` | `python tools/check_docs_fresh.py` | G11；判据是模块 `source_rev` 落后 ≤ 8 次相关提交 |
+| `check_receipts` | `python tools/check_receipts.py --env staging` | G13 |
+| `check_handoff` | `python tools/check_handoff.py` | G12 |
+
+`tools/check_*.py` 的脚本实现不含在本示例里（见 `../tools/README.md`）。不适用的检查写 reason，不删掉这一行。
+
 ## 来源
 
 运行目标、恢复与安全的验收入口见[运行维护演练包](../docs/operations/README.md)。新增检查只有在真实项目配置执行点、证据与授权后才成为该项目闸门；本示例没有实际执行的生产闸门。

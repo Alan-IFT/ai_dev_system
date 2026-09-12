@@ -1,3 +1,10 @@
+---
+id: ADR-INDEX
+status: active
+owner: Alan
+updated_at: 2026-07-08
+---
+
 # 决策记录索引
 
 只做索引，不复制内容。`draft` 不构成实施授权。

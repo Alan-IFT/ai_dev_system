@@ -1,3 +1,10 @@
+---
+id: ARCH-MODULES
+status: active
+owner: Alan（架构）
+updated_at: 2026-08-25
+---
+
 # 模块文档
 
 每模块一份，写代码里读不到的：职责边界、公开接口 ID、依赖与被依赖、数据所有权、不变量、坑、负责人。预算 200 行。`source_rev` 每迭代对账（G11）。
