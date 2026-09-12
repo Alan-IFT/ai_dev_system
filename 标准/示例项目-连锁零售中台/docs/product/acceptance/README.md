@@ -1,3 +1,10 @@
+---
+id: ACC-INDEX
+status: active
+owner: Alan（产品）
+updated_at: 2026-08-30
+---
+
 # 验收条目
 
 **验收条目是意图的唯一派生源**：工作项与测试都从这里派生，下游不重新解释意图。

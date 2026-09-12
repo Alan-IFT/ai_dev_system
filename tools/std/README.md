@@ -85,10 +85,10 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 同步机制"判为待删对象：`.std/` 是只读内嵌，项目不得在里面改标准——改了就是第二处权威，处置是
 把改动合并回标准仓再 `pull`，不是就地同步。
 
-配置字段的语义见 CONTRACT.md §5，实例见本仓
-标准仓 `governance/project.yaml`——照实文件抄，本文不另立字段表；
-`tier` 是必填的，不写就得到一条未定。除采用的标准修订外，`project.yaml` 还应记下**工具来自
-哪个仓库、哪个版本、哪个提交号**，否则"结论是用哪份工具跑出来的"无从复算。
+配置字段的语义见 CONTRACT.md §5，实例见交付面内的
+[示例项目 `governance/project.yaml`](../../标准/示例项目-连锁零售中台/governance/project.yaml)——照实文件抄，本文不另立字段表；
+`tier` 是必填的，不写就得到一条未定。工具来源由 `.std/` 的 subtree 提交与
+`governance/STANDARD_VERSION` 承载，不在 yaml 里另记。
 
 **取用、升级、发布三条命令线。** `<tag>` 就是写进 `governance/STANDARD_VERSION` 的那个值，日期
 格式（如 `2026-09-12`），打在标准仓 `release` 分支的发布提交上；同一天第二次及以后的发布在日期后加 `.1`、`.2`（如 `2026-09-12.1`），日期本身不改。
@@ -97,12 +97,19 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
   `git subtree add --prefix=.std git@github.com:Alan-IFT/ai_dev_system.git <tag> --squash`。
   之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`，
   `governance/STANDARD_VERSION` 记下这个 `<tag>`。
-- **升级**：先跑 `git log --oneline -- .std` 查越界——除 subtree 自己的 squash 与 merge 提交外，若还有
-  别的提交碰过 `.std/`，就是项目在里面改了标准，先把改动合并回标准仓或撤掉再 pull：同一行上游也改了
-  git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移只有 log 能看见。确认干净后
-  `git subtree pull --prefix=.std <remote> <新 tag> --squash`。先读
-  `git diff <旧 tag> <新 tag>` 评估，再改 `governance/STANDARD_VERSION`。`release` 分支是线性的，
-  两个 tag 之间的 diff 就是升级差异。
+- **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
+  提交的内容落在仓根、不在 `.std/` 下，路径过滤看不到它）；每次 add/pull 各贡献 1 条 merge 提交，
+  条数 = 取用 1 次 + 升级次数，多出来的任何一条就是项目在 `.std/` 里改了标准，先把改动合并回标准仓
+  或撤掉再 pull：同一行上游也改了 git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移
+  只有 log 能看见。**工作区须干净**——`git subtree` 的 ensure_clean 对已跟踪文件的改动直接 die，
+  有改动先 `git stash push`，pull 完再 `git stash pop`。确认干净后
+  `git subtree pull --prefix=.std <remote> <新 tag> --squash`。项目的 ref 空间里没有标准仓的 tag
+  （squash 不带 tag 过来），读差异改用 `git log --oneline --all --grep="Squashed '.std/'"` 列出
+  squash 提交（形如 `Squashed '.std/' changes from <旧 sha>..<新 sha>`，消息里就是标准仓 `release`
+  分支的旧新提交），`git diff <旧 squash sha> <新 squash sha>` 就是这次升级里 `.std/` 的差异；手头
+  有标准仓检出时 `git diff <旧 tag> <新 tag>` 与此等价——`release` 分支是线性的，两者都是完整的
+  升级差异。读完差异再改 `governance/STANDARD_VERSION`，**在 pull 之后改，不要先改再 pull**：pull
+  认的是当前 `.std/` 的内容，先改版本号只会让文件和记录对不上。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
   `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std` → 写／更新根

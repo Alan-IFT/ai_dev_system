@@ -1,6 +1,7 @@
 # 项目现状
 
 status_revision：147
+状态：active
 updated_at：2026-09-07
 状态负责人：Alan
 last_verified_at：2026-09-07（`git rev-parse HEAD` 与 prod `/health` 核对）

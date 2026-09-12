@@ -5,8 +5,8 @@
 | 路径 | 一句摘要 | 权威域 | 加载时机 |
 |---|---|---|---|
 | `../AGENTS.md` | 常驻规则与唯一加载合同 | 规则、合同、权威位置表 | 每次 |
-| `../governance/project.yaml` | 命令、栈、路径、兼容策略、预算 | 命令与配置 | 每次 |
-| `../governance/GATES.md` | 十三道闸门的合同 | 闸门 | 提交/合并/收工前 |
+| `../governance/project.yaml` | 档次、路径、预算、元信息范围 | 项目配置 | 每次 |
+| `../governance/GATES.md` | 十三道闸门的合同，以及它们用的命令 | 闸门、命令 | 提交/合并/收工前 |
 | `../governance/exceptions.md` | 例外登记（带到期） | 例外 | 检查器报错时 |
 | `product/vision.md` | 目标、用户、非目标 | 意图（项目级） | 立项/阶段变化时 |
 | `product/acceptance/README.md` | 验收 ID 规则与领域前缀 | — | 新建条目时 |

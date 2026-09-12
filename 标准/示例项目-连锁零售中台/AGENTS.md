@@ -8,7 +8,7 @@
 项目名: retail-core（连锁零售中台）
 一句话目标: 60 家门店的商品、采购、库存、价格、POS 对接、会员、结算、报表一体化
 技术栈: Python 3.12 / FastAPI / SQLAlchemy / PostgreSQL 16 / Redis 7 / RabbitMQ 3.13；TypeScript 5 / React 18
-跑起来: 见 governance/project.yaml 的 commands（不要从 README 抄命令）
+跑起来: 见 governance/GATES.md 的「命令」节（不要从 README 抄命令）
 有生产环境: 是（60 家店在线，日均 40 万笔流水）
 含个人信息或凭据: 是（会员手机号；POS 厂商密钥）
 几个人: 4（Alan 负责人；Li 后端；Zhou 前端；Wang 数据）
@@ -25,7 +25,10 @@
 
 | 事实 | 唯一位置 |
 |---|---|
-| 怎么跑、测、构建；栈与版本；兼容策略 | `governance/project.yaml` |
+| 怎么跑、测、构建 | `governance/GATES.md`「命令」节 |
+| 档次、路径、预算、元信息范围（检查器读的配置） | `governance/project.yaml` |
+| 栈与版本；环境与拓扑；数据保留 | 本文件 §0 与 `docs/architecture/overview.md` §6/§7 |
+| 兼容策略 | `docs/architecture/invariants.md` INV-07 与 `docs/architecture/contracts/README.md` |
 | 要做什么、什么算完成（稳定 ID） | `docs/product/acceptance/*.md` |
 | 项目现状、当前重点、阻塞 | `docs/state/STATUS.md` |
 | 单个任务的实时状态 | `docs/state/work/WI-*.md` |

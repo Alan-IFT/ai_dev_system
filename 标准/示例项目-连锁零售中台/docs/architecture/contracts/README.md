@@ -1,3 +1,10 @@
+---
+id: ARCH-CONTRACTS
+status: active
+owner: Alan（架构）
+updated_at: 2026-08-25
+---
+
 # 契约登记表
 
 **消费者列是登记的权威位置，不能单独证明实际使用范围**：改契约前先查登记，再按代码、配置及运行证据核对，注明低频/外部消费者盲区；发现未登记消费者先补登记。对账候选入口：`tools/check_contracts.py --consumers`（G10）；示例未含脚本实现。登记为零不自动满足旧版本退出条件，按[主标准兼容迁移](../../../../02-项目架构描述规范.md#contract-migration)核验。

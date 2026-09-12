@@ -1,69 +1,40 @@
-# retail-core 项目配置 —— 命令、路径、栈、兼容策略、预算的唯一权威位置
+# retail-core 的项目配置。只写检查器读的键（CONTRACT §5）：档次、路径、预算、元信息范围。
+# 其余事实各有唯一位置，这里不复述：命令见 GATES.md「命令」节；栈见 AGENTS.md §0；
+# 环境与数据保留见 docs/architecture/overview.md §6/§7；兼容策略见 docs/architecture/
+# invariants.md INV-07 与 docs/architecture/contracts/README.md 的「兼容策略」列。
 # 采用的标准修订不在本文件，见 governance/STANDARD_VERSION（01 §8）
-project_name: retail-core
-project_stage: production          # pre_release | production
-maintainer: Alan
-default_branch: main
-updated_at: 2026-08-25
+tier: L2                                 # 四人团队（Alan/Li/Zhou/Wang），有闸门、例外登记与 ADR
 
-stack:
-  backend: python==3.12  fastapi==0.115  sqlalchemy==2.0  alembic==1.13
-  frontend: typescript==5.5  react==18.3  vite==5
-  data: postgresql==16  redis==7  rabbitmq==3.13
-  infra: docker  kubernetes(k3s)  github-actions
+layout:
+  entry:
+    - AGENTS.md                          # 唯一加载合同在这一份里
+    - CLAUDE.md                          # 只有一行 @AGENTS.md
+  docs_root: docs
+  work_root: docs/state/work             # 一件一文件，WI-<四位序号>-<短名>.md
+  artifacts:                             # 本项目这几件工件的实际落点（01 §3.1 允许按职责合并映射）
+    acceptance: docs/product/acceptance  # 一个领域一份，验收 ID 稳定
+    status: docs/state/STATUS.md
+    playbook: docs/knowledge/PLAYBOOK.md
+    failures: docs/knowledge/FAILURES.md
+    work_current: docs/state/work        # 实时状态源就是工作项目录；STATUS 只索引当前重点
+    handoff: docs/state/handoff
+    work_artifacts: docs/state/artifacts  # 只有 README 进 git，工具返回原文不进
+    decisions: docs/decisions
+    gates: governance/GATES.md
+    # sources / eval / memory / tools/check_*.py 这四件本示例没有实物（代码与 eval 不含在示例里），
+    # 不声明落点：让检查器按候选未命中记未定，而不是指向一个并不承载该职责的文件
 
-paths:
-  entry: AGENTS.md
-  index: docs/INDEX.md
-  status: docs/state/STATUS.md
-  work: docs/state/work
-  handoff: docs/state/handoff
-  artifacts: docs/state/artifacts        # 不进版本控制，见 .gitignore
-  acceptance: docs/product/acceptance
-  architecture: docs/architecture
-  decisions: docs/decisions
-  playbook: docs/knowledge/PLAYBOOK.md
-  failures: docs/knowledge/FAILURES.md
-  skills: .agents/skills                 # .claude/skills 是指向这里的符号链接
+budgets:
+  entry_lines: 150                       # F-009 之后定的，AGENTS.md 现在不到 110 行
+  stale_days: 90
+  work_item_stale_days: 5                # in_progress 超 5 天无转换记录，周一巡检转 blocked
 
-# 全部从仓库根执行。不适用的检查写 reason 而不是删掉。
-commands:
-  setup:      { cwd: ".", run: "make setup" }
-  dev:        { cwd: ".", run: "make dev" }                       # 起 api + web + 依赖容器
-  format:     { cwd: ".", run: "ruff format . && npm -w apps/admin-web run format" }
-  lint:       { cwd: ".", run: "ruff check . && mypy services packages && npm -w apps/admin-web run lint" }
-  test_unit:  { cwd: ".", run: "pytest tests/unit -q" }
-  test_integ: { cwd: ".", run: "pytest tests/integration -q --maxfail=5" }   # 需要 make dev 起的容器
-  test_e2e:   { cwd: ".", run: "npm -w apps/admin-web run e2e" }
-  build:      { cwd: ".", run: "make build" }
-  migrate:    { cwd: ".", run: "alembic upgrade head" }           # prod 由发布流程执行，agent 不直接跑
-  deps_audit: { cwd: ".", run: "pip-audit && npm audit --audit-level=high" }
-  secrets:    { cwd: ".", run: "gitleaks detect --no-banner" }
-  check_deps:     { cwd: ".", run: "python tools/check_deps.py" }
-  check_contracts:{ cwd: ".", run: "python tools/check_contracts.py" }
-  check_docs:     { cwd: ".", run: "python tools/check_docs_fresh.py" }
-  check_receipts: { cwd: ".", run: "python tools/check_receipts.py --env staging" }
-  check_handoff:  { cwd: ".", run: "python tools/check_handoff.py" }
+metadata_fields:                         # 本项目头部日期字段的两种写法：多数文档写 frontmatter 的 updated_at，ADR 写行内「日期：」
+  - updated_at
+  - 日期
 
-environments:
-  local:   { db: "postgres://localhost:5432/retail_dev", identity: "git rev-parse HEAD" }
-  staging: { url: "https://staging.retail.example", identity: "GET /health -> {version, migration_head}" }
-  prod:    { url: "https://retail.example",         identity: "GET /health -> {version, migration_head}" }
-
-compatibility:
-  policy: >
-    已有 60 家门店与两年数据。数据：迁移一律 expand/contract，破坏性 schema 变更须 ADR；
-    保留期内不删列。接口：对外 API 按 MAJOR 版本共存，废弃通知期 90 天；
-    内部事件契约共存期 ≥ 2 个发布周期。客户端：POS 厂商适配器至少支持当前与前一个版本。
-  data_retention: "流水 3 年；日志 90 天；会员信息按合规要求"
-
-budgets:                       # 参数，来自标准 01 §3.7 与 03 §11
-  agents_md_lines: 150
-  status_lines: 80
-  work_item_lines: 150
-  handoff_lines: 60
-  module_doc_lines: 200
-  default_context_tokens: 12000
-  work_item_stale_days: 5      # in_progress 超过即巡检转 blocked
-  docs_fresh_max_commits: 8    # 模块 source_rev 落后超过即报
-  release_observe_hours: 24
+metadata_required:                       # 01 §3.5 六类里本示例有的四类
+  - docs/product/acceptance
+  - docs/architecture
+  - docs/decisions
+  - docs/runbooks
