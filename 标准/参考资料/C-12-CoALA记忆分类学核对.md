@@ -3,7 +3,7 @@
 - 原题：Cognitive Architectures for Language Agents（CoALA）
 - 出处与作者：Sumers、Yao、Narasimhan、Griffiths；TMLR 2024（`https://openreview.net/forum?id=1i6ZCvflQJ`），预印本 arXiv:2309.02427。
 - 类型：**论文卡 · A2 同行评审概念框架**；转述层数：本轮消费的是**两层转述**——本仓库既有阅读卡 `docs/参考资料/07-coala.md`，加本轮抓取工具对 arXiv 摘要页返回的**模型摘要**。**未做原文重读**。
-- 本地路径：[07-coala.md](../../docs/参考资料/07-coala.md)（本仓库阅读卡，`source_id: SRC-COALA`，访问核对日 2026-09-01）。
+- 本地路径：标准仓 `docs/参考资料/07-coala.md`（本仓库阅读卡，`source_id: SRC-COALA`，访问核对日 2026-09-01）。
 - 发布日期：TMLR 2024（预印本 2023-09）；访问日：2026-09-08。
 - 实际阅读范围：
   - **已读**：本仓库阅读卡全文（可支持的观察 2 条、落点 2 条、边界 1 条）。

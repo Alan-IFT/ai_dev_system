@@ -86,18 +86,21 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 把改动合并回标准仓再 `pull`，不是就地同步。
 
 配置字段的语义见 CONTRACT.md §5，实例见本仓
-[`governance/project.yaml`](../../governance/project.yaml)——照实文件抄，本文不另立字段表；
+标准仓 `governance/project.yaml`——照实文件抄，本文不另立字段表；
 `tier` 是必填的，不写就得到一条未定。除采用的标准修订外，`project.yaml` 还应记下**工具来自
 哪个仓库、哪个版本、哪个提交号**，否则"结论是用哪份工具跑出来的"无从复算。
 
 **取用、升级、发布三条命令线。** `<tag>` 就是写进 `governance/STANDARD_VERSION` 的那个值，日期
-格式（如 `2026-09-12`），打在标准仓 `release` 分支的发布提交上。
+格式（如 `2026-09-12`），打在标准仓 `release` 分支的发布提交上；同一天第二次及以后的发布在日期后加 `.1`、`.2`（如 `2026-09-12.1`），日期本身不改。
 
 - **取用**（采用项目里执行一次）：
   `git subtree add --prefix=.std git@github.com:Alan-IFT/ai_dev_system.git <tag> --squash`。
   之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`，
   `governance/STANDARD_VERSION` 记下这个 `<tag>`。
-- **升级**：`git subtree pull --prefix=.std <remote> <新 tag> --squash`。先读
+- **升级**：先跑 `git log --oneline -- .std` 查越界——除 subtree 自己的 squash 与 merge 提交外，若还有
+  别的提交碰过 `.std/`，就是项目在里面改了标准，先把改动合并回标准仓或撤掉再 pull：同一行上游也改了
+  git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移只有 log 能看见。确认干净后
+  `git subtree pull --prefix=.std <remote> <新 tag> --squash`。先读
   `git diff <旧 tag> <新 tag>` 评估，再改 `governance/STANDARD_VERSION`。`release` 分支是线性的，
   两个 tag 之间的 diff 就是升级差异。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
@@ -140,6 +143,6 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 
 ## 本仓库自己的采用结果
 
-本仓库自己也是采用者，记录在 [`governance/project.yaml`](../../governance/project.yaml)。**它自己
+本仓库自己也是采用者，记录在 标准仓 `governance/project.yaml`。**它自己
 没有全绿**：仍有 FAIL 与未定没处置（`layout.artifacts` 的 `acceptance` 故意空着——这个仓确实
 没有验收条目工件，留着让它报出来）。作者自己的仓库不全绿，比全绿的样例更能说明三态怎么用。
