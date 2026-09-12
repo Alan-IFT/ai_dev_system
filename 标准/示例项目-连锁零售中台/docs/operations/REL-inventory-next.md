@@ -4,7 +4,7 @@
 
 ## 发布前
 
-发布负责人 Li，风险决定与运行接收 Alan；场景为库存投影逻辑优化，不改变[现有事件契约](../architecture/contracts/EVT-inventory-stock-changed.md)。若实际变更涉及 schema 或事件语义，先转入[架构迁移流程](../../../02-项目架构描述规范.md#contract-migration)。
+发布负责人 Li，风险决定与运行接收 Zhao；场景为库存投影逻辑优化，不改变[现有事件契约](../architecture/contracts/EVT-inventory-stock-changed.md)。若实际变更涉及 schema 或事件语义，先转入[架构迁移流程](../../../02-项目架构描述规范.md#contract-migration)。
 
 必填但当前未提供：工作项/验收 ID、候选与现网制品摘要、代码修订、配置差异、构建验证、受影响门店/消费者、灰度路由实现、实际操作授权、放量阈值及观察时段。缺任一适用前提不开始执行。
 

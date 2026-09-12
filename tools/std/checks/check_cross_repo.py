@@ -101,8 +101,8 @@ def _has_invalidation_marker(text):
 
 
 def _name_appears(text, name):
-    """仓名是否作为独立记号出现。不能用裸子串——嵌套命名下 NFBY_CMS 会被
-    NFBY_CMS_Backend 假命中，那会把'未登记'误判成通过。"""
+    """仓名是否作为独立记号出现。不能用裸子串——嵌套命名下 RCMS 会被
+    RCMS_Backend 假命中，那会把'未登记'误判成通过。"""
     pat = r"(?<![0-9A-Za-z_\-])%s(?![0-9A-Za-z_\-])" % re.escape(name)
     return re.search(pat, text, re.IGNORECASE) is not None
 

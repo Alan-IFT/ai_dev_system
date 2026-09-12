@@ -1,7 +1,7 @@
 ---
 id: ACC-INDEX
 status: active
-owner: Alan（产品）
+owner: Zhao（产品）
 updated_at: 2026-08-30
 ---
 
@@ -23,7 +23,7 @@ updated_at: 2026-08-30
 - 可观察结果：任一库存变更产生一条 `inventory.stock-changed` v2 事件，含 store_id、sku_id、delta、idempotency_key、occurred_at；同一 idempotency_key 重复投递时消费者只处理一次（回执数 == 投递去重后数）
 - 目标环境：staging → prod
 - 优先级：P0
-- 状态：frozen（Alan，2025-12-08）
+- 状态：frozen（Zhao，2025-12-08）
 - 来源：ADR-0007；F-017
 - 派生：WI-0142；tests/integration/inventory/test_stock_changed_v2.py
 ```

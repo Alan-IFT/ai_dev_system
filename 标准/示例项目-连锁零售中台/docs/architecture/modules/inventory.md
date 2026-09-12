@@ -1,7 +1,7 @@
 ---
 id: MOD-inventory
 status: active
-owner: Alan
+owner: Zhao
 updated_at: 2026-08-25
 source_rev: a3f9c21
 ---

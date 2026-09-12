@@ -55,7 +55,7 @@ def _metadata_requirement(cfg, rel):
       "这份文档算不算 01 §3.5 的六类"要看内容，不是机械可判定的（契约 §7），
       所以**不能**记成 SKIP（"不适用"是确定结论），按 01 §2 N1 记未定。
 
-    这条改动的由来：NFBY 的 runbook 放在 `docs/ops/`，本仓的文档树是中文名
+    这条改动的由来：RCMS 的 runbook 放在 `docs/ops/`，本仓的文档树是中文名
     （`docs/架构图`、`docs/审计记录`），两处的目录名约定命中率分别是 0/9 与 0/35。
     原实现把 100% 的未命中输出成 SKIP「不要求元信息」——那是在拿"我没看"冒充"不适用"。
     """
@@ -640,7 +640,7 @@ def _sample(tmp, doc_text, work_text):
 def _sample_unconventional(tmp, work_text, metadata_required=None):
     """路径**不匹配任何目录名约定**的两份无日期文档，其中一份是中文名。
 
-    造法：一份用真实踩过的形态（NFBY 的 runbook 在 `docs/ops/`，目录名不在
+    造法：一份用真实踩过的形态（RCMS 的 runbook 在 `docs/ops/`，目录名不在
     `_IMPORTANT_DIRS` 里），一份用本工具自己仓库的形态（中文目录 + 中文文件名，
     一套英文目录名约定对它零命中）。中文名那份是关键——上面那份还能靠加
     `*runbook*` 文件名模式蒙对，中文树连蒙的机会都没有。

@@ -1,7 +1,7 @@
 ---
 id: ARCH-OVERVIEW
 status: active
-owner: Alan（架构）
+owner: Zhao（架构）
 updated_at: 2026-08-25
 source_rev: c41e9a7
 ---
@@ -39,19 +39,19 @@ graph LR
 
 | 模块 | 一句话职责 | 层 | 部署单元 | 负责人 | 状态 | 文档 |
 |---|---|---|---|---|---|---|
-| platform | 认证、审计日志、配置、消息总线封装、幂等回执 | platform | core | Alan | active | modules/platform.md |
-| identity | 组织、门店、用户、角色、权限 | domain | core | Alan | active | modules/identity.md |
+| platform | 认证、审计日志、配置、消息总线封装、幂等回执 | platform | core | Zhao | active | modules/platform.md |
+| identity | 组织、门店、用户、角色、权限 | domain | core | Zhao | active | modules/identity.md |
 | catalog | SKU、条码、分类、经营范围、供应商关联 | domain | core | Li | active | [modules/catalog.md](modules/catalog.md) |
 | pricing | 门店价、促销规则、价格生效 | domain | core | Li | active | modules/pricing.md |
 | supplier | 供应商档案、报价、采购单、到货 | domain | core | Wang | active | modules/supplier.md |
-| inventory | 门店库存、批次、盘点、调拨、调整、库存事件 | domain | core | Alan | active | [modules/inventory.md](modules/inventory.md) |
+| inventory | 门店库存、批次、盘点、调拨、调整、库存事件 | domain | core | Zhao | active | [modules/inventory.md](modules/inventory.md) |
 | member | 会员、积分、等级 | domain | core | Zhou | active | modules/member.md |
 | settlement | 供应商结算单、门店日结、对账 | domain | core | Wang | active | modules/settlement.md |
-| pos-gateway | POS 推送、流水回传、厂商适配器 | application | **pos-gateway**（独立部署） | Alan | active | [modules/pos-gateway.md](modules/pos-gateway.md) |
+| pos-gateway | POS 推送、流水回传、厂商适配器 | application | **pos-gateway**（独立部署） | Zhao | active | [modules/pos-gateway.md](modules/pos-gateway.md) |
 | import-export | 批量导入（两阶段）、模板版本、导出 | application | core | Li | active | [modules/import-export.md](modules/import-export.md) |
 | reporting | 报表、事件投影、只读副本 | application | core | Wang | active | modules/reporting.md |
 | notification | 站内信、短信、告警投递 | application | core | Zhou | active | modules/notification.md |
-| api-gateway | 对外 REST、限流、版本路由 | interface | core | Alan | active | modules/api-gateway.md |
+| api-gateway | 对外 REST、限流、版本路由 | interface | core | Zhao | active | modules/api-gateway.md |
 | admin-web | 后台 Web（React） | interface | admin-web | Zhou | active | modules/admin-web.md |
 
 模块清单与 `services/`、`apps/` 目录的对账：`tools/check_deps.py --list-modules`。

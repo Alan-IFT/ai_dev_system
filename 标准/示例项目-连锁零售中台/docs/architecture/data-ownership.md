@@ -1,7 +1,7 @@
 ---
 id: ARCH-DATA
 status: active
-owner: Alan（架构）
+owner: Zhao（架构）
 updated_at: 2026-02-20
 ---
 

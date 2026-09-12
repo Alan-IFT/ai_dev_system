@@ -335,7 +335,7 @@ _BAD = u"""<h1>模块图</h1>
 <p>库存与结算两个模块。</p>
 """
 # 只有 <meta name="generator">，既没有源路径也没有 source_rev。
-# 这是真实形态：本仓 docs/架构图/ 十份与 NFBY 三份 HTML 的第 6 行都长这样。
+# 这是真实形态：本仓 docs/架构图/ 十份与 RCMS 三份 HTML 的第 6 行都长这样。
 # 它必须仍判 FAIL——把 generator 当成"自我声明"会一次性制造十几条假 PASS。
 _GENERATOR_ONLY = u"""<!doctype html>
 <html lang="zh-CN">

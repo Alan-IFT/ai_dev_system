@@ -1,7 +1,7 @@
 ---
 id: ADR-INDEX
 status: active
-owner: Alan
+owner: Zhao
 updated_at: 2026-07-08
 ---
 

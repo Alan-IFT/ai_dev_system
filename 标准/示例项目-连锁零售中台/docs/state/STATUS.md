@@ -3,7 +3,7 @@
 status_revision：147
 状态：active
 updated_at：2026-09-07
-状态负责人：Alan
+状态负责人：Zhao
 last_verified_at：2026-09-07（`git rev-parse HEAD` 与 prod `/health` 核对）
 
 > 只承载里程碑级摘要、当前重点、项目级阻塞与接手入口。实时任务步骤看工作项；数字不在此抄，脚本现取。
@@ -25,7 +25,7 @@ v2.x 维护期 + 商品部"新品导入自动拆分"需求（CAT-011/012、IMP-0
 | 工作项 | 一句话 | 状态 | 负责人 | 精确路径 |
 |---|---|---|---|---|
 | WI-0151 | 新品导入四类拆分与一品多码 | in_progress（阶段 2/3） | Li + Claude Code | [work/WI-0151](work/WI-0151-新品导入四类拆分与一品多码.md) |
-| WI-0155 | POS 静默告警阈值按营业时间 | **blocked**（等 identity 门店营业时间字段与 ADR-0015 裁定） | Alan | [work/WI-0155](work/WI-0155-POS静默告警按营业时间.md) |
+| WI-0155 | POS 静默告警阈值按营业时间 | **blocked**（等 identity 门店营业时间字段与 ADR-0015 裁定） | Zhao | [work/WI-0155](work/WI-0155-POS静默告警按营业时间.md) |
 | WI-0148 | reporting 盘点差异事件投影（消 EX-004） | planned | Wang | work/WI-0148 |
 | WI-0157 | pricing 模块文档对账（G11 连续两迭代落后） | planned | Li | work/WI-0157 |
 

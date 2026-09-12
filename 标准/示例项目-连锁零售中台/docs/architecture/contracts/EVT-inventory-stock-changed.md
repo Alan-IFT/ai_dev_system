@@ -1,7 +1,7 @@
 ---
 id: EVT-inventory-stock-changed
 status: active
-owner: Alan（inventory）
+owner: Zhao（inventory）
 version: 2
 updated_at: 2026-02-20
 supersedes: [EVT-inventory-stock-changed@v1]

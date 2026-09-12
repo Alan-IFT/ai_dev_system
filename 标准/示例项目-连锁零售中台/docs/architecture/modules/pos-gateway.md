@@ -1,7 +1,7 @@
 ---
 id: MOD-pos-gateway
 status: active
-owner: Alan
+owner: Zhao
 updated_at: 2026-08-25
 source_rev: f0a1b3e
 ---

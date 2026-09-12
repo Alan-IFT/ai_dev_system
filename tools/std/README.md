@@ -94,7 +94,7 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
 格式（如 `2026-09-12`），打在标准仓 `release` 分支的发布提交上；同一天第二次及以后的发布在日期后加 `.1`、`.2`（如 `2026-09-12.1`），日期本身不改。
 
 - **取用**（采用项目里执行一次）：
-  `git subtree add --prefix=.std git@github.com:Alan-IFT/ai_dev_system.git <tag> --squash`。
+  `git subtree add --prefix=.std https://github.com/Alan-IFT/ai-dev-std.git <tag> --squash`。
   之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`，
   `governance/STANDARD_VERSION` 记下这个 `<tag>`。
 - **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
@@ -114,10 +114,14 @@ CI 里把退出码 2 当失败还是当告警，是项目要**显式做并写下
   认的是当前 `.std/` 的内容，先改版本号只会让文件和记录对不上。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
-  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std` → 写／更新根
+  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
   `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
   `git commit -m "release <tag>：来自 main <sha>"` → `git tag <tag>` → push 分支与 tag。
   每次发布提交接在上一次之上，不用 orphan 重建——重建会让两个 tag 间的 diff 不再是升级差异。
+  **push 时同时推到公开仓**（`release` 分支在公开仓里就是它的 `main`，采用项目按上面「取用」那条
+  命令取的也是这个地址）：`git push https://github.com/Alan-IFT/ai-dev-std.git release:main --follow-tags`；
+  `--follow-tags` 只推带注解的 tag，用 `git tag <tag>` 打的轻量 tag 不在其中，那就分两条：
+  `git push <公开仓> release:main && git push <公开仓> <tag>`。本仓 main 含不可公开的脚手架，只推 `release`，不推 main。
 
 ## 加一个自己的检查器
 

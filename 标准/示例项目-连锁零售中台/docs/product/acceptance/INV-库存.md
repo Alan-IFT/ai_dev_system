@@ -1,7 +1,7 @@
 ---
 id: ACC-INV
 status: active
-owner: Alan（产品）
+owner: Zhao（产品）
 updated_at: 2026-02-20
 ---
 
@@ -11,7 +11,7 @@ updated_at: 2026-02-20
 - 可观察结果：任何出库使库存 < 0 的操作被拒绝；允许负库存的门店需显式配置且有到期日
 - 目标环境：prod
 - 优先级：P0
-- 状态：frozen（Alan，2025-03-10）
+- 状态：frozen（Zhao，2025-03-10）
 - 来源：INV-01 不变量
 - 派生：WI-0011
 
@@ -19,7 +19,7 @@ updated_at: 2026-02-20
 - 可观察结果：盘点提交后系统按 SKU 生成差异清单；确认后生成库存调整单并留痕；未确认的差异不改库存
 - 目标环境：prod
 - 优先级：P0
-- 状态：frozen（Alan，2025-04-15）
+- 状态：frozen（Zhao，2025-04-15）
 - 派生：WI-0027
 
 ### INV-009 · 库存变更发出事件
@@ -33,7 +33,7 @@ updated_at: 2026-02-20
 - 可观察结果：任一库存变更产生一条 `inventory.stock-changed` v2 事件，含 `store_id`、`sku_id`、`delta`、`idempotency_key`、`occurred_at`；同一 `idempotency_key` 重复投递时每个消费者只处理一次（消费者回执数 == 去重后投递数）
 - 目标环境：staging → prod
 - 优先级：P0
-- 状态：frozen（Alan，2025-12-08）
+- 状态：frozen（Zhao，2025-12-08）
 - 来源：ADR-0007；F-017；INV-04 不变量
 - 派生：WI-0142；tests/integration/inventory/test_stock_changed_v2.py
 
@@ -41,13 +41,13 @@ updated_at: 2026-02-20
 - 可观察结果：契约登记表里 `EVT-inventory-stock-changed` v1 的消费者为零；v1 队列 7 天无投递后删除；删除前有告警期
 - 目标环境：prod
 - 优先级：P1
-- 状态：frozen（Alan，2025-12-08）
+- 状态：frozen（Zhao，2025-12-08）
 - 派生：WI-0142（contract 阶段）
 
 ### INV-016 · 事件重放不产生第二次副作用
 - 可观察结果：对任一消费者重放过去 24h 的事件，库存、报表、POS 推送的结果与重放前一致（差异为零）
 - 目标环境：staging
 - 优先级：P0
-- 状态：frozen（Alan，2025-12-08）
+- 状态：frozen（Zhao，2025-12-08）
 - 来源：INV-04
 - 派生：WI-0142；tests/integration/inventory/test_replay_idempotent.py

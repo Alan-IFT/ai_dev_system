@@ -3,7 +3,7 @@
 # 环境与数据保留见 docs/architecture/overview.md §6/§7；兼容策略见 docs/architecture/
 # invariants.md INV-07 与 docs/architecture/contracts/README.md 的「兼容策略」列。
 # 采用的标准修订不在本文件，见 governance/STANDARD_VERSION（01 §8）
-tier: L2                                 # 四人团队（Alan/Li/Zhou/Wang），有闸门、例外登记与 ADR
+tier: L2                                 # 四人团队（Zhao/Li/Zhou/Wang），有闸门、例外登记与 ADR
 
 layout:
   entry:

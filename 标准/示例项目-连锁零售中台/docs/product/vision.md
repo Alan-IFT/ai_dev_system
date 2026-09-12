@@ -1,7 +1,7 @@
 ---
 id: VISION
 status: active
-owner: Alan
+owner: Zhao
 updated_at: 2026-03-10
 supersedes: []
 ---
