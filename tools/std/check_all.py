@@ -456,6 +456,48 @@ def _entry_smoke_selftest():
     return out
 
 
+def _hook_guard_selftest():
+    """带跑 Claude Code 拦截层的反例自检（契约 §3）。
+
+    guard.py 不进检查器身份（契约 §8 末尾写了排除理由），但它在不在位、跑不跑得过
+    会改变本自检的闸门结果，所以由这一条 finding 显式承载：不在位记**未定**，不是
+    静默跳过——静默跳过正是 M-10 要探测的那种失效。
+    """
+    import subprocess
+
+    guard = os.path.join(HERE, "hooks", "guard.py")
+    if not os.path.isfile(guard):
+        return [finding(
+            "hook-guard", UNDETERMINED, "拦截层脚本不在位",
+            where="tools/std/hooks/guard.py",
+            reason="没有 hooks/guard.py，本工具判不了拦截层是否还成立；"
+                   "不装拦截层的项目按这条记未定，不记通过",
+            why="契约 §3：守卫存在不等于守卫在执行",
+        )]
+    try:
+        env = dict(os.environ)
+        env["PYTHONIOENCODING"] = "utf-8"
+        proc = subprocess.run([sys.executable, guard, "--selftest"], env=env,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
+        out = proc.stdout.decode("utf-8", "replace")
+    except (OSError, subprocess.SubprocessError) as exc:
+        return [undetermined_from_exception("hook-guard", exc, "跑 guard --selftest")]
+    if proc.returncode == 0:
+        return [finding(
+            "hook-guard", PASS, "拦截层自检通过：%s" % (out.strip().splitlines() or [""])[-1],
+            where="tools/std/hooks/guard.py",
+            why="契约 §3：拦截层也是守卫，它的反例表（内嵌目录写入／Bash 写形态／"
+                "git commit 识别／check_all 各种退出码）必须逐条跑过",
+            evidence=out.strip()[:400],
+        )]
+    return [finding(
+        "hook-guard", FAIL, "拦截层自检没通过（退出码 %d）" % proc.returncode,
+        where="tools/std/hooks/guard.py",
+        why="契约 §3：自检不过的守卫，其拦截结论作废",
+        evidence="\n".join(out.splitlines()[:20]),
+    )]
+
+
 def run_all(root, selftest_only=False, config_path=None):
     """跑全部检查。返回 (findings, cfg)——配置只在这里加载一次，
     渲染覆盖边界时由调用方把 cfg 传回去，不再各自重新加载（重新加载会
@@ -475,6 +517,7 @@ def run_all(root, selftest_only=False, config_path=None):
     if selftest_only:
         findings.extend(_contract_examples_selftest())
         findings.extend(_entry_smoke_selftest())
+        findings.extend(_hook_guard_selftest())
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))

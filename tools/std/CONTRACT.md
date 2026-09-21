@@ -55,7 +55,7 @@
 1. 造一个**应该被判 FAIL** 的最小样本，跑检查器，必须得到 FAIL；
 2. 造一个**应该被判 PASS** 的最小样本，必须得到 PASS。
 
-任一条不成立即判该检查器故障，其对目标仓库的结论作废、记 `UNDETERMINED`。`check_all --selftest` 单独跑这一层。
+任一条不成立即判该检查器故障，其对目标仓库的结论作废、记 `UNDETERMINED`。`check_all --selftest` 单独跑这一层。`--selftest` 同时跑 `hooks/guard.py --selftest`（Claude Code 拦截层的反例自检），guard 不在位记未定。
 
 ---
 
@@ -272,6 +272,8 @@ tool_identity_files:
   - check_all.py 0a59ea87bc6b56431fddf7ad3fbd07a75b14312c51f1001322b6cf6752301d69
   - CONTRACT.md 2b19a50dbb67d7569b0c69f23073f507b4382e34ed9887d666375ab0437ac319
 ```
+
+`hooks/guard.py` 不进身份：它不产出任何对被扫描项目的结论，身份块钉的是这套判据对该项目的结论；它对 `--selftest` 的影响由 `hook-guard` 一条 finding 显式承载，并由 guard 自报 sha8（SessionStart 行与回执）定版。
 
 ---
 
