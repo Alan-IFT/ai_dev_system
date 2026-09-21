@@ -193,7 +193,7 @@ exec python .std/tools/std/check_all.py .
 
 **生效标志（在场信号）**：装上之后，新会话的上下文里会出现一行「std 拦截层已加载 · guard `<sha8>` ·
 `.std` 只读 · 提交前跑 check_all」。**这一行不出现就是没在跑**——不要假设它在，它正是下面第 1、2 条
-盲区唯一的外部可见信号。
+盲区唯一的外部可见信号。不要用 `claude plugin list` 自证：它只列用户级启用的插件，项目级 `enabledPlugins` 不在其中。
 
 拦什么，三条，全部只覆盖 Claude Code 自己发起的动作：
 
