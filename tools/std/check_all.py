@@ -8,12 +8,14 @@
     python tools/std/check_all.py <项目> --config <别处的.yaml>
         # 扫描只读项目：配置放在被测项目之外，全程不往被测项目写任何东西
 
-退出码：有 FAIL → 1；无 FAIL 但有 UNDETERMINED → 2；否则 0。
-**2 不是成功。** 契约见同目录 CONTRACT.md。
+退出码：有 FAIL → 1；无 FAIL 但有**未登记**的 UNDETERMINED → 2；否则 0。
+**2 不是成功。** 已登记的未定仍是未定、仍逐条列出、仍计数，登记只改变退出码。
+契约见同目录 CONTRACT.md（三态 §1、例外登记 §9）。
 """
 from __future__ import annotations
 
 import argparse
+import datetime
 import importlib.util
 import io
 import json
@@ -25,7 +27,7 @@ sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    finding, load_config, undetermined_from_exception,
+    finding, load_config, load_exceptions, undetermined_from_exception,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -366,6 +368,58 @@ def _entry_smoke_selftest():
             if eol["lf"] == eol["mut"]:
                 raise AssertionError("契约 §8：内容不同的文件身份不应相等")
 
+            # 3f) 契约 §9 例外登记。四条断言**打在结果上，不打在退出码上**——退出码只有
+            #     三个取值，靠它分不清"登记生效了"与"这次恰好没别的未定"。
+            und = [f for f in findings if f["status"] == UNDETERMINED]
+            if not und:
+                raise AssertionError("冒烟仓没有未定项，登记这一支无从自检")
+            target = und[0]["id"]
+            ex_path = os.path.join(os.path.dirname(cfg_path), "exceptions.md")
+            today = datetime.date.today()
+            ok_day = (today + datetime.timedelta(days=30)).isoformat()
+            yesterday = (today - datetime.timedelta(days=1)).isoformat()
+
+            def _register(rule, expires, extra=u""):
+                with io.open(ex_path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(u"# 例外登记\n\n"
+                             u"| id | 规则 | 理由 | 范围 | 批准人 | 到期 | 状态 |\n"
+                             u"|---|---|---|---|---|---|---|\n"
+                             u"| EX-001 | %s | 入口冒烟自检用 | 该项 | 自检 | %s | active |\n%s"
+                             % (rule, expires, extra))
+                fs, _c = run_all(proj, selftest_only=False, config_path=cfg_path)
+                hits = [f for f in fs if f.get("id") == target]
+                if not hits:
+                    raise AssertionError("登记自检：目标未定项 %s 消失了" % target)
+                return fs, hits[0]
+
+            def _has(fs, kind):
+                return any((f.get("id") or "").startswith("exception-register/" + kind) for f in fs)
+
+            fs, hit = _register(target, ok_day)
+            if (hit.get("registered") or {}).get("id") != "EX-001":
+                raise AssertionError("① 有效登记应标已登记 EX-001，实得 %r" % (hit.get("registered"),))
+
+            fs, hit = _register(target, yesterday)
+            if hit.get("registered") is not None:
+                raise AssertionError("② 到期在昨天的登记不得生效，实得 %r" % (hit.get("registered"),))
+            if not _has(fs, "expired"):
+                raise AssertionError("② 过期登记应多一条 exception-register/expired")
+
+            fs, hit = _register(
+                target, ok_day,
+                u"| EX-002 | freshness/stale/没有这份文件.md | 缺范围与批准人 |  |  | %s | active |\n" % ok_day)
+            if not _has(fs, "invalid-rows"):
+                raise AssertionError("③ 写坏一行应多一条 exception-register/invalid-rows")
+
+            fs, hit = _register(u"freshness/stale/根本不存在的判据.md", ok_day)
+            if hit.get("registered") is not None:
+                raise AssertionError("④ rule 指向不存在的 id 时，原发现应仍是未登记")
+            if _has(fs, "expired"):
+                raise AssertionError("④ 没过期的孤儿行不得报 expired")
+            if not _has(fs, "orphan"):
+                raise AssertionError("④ rule 匹配不到任何 id 应多一条 exception-register/orphan")
+            os.remove(ex_path)
+
             # 4) main 整条走一遍（argparse + 输出 + 退出码），不允许抛异常
             for argv in ([proj, "--config", cfg_path, "--no-scope"],
                          [proj, "--config", cfg_path, "--json"]):
@@ -395,7 +449,9 @@ def _entry_smoke_selftest():
         why="契约 §3：守卫存在不等于守卫在执行——入口本身也要有反例",
         evidence="run_all 返回二元组、findings 三态合法、render 出覆盖边界与外部配置标注、"
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
-                 "跨盘符与盘符大小写不崩、main 两种 argv 退出码合法且有输出",
+                 "跨盘符与盘符大小写不崩、例外登记四条（有效登记生效／过期不生效且报 expired／"
+                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired）、"
+                 "main 两种 argv 退出码合法且有输出",
     ))
     return out
 
@@ -451,7 +507,116 @@ def run_all(root, selftest_only=False, config_path=None):
             findings.append(undetermined_from_exception(name, exc, "跑 %s" % name))
             continue
         findings.extend(res or [])
+    _join_exceptions(findings, cfg)
     return _sealed(findings, ident_before), cfg
+
+
+# --------------------------------------------------------------------------
+# 例外登记（契约 §9）
+# --------------------------------------------------------------------------
+
+EXCEPTION_CHECK = "exception-register"
+
+_MAX_REGISTER_LISTED = 12
+
+
+def _config_dir(cfg):
+    """配置文件所在目录——登记册就在它旁边。`_path` 可能是相对仓库根的。"""
+    path = cfg.get("_path")
+    if not path:
+        return None
+    if not os.path.isabs(path):
+        path = os.path.join(cfg.get("_root") or ".", path)
+    return os.path.dirname(os.path.abspath(path))
+
+
+def _join_exceptions(findings, cfg):
+    """把登记册里的行贴到未定发现上。**只在这里改 `registered`，不改 `status`。**
+
+    只做 join，不重写结论：状态、三态计数与逐条列出都不因登记而改变（01 §5.6）；
+    登记改变的只有退出码。FAIL 不可登记——本工具的 FAIL 按契约 §1.1 只在项目
+    声明的事实下产出，整块不适用走 `tailoring`，不走这里。
+    """
+    info = {"path": None, "display": None, "valid": 0}
+    if not isinstance(cfg, dict):
+        return info
+    cfg["_exceptions"] = info
+    try:
+        cdir = _config_dir(cfg)
+        if cdir is None:
+            return info
+        rows, problems, src = load_exceptions(cdir)
+    except Exception as exc:  # noqa: BLE001 —— 读登记册出错也是未定，不静默当成没有登记
+        findings.append(undetermined_from_exception(EXCEPTION_CHECK, exc, "读例外登记"))
+        return info
+    if src is None:
+        return info
+
+    cfg_path = str(cfg.get("_path") or "")
+    info["path"] = src
+    info["display"] = (os.path.join(os.path.dirname(cfg_path), "exceptions.md").replace("\\", "/")
+                       if not os.path.isabs(cfg_path) else src)
+    info["valid"] = len(rows)
+
+    today = datetime.date.today()
+    base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
+    all_ids = set(f.get("id") for f in findings)
+    by_id = {}
+    for f in findings:
+        if f["status"] == UNDETERMINED:
+            by_id.setdefault(f["id"], []).append(f)
+
+    expired, orphan = [], []
+    for row in rows:
+        hit = by_id.get(row["rule"])
+        if not hit:
+            if row["rule"] not in all_ids:
+                orphan.append(row)
+            continue                       # 匹配到 FAIL/PASS/SKIP：不可登记，也不是孤儿
+        if row["expires_date"] < today:
+            expired.append(row)
+            continue
+        for f in hit:
+            f["registered"] = {"id": row["ex_id"], "expires": row["expires"]}
+
+    def _rows_note(items):
+        head = "；".join("第 %d 行 %s 到期 %s" % (r["lineno"], r["ex_id"] or "（无编号）", r["expires"])
+                         for r in items[:_MAX_REGISTER_LISTED])
+        return head + ("；……共 %d 行" % len(items) if len(items) > _MAX_REGISTER_LISTED else "")
+
+    if problems:
+        findings.append(finding(
+            EXCEPTION_CHECK, UNDETERMINED,
+            "例外登记里有 %d 行不合格，未生效" % len(problems),
+            where=info["display"], kind="invalid-rows",
+            reason="；".join(problems[:_MAX_REGISTER_LISTED])
+                   + ("；……共 %d 行" % len(problems) if len(problems) > _MAX_REGISTER_LISTED else ""),
+            why="契约 §9：登记行要能被复核，规则、理由、范围、批准人、到期五项缺一即不算登记",
+            evidence=base,
+        ))
+    if expired:
+        findings.append(finding(
+            EXCEPTION_CHECK, UNDETERMINED,
+            "例外登记里有 %d 行已过期，它登记的发现回到未登记" % len(expired),
+            where=info["display"], kind="expired",
+            reason=_rows_note(expired),
+            why="契约 §9：到期由工具按运行日校验；过期的登记不再改变退出码——"
+                "没有到期的登记就是一键静音，那正是登记要带到期的理由",
+            evidence=base,
+        ))
+    if orphan:
+        findings.append(finding(
+            EXCEPTION_CHECK, UNDETERMINED,
+            "例外登记里有 %d 行的规则匹配不到本次任何发现" % len(orphan),
+            where=info["display"], kind="orphan",
+            reason="；".join("第 %d 行 %s：%s" % (r["lineno"], r["ex_id"] or "（无编号）", r["rule"])
+                             for r in orphan[:_MAX_REGISTER_LISTED])
+                   + ("；……共 %d 行" % len(orphan) if len(orphan) > _MAX_REGISTER_LISTED else ""),
+            why="契约 §9：规则列写的是 Finding id；对不上的行要么判据已变、要么抄错，"
+                "两种都不该留在册子里当作还在生效",
+            evidence=base,
+        ))
+    return info
 
 
 def _sealed(findings, ident_before):
@@ -529,18 +694,32 @@ def render(findings, root, cfg=None, show_scope=True):
             buf.append("配置 · %s（在被扫描项目内）" % cfg["_path"])
         else:
             buf.append("配置 · %s（在不在项目内判不了：%s）" % (cfg["_path"], why_outside))
-    buf.append("  通过 %d   失败 %d   未定 %d   不适用 %d"
-               % (counts[PASS], counts[FAIL], counts[UNDETERMINED], counts[SKIP]))
+        ex = cfg.get("_exceptions") or {}
+        buf.append("登记 · %s（%d 行有效）" % (ex.get("display"), ex.get("valid") or 0)
+                   if ex.get("display") else "登记 · 无")
+    registered = [f for f in findings if f["status"] == UNDETERMINED and f.get("registered")]
+    n_reg = len(registered)
+    n_unreg = counts[UNDETERMINED] - n_reg
+    buf.append("  通过 %d   失败 %d   未定 %d（已登记 %d · 未登记 %d）   不适用 %d"
+               % (counts[PASS], counts[FAIL], counts[UNDETERMINED], n_reg, n_unreg, counts[SKIP]))
     buf.append("")
 
     for status, label in ((FAIL, "失败"), (UNDETERMINED, "未定"), (SKIP, "不适用")):
         items = [f for f in findings if f["status"] == status]
         if not items:
             continue
+        if status == UNDETERMINED:
+            # 先未登记后已登记：要处置的排在前面，登记过的还在册上但不再挡路。
+            items = ([f for f in items if not f.get("registered")]
+                     + [f for f in items if f.get("registered")])
         buf.append("%s（%d）" % (label, len(items)))
         for f in items:
             loc = ("  [%s]" % f["where"]) if f.get("where") else ""
-            buf.append("  · %s%s" % (f["title"], loc))
+            reg = f.get("registered") or {}
+            tag = ("（已登记 %s，到期 %s）" % (reg.get("id") or "（无编号）", reg.get("expires"))
+                   if reg else "")
+            buf.append("  · %s%s%s" % (f["title"], tag, loc))
+            buf.append("      id：%s" % f.get("id"))
             for key, prefix in (("reason", "原因"), ("why", "依据"), ("evidence", "证据")):
                 if f.get(key):
                     buf.append("      %s：%s" % (prefix, f[key]))
@@ -559,8 +738,13 @@ def render(findings, root, cfg=None, show_scope=True):
 
     if counts[FAIL]:
         buf.append("结论：FAIL。")
-    elif counts[UNDETERMINED]:
-        buf.append("结论：未定 —— 有 %d 项没能判定。**未定不是通过**（01 §2 N1）。" % counts[UNDETERMINED])
+    elif n_unreg:
+        buf.append("结论：未定 —— 有 %d 项没能判定且未登记%s。**未定不是通过**（01 §2 N1）。"
+                   % (n_unreg, ("，另有 %d 项已登记" % n_reg) if n_reg else ""))
+    elif n_reg:
+        soonest = min(f["registered"]["expires"] for f in registered)
+        buf.append("结论：无未登记的未定；仍有 %d 项已登记未定（最近到期 %s）。"
+                   "未定不是通过（01 §2 N1），退出码 0 只表示全部未定都已登记。" % (n_reg, soonest))
     else:
         buf.append("结论：本次实际执行的检查全部通过。通过只覆盖上面列出的范围。")
     return "\n".join(buf)
@@ -595,7 +779,8 @@ def main(argv=None):
 
     if any(f["status"] == FAIL for f in findings):
         return 1
-    if any(f["status"] == UNDETERMINED for f in findings):
+    # 只看**未登记**的未定：已登记的仍是未定、仍逐条列出、仍计数，只是不再挡门（契约 §9）。
+    if any(f["status"] == UNDETERMINED and not f.get("registered") for f in findings):
         return 2
     return 0
 

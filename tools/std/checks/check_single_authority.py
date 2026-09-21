@@ -446,6 +446,7 @@ def _run(cfg):
     if len(dupes) > shown:
         out.append(finding(
             NAME, UNDETERMINED, u"还有 %d 组逐字节相同的文件未逐条列出" % (len(dupes) - shown),
+            kind=u"overflow-identical",
             reason=u"单类结果上限 %d 条；未列出的不等于没问题（契约 §2）" % _MAX_FINDINGS_PER_KIND,
             why=u"01 §2 N2",
         ))
@@ -478,6 +479,7 @@ def _run(cfg):
     if len(doc_blocks) > shown:
         out.append(finding(
             NAME, UNDETERMINED, u"还有 %d 处重复文本块未逐条列出" % (len(doc_blocks) - shown),
+            kind=u"overflow-dup-block",
             reason=u"单类结果上限 %d 条；未列出的不等于没问题（契约 §2）" % _MAX_FINDINGS_PER_KIND,
             why=u"01 §3.4",
         ))
@@ -485,6 +487,7 @@ def _run(cfg):
         out.append(finding(
             NAME, UNDETERMINED,
             u"另有 %d 组重复文本块的全部出现位置都在非文档文件，本检查器不判" % len(code_blocks),
+            kind=u"nondoc-dup-block",
             reason=u"判据 2 的对象是文档（01 §1 G2 限定「同一数值/状态/清单」、§3.4 限定"
                    u"「文档 A 复制文档 B 的一段」）。源码与配置之间等价的重复实现按 "
                    u"02 §4 公共能力清单的失败处置「记入技术债并指定收敛方向」，"
@@ -528,6 +531,9 @@ def _run(cfg):
             NAME, UNDETERMINED,
             u"同一数值声明「%s」出现在 %d 个文件" % (sample.strip(), len(places)),
             where=loc[0],
+            # key 用 _count_claims 已经算出的三元组（数字:量词:名词键），不用 sample 与计数：
+            # 再多一个文件抄同一个值，标题里的计数会变，这条发现还是同一条。
+            kind=u"count-claim", key=u"%s:%s:%s" % key,
             why=u"01 §1 G2：数值的权威只有一处，别处应写链接不抄值",
             reason=u"疑似副本，需人确认是否为同一事实——同形数字也可能各说各的，机械判不了",
             evidence=u"出现在：%s" % u"、".join(loc),
@@ -535,6 +541,7 @@ def _run(cfg):
     if len(claims) > shown:
         out.append(finding(
             NAME, UNDETERMINED, u"还有 %d 组疑似重复数值未逐条列出" % (len(claims) - shown),
+            kind=u"overflow-count-claim",
             reason=u"单类结果上限 %d 条；未列出的不等于没问题（契约 §2）" % _MAX_FINDINGS_PER_KIND,
             why=u"01 §1 G2",
         ))
@@ -547,6 +554,7 @@ def _run(cfg):
         out.append(finding(
             NAME, UNDETERMINED,
             u"另有 %d 组重复数值声明的全部出现位置都在非文档文件，本检查器不判" % len(code_claims),
+            kind=u"nondoc-count-claim",
             reason=u"判据 3 的对象是文档里的值（01 §1 G2、§2 N2）。源码与配置之间的同形数字"
                    u"多为常量与样板，等价的重复实现按 02 §4 公共能力清单记入技术债，"
                    u"不由本检查器判，也不当成通过",
@@ -704,6 +712,37 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"探测三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 探测三之三（id 稳定性，契约 §9）：同一个数值再被一个文件抄一遍，**标题里的计数要变、
+    # id 不能变**。id 变了登记就失效——每多一个抄的人，上一次写下的登记行就作废一次，
+    # 例外登记会退化成"每次重跑都要重抄一遍"。所以 key 取 _count_claims 的三元组，不取计数。
+    try:
+        base_files = dict(list(files.items())[:_CLAIM_MIN_FILES])
+        plus_files = dict(base_files)
+        plus_files["p.md"] = _UNIQ_A.replace(u"甲文档", u"丁文档") \
+            + u"\n第四处也写了 192 份归档，按同一口径清点。\n"
+        with tempfile.TemporaryDirectory() as tmp2:
+            cfg = _mkrepo(tmp2, base_files)
+            few = [f for f in run(cfg) if f["id"].startswith(NAME + u"/count-claim/")]
+        with tempfile.TemporaryDirectory() as tmp3:
+            cfg = _mkrepo(tmp3, plus_files)
+            more = [f for f in run(cfg) if f["id"].startswith(NAME + u"/count-claim/")]
+        ok = (len(few) == 1 and len(more) == 1
+              and few[0]["id"] == more[0]["id"]
+              and few[0]["title"] != more[0]["title"])
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"探测三之三：再加一个抄同一数值的文件，标题计数变而 id 不变",
+            evidence=u"%d 个文件：id=%s title=%r；%d 个文件：id=%s title=%r"
+                     % (len(base_files),
+                        few[0]["id"] if few else u"（无）", few[0]["title"] if few else u"（无）",
+                        len(plus_files),
+                        more[0]["id"] if more else u"（无）", more[0]["title"] if more else u"（无）"),
+            why=u"契约 §9：id 的稳定性是例外登记能用的前提——登记行写的就是 id",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"探测三之三自身出错",
+                               evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 探测三之二（本次收窄的反例）：同一个数字只出现在 markdown 链接文本里，
     # 出现在足够多的文件也不得报——它是指向另一份文档，不是在声明一个数值。

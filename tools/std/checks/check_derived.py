@@ -208,7 +208,7 @@ def _check_one(root, idx, item):
     if missing:
         return [finding(
             NAME, UNDETERMINED, u"%s 的声明不完整" % label,
-            where=artifact or None,
+            where=artifact or None, kind=u"incomplete-decl", key=artifact or label,
             reason=u"缺：%s" % u"、".join(missing),
             why=u"01 §3.4：派生的核对方式是记源版本并 CI 重建 diff，缺源或缺重建命令就核对不了",
         )]
@@ -223,7 +223,7 @@ def _check_one(root, idx, item):
     if problems:
         return [finding(
             NAME, UNDETERMINED, u"%s 声明的文件不在" % label,
-            where=artifact,
+            where=artifact, kind=u"missing-file", key=artifact,
             reason=u"；".join(problems),
             why=u"01 §3.4：声明了派生关系但对象缺失，是配置过期还是文件被删，机械判不了",
             evidence=u"regen: %s" % regen,
@@ -237,7 +237,7 @@ def _check_one(root, idx, item):
     if a_epoch is None or s_epoch is None:
         out.append(finding(
             NAME, UNDETERMINED, u"%s 取不到 git 提交时间，陈旧与否未定" % label,
-            where=artifact,
+            where=artifact, kind=u"no-commit-time", key=artifact,
             reason=u"；".join(x for x in (a_why, s_why) if x),
             why=u"01 §3.4：派生物要对账源版本；取不到版本即无法判定，按 N1 记未定",
             evidence=u"git log -1 --format=%%ct -- %s / %s" % (artifact, source),
@@ -262,7 +262,7 @@ def _check_one(root, idx, item):
     if header is None:
         out.append(finding(
             NAME, UNDETERMINED, u"%s 的头部读不了，自我声明未定" % label,
-            where=artifact, reason=hwhy,
+            where=artifact, kind=u"header-unreadable", key=artifact, reason=hwhy,
             why=u"02 §9.1：派生工件头部要声明『派生缓存，权威是 X』",
         ))
     else:
@@ -441,5 +441,31 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"正例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例四（id 的区分力，契约 §9）：两条派生声明同时缺源文件，两条未定的 id 必须
+    # 各带自己的 artifact 路径。key 不带 artifact 的话两条 id 一模一样，登记一行就会
+    # 把两条都静音——而它们是两件事。
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _repo(tmp)
+            _commit(tmp, "docs/a.html", _GOOD, "2026-01-01T00:00:00 +0000")
+            _commit(tmp, "docs/b.html", _GOOD, "2026-01-01T00:00:00 +0000")
+            cfg["derived"] = [
+                {"artifact": "docs/a.html", "source": "src/gone-a.json", "regen": "make a"},
+                {"artifact": "docs/b.html", "source": "src/gone-b.json", "regen": "make b"},
+            ]
+            res = run(cfg)
+        miss = [f for f in res if (f.get("id") or u"").startswith(NAME + u"/missing-file/")]
+        ids = [f["id"] for f in miss]
+        ok = (len(miss) == 2 and len(set(ids)) == 2
+              and ids[0].endswith(u"docs/a.html") and ids[1].endswith(u"docs/b.html"))
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例四：两条声明各缺自己的源，两条未定的 id 须按 artifact 路径分开",
+            evidence=u"实得 %d 条：%s" % (len(miss), u"、".join(ids) or u"无"),
+            why=u"契约 §9：id 是例外登记的地址，两件事共用一个地址就会被一行登记一起静音",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     return results

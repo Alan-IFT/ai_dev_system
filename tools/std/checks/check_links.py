@@ -233,6 +233,7 @@ def _run(cfg):
 
     cache = _Cache()
     out = []
+    merged = {}          # Finding id -> [finding, [行号…], 原始 evidence]
     n_links = 0
     n_bad = 0
 
@@ -262,9 +263,9 @@ def _run(cfg):
 
                 if _WIN_ABS_RE.match(target):
                     n_bad += 1
-                    out.append(finding(
+                    _merge(out, merged, lineno, finding(
                         NAME, UNDETERMINED, "%s 里是本机绝对路径：%s" % (rel, target),
-                        where=where,
+                        where=where, kind="host-abs", key=rel + "|" + target,
                         reason="绝对路径换一台机器就不成立，本工具不按当前机器的存在性下结论",
                         why="01 §3.4 引用：B 链接 A 且可机械核对；本机绝对路径不可机械核对",
                         evidence=frozen_note,
@@ -282,7 +283,8 @@ def _run(cfg):
                     if anchor in src_anchors:
                         continue
                     n_bad += 1
-                    out.append(_anchor_miss(rel, where, target, anchor, rel, frozen_note))
+                    _emit_anchor_miss(out, merged, lineno,
+                                      _anchor_miss(rel, where, target, anchor, rel, frozen_note))
                     continue
 
                 abs_tgt = os.path.normpath(
@@ -308,16 +310,18 @@ def _run(cfg):
                 tgt_anchors, err = cache.anchors_of(abs_tgt)
                 if tgt_anchors is None:
                     n_bad += 1
-                    out.append(finding(
+                    _merge(out, merged, lineno, finding(
                         NAME, UNDETERMINED, "读不了 %s，锚点 %s 判不了" % (path_part, target),
-                        where=where, reason=err or "目标文件读取失败",
+                        where=where, kind="anchor-unreadable", key=rel + "|" + target,
+                        reason=err or "目标文件读取失败",
                         why="01 §3.4：引用要可机械核对；读不了就是没核对过",
                     ))
                     continue
                 if anchor in tgt_anchors:
                     continue
                 n_bad += 1
-                out.append(_anchor_miss(rel, where, target, anchor, path_part, frozen_note))
+                _emit_anchor_miss(out, merged, lineno,
+                                  _anchor_miss(rel, where, target, anchor, path_part, frozen_note))
 
     out.append(finding(
         NAME, PASS,
@@ -329,12 +333,43 @@ def _run(cfg):
     return out
 
 
+def _lines_note(base, lines):
+    note = "出现在第 %s 行（共 %d 处）" % ("、".join(str(n) for n in lines), len(lines))
+    return (base + "；" + note) if base else note
+
+
+def _merge(out, merged, lineno, f):
+    """带 `kind` 的未定三类按 Finding id 合并：同一份文件里同一个链接目标只出一条。
+
+    id 是 `links/<kind>/<文件>｜<目标>`，同一 (文件, 目标) 重复出现只是同一件事被写了
+    多遍——出成多条会让登记册要为同一件事写多行，行号一改登记就失效。行号进 evidence。
+    """
+    hit = merged.get(f["id"])
+    if hit is None:
+        base = f.get("evidence") or ""
+        f["evidence"] = _lines_note(base, [lineno])
+        merged[f["id"]] = [f, [lineno], base]
+        out.append(f)
+        return
+    prev, lines, base = hit
+    lines.append(lineno)
+    prev["evidence"] = _lines_note(base, lines)
+
+
+def _emit_anchor_miss(out, merged, lineno, f):
+    """锚点没匹配上：中文那支（未定，带 kind）合并，ASCII 那支（FAIL）逐处照报。"""
+    if f["status"] == UNDETERMINED:
+        _merge(out, merged, lineno, f)
+    else:
+        out.append(f)
+
+
 def _anchor_miss(src_rel, where, target, anchor, tgt_rel, frozen_note):
     """锚点没匹配上。中文锚点判未定，ASCII 锚点判 FAIL。"""
     if _CJK_RE.search(anchor):
         return finding(
             NAME, UNDETERMINED, "%s 的锚点 %s 没匹配上（中文锚点）" % (src_rel, target),
-            where=where,
+            where=where, kind="anchor-cjk", key=src_rel + "|" + target,
             reason="中文标题生成锚点的规则各平台不一致（GitHub、GitLab、静态站生成器各一套），"
                    "匹配不上不能断定是断链，是平台差异；本工具不猜哪一套",
             why="01 §3.4 引用：核对方式是 linkcheck，但判不了的按契约 §1 记未定不记通过",
@@ -382,6 +417,29 @@ def selftest():
                 "正例：文件与两个锚点都在，应全判 PASS",
                 evidence="实得 %s" % got_ok,
                 why="契约 §3 静默失效探测",
+            ))
+
+            # 反例二（合并与 id，契约 §9）：同一份文件里同一个中文锚点目标写三次，
+            # 只出一条未定，行号进证据，id 里带源文件名。出成三条的话，例外登记就要
+            # 为同一件事写三行，而且行号一改登记全失效。
+            w("b.md", "# 标题\n\n正文。\n")
+            w("a.md", "# A\n\n见 [一](b.md#没有这个锚)。\n\n又见 [二](b.md#没有这个锚)。\n"
+                      "\n再见 [三](b.md#没有这个锚)。\n")
+            res = run(cfg)
+            cjk = [f for f in res if (f.get("id") or "").startswith("links/anchor-cjk/")]
+            ok = (len(cjk) == 1
+                  and cjk[0]["id"].startswith("links/anchor-cjk/a.md｜")
+                  and (cjk[0].get("where") or "") == "a.md:3"
+                  and "3、5、7" in (cjk[0].get("evidence") or ""))
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "反例二：同一份文件里同一个链接目标重复出现，应合并成一条、行号进证据、id 带源文件",
+                evidence="中文锚点条数 %d；id=%s；where=%s；证据=%r"
+                         % (len(cjk),
+                            cjk[0]["id"] if cjk else "（无）",
+                            cjk[0].get("where") if cjk else "（无）",
+                            (cjk[0].get("evidence") or "")[:120] if cjk else "（无）"),
+                why="契约 §9：登记行写的是 id，同一件事出成多条会逼着登记也写多行",
             ))
     except Exception as exc:  # noqa: BLE001
         results.append(undetermined_from_exception(NAME, exc, "跑自检"))

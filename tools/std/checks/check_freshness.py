@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, read_text, tracked_files,
+    cfg_get, finding, in_frozen, is_tailored_out, parse_date, read_text, tracked_files,
     undetermined_from_exception,
 )
 
@@ -117,27 +117,9 @@ def _clean(value):
     return str(value).replace("*", "").replace("`", "").strip()
 
 
-def _parse_date(raw):
-    """支持 YYYY-MM-DD 与 ISO8601。返回 (date, None) 或 (None, 原因)。解析不了不猜。"""
-    s = _clean(raw)
-    if not s:
-        return None, "值为空"
-    try:
-        return datetime.date.fromisoformat(s), None
-    except ValueError:
-        pass
-    t = s.replace("Z", "+00:00").replace("z", "+00:00")
-    try:
-        return datetime.datetime.fromisoformat(t).date(), None
-    except ValueError:
-        pass
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
-    if m:
-        try:
-            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))), None
-        except ValueError:
-            return None, "不是合法日期：%r" % s
-    return None, "既不是 YYYY-MM-DD 也不是 ISO8601：%r" % s
+# 日期解析已提到 stdlib：例外登记的到期也要解析同样的形态，留两份必然漂（01 §1 G2）。
+# 本名保留是因为本模块内有七处调用点，改名只会制造无谓的 diff。
+_parse_date = parse_date
 
 
 def _section_body(text, keywords):
@@ -446,7 +428,7 @@ def _check_docs(cfg, root, today, base):
         elif age > days:
             out.append(finding(
                 NAME, UNDETERMINED, "%s 已 %d 天未更新（阈值 %d 天）" % (rel, age, days),
-                where="%s:1" % rel,
+                where="%s:1" % rel, kind="stale", key=rel,
                 reason="超期不等于过期，需人确认它是否仍然有效——久未更新也可能只是内容稳定",
                 why="01 §3.5 元信息带 review_at 是为了到期复核；01 §2 N1 不把判不了的记成通过",
                 evidence="%s = %s，%s，%s。%s" % (hit, d.isoformat(), base, note, fnote),
@@ -739,4 +721,33 @@ def selftest():
                         ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §5：metadata_required 给了就只认它，整体替换目录名约定",
         ))
+
+    # 反例五（id 稳定性，契约 §9）：同一份文档再放一阵子，**标题里的天数要变、id 不能变**。
+    # id 跟着天数走的话，例外登记里写下的那一行第二天就失效——登记会退化成每天重抄一遍。
+    def _stale_one(days_ago):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(
+                tmp,
+                "---\nid: DOC-1\nstatus: active\nupdated_at: %s\n---\n\n# 有日期的文档\n"
+                % (today - datetime.timedelta(days=days_ago)).isoformat(),
+                work_fresh,
+            )
+            if err:
+                return None, err
+            hits = [f for f in run(cfg) if f["id"].startswith(NAME + "/stale/")]
+        return (hits[0] if len(hits) == 1 else None), None
+
+    a, err_a = _stale_one(100)
+    b, err_b = _stale_one(300)
+    ok = (a is not None and b is not None and a["id"] == b["id"] and a["title"] != b["title"]
+          and a["id"] == "%s/stale/%s" % (NAME, (a.get("where") or "")[:-2]))
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "反例五：同一份文档放得更久，标题里的天数变而 id 不变（id = freshness/stale/<路径>）",
+        evidence="100 天：id=%s title=%r；300 天：id=%s title=%r%s"
+                 % (a["id"] if a else "（无）", a["title"] if a else "（无）",
+                    b["id"] if b else "（无）", b["title"] if b else "（无）",
+                    ("；git 准备失败：%s" % (err_a or err_b)) if (err_a or err_b) else ""),
+        why="契约 §9：例外登记行写的就是 id，id 随天数漂就等于登记每天失效一次",
+    ))
     return results

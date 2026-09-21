@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import datetime
+import hashlib
 import io
 import os
 import re
@@ -27,7 +29,30 @@ STATUSES = (PASS, FAIL, UNDETERMINED, SKIP)
 STATUS_FIELDS = (u"状态", u"status", u"state")
 
 
-def finding(check, status, title, where=None, why="", reason="", evidence=""):
+def normalize_key(key):
+    """Finding id 里 key 段的归一化：去首尾空白、内部空白与换行折成 `_`、`|` 换成 `｜`。
+
+    `|` 要换掉是因为 id 会被人抄进 markdown 表格的「规则」列，裸竖线会把那一行拆成两格。
+    """
+    return re.sub(r"\s+", u"_", str(key).strip()).replace(u"|", u"｜")
+
+
+def finding_id(check, title, kind=None, key=None):
+    """Finding 的稳定标识（契约 §9）。
+
+    `kind` 给了 → `check/kind[/归一化 key]`，判据不变它就不变，标题怎么改都不影响；
+    没给 → `check/` + `sha1(title)[:8]`，只在同一工具身份内稳定（标题一改就换）。
+    """
+    if kind:
+        out = u"%s/%s" % (check, kind)
+        if key is not None and str(key).strip():
+            out += u"/" + normalize_key(key)
+        return out
+    return u"%s/%s" % (check, hashlib.sha1(title.encode("utf-8")).hexdigest()[:8])
+
+
+def finding(check, status, title, where=None, why="", reason="", evidence="",
+            kind=None, key=None):
     """构造一条 Finding。status 非法即抛——不允许悄悄产生第四种状态。"""
     if status not in STATUSES:
         raise ValueError("非法状态 %r" % (status,))
@@ -35,12 +60,15 @@ def finding(check, status, title, where=None, why="", reason="", evidence=""):
         raise ValueError("%s 必须给 reason（契约 §1）" % status)
     return {
         "check": check,
+        "id": finding_id(check, title, kind, key),
         "status": status,
         "title": title,
         "where": where,
         "why": why,
         "reason": reason,
         "evidence": evidence,
+        # 例外登记由 check_all 在全部检查跑完之后贴上（契约 §9）；检查器自己不填。
+        "registered": None,
     }
 
 
@@ -52,6 +80,37 @@ def undetermined_from_exception(check, exc, what):
         reason="%s: %s" % (type(exc).__name__, exc),
         evidence="检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
     )
+
+
+# --------------------------------------------------------------------------
+# 日期
+# --------------------------------------------------------------------------
+
+def parse_date(raw):
+    """支持 YYYY-MM-DD 与 ISO8601。返回 (date, None) 或 (None, 原因)。解析不了不猜。
+
+    从 `check_freshness._parse_date` 提上来：新鲜度与例外登记的到期都要解析日期，
+    留两份必然漂（01 §1 G2）。`*` 与反引号是 markdown 的加粗/行内代码标记，先剥掉。
+    """
+    s = str(raw).replace("*", "").replace("`", "").strip()
+    if not s:
+        return None, "值为空"
+    try:
+        return datetime.date.fromisoformat(s), None
+    except ValueError:
+        pass
+    t = s.replace("Z", "+00:00").replace("z", "+00:00")
+    try:
+        return datetime.datetime.fromisoformat(t).date(), None
+    except ValueError:
+        pass
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    if m:
+        try:
+            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))), None
+        except ValueError:
+            return None, "不是合法日期：%r" % s
+    return None, "既不是 YYYY-MM-DD 也不是 ISO8601：%r" % s
 
 
 # --------------------------------------------------------------------------
@@ -236,6 +295,143 @@ def load_config(root, config_path=None):
             cfg["_root"] = root
             return cfg, None
     return {}, "未找到 %s；本工具不猜项目布局" % " 或 ".join(CONFIG_CANDIDATES)
+
+
+# --------------------------------------------------------------------------
+# 例外登记（契约 §9）
+# --------------------------------------------------------------------------
+
+EXCEPTIONS_FILE = "exceptions.md"
+
+# 表头按「包含」匹配，先命中者为准。`id` 不区分大小写。
+_EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
+               (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
+               (u"到期", "expires"), (u"状态", "status"))
+
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。
+_EX_CLOSED = (u"关闭", u"closed", u"done", u"已处理")
+
+_MD_SEP_RE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
+
+
+def _md_cells(line):
+    """拆一行 markdown 表格的单元格。`\\|` 是转义的竖线，不拆。"""
+    s = line.strip()
+    if s.startswith("|"):
+        s = s[1:]
+    if s.endswith("|") and not s.endswith("\\|"):
+        s = s[:-1]
+    cells, cur, esc = [], [], False
+    for ch in s:
+        if esc:
+            cur.append(ch if ch == "|" else "\\" + ch)
+            esc = False
+        elif ch == "\\":
+            esc = True
+        elif ch == "|":
+            cells.append("".join(cur).strip())
+            cur = []
+        else:
+            cur.append(ch)
+    if esc:
+        cur.append("\\")
+    cells.append("".join(cur).strip())
+    return cells
+
+
+def _first_md_table(text):
+    """第一张 markdown 表。返回 (表头行号, 表头单元格, [(行号, 单元格), ...]) 或 None。"""
+    lines = text.splitlines()
+    for i in range(len(lines) - 1):
+        if not lines[i].strip().startswith("|"):
+            continue
+        if not _MD_SEP_RE.match(lines[i + 1].strip()):
+            continue
+        rows, j = [], i + 2
+        while j < len(lines) and lines[j].strip().startswith("|"):
+            rows.append((j + 1, _md_cells(lines[j])))
+            j += 1
+        return i + 1, _md_cells(lines[i]), rows
+    return None
+
+
+def _ex_field(header_cell):
+    for token, field in _EX_HEADERS:
+        if token in header_cell or token in header_cell.lower():
+            return field
+    return None
+
+
+def load_exceptions(config_dir):
+    """读例外登记册：配置文件**同目录**的 `exceptions.md`（契约 §9）。
+
+    不带 `--config` 时就是 `<项目根>/governance/exceptions.md`。
+    返回 `(rows, problems, source_path)`：
+
+    - `rows`：本工具认领且五项齐全的登记行（rule 含 `/`，即 Finding id 的形态）。
+      与项目自己的门号例外（`G6` 之类）共用一张表，**不含 `/` 的行本工具不理**，
+      既不登记也不校验——那是项目的门，不是本工具的发现。
+    - `problems`：本工具认领但不合格的行（行号 + 缺什么）。
+    - `source_path`：文件路径；文件不存在时为 None。
+    """
+    path = os.path.join(config_dir, EXCEPTIONS_FILE)
+    if not os.path.isfile(path):
+        return [], [], None
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError as exc:
+        return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path
+    table = _first_md_table(text)
+    if table is None:
+        return [], [u"%s 里没有 markdown 表；本工具只读第一张表" % EXCEPTIONS_FILE], path
+
+    hdr_lineno, header, raw_rows = table
+    cols, dup, problems = {}, [], []
+    for idx, cell in enumerate(header):
+        field = _ex_field(cell)
+        if field is None:
+            continue
+        if field in cols:
+            dup.append(field)
+            continue
+        cols[field] = idx
+    if dup:
+        problems.append(u"第 %d 行（表头）有多列都命中 %s，按先命中者为准"
+                        % (hdr_lineno, u"、".join(sorted(set(dup)))))
+
+    rows = []
+    for lineno, cells in raw_rows:
+        if not any(c for c in cells):
+            continue
+
+        def get(field, _cells=cells):
+            i = cols.get(field)
+            return _cells[i].strip() if i is not None and i < len(_cells) else u""
+
+        status = get("status")
+        low = status.lower()
+        if any(tok in status or tok in low for tok in _EX_CLOSED):
+            continue                                  # 先判关闭
+        rule = get("rule").strip().strip(u"`").strip()
+        if u"/" not in rule:
+            continue                                  # 不是本工具的发现，不理
+        ex_id, reason, scope = get("ex_id"), get("reason"), get("scope")
+        approver, expires_raw = get("approver"), get("expires")
+        missing = [n for n, v in ((u"规则", rule), (u"理由", reason),
+                                  (u"范围", scope), (u"批准人", approver)) if not v]
+        day, err = parse_date(expires_raw)
+        if day is None:
+            missing.append(u"到期（%s）" % err)
+        if missing:
+            problems.append(u"第 %d 行%s缺：%s"
+                            % (lineno, (u"（%s）" % ex_id) if ex_id else u"",
+                               u"、".join(missing)))
+            continue
+        rows.append({"ex_id": ex_id, "rule": rule, "reason": reason, "scope": scope,
+                     "approver": approver, "expires": day.isoformat(), "expires_date": day,
+                     "status": status, "lineno": lineno})
+    return rows, problems, path
 
 
 def cfg_get(cfg, path, default=None):

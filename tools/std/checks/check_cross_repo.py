@@ -380,6 +380,7 @@ def _check_roles(repos):
     if bad_role:
         out.append(finding(
             NAME, UNDETERMINED, "有 %d 个仓的 role 不是 system/app/retired/archived" % len(bad_role),
+            kind="bad-role",
             reason="；".join("%s 的 role = %r" % (r["name"], r["role"]) for r in bad_role[:_MAX_LISTED]),
             why="01 §3.8 只定义了这四种角色；角色不明时它的义务是哪一套判不了",
         ))
@@ -630,7 +631,7 @@ def _check_registration(repos, entries):
         out.append(finding(
             NAME, UNDETERMINED, "系统级入口里有 %d 个仓只出现了名字，看不出登记了什么状态：%s"
                                 % (len(bare), "、".join(r["name"] for r, _ in bare)),
-            where=where,
+            where=where, kind="name-only",
             reason="名字所在的行上没有 %s 之类的状态词。它是被当作一个仓登记并写明状态，"
                    "还是只在正文里顺带被提到（比如某条链接的说明文字），机械判不了——"
                    "**按名字出现即记通过会造成假通过**，故记未定" % "/".join(_STATUS_TOKENS[:6]),
@@ -699,7 +700,7 @@ def _check_retired(cfg, repos, entry_names):
         if unreadable:
             out.append(finding(
                 NAME, UNDETERMINED, "退役仓 %s 有 %d 份规则文件读不了" % (r["name"], len(unreadable)),
-                where=r["path"],
+                where=r["path"], kind="unreadable-rules", key=r["name"],
                 reason="；".join(unreadable[:_MAX_LISTED]),
                 why="01 §3.8：退役仓保留着可被读入的规则时按 N1 记未定，不推定无害",
             ))
@@ -800,7 +801,7 @@ def _check_links(repos):
         if host_abs:
             out.append(finding(
                 NAME, UNDETERMINED, "仓 %s 有 %d 处引用指向绝对路径，本机不可判" % (r["name"], len(host_abs)),
-                where=where,
+                where=where, kind="abs-refs", key=r["name"],
                 reason="指向部署主机路径（或站点根路径），本机不可判存在性；不判存在性也不推定它成立",
                 why="01 §3.8'跨仓引用按契约处理'：这些路径同样是契约，但其存在性要在目标主机上验",
                 evidence="共 %d 处，列前 %d：%s" % (len(host_abs), min(len(host_abs), _MAX_LISTED),
@@ -886,6 +887,7 @@ def _check_former_names(cfg, repos):
           "已豁免；layout.frozen 下的路径与根下没有 .git 的仓不扫）" % "/".join(_RENAME_MARKERS)
     if errs:
         out.append(finding(NAME, UNDETERMINED, "有 %d 次历史别名召回没跑成" % len(errs),
+                           kind="alias-recall-failed",
                            reason="；".join(errs[:_MAX_LISTED]),
                            why="契约 §2：召回跑不成是'没看'，不推定'没有命中'"))
     if cross:
@@ -905,6 +907,7 @@ def _check_former_names(cfg, repos):
     if mine:
         out.append(finding(
             NAME, UNDETERMINED, "历史别名在它自己那个仓里还出现 %d 行" % len(mine),
+            kind="alias-residue",
             reason="自己仓里写自己的旧名，是历史记述还是当现称用机械分不了——这一层的裁定归读报告的人（契约 §7）",
             why="01 §3.8：只有'别的仓写旧名'才是确定的断指针；自仓这一层按 01 §2 N1 记未定，不记失败",
             evidence="共 %d 行，列前 %d：%s" % (len(mine), min(len(mine), _MAX_LISTED),
@@ -1075,6 +1078,25 @@ def selftest():
                 evidence="期望 %s，实得 %s" % (want, "；".join("%s：%s" % g for g in got)),
                 why="契约 §3 静默失效探测：抓不出违规、或对正例误报的检查器，其结论作废；"
                     "契约 §1.1：召回前提不成立时记未定不产 FAIL，豁免只认被检查的那一行、不设清单",
+            ))
+
+        # id 的区分力（契约 §9）：两个仓各有一处指向绝对路径的引用，两条未定的 id
+        # 必须按仓名分开。key 不带仓名的话两条 id 相同，登记一行会把两个仓一起静音。
+        with tempfile.TemporaryDirectory() as tmp:
+            abs_dir = os.path.join(tmp, "abs")
+            os.makedirs(abs_dir)
+            cfg = _sample(abs_dir, bad=False)
+            for nm in ("sys", "app"):
+                _mk(os.path.join(abs_dir, nm, "docs", "ref.md"),
+                    "# 引用\n\n见 [部署目录](/srv/deploy/notes.md)。\n")
+            got = [f for f in run(cfg) if (f.get("id") or "").startswith(NAME + "/abs-refs/")]
+            ids = sorted(f["id"] for f in got)
+            ok = ids == [NAME + "/abs-refs/app", NAME + "/abs-refs/sys"]
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "id 区分力：两个仓各有一处绝对路径引用，两条未定的 id 须按仓名分开",
+                evidence="实得 %d 条：%s" % (len(got), "、".join(ids) or "无"),
+                why="契约 §9：id 是例外登记的地址，两个仓共用一个地址就会被一行登记一起静音",
             ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(

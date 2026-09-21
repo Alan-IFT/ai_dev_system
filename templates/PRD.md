@@ -2,12 +2,12 @@
 
 document_revision：  
 updated_at：  
-状态：提议 / 试行 / 已接受 / 已拒绝 / 已取代  
+状态：draft / active / superseded / retired  
 产品负责人：  
 批准人/批准时间：  
 生效范围：
 
-> 提议状态的需求不能授权实施；试行/已接受必须填写批准与范围。
+> `draft` 状态的需求不能授权实施；`active` 必须填写批准与范围。
 
 ## 问题与目标
 
