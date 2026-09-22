@@ -214,6 +214,8 @@ exec python3 .std/tools/std/check_all.py .
 拦截层自己写、落在仓外，不是被约束者的自述；与受控动作清单对账见
 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)。
 
+**2026-09-22 在 Ubuntu、claude 2.1.278 上经真实会话实测两点**：① 无头模式（`claude -p`）没有人回答「先问」，宿主把它当拒绝——动作不执行、文件不落地，`--allowedTools` 的放行盖不过 hook 的先问；② 在场信号那一行加上标准正文，会让模型自己放弃动作（实测它引用「`.std` 只读」拒绝了往 `.std/x.md` 的 Write 与往 `.std/` 的 subtree），这时钩子根本没被调用、也没有回执——**模型自律不计为受控**，与钩子的拒绝／先问分开记，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions) 只有回执里那一行算数。
+
 **盲区六条**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
 
 1. 无头模式（`claude -p`）下项目 settings 的 `extraKnownMarketplaces` **不会**自动注册，必须先在这台
