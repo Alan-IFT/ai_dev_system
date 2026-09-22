@@ -68,8 +68,8 @@
 
 登记**不改变结论**：那条仍是未定、仍逐条列出、仍计入未定计数，报告里标「（已登记 EX-xxx，
 到期 …）」，变的只有退出码。到期由工具按**运行日**校验，过期即回到未登记，并多出一条
-`exception-register/expired`。**FAIL 不能登记**——那是确定的违规，处置是修；整个检查器不适用
-走 `tailoring`。语义细则见 CONTRACT.md §9。
+`exception-register/expired`；过期的行在首部标「其中 M 行已过期」。**FAIL 不能登记**——那是
+确定的违规，处置是修；整个检查器不适用走 `tailoring`。语义细则见 CONTRACT.md §9。
 
 ## 命令行开关
 

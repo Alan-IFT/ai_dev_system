@@ -414,32 +414,52 @@ def _entry_smoke_selftest():
                              u"|---|---|---|---|---|---|---|\n"
                              u"| EX-001 | %s | 入口冒烟自检用 | 该项 | 自检 | %s | active |\n%s"
                              % (rule, expires, extra))
-                fs, _c = run_all(proj, selftest_only=False, config_path=cfg_path)
+                fs, c = run_all(proj, selftest_only=False, config_path=cfg_path)
                 hits = [f for f in fs if f.get("id") == target]
                 if not hits:
                     raise AssertionError("登记自检：目标未定项 %s 消失了" % target)
-                return fs, hits[0]
+                return fs, hits[0], c
 
             def _has(fs, kind):
                 return any((f.get("id") or "").startswith("exception-register/" + kind) for f in fs)
 
-            fs, hit = _register(target, ok_day)
+            def _reg_line(fs, c):
+                """首部那行「登记 · …」。断言只打在首部，不打在整篇文本上。"""
+                for ln in render(fs, proj, c, show_scope=False).splitlines():
+                    if ln.startswith(u"登记 · "):
+                        return ln
+                raise AssertionError("首部没有「登记 · 」行")
+
+            fs, hit, c_ex = _register(target, ok_day)
             if (hit.get("registered") or {}).get("id") != "EX-001":
                 raise AssertionError("① 有效登记应标已登记 EX-001，实得 %r" % (hit.get("registered"),))
+            if (c_ex.get("_exceptions") or {}).get("expired") != 0:
+                raise AssertionError("① 没有过期行时 _exceptions[expired] 应是 0，实得 %r"
+                                     % ((c_ex.get("_exceptions") or {}).get("expired"),))
+            line = _reg_line(fs, c_ex)
+            if u"1 行有效）" not in line or u"已过期" in line:
+                raise AssertionError("① 没有过期行时首部应逐字是「（1 行有效）」，实得 %r" % (line,))
 
-            fs, hit = _register(target, yesterday)
+            fs, hit, c_ex = _register(target, yesterday)
             if hit.get("registered") is not None:
                 raise AssertionError("② 到期在昨天的登记不得生效，实得 %r" % (hit.get("registered"),))
             if not _has(fs, "expired"):
                 raise AssertionError("② 过期登记应多一条 exception-register/expired")
+            if (c_ex.get("_exceptions") or {}).get("expired") != 1:
+                raise AssertionError("② 有 1 行过期时 _exceptions[expired] 应是 1，实得 %r"
+                                     % ((c_ex.get("_exceptions") or {}).get("expired"),))
+            line = _reg_line(fs, c_ex)
+            if u"1 行有效，其中 1 行已过期" not in line:
+                raise AssertionError("② 过期行要标在首部，否则「N 行有效」与计数行的已登记数对不上，"
+                                     "实得 %r" % (line,))
 
-            fs, hit = _register(
+            fs, hit, c_ex = _register(
                 target, ok_day,
                 u"| EX-002 | freshness/stale/没有这份文件.md | 缺范围与批准人 |  |  | %s | active |\n" % ok_day)
             if not _has(fs, "invalid-rows"):
                 raise AssertionError("③ 写坏一行应多一条 exception-register/invalid-rows")
 
-            fs, hit = _register(u"freshness/stale/根本不存在的判据.md", ok_day)
+            fs, hit, c_ex = _register(u"freshness/stale/根本不存在的判据.md", ok_day)
             if hit.get("registered") is not None:
                 raise AssertionError("④ rule 指向不存在的 id 时，原发现应仍是未登记")
             if _has(fs, "expired"):
@@ -503,7 +523,7 @@ def _entry_smoke_selftest():
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
                  "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
                  "跨盘符与盘符大小写不崩、例外登记四条（有效登记生效／过期不生效且报 expired／"
-                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired）、"
+                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired；有过期行时首部标出其中几行已过期）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
     return out
@@ -634,7 +654,7 @@ def _join_exceptions(findings, cfg):
     登记改变的只有退出码。FAIL 不可登记——本工具的 FAIL 按契约 §1.1 只在项目
     声明的事实下产出，整块不适用走 `tailoring`，不走这里。
     """
-    info = {"path": None, "display": None, "valid": 0}
+    info = {"path": None, "display": None, "valid": 0, "expired": 0}
     if not isinstance(cfg, dict):
         return info
     cfg["_exceptions"] = info
@@ -675,6 +695,10 @@ def _join_exceptions(findings, cfg):
             continue
         for f in hit:
             f["registered"] = {"id": row["ex_id"], "expires": row["expires"]}
+
+    # 「有效」按契约 §9 指五项齐全、表行合格，与「未过期」不同义：过期的行仍是有效行，
+    # 只是不再改变退出码。两个数一起给，首部的「N 行有效」才和计数行的「已登记」对得上。
+    info["expired"] = len(expired)
 
     def _rows_note(items):
         head = "；".join("第 %d 行 %s 到期 %s" % (r["lineno"], r["ex_id"] or "（无编号）", r["expires"])
@@ -804,8 +828,15 @@ def render(findings, root, cfg=None, show_scope=True):
         if excluded:
             buf.append("排除 · %s/（工具自身所在的内嵌目录，不扫描）" % excluded)
         ex = cfg.get("_exceptions") or {}
-        buf.append("登记 · %s（%d 行有效）" % (ex.get("display"), ex.get("valid") or 0)
-                   if ex.get("display") else "登记 · 无")
+        if not ex.get("display"):
+            buf.append("登记 · 无")
+        elif ex.get("expired"):
+            # 「有效」是契约 §9 的"五项齐全、表行合格"，不是"未过期"；过期数不标出来，
+            # 这行的 N 就会和下一行的「已登记」对不上，读的人只能猜是哪一个错了。
+            buf.append("登记 · %s（%d 行有效，其中 %d 行已过期）"
+                       % (ex["display"], ex.get("valid") or 0, ex["expired"]))
+        else:
+            buf.append("登记 · %s（%d 行有效）" % (ex["display"], ex.get("valid") or 0))
     registered = [f for f in findings if f["status"] == UNDETERMINED and f.get("registered")]
     n_reg = len(registered)
     n_unreg = counts[UNDETERMINED] - n_reg
