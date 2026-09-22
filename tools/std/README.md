@@ -5,7 +5,7 @@
 
 ## 一条命令
 
-在采用项目根执行：`python .std/tools/std/check_all.py .`
+在采用项目根执行：`python3 .std/tools/std/check_all.py .`
 
 `.std/` 是标准（含本工具）内嵌进项目的目录，怎么取进来见下文「接入一个项目」。
 
@@ -14,9 +14,8 @@
 
 ## 前提
 
-- Python 3.x，不装任何第三方包；**入口与拦截层都以 `python` 调用**，Debian/Ubuntu 只有 `python3`
-  的先 `sudo apt install python-is-python3`（拦截层的解释器写死在内嵌目录内，采用项目改不了它，
-  只能改环境或禁用插件）。
+- Linux / macOS，`python3`，不装任何第三方包。**Windows 不再是支持平台**（2026-09-22 起；此前的
+  Windows 实测只作历史记录）。入口与拦截层都以 `python3` 调用。
 - **被扫描目录必须是 git 仓库。** 检查对象来自 `git ls-files`。不在 git 仓库里跑，links 与
   single-authority 会报"git ls-files 退出码 128"并记未定，整体退出 2。这不是工具坏了。
 - 项目根有 `governance/project.yaml`（或同名 `.yml`）。配置加载只认这两个路径；换个文件名
@@ -42,6 +41,7 @@
 ```
 标准检查 · <项目绝对路径>
 配置 · governance/project.yaml
+排除 · .std/（工具自身所在的内嵌目录，不扫描；在标准仓自己身上跑时没有这一行）
 登记 · governance/exceptions.md（N 行有效）
   通过 N   失败 N   未定 N（已登记 a · 未登记 b）   不适用 N
 失败（N）
@@ -111,7 +111,7 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
 
 - **取用**（采用项目里执行一次）：
   `git subtree add --prefix=.std https://github.com/Alan-IFT/ai-dev-std.git main --squash`。
-  之后入口里的路径写 `.std/标准/…`，检查命令写 `python .std/tools/std/check_all.py .`；
+  之后入口里的路径写 `.std/标准/…`，检查命令写 `python3 .std/tools/std/check_all.py .`；
   `.std/标准/README.md` 第 3 行「候选实现修订」的值就是拉到的版本，写进
   `governance/STANDARD_VERSION`。
 - **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
@@ -155,7 +155,7 @@ Claude Code 插件），接法见下节「Claude Code 拦截层」；其它宿�
 if git diff --cached --name-only | grep -q '^\.std/'; then
   echo "拒绝：.std/ 只读，改标准请合并回标准仓再 pull" >&2; exit 1
 fi
-exec python .std/tools/std/check_all.py .
+exec python3 .std/tools/std/check_all.py .
 ```
 
 `git subtree add/pull` 走 `commit-tree`，不经过这个钩子，升级不需要放行；反过来它也看不见
@@ -178,7 +178,7 @@ exec python .std/tools/std/check_all.py .
 
 装法四步，**第 0 步不能跳**：
 
-0. **先在项目根跑一次** `python .std/tools/std/check_all.py .`。退出非 0 就先清账，或按上文「未定项
+0. **先在项目根跑一次** `python3 .std/tools/std/check_all.py .`。退出非 0 就先清账，或按上文「未定项
    怎么登记」把判不了的逐条登记，退出 0 之后再装。跳过的后果是确定的：提交门装上即锁死这个项目的
    每一次提交，第一反应必然是把拦截层关掉。
 1. subtree 取用（见上文「接入一个项目」），`.std/` 就位——它本身就是那个插件。
@@ -200,7 +200,8 @@ exec python .std/tools/std/check_all.py .
 - Edit/Write/MultiEdit/NotebookEdit 写 `.std/` → **拒绝**；写本项目 `.claude/settings.json` 或
   `.claude/settings.local.json` → **先问**（拦截层自己的开关就在里面）。
 - Bash 按 `&&`/`||`/`;`/`|`/换行分段，某段既是写形态（`>`、`>>`、`tee`、`rm`、`mv`、`cp`、`sed -i`、
-  `git checkout … --`、`python -c`、`node -e`）又落在 `.std/` 或上面两个 settings 上 → **先问**。
+  `git checkout … --`、`python -c`/`python3 -c`、`node -e`）又落在 `.std/` 或上面两个 settings 上
+  → **先问**。
   以 `git subtree` 开头且不带重定向的段是升级通道，放行；读形态放行。
 - Bash 里有 `git commit`（含 `--no-verify`、`--amend`、`git -c … commit`、`git -C … commit`）→ 先跑
   `check_all . --no-scope`，退出 0 才放行；退出 1／2 **拒绝**，并把计数行、结论行与前 8 条 `id：`
@@ -217,11 +218,12 @@ exec python .std/tools/std/check_all.py .
 
 1. 无头模式（`claude -p`）下项目 settings 的 `extraKnownMarketplaces` **不会**自动注册，必须先在这台
    机器上 `marketplace add` 过一次——第 3 步漏做，整层静默不生效。
-2. `python` 不在 PATH、guard 崩溃、或 hook 卡死超过宿主时限 → Claude Code 只报一条非阻断错误，
-   **动作照常放行**。在场信号那一行不出现，即此。
+2. `python3` 缺失或 hook 崩溃／卡死超过宿主时限 → **静默放行**：Claude Code 至多报一条非阻断
+   错误，动作照常执行。2026-09-22 在 Ubuntu 上实测过一次——`hooks.json` 当时写的是 `python`，
+   该命令不存在，hook 退出码 127，整层一声不响地不生效。在场信号那一行不出现，即此。
 3. 不经 Bash/Edit 的通道一律不命中：IDE 里的提交、人在终端手敲的命令、MCP 文件工具、`git merge` /
    `git rebase` 带进来的改动。子 agent 的 Write 会命中。
-4. heredoc 与变量拼接形式的写入不命中（`python - <<'P' … P` 那种）。
+4. heredoc 与变量拼接形式的写入不命中（`python - <<'P' … P`/`python3 - <<'P' … P` 那种）。
 5. 回执落在用户目录、按插件名共用：同一台机器上所有采用项目的回执混在一个文件里（行内带项目根可
    区分），跨机器对账要人工收集；`--plugin-dir` 与 marketplace 两种装法的回执还分在两个目录。
 6. 内嵌目录是符号链接／junction 时，`realpath` 会把它解析到项目外，整层漏判。

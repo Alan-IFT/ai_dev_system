@@ -27,7 +27,8 @@ sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    finding, load_config, load_exceptions, undetermined_from_exception,
+    embedded_std_rel, finding, load_config, load_exceptions, tracked_files,
+    undetermined_from_exception,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -125,14 +126,16 @@ def identity_block(ident):
     return "\n".join(lines)
 
 
-def _identity_finding(ident):
+def _identity_finding(ident, excluded=None):
     return finding(
         IDENTITY_CHECK, SKIP, identity_line(ident),
         where="tools/std/",
         reason="这不是判定，是记录，故不计三态。依据契约 §8：符合性报告不钉检查器版本身份"
                "就不可复算——曾发生过扫描期间检查器被并行改写，同一项目旧版 30 条 FAIL、"
                "新版 9 条，两份报告都自称是『对该项目的结论』",
-        evidence=identity_block(ident),
+        evidence=identity_block(ident) + (
+            "\nscan_excluded: %s/（工具自身所在的内嵌目录，不扫描）" % excluded
+            if excluded else ""),
     )
 
 
@@ -420,6 +423,29 @@ def _entry_smoke_selftest():
                 raise AssertionError("④ rule 匹配不到任何 id 应多一条 exception-register/orphan")
             os.remove(ex_path)
 
+            # 3g) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
+            #     是 subtree 内嵌的**被跟踪文件**，不排除就会把上游的示例项目整个扫进来，
+            #     实测一个空项目因此得到 31 条 FAIL，提交门装上即锁死。
+            emb = os.path.join(tmp, "emb")
+            std_dir = os.path.join(emb, ".std")
+            os.makedirs(os.path.join(std_dir, "docs"))
+            os.makedirs(os.path.join(std_dir, "tools", "std"))
+            os.makedirs(os.path.join(emb, "docs"))
+            for f_path in (os.path.join(std_dir, "docs", "bad.md"),
+                           os.path.join(emb, "docs", "good.md")):
+                with io.open(f_path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(u"# 样本\n")
+            subprocess.run(["git", "init", "-q", emb], capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", emb, "add", "-A"], capture_output=True, timeout=60)
+            for r, tr, want in ((emb, std_dir, ".std"), (emb, emb, None), (emb, tmp, None)):
+                got = embedded_std_rel(r, tr)
+                if got != want:
+                    raise AssertionError("embedded_std_rel(%r, %r) 应得 %r，实得 %r"
+                                         % (r, tr, want, got))
+            listed, prob = tracked_files(emb, None, std_dir)
+            if prob or sorted(listed or []) != ["docs/good.md"]:
+                raise AssertionError("内嵌目录应被排除出扫描面，实得 %r（%s）" % (listed, prob))
+
             # 4) main 整条走一遍（argparse + 输出 + 退出码），不允许抛异常
             for argv in ([proj, "--config", cfg_path, "--no-scope"],
                          [proj, "--config", cfg_path, "--json"]):
@@ -448,6 +474,7 @@ def _entry_smoke_selftest():
         where="tools/std/check_all.py",
         why="契约 §3：守卫存在不等于守卫在执行——入口本身也要有反例",
         evidence="run_all 返回二元组、findings 三态合法、render 出覆盖边界与外部配置标注、"
+                 "内嵌目录自排除（embedded_std_rel 三例 + tracked_files 只剩项目自己的文件）、"
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
                  "跨盘符与盘符大小写不崩、例外登记四条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired）、"
@@ -505,7 +532,8 @@ def run_all(root, selftest_only=False, config_path=None):
     findings = []
     # 契约 §8：扫描前后各取一次身份，期间检查器自己被改过就作废重跑。
     ident_before = tool_identity()
-    findings.append(_identity_finding(ident_before))
+    findings.append(_identity_finding(
+        ident_before, None if selftest_only else embedded_std_rel(root)))
     mods = discover()
     if not mods:
         findings.append(finding(
@@ -737,6 +765,9 @@ def render(findings, root, cfg=None, show_scope=True):
             buf.append("配置 · %s（在被扫描项目内）" % cfg["_path"])
         else:
             buf.append("配置 · %s（在不在项目内判不了：%s）" % (cfg["_path"], why_outside))
+        excluded = embedded_std_rel(cfg.get("_root") or root)
+        if excluded:
+            buf.append("排除 · %s/（工具自身所在的内嵌目录，不扫描）" % excluded)
         ex = cfg.get("_exceptions") or {}
         buf.append("登记 · %s（%d 行有效）" % (ex.get("display"), ex.get("valid") or 0)
                    if ex.get("display") else "登记 · 无")

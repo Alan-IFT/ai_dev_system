@@ -457,12 +457,40 @@ def is_tailored_out(cfg, check_name):
 # 文件与仓库
 # --------------------------------------------------------------------------
 
-def tracked_files(root, patterns=None):
+# 本工具自身的仓根：`tools/std/stdlib.py` 上溯三层。采用项目按 subtree 把标准内嵌成
+# `.std/` 之后，这个目录里的东西是**上游的内容**，不是本项目的判定对象（契约 §2）。
+TOOL_ROOT = os.path.realpath(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+
+def embedded_std_rel(root, tool_root=None):
+    """工具自身所在的内嵌目录相对 root 的路径（如 `.std`）；不构成内嵌则 None。
+
+    tool_root 只为自检注入，生产路径不传。在标准仓自己身上跑时 tool_root == root，
+    返回 None——那时标准就是本项目的内容，照扫。
+    """
+    try:
+        tr = os.path.realpath(str(tool_root or TOOL_ROOT))
+        r = os.path.realpath(str(root or "."))
+        if os.path.normcase(tr) == os.path.normcase(r):
+            return None
+        rel = os.path.relpath(tr, r).replace("\\", "/")
+    except (OSError, ValueError):   # 跨盘符 relpath 会抛，按"不在其下"算，不崩
+        return None
+    if rel == ".." or rel.startswith("../") or os.path.isabs(rel):
+        return None
+    return rel
+
+
+def tracked_files(root, patterns=None, tool_root=None):
     """git 跟踪的文件；不在 git 仓库时返回 (None, 原因)。
 
     用 `-z`：git 默认开 core.quotepath，会把非 ASCII 路径输出成
     `"docs/\\345\\275\\222..."` 这种转义形式。不还原就会把中文路径当成不存在，
     成批产生假 FAIL。`-z` 走 NUL 分隔、原样输出，从源头绕开这件事。
+
+    工具自身所在的内嵌目录（`embedded_std_rel`）从**扫描面**里去掉：那是上游的内容。
+    只影响扫描面——链接目标、layout 候选路径都走文件系统，不经本函数，不受影响。
     """
     cmd = ["git", "-C", root, "ls-files", "-z"]
     if patterns:
@@ -475,7 +503,11 @@ def tracked_files(root, patterns=None):
         err = (out.stderr or b"").decode("utf-8", "replace").strip()[:200]
         return None, "git ls-files 退出码 %d：%s" % (out.returncode, err)
     raw = (out.stdout or b"").decode("utf-8", "surrogateescape")
-    return [p for p in raw.split("\0") if p.strip()], None
+    files = [p for p in raw.split("\0") if p.strip()]
+    rel = embedded_std_rel(root, tool_root)
+    if rel:
+        files = [p for p in files if not p.lstrip('"').startswith(rel + "/")]
+    return files, None
 
 
 def read_text(path):

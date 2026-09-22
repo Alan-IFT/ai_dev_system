@@ -53,7 +53,7 @@ def _strip_assign(seg):
 def _write_hit(seg, prefixes):
     """段是写形态且落在受保护前缀上。重定向要求**目标本身**在前缀下（`… --json >
     report.json` 里的内嵌目录是读对象，整段判 ask 会把每次跑检查都变成一次打扰）；其余写
-    形态（rm/mv/cp/tee/sed -i/git checkout --/python -c/node -e）按段内出现前缀判。"""
+    形态（rm/mv/cp/tee/sed -i/git checkout --/python 与 python3 的 -c/node -e）按段内出现前缀判。"""
     for m in REDIR.finditer(seg):
         tgt = m.group(1)[2:] if m.group(1).startswith("./") else m.group(1)
         if any(tgt.startswith(p) for p in prefixes):
@@ -214,31 +214,31 @@ def main(argv):
         _receipt(session, root, event, payload.get("tool_name") or "", subject, decision or note)
     return 0
 
-# 反例自检（契约 §3）。{N} = 内嵌目录名；20 条语料同 e/bashrule2.py，heredoc 一条期望「漏」
+# 反例自检（契约 §3）。{N} = 内嵌目录名；21 条语料同 e/bashrule2.py，heredoc 一条期望「漏」
 BASH_CASES = [
     ("echo zz > {N}/tools/std/w.md", "ask"), ("rm -rf {N}/tools", "ask"),
     ("sed -i 's/a/b/' {N}/标准/01.md", "ask"), ("git checkout HEAD~1 -- {N}/", "ask"),
     ("git subtree pull --prefix={N} https://x main --squash", None),
     ("git stash push && git subtree pull --prefix={N} . main --squash && git stash pop", None),
     ("git stash push && rm -rf {N}/x && git stash pop", "ask"),
-    ("cat {N}/标准/README.md", None), ("python {N}/tools/std/check_all.py .", None),
-    ("python {N}/tools/std/check_all.py . --json > report.json", None),
+    ("cat {N}/标准/README.md", None), ("python3 {N}/tools/std/check_all.py .", None),
+    ("python3 {N}/tools/std/check_all.py . --json > report.json", None),
     ("grep -rn 'x' {N}/", None), ("ls -R {N}", None), ("git log --oneline -- {N}", None),
     ("git diff {N}", None), ("python - <<'P'\nopen('{N}/x.md','w').write('y')\nP", None),
     ("python -c \"open('{N}/x.md','w').write('y')\"", "ask"),
+    ("python3 -c \"open('{N}/x.md','w').write('y')\"", "ask"),
     ("rm -rf build && cp -r dist {N}_out/", None), ("echo ok > out/.stdout.log", None),
     ("node -e \"require('fs').writeFileSync('{N}/a','b')\"", "ask"),
-    ("npm run build && python {N}/tools/std/check_all.py .", None),
+    ("npm run build && python3 {N}/tools/std/check_all.py .", None),
 ]
 COMMIT_CASES = [
     ("git commit", True), ("git commit -m x", True), ("git commit --no-verify -m x", True),
     ("git commit --amend", True), ("git -c a=b commit -m y", True),
-    ("git -c user.name=x -c user.email=y commit -m z", True),
-    ("git -C sub commit -m t", True), ("GIT_EDITOR=true git commit", True),
-    ("  git commit -m x", True), ("echo hi && git commit -m x", True),
-    ("git --no-pager commit", True), ("git commit-tree", False), ("gitk", False),
-    ("git committer", False), ("git status", False), ("git log", False),
-    ("git subtree add --prefix=x . HEAD", False),
+    ("git -c user.name=x -c user.email=y commit -m z", True), ("git -C sub commit -m t", True),
+    ("GIT_EDITOR=true git commit", True), ("  git commit -m x", True),
+    ("echo hi && git commit -m x", True), ("git --no-pager commit", True),
+    ("git commit-tree", False), ("gitk", False), ("git committer", False),
+    ("git status", False), ("git log", False), ("git subtree add --prefix=x . HEAD", False),
 ]
 FAKE2 = (u"  通过 3   失败 0   未定 17（已登记 0 · 未登记 17）   不适用 1\n"
          u"      id：links/broken/a\n结论：有未登记的判不了项。\n")
