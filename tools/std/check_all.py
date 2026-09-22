@@ -341,10 +341,18 @@ def _entry_smoke_selftest():
             #     而 render 是在全部检查跑完之后才走到这一步的，崩在这里等于白跑一整轮。
             for a, b in ((r"C:\proj", r"D:\elsewhere\project.yaml"),
                          (r"C:\proj", r"C:\project\x.yaml"),
-                         (r"c:\proj", r"C:\proj\governance\project.yaml")):
+                         (r"c:\proj", r"C:\proj\governance\project.yaml"),
+                         ("/t/proj", "/t/project/x.yaml"),
+                         ("/t/proj", "/t/proj/x.yaml")):
                 outside, why_o = config_outside_root(a, b)
                 if outside is None:
                     raise AssertionError("config_outside_root(%r,%r) 判不了：%s" % (a, b, why_o))
+            # POSIX 形状断言的是**取值**，不只是"不崩"：本仓只跑 Linux（D-102），上面三条盘符
+            # 用例在这里只验得出不崩，带分隔符的前缀比较要靠下面两条把关。
+            if config_outside_root("/t/proj", "/t/project/x.yaml")[0] is not True:
+                raise AssertionError("/t/proj 不该把 /t/project/x.yaml 吞成内部")
+            if config_outside_root("/t/proj", "/t/proj/x.yaml")[0] is not False:
+                raise AssertionError("/t/proj 下的 /t/proj/x.yaml 应判为项目内")
             if os.name == "nt":
                 if config_outside_root(r"C:\proj", r"D:\x\y.yaml")[0] is not True:
                     raise AssertionError("跨盘符应判为项目外")
@@ -358,7 +366,7 @@ def _entry_smoke_selftest():
             #     "外部配置，不在被扫描项目内"；cd 进该项目再跑同一条命令又对了。与 3c) 同类：
             #     结论（配置从哪读的）对，陈述（它在不在项目内）错。
             dflt_cfg = os.path.join(proj, "governance", "project.yaml")
-            os.makedirs(os.path.dirname(dflt_cfg))
+            os.makedirs(os.path.dirname(dflt_cfg), exist_ok=True)
             with io.open(dflt_cfg, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(_SMOKE_CONFIG)
             cwd_before = os.getcwd()
@@ -453,13 +461,13 @@ def _entry_smoke_selftest():
                 raise AssertionError("② 过期行要标在首部，否则「N 行有效」与计数行的已登记数对不上，"
                                      "实得 %r" % (line,))
 
-            fs, hit, c_ex = _register(
+            fs, _, _ = _register(
                 target, ok_day,
                 u"| EX-002 | freshness/stale/没有这份文件.md | 缺范围与批准人 |  |  | %s | active |\n" % ok_day)
             if not _has(fs, "invalid-rows"):
                 raise AssertionError("③ 写坏一行应多一条 exception-register/invalid-rows")
 
-            fs, hit, c_ex = _register(u"freshness/stale/根本不存在的判据.md", ok_day)
+            fs, hit, _ = _register(u"freshness/stale/根本不存在的判据.md", ok_day)
             if hit.get("registered") is not None:
                 raise AssertionError("④ rule 指向不存在的 id 时，原发现应仍是未登记")
             if _has(fs, "expired"):
