@@ -86,11 +86,11 @@ def selftest() -> list[dict]:
 | `cfg["_root"]` | **被扫描项目的根**，`check_all` 的位置参数原样传入，可能是相对路径 | 检查器定位工件一律用它拼路径（`os.path.join(cfg["_root"], rel)`），**不得**用 `os.getcwd()` 或检查器自己的 `__file__` |
 | `cfg["_path"]` | 配置文件的实际路径 | 只用于报告与证据。**它落在 `_root` 之内还是之外**，决定了输出里标"外部配置，不在被扫描项目内"还是"在被扫描项目内"。判据是路径包含关系，不是"绝对还是相对"——`--config` 完全可以指向项目内部的绝对路径，那时标"外部配置"是一句**假的溯源陈述** |
 
-`_path` 在不在项目内由 `check_all.config_outside_root(root, path)` 判，返回 `True`（在外）/ `False`（在内）/ `None`（判不了）。它**不用** `os.path.commonpath` 与 `os.path.relpath`：这两个函数跨盘符会抛 `ValueError`，而调用点在全部检查跑完之后，崩在那里等于白跑一整轮。实现是 `normcase(abspath(...))` 加带分隔符的前缀比较——`normcase` 是因为 `abspath` 不归一化盘符大小写（`c:/` 与 `C:/`），带分隔符是因为 `C:/proj` 不该把 `C:/project/x.yaml` 吞成内部。这三点各有一条入口冒烟断言。
+`_path` 在不在项目内由 `check_all.config_outside_root(root, path)` 判，返回 `True`（在外）/ `False`（在内）/ `None`（判不了）。它**不用** `os.path.commonpath` 与 `os.path.relpath`：这两个函数跨盘符会抛 `ValueError`，而调用点在全部检查跑完之后，崩在那里等于白跑一整轮。实现是 `normcase(abspath(...))` 加带分隔符的前缀比较——`normcase` 是因为 `abspath` 不归一化盘符大小写（`c:/` 与 `C:/`），带分隔符是因为 `C:/proj` 不该把 `C:/project/x.yaml` 吞成内部；非绝对的 `path` 先接到 `root` 上再归一化，是因为走默认候选路径时 `_path` 本就是相对被扫根的（`governance/project.yaml`），照当前工作目录解析会把项目内的默认配置判成外部。这四点在入口冒烟里各有断言：前三点在 3d)，第四点在 3e)。
 
 这两个键的名字带下划线是为了与项目自己写的配置项区分：**项目的 `project.yaml` 里写 `_root` 或 `_path` 无效**——`load_config` 解析完会原地覆盖它们。
 
-除这两个之外，检查器**自己**也可以约定下划线开头的注入口，只在自检里往 `cfg` 里塞、`load_config` 不产生也不覆盖。目前有一个：`check_links` 的 `_links_files`（由 `check_links.selftest` 注入，取代 `git ls-files` 的结果，让自检不碰真实仓库的 git 索引，见第 3 节）。另有一个由 `check_all` 在**全部检查跑完之后**写入的 `_exceptions`（登记册路径与有效行数，只给 `render` 打报告首部那一行用，见 §9）——检查器跑的时候它还不存在，不要读它。**这类键不是项目配置项，项目不要写**——`load_config` 不会覆盖它，写了会被检查器当真采信，等于让被检查方自己指定检查范围。新增这类注入口要在本节登记，因为"`cfg` 里都有什么"是契约面，不是实现细节。
+除这两个之外，检查器**自己**也可以约定下划线开头的注入口，只在自检里往 `cfg` 里塞、`load_config` 不产生也不覆盖。目前有一个：`check_links` 的 `_links_files`（由 `check_links.selftest` 注入，取代 `git ls-files` 的结果，让自检不碰真实仓库的 git 索引，见第 3 节）。另有一个由 `check_all` 在**全部检查跑完之后**写入的 `_exceptions`（登记册路径、有效行数与过期行数，只给 `render` 打报告首部那一行用，见 §9）——检查器跑的时候它还不存在，不要读它。**这类键不是项目配置项，项目不要写**——`load_config` 不会覆盖它，写了会被检查器当真采信，等于让被检查方自己指定检查范围。新增这类注入口要在本节登记，因为"`cfg` 里都有什么"是契约面，不是实现细节。
 
 `Finding` 的字段：
 
