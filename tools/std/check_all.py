@@ -353,7 +353,32 @@ def _entry_smoke_selftest():
                 if config_outside_root(r"c:\proj", r"C:\proj\g\p.yaml")[0] is not False:
                     raise AssertionError("盘符大小写不同应归一化后判为项目内")
 
-            # 3e) 契约 §8：身份对行尾归一化——同内容的 LF / CRLF / 裸 CR 副本身份相等，改一个字节则不等。
+            # 3e) 缺陷：默认配置的 `_path` 是**相对被扫根**的，判在不在项目内时却按**当前工作
+            #     目录**解析它——工作目录 ≠ 被扫根时，项目自己的 governance/project.yaml 被说成
+            #     "外部配置，不在被扫描项目内"；cd 进该项目再跑同一条命令又对了。与 3c) 同类：
+            #     结论（配置从哪读的）对，陈述（它在不在项目内）错。
+            dflt_cfg = os.path.join(proj, "governance", "project.yaml")
+            os.makedirs(os.path.dirname(dflt_cfg))
+            with io.open(dflt_cfg, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(_SMOKE_CONFIG)
+            cwd_before = os.getcwd()
+            if os.path.normcase(cwd_before) == os.path.normcase(proj):
+                os.chdir(tmp)      # 自检正常在仓根跑；万一就在被扫根里跑，换个目录才验得出
+            try:
+                if os.path.normcase(os.getcwd()) == os.path.normcase(proj):
+                    raise AssertionError("这一节要在工作目录 ≠ 被扫根时验，实得两者都是 %s" % proj)
+                f3, c3 = run_all(proj, selftest_only=False)
+                t3 = render(f3, proj, c3, show_scope=False)
+            finally:
+                os.chdir(cwd_before)
+            if u"外部配置" in t3:
+                raise AssertionError("项目内的默认配置不该被说成外部配置（工作目录 %s ≠ 被扫根 %s）：%r"
+                                     % (cwd_before, proj, t3.splitlines()[:4]))
+            if u"（在被扫描项目内）" not in t3:
+                raise AssertionError("项目内的默认配置应如实标注在被扫描项目内：%r"
+                                     % t3.splitlines()[:4])
+
+            # 3f) 契约 §8：身份对行尾归一化——同内容的 LF / CRLF / 裸 CR 副本身份相等，改一个字节则不等。
             #     来自 2026-09-11：同一提交的 tools/std 在两种克隆里得到两枚身份，两次 dirty 都报干净。
             eol = {}
             for name, data in (("lf", b"a\nb\n"), ("crlf", b"a\r\nb\r\n"),
@@ -371,7 +396,7 @@ def _entry_smoke_selftest():
             if eol["lf"] == eol["mut"]:
                 raise AssertionError("契约 §8：内容不同的文件身份不应相等")
 
-            # 3f) 契约 §9 例外登记。四条断言**打在结果上，不打在退出码上**——退出码只有
+            # 3g) 契约 §9 例外登记。四条断言**打在结果上，不打在退出码上**——退出码只有
             #     三个取值，靠它分不清"登记生效了"与"这次恰好没别的未定"。
             und = [f for f in findings if f["status"] == UNDETERMINED]
             if not und:
@@ -423,7 +448,7 @@ def _entry_smoke_selftest():
                 raise AssertionError("④ rule 匹配不到任何 id 应多一条 exception-register/orphan")
             os.remove(ex_path)
 
-            # 3g) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
+            # 3h) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
             #     是 subtree 内嵌的**被跟踪文件**，不排除就会把上游的示例项目整个扫进来，
             #     实测一个空项目因此得到 31 条 FAIL，提交门装上即锁死。
             emb = os.path.join(tmp, "emb")
@@ -476,6 +501,7 @@ def _entry_smoke_selftest():
         evidence="run_all 返回二元组、findings 三态合法、render 出覆盖边界与外部配置标注、"
                  "内嵌目录自排除（embedded_std_rel 三例 + tracked_files 只剩项目自己的文件）、"
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
+                 "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
                  "跨盘符与盘符大小写不崩、例外登记四条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired）、"
                  "main 两种 argv 退出码合法且有输出",
@@ -722,6 +748,11 @@ def config_outside_root(root, path):
     `--config <项目内部的绝对路径>` 会被报告成"外部配置，不在被扫描项目内"。
     结论（配置从哪读的）对，陈述（它在不在项目内）错，与派生工件那条同类。
 
+    同一类假陈述还有第二种形态：走默认候选路径时 `_path` 是**相对被扫根**的
+    （`governance/project.yaml`），照直 `abspath` 就成了按**当前工作目录**解析——
+    在仓根跑 `check_all <项目>` 把项目自己的配置说成外部，`cd` 进该项目再跑又对了。
+    所以非绝对路径先接到 `root` 上再归一化，与 `_config_dir` 同一做法。
+
     实现上避开三个坑（都实测过）：
 
     - `os.path.commonpath` / `os.path.relpath` **跨盘符抛 ValueError**（`C:` 对 `D:`）。
@@ -730,8 +761,12 @@ def config_outside_root(root, path):
     - 前缀比较必须**带分隔符**，否则 `C:/proj` 会把 `C:/project/x.yaml` 判成内部。
     """
     try:
-        r = os.path.normcase(os.path.abspath(str(root or ".")))
-        p = os.path.normcase(os.path.abspath(str(path)))
+        raw_root = str(root or ".")
+        raw_path = str(path)
+        if not os.path.isabs(raw_path):          # 相对的 `_path` 是相对被扫根的，不是相对 CWD
+            raw_path = os.path.join(raw_root, raw_path)
+        r = os.path.normcase(os.path.abspath(raw_root))
+        p = os.path.normcase(os.path.abspath(raw_path))
     except (OSError, ValueError) as exc:  # 归一化本身出问题也不许崩，按判不了处理
         return None, "路径归一化失败：%s: %s" % (type(exc).__name__, exc)
     seps = [os.sep] + ([os.altsep] if os.altsep else [])
