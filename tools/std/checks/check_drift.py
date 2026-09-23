@@ -6,7 +6,8 @@
 1. `future-date`   记录里写成既成事实的日期，晚于写下它的那次提交（基准取 `git blame` 行级提交时间）。
 2. `adr-revision`  ADR 正文里出现就地修订的标记（02 §8「ADR 不就地修订」）。
 3. `adr-index-*`   ADR 索引与目录里实物的双向对账（02 §8「decisions/README.md 是索引」）。
-4. `work-item-missing` STATUS 声明的工作项没有对应文件（01 §4.1 每个状态都要求工作项工件）。
+4. `work-item-missing` STATUS 声明的工作项没有对应文件（01 §4.1 每个状态都要求工作项工件）；
+   状态源可以是一份文件，也可以是一个目录（一件一文件，ID 取其直接一层的 *.md）。
 
 三态取向（01 §2 N1 与契约 §1.1）：前两条的召回靠两份**工具常量词表**，是猜测，**永不 FAIL**；
 第 4 条的 `WI-\\d{3,}` 同属工具约定，也永不 FAIL。只有第 3 条的反向对账（目录里有实物、
@@ -478,12 +479,13 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
 def _check_work_items(cfg, root, files):
     declared = cfg_get(cfg, "layout.artifacts.status")
     if declared:
-        status_rel = _norm_rel(declared)
-        if not os.path.isfile(os.path.join(root, status_rel)):
+        status_rel = _norm_rel(declared).rstrip("/")
+        status_path = os.path.join(root, status_rel)
+        if not (os.path.isfile(status_path) or os.path.isdir(status_path)):
             return [finding(
                 NAME, UNDETERMINED, u"状态文件不存在：%s" % status_rel, where=status_rel,
                 kind="status-missing", key=status_rel,
-                reason=u"layout.artifacts.status 声明了它，但文件不在；"
+                reason=u"layout.artifacts.status 声明了它，但文件与目录都不在；"
                        u"是配置过期还是文件被移走，本工具判不了",
                 why=u"01 §4.1 的工作项以 STATUS 的声明为入口，入口不在则判不了")]
     else:
@@ -499,15 +501,20 @@ def _check_work_items(cfg, root, files):
                        u"本工具不猜状态文件叫什么" % u" / ".join(_STATUS_CANDIDATES),
                 why=u"01 §4.1 以工作项为对象；契约 §1.1：候选路径是约定，猜不到不记通过")]
 
-    try:
-        text = read_text(os.path.join(root, status_rel))
-    except OSError as exc:
-        return [undetermined_from_exception(NAME, exc, u"读 %s" % status_rel)]
-
+    # 状态源是目录（一件一文件即状态源）时，ID 取它直接一层的 *.md，不递归。
+    if os.path.isdir(os.path.join(root, status_rel)):
+        sources = [f for f in files if f.lower().endswith(".md") and os.path.dirname(f) == status_rel]
+    else:
+        sources = [status_rel]
     seen = {}
-    for n, line in enumerate(text.splitlines(), 1):
-        for m in _WI_RE.finditer(line):
-            seen.setdefault(m.group(0), n)
+    for src in sources:
+        try:
+            text = read_text(os.path.join(root, src))
+        except OSError as exc:
+            return [undetermined_from_exception(NAME, exc, u"读 %s" % src)]
+        for n, line in enumerate(text.splitlines(), 1):
+            for m in _WI_RE.finditer(line):
+                seen.setdefault(m.group(0), u"%s:%d" % (src, n))
     if not seen:                       # 一个 ID 都没有：无结论，不产条目
         return []
 
@@ -528,7 +535,7 @@ def _check_work_items(cfg, root, files):
     for wid in sorted(set(seen) - have):
         out.append(finding(
             NAME, UNDETERMINED, u"%s 在 %s 里声明了，%s 下没有它的文件" % (wid, status_rel, work_root),
-            where=u"%s:%d" % (status_rel, seen[wid]),
+            where=seen[wid],
             kind="work-item-missing", key=wid,
             reason=u"%s 下没有文件名以 %s 开头的工件；是还没建、建在别处，还是这个 ID 只是"
                    u"正文里提了一句，本工具判不了。ID 形态 WI-<三位以上数字> 是工具约定"
@@ -565,8 +572,9 @@ def scope(cfg):
             % (decisions or u"（未声明）"),
             u"同一目录的索引（%s 的第一张表）与目录里 `ADR-<数字>` 实物的双向对账：索引有 ID 无实物、"
             u"实物不在索引 ID 列" % u" 或 ".join(_INDEX_NAMES),
-            u"状态文件（layout.artifacts.status，当前 %r）正文里的 `WI-<三位以上数字>`，"
-            u"在 %s 下有没有同名开头的文件" % (status or u"（未声明）", work_root),
+            u"状态文件（layout.artifacts.status，当前 %r；声明为目录时取其直接一层、git 跟踪的 *.md，"
+            u"不递归）正文里的 `WI-<三位以上数字>`，在 %s 下有没有同名开头的文件"
+            % (status or u"（未声明）", work_root),
         ],
         "not_covered": [
             u"**两份词表都是工具常量，换一种写法就漏**：日期动作词 %d 个、ADR 修订标记词 %d 个。"
@@ -834,4 +842,25 @@ def selftest():
                 u"4a 附带：未声明 layout.work_root 时取常量 %s，证据里须注明用的是默认"
                 % _DEFAULT_WORK_ROOT,
                 u"证据 %r" % (([f for f in res if f["id"] in got] or [{}])[0].get("evidence")))
+
+    # ---- 4d/4e：状态源声明为目录（一件一文件）视为存在；路径不存在仍报 ----
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        _write(os.path.join(tmp, "docs", "items", "a.md"), u"# 甲\n\n- WI-0007 在做。\n")
+        _write(os.path.join(tmp, "docs", "items", "sub", "b.md"), u"- WI-0009 不递归。\n")
+        _write(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
+        err = _git_commit(tmp)
+        cfg = {"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}
+        res = run(cfg) if not err else []
+        got = sorted(f["id"] for f in res if f["id"].startswith((u"drift/status", u"drift/work-item")))
+        _assert(results,
+                (not err) and got == [u"drift/work-item"],
+                u"4d 正例：layout.artifacts.status 指向目录时视为存在，不报 status-missing；"
+                u"ID 取目录下直接一层 *.md（WI-0007 有文件→PASS；子目录里的 WI-0009 不递归、不报）",
+                u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""))
+        cfg = {"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/nope"}}}
+        res = run(cfg) if not err else []
+        _assert(results,
+                (not err) and _ids(res, "status-missing") == [u"drift/status-missing/docs/nope"],
+                u"4e 反例：layout.artifacts.status 指向的路径文件与目录都不存在，仍须报 status-missing",
+                u"实得 %s" % _ids(res, "status-missing"))
     return results
