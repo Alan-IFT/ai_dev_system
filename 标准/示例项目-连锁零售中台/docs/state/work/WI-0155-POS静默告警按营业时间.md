@@ -28,7 +28,7 @@ work_item_id：WI-0155　state_revision：6　updated_at：2026-09-01
 
 ## 阻塞
 
-- **缺失条件**：① 厂商 B 未提供门店营业时间接口（18 家店），人工维护 vs 接口拉取需裁定；② ADR-0015 仍 `draft`——营业时间字段放 identity 还是 pos-gateway 的 `vendor_adapter_state` 未定。
+- **缺失条件**：① 厂商 B 未提供门店营业时间接口（涉及门店数见 [STATUS.md](../STATUS.md)），人工维护 vs 接口拉取需裁定；② ADR-0015 仍 `draft`——营业时间字段放 identity 还是 pos-gateway 的 `vendor_adapter_state` 未定。
 - 影响：夜间误报持续；值班疲劳。
 - 解除方式：Zhao 裁 ADR-0015（建议放 identity，因为结算与报表也要用）；厂商 B 2026-09-15 前答复。
 - 责任人：Zhao　复查：2026-09-15
