@@ -833,8 +833,9 @@ def _check_links(repos):
 
 def _git_grep(repo_real, needle):
     """一次子进程召回。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
+    # --no-color：全局 color.ui／color.grep=always 时输出带转义码，按冒号切行会全数落空
     cmd = ["git", "-C", repo_real, "--no-optional-locks", "-c", "core.quotepath=false",
-           "grep", "-I", "-n", "-F", "-e", needle, "--", "."]
+           "grep", "--no-color", "-I", "-n", "-F", "-e", needle, "--", "."]
     try:
         p = subprocess.run(cmd, capture_output=True, timeout=120)
     except (OSError, subprocess.SubprocessError) as exc:
