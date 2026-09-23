@@ -203,15 +203,23 @@ exec python3 .std/tools/std/check_all.py .
 
 - Edit/Write/MultiEdit/NotebookEdit 写 `.std/` → **拒绝**；写本项目 `.claude/settings.json` 或
   `.claude/settings.local.json` → **先问**（拦截层自己的开关就在里面）。
-- Bash 按 `&&`/`||`/`;`/`|`/换行分段，某段既是写形态（`>`、`>>`、`tee`、`rm`、`mv`、`cp`、`sed -i`、
-  `git checkout … --`、`python -c`/`python3 -c`、`node -e`）又落在 `.std/` 或上面两个 settings 上
-  → **先问**。
-  以 `git subtree` 开头且不带重定向的段是升级通道，放行；读形态放行。
-- Bash 里有 `git commit`（含 `--no-verify`、`--amend`、`git -c … commit`、`git -C … commit`）→ 先跑
+- Bash 按 `&&`/`||`/`;`/`|`/换行分段，某段既是写形态（`>`、`>>`、`tee`、`rm`、`mv`、`cp`——含
+  `git rm`/`git mv`——、`sed -i`、`git checkout … --`、`python -c`/`python3 -c`、`node -e`）又提及
+  `.std` 或上面两个 settings → **先问**。`.std` 写成 `.std`、`./.std` 或 `<项目根绝对路径>/.std`，带不带
+  尾斜杠都算（`rm -rf .std`、`mv .std old` 命中，`.std-backup`、`out/.std` 不算）；settings 任何前缀都算。
+  以 `git subtree` 开头且不带重定向的段是升级通道，放行；读形态放行。**这一条只是提早提醒**：写入
+  动词永远列不全，挡住改动的是下一条的兜底。
+- 提交门。Bash 里精确认出 `git commit`（含 `--no-verify`、`--amend`、`git -c … commit`、
+  `git -C … commit`）→ 先查 `.std/` 下有没有改动（已暂存或已跟踪未暂存都算——`git commit -a` 在钩子
+  之后才暂存），有就**拒绝**：不论 `.std/` 是被哪条命令改的，都进不了提交；再跑
   `check_all . --no-scope`，退出 0 才放行；退出 1／2 **拒绝**，并把计数行、结论行与前 8 条 `id：`
-  交给模型；跑不成（崩溃、超时 300 秒、退出码不在 {0,1,2}）**同样拒绝**——"没检查"不算"检查过了"
-  （[CONTRACT §1](CONTRACT.md)）。`.std/tools/std/check_all.py` 不在位（插件被装到没内嵌标准的项目
-  上）则不表态，不锁死那个项目。
+  交给模型；跑不成（崩溃、超时 300 秒、退出码不在 {0,1,2}、`git status` 查不了）**同样拒绝**——
+  "没检查"不算"检查过了"（[CONTRACT §1](CONTRACT.md)）。同一段里有 `git` 与 `commit` 两个词、却没被
+  精确认出的（`bash -c "git commit …"`、`(git commit)`、`/usr/bin/git commit`、`env`/`command`/`nohup`/
+  `time` 前缀）过同一道门，不过时给**先问**而不是拒绝——模糊命中可能是误判，交人裁决。
+  `hooks.json` 给这个钩子显式写了 310 秒时限：宿主时限先到会取消钩子、动作照常执行，内部 300 秒
+  必须先到。`.std/tools/std/check_all.py` 不在位（插件被装到没内嵌标准的项目上）则不表态，不锁死
+  那个项目。
 
 每次有判断的动作（拒绝／先问／跑过检查才放行／跳过）和每次会话开始，都往
 `${CLAUDE_PLUGIN_DATA}/receipts.log` 追加一行：时间、会话号、项目根、事件、工具、对象、决定。回执由
@@ -220,19 +228,25 @@ exec python3 .std/tools/std/check_all.py .
 
 **2026-09-22 在 Ubuntu、claude 2.1.278 上经真实会话实测两点**：① 无头模式（`claude -p`）没有人回答「先问」，宿主把它当拒绝——动作不执行、文件不落地，`--allowedTools` 的放行盖不过 hook 的先问；② 在场信号那一行加上标准正文，会让模型自己放弃动作（实测它引用「`.std` 只读」拒绝了往 `.std/x.md` 的 Write 与往 `.std/` 的 subtree），这时钩子根本没被调用、也没有回执——**模型自律不计为受控**，与钩子的拒绝／先问分开记，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions) 只有回执里那一行算数。
 
-**盲区六条**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
+**盲区七条**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
 
 1. 无头模式（`claude -p`）下项目 settings 的 `extraKnownMarketplaces` **不会**自动注册，必须先在这台
    机器上 `marketplace add` 过一次——第 3 步漏做，整层静默不生效。
-2. `python3` 缺失或 hook 崩溃／卡死超过宿主时限 → **静默放行**：Claude Code 至多报一条非阻断
-   错误，动作照常执行。2026-09-22 在 Ubuntu 上实测过一次——`hooks.json` 当时写的是 `python`，
+2. `python3` 缺失或 hook 崩溃／卡死超过宿主时限（`hooks.json` 里的 310 秒）→ **静默放行**：
+   Claude Code 至多报一条非阻断错误，动作照常执行。2026-09-22 在 Ubuntu 上实测过一次——`hooks.json` 当时写的是 `python`，
    该命令不存在，hook 退出码 127，整层一声不响地不生效。在场信号那一行不出现，即此。
 3. 不经 Bash/Edit 的通道一律不命中：IDE 里的提交、人在终端手敲的命令、MCP 文件工具、`git merge` /
    `git rebase` 带进来的改动。子 agent 的 Write 会命中。
-4. heredoc 与变量拼接形式的写入不命中（`python - <<'P' … P`/`python3 - <<'P' … P` 那种）。
+4. 写入期提醒认不全：heredoc 与变量拼接（`python - <<'P' … P`/`python3 - <<'P' … P` 那种）、
+   `cd .std && …`、从子目录写 `../.std`、清单外的写入动词都不命中。这些改动进不了
+   提交（提交门兜底），但工作区里的改动本身没人拦、也不会被撤；**同一条 Bash 命令里先改 `.std/`
+   再提交**的，钩子在整条命令之前跑，兜底也看不见。兜底不看未跟踪文件（免得误拦 `__pycache__`），
+   所以在 `.std/` 里新建文件后用一条 `git add -A && git commit` 提交，兜底同样看不见；`git add` 与
+   `git commit` 分两条命令执行则会被拦。
 5. 回执落在用户目录、按插件名共用：同一台机器上所有采用项目的回执混在一个文件里（行内带项目根可
    区分），跨机器对账要人工收集；`--plugin-dir` 与 marketplace 两种装法的回执还分在两个目录。
 6. 内嵌目录是符号链接时，`realpath` 会把它解析到项目外，整层漏判。
+7. git 别名（如 `git ci`）不解析：既不精确命中也没有 `commit` 这个词，提交门整道不跑。
 
 与上面那段 git pre-commit 示意是**两层互补**，不是二选一：git 钩子拦人（但被 `--no-verify` 跳过、
 看不见 `git merge`），这一层拦 agent（拦得住 `--no-verify`，但只覆盖 Claude Code 自己发起的动作）。

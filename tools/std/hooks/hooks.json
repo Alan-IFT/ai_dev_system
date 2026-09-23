@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/tools/std/hooks/guard.py\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/tools/std/hooks/guard.py\"",
+            "timeout": 310
           }
         ]
       }
