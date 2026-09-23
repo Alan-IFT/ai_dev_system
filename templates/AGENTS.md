@@ -1,6 +1,6 @@
 # AGENTS.md — Agent 工作规范（常驻核）
 
-> **用法**：复制到项目根命名 `AGENTS.md`；`templates/agent-skills/*.md` 复制到 `<项目根>/.agents/skills/`。DSH 自动加载两者（skill 只常驻标题行，正文按需）。Claude Code 用户把 skills 放 `.claude/skills/`。默认加载合同按 `templates/CONTEXT_MANIFEST.md` 写成本文件的一节。**只需填 §0。** 本引用块复制后删掉。
+> **用法**：复制到项目根命名 `AGENTS.md`；`templates/agent-skills/*.md` 复制到 `<项目根>/.agents/skills/`。DSH 自动加载两者（skill 只常驻标题行，正文按需）。Claude Code 用户把 skills 放 `.claude/skills/`。默认加载合同按 `templates/CONTEXT_MANIFEST.md` 写成 §1 下的「加载合同」一节。**只需填 §0。** 本引用块复制后删掉。
 
 **本文件只放"晚一秒就来不及"的规则。** 细则在 §6 的 skill 里，用到时才加载——这是刻意的：规则越多，每条被遵守的概率越低。
 
@@ -36,6 +36,12 @@
 | 决策 | `docs/decisions/ADR-*.md` |
 | 证据（测试/构建/部署结果） | CI 产物；`WORK.md` 只存指针 |
 | 代码结构、依赖、配置 | **代码本身——不写进本文件**，会先于代码过期 |
+
+### 加载合同（唯一一份）
+
+合同 `<contract_id>` · 第 `<N>` 版 · updated_at `<ISO-8601>` · `<proposal|trial|accepted>` · 当前工作项 `<精确路径或 无>`
+
+<按 `templates/CONTEXT_MANIFEST.md` 写成本节：路由表与解析规则。上面一行是它的合同头，不另建文件。>
 
 ---
 
