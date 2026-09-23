@@ -687,46 +687,49 @@ def _shared_fact_selftest(mods):
     return out
 
 
-def _hook_guard_selftest():
-    """带跑 Claude Code 拦截层的反例自检（契约 §3）。
+def _embedded_readonly_selftest(mods):
+    """汇总层钉住 01 §8「`.std/` 只读」：造一个内嵌且 `.std/` 有未暂存改动的仓，adoption 检查器
+    的结论里必须出现 `adoption/embedded-modified` 的 FAIL。
 
-    guard.py 不进检查器身份（契约 §8 末尾写了排除理由），但它在不在位、跑不跑得过
-    会改变本自检的闸门结果，所以由这一条 finding 显式承载：不在位记**未定**，不是
-    静默跳过——静默跳过正是 M-10 要探测的那种失效。
+    检查器自己的 selftest 钉不住"整个检查器被换回不含这条判据的旧版"——旧版自带的 selftest
+    照样全绿。这条断言不借用检查器里的任何夹具代码，缺检查器、接口对不上（旧版 run 不收
+    tool_root）、没出这条 FAIL，一律判 FAIL。
     """
     import subprocess
+    import tempfile
 
-    guard = os.path.join(HERE, "hooks", "guard.py")
-    if not os.path.isfile(guard):
-        return [finding(
-            "hook-guard", UNDETERMINED, "拦截层脚本不在位",
-            where="tools/std/hooks/guard.py",
-            reason="没有 hooks/guard.py，本工具判不了拦截层是否还成立；"
-                   "不装拦截层的项目按这条记未定，不记通过",
-            why="契约 §3：守卫存在不等于守卫在执行",
-        )]
+    title = "内嵌仓 .std/ 有未暂存改动：adoption 必须报 embedded-modified FAIL（01 §8 只读）"
+    why = "01 §8：内嵌的 `.std/` 只读；契约 §3：守卫存在不等于守卫在执行，换回旧版要能被发现"
+    by = dict((n, m) for n, m, err in mods if err is None)
+    if "adoption" not in by:
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="没有加载成功的 adoption 检查器，实有 %s" % "/".join(sorted(by)))]
+    git_id = ["-c", "init.defaultBranch=main", "-c", "user.email=std@example.invalid",
+              "-c", "user.name=std", "-c", "commit.gpgsign=false",
+              "-c", "core.hooksPath=/dev/null", "-c", "core.autocrlf=false"]
     try:
-        env = dict(os.environ)
-        env["PYTHONIOENCODING"] = "utf-8"
-        proc = subprocess.run([sys.executable, guard, "--selftest"], env=env,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
-        out = proc.stdout.decode("utf-8", "replace")
-    except (OSError, subprocess.SubprocessError) as exc:
-        return [undetermined_from_exception("hook-guard", exc, "跑 guard --selftest")]
-    if proc.returncode == 0:
-        return [finding(
-            "hook-guard", PASS, "拦截层自检通过：%s" % (out.strip().splitlines() or [""])[-1],
-            where="tools/std/hooks/guard.py",
-            why="契约 §3：拦截层也是守卫，它的反例表（内嵌目录写入／Bash 写形态／"
-                "git commit 识别／check_all 各种退出码）必须逐条跑过",
-            evidence=out.strip()[:400],
-        )]
-    return [finding(
-        "hook-guard", FAIL, "拦截层自检没通过（退出码 %d）" % proc.returncode,
-        where="tools/std/hooks/guard.py",
-        why="契约 §3：自检不过的守卫，其拦截结论作废",
-        evidence="\n".join(out.splitlines()[:20]),
-    )]
+        with tempfile.TemporaryDirectory() as proj:
+            for rel, body in (("governance/STANDARD_VERSION", "2026-09-22.2\nadopted_at: 2025-03-03\n"),
+                              (".std/标准/README.md", "**候选实现修订：`2026-09-22.2`。**\n"),
+                              (".std/x.md", "标准\n")):
+                path = os.path.join(proj, rel)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(body)
+            for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "s"]):
+                r = subprocess.run(["git", "-C", proj] + git_id + args,
+                                   capture_output=True, timeout=60)
+                if r.returncode != 0:
+                    raise RuntimeError("git %s 退出码 %d" % (args[0], r.returncode))
+            with open(os.path.join(proj, ".std", "x.md"), "a", encoding="utf-8") as fh:
+                fh.write("就地改\n")
+            fs = by["adoption"].run({"_root": proj}, tool_root=os.path.join(proj, ".std"))
+    except Exception as exc:  # noqa: BLE001
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="跑不起来：%s: %s" % (type(exc).__name__, exc))]
+    hit = [f for f in fs if f["id"] == "adoption/embedded-modified" and f["status"] == FAIL]
+    return [finding("shared-fact", PASS if hit else FAIL, title, why=why,
+                    evidence="adoption 实得 %s" % [(f["status"], f["id"]) for f in fs])]
 
 
 def run_all(root, selftest_only=False, config_path=None):
@@ -749,8 +752,8 @@ def run_all(root, selftest_only=False, config_path=None):
     if selftest_only:
         findings.extend(_contract_examples_selftest())
         findings.extend(_entry_smoke_selftest())
-        findings.extend(_hook_guard_selftest())
         findings.extend(_shared_fact_selftest(mods))
+        findings.extend(_embedded_readonly_selftest(mods))
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))

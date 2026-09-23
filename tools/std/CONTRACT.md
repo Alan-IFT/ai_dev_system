@@ -43,7 +43,7 @@
 
 输出里必须带 `scope`，写明**检查了什么、没检查什么**。依据 [01 §5.6](../../标准/01-项目管理标准.md#gates)（控制的覆盖范围本身是状态）与 [04 §6.1](../../标准/04-可靠性安全与运行维护.md#agent-run-observability)（未采到的区间记未知）。
 
-**工具自身所在的内嵌目录（采用项目里的 `.std/`）不在扫描面**：那是上游的内容，不是本项目的；报告首部打出被排除的路径。在标准仓自己身上跑时无此排除。
+**工具自身所在的内嵌目录（采用项目里的 `.std/`）不在扫描面**：那是上游的内容，不是本项目的；报告首部打出被排除的路径。在标准仓自己身上跑时无此排除。它的内容不扫，但**它有没有被改**要判（[01 §8](../../标准/01-项目管理标准.md#adoption)：内嵌的 `.std/` 只读，项目不在里面改）：内嵌运行时 `check_adoption` 跑 `git status --porcelain --untracked-files=no -- <内嵌目录>`，有已跟踪文件的改动（已暂存或未暂存，覆盖 `git commit -a`）判 `FAIL`（`adoption/embedded-modified`），git 查不了记 `UNDETERMINED`，内嵌目录没被本仓跟踪（被忽略或是嵌套的独立 clone，`git status` 恒空）记 `UNDETERMINED`（`adoption/embedded-untracked`），非内嵌运行记 `SKIP`。`--selftest` 在汇总层另有一条断言：内嵌仓有改动时必须出现 `adoption/embedded-modified` 的 `FAIL`，检查器被换回不含这条判据的版本也能被发现。这条规则放在检查器里，任何把 `check_all` 放进提交路径的执行层（git 钩子、CI、宿主工具的提交前钩子）都同样拦得住。
 
 未覆盖的部分不是"没问题"，是"没看"。例如只扫 `*.md` 的检查器必须写明它不看 `*.service`、`*.sh`、`*.json`——该项目真实吃过这个亏：现有闸门只扫 `scripts/*.sh`，因而看不见两个应用仓里 28 处已断的跨仓引用。
 
@@ -58,7 +58,7 @@
 1. 造一个**应该被判 FAIL** 的最小样本，跑检查器，必须得到 FAIL；
 2. 造一个**应该被判 PASS** 的最小样本，必须得到 PASS。
 
-任一条不成立即判该检查器故障，其对目标仓库的结论作废、记 `UNDETERMINED`。`check_all --selftest` 单独跑这一层。`--selftest` 同时跑 `hooks/guard.py --selftest`（Claude Code 拦截层的反例自检），guard 不在位记未定；另跑一组跨检查器反例（`shared-fact`：§1「同一事实只报一次」与共用候选），单个检查器的自检看不见别的检查器，这一层只能在汇总处断言。
+任一条不成立即判该检查器故障，其对目标仓库的结论作废、记 `UNDETERMINED`。`check_all --selftest` 单独跑这一层。`--selftest` 另跑一组跨检查器反例（`shared-fact`：§1「同一事实只报一次」与共用候选），单个检查器的自检看不见别的检查器，这一层只能在汇总处断言。
 
 ---
 
@@ -275,8 +275,6 @@ tool_identity_files:
   - check_all.py 0a59ea87bc6b56431fddf7ad3fbd07a75b14312c51f1001322b6cf6752301d69
   - CONTRACT.md 2b19a50dbb67d7569b0c69f23073f507b4382e34ed9887d666375ab0437ac319
 ```
-
-`hooks/guard.py` 不进身份：它不产出任何对被扫描项目的结论，身份块钉的是这套判据对该项目的结论；它对 `--selftest` 的影响由 `hook-guard` 一条 finding 显式承载，并由 guard 自报 sha8（SessionStart 行与回执）定版。
 
 ---
 

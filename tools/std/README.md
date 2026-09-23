@@ -14,7 +14,7 @@
 
 ## 前提
 
-- Linux / macOS，`python3`，不装任何第三方包。入口与拦截层都以 `python3` 调用。
+- Linux / macOS，`python3`，不装任何第三方包。入口以 `python3` 调用。
 - **被扫描目录必须是 git 仓库。** 检查对象来自 `git ls-files`。不在 git 仓库里跑，links 与
   single-authority 会报"git ls-files 退出码 128"并记未定，整体退出 2。这不是工具坏了。
 - 项目根有 `governance/project.yaml`（或同名 `.yml`）。配置加载只认这两个路径；换个文件名
@@ -139,7 +139,7 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   的内容，先改版本号只会让文件和记录对不上。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
-  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std .claude-plugin LICENSE LICENSE-DOCS` → 写／更新根
+  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
   `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
   `git commit -m "release <tag>：来自 main <sha>"` → `git tag <tag>` → push 分支与 tag。
   每次发布提交接在上一次之上，不用 orphan 重建——重建会让两个 tag 间的 diff 不再是升级差异。
@@ -149,109 +149,87 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   `git push <公开仓> release:main && git push <公开仓> <tag>`。本仓 main 含不可公开的脚手架，只推 `release`，不推 main。
 
 **执行层由采用项目自己接**，标准不发钩子、流水线或 agent 侧配置——它们随宿主工具变，上游给一份
-就会过期成第二处权威；**例外：Claude Code 一家的拦截层随标准一起发**（`.std/` 本身就是一个
-Claude Code 插件），接法见下节「Claude Code 拦截层」；其它宿主工具仍由采用项目自己接。接法只有
-一条：把 `check_all` 放进提交、合并或发布的必经路径，退出码非 0
+就会过期成第二处权威。接法只有一条：把 `check_all` 放进提交、合并或发布的必经路径，退出码非 0
 就不放行；退出码 0 已含"未定项全部登记"这层意思（见上文「未定项怎么登记」），执行层不必自己解释
-2。承载可以是版本控制钩子、流水线作业或按清单执行的人工步骤，语义相同；其中钩子形态如下：
+2。`.std/` 只读也在这一条里：内嵌运行时 `check_adoption` 看到内嵌目录下有已跟踪文件被改动（已暂存
+或未暂存都算，覆盖 `git commit -a`）即判 FAIL（`adoption/embedded-modified`），执行层不必另写判断。
+承载可以是版本控制钩子、流水线作业或按清单执行的人工步骤，语义相同；其中钩子形态如下：
 
 ```sh
 #!/bin/sh
-if git diff --cached --name-only | grep -q '^\.std/'; then
-  echo "拒绝：.std/ 只读，改标准请合并回标准仓再 pull" >&2; exit 1
-fi
-exec python3 .std/tools/std/check_all.py .
+exec python3 .std/tools/std/check_all.py . --no-scope
 ```
 
 `git subtree add/pull` 走 `commit-tree`，不经过这个钩子，升级不需要放行；反过来它也看不见
-`git merge` 带进来的改动与 `--no-verify` 的提交（**agent 在 Claude Code 里发起的**那条已由下节的
-拦截层补上，人手在终端敲的仍是盲区）——这两条盲区按
+`git merge` 带进来的改动与 `--no-verify` 的提交——这两条盲区按
 [01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。这段是形态示意不是发布物；
 `.std/` 前缀由采用项目自己的取用方式决定，换了前缀要跟着改。
 
-把 2 当告警放行的流水线，其结论不得被引用为"检查过了"。agent 侧对 `.std/` 写入的拦截属于宿主工具
-的调用前钩子，按各工具自己的机制配；没配的按
-[01 §5.5](../../标准/01-项目管理标准.md#controlled-actions) 记未定，不记为已受控——Claude Code 的
-这一份随标准发（见下节），装上后按「在场信号」自证是否真在跑；没装的、别的宿主工具的，仍按本句
-记未定。
+把 2 当告警放行的流水线，其结论不得被引用为"检查过了"。agent 侧的执行点是宿主工具自己的权限
+规则与调用前钩子，按各工具自己的机制配；没配的按
+[01 §5.5](../../标准/01-项目管理标准.md#controlled-actions) 记未定，不记为已受控。Claude Code 的
+接法见下节。
 
-## Claude Code 拦截层
+## Claude Code 接法
 
-**这是 Claude Code 一家的专有适配层，不是标准正文。** 正文对宿主工具只说一句「把 `check_all` 放进
-必经路径」，怎么接是宿主自己的事；这一层只是把那句话在 Claude Code 里做成了代码，随标准一起发，
-换宿主工具不影响正文。别的宿主工具仍按上一段记未定。
+**这是 Claude Code 一家的接法示意，不是标准正文，也不随标准发任何配置文件。** 只用 Claude Code
+自带的权限规则与钩子：采用项目把下面这段并进自己的 `.claude/settings.json`（已有 `permissions` 或
+`hooks` 的合并进去，不要整份覆盖）。**接之前先在项目根跑一次** `python3 .std/tools/std/check_all.py .`，
+退出 0 再接——否则接上即锁死这个项目的每一次提交。
 
-装法四步，**第 0 步不能跳**：
+```json
+{
+  "permissions": { "deny": ["Edit(/.std/**)"] },
+  "hooks": { "PreToolUse": [{ "matcher": "Bash", "hooks": [{
+    "type": "command", "if": "Bash(*git*commit*)",
+    "command": "cd \"$CLAUDE_PROJECT_DIR\" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2"
+  }]}]}
+}
+```
 
-0. **先在项目根跑一次** `python3 .std/tools/std/check_all.py .`。退出非 0 就先清账，或按上文「未定项
-   怎么登记」把判不了的逐条登记，退出 0 之后再装。跳过的后果是确定的：提交门装上即锁死这个项目的
-   每一次提交，第一反应必然是把拦截层关掉。
-1. subtree 取用（见上文「接入一个项目」），`.std/` 就位——它本身就是那个插件。
-2. 项目 `.claude/settings.json` 加两键（相对路径必须以 `./` 开头）：
+- **`.std/` 只读**：`Edit(/.std/**)` 的单个 `/` 锚在会话的主工作目录（不是文件系统根），在项目根启动会话即是项目根。Edit 的 deny 规则作用于
+  全部内置编辑工具（Edit、Write、NotebookEdit），也作用于 Claude Code 认得出的 Bash 文件写——重定向
+  目标、`tee`、`sed -i`、`cp`、`mv`、`rm`；读不受影响。deny 在任何权限模式下都生效，
+  `bypassPermissions` 也不例外。
+- **提交前必过 `check_all`**：`if` 只让含 `git…commit` 字样的 Bash 命令触发这个钩子；`check_all` 退出
+  非 0（有 FAIL，或有未登记的未定）就 `exit 2`。**只有 exit 2 阻断**，其它非 0 退出码只是非阻断错误、
+  动作照常执行；检查结论走 stderr 回给模型，它看得到是哪一条没过。`.std/` 有改动时拦下提交的就是
+  上面那条 `adoption/embedded-modified`，不论 `.std/` 是被哪条命令改的。
+- **`if` 故意写宽**：`bash -c "git commit …"`、`env git commit`、`/usr/bin/git commit`、
+  `git -C … commit`、`git -c … commit` 都命中。代价是 `check_all` 红着的时候，含这两个词的只读命令
+  （如 `git log --grep=commit`）也被拦，拒绝信息就是完整的检查结论，照它清账即可。
+- **不另设的**：`.claude/` 与 `.git/` 是 Claude Code 的内置受保护路径，写入不会被自动放行
+  （`bypassPermissions` 除外），不再自写规则。**不做成插件**：插件的 `settings.json` 不支持
+  `permissions`，而拦 `.std/` 写入要的正是权限规则。
 
-   ```json
-   {"extraKnownMarketplaces": {"ai-dev-std": {"source": "./.std"}},
-    "enabledPlugins": {"std@ai-dev-std": true}}
-   ```
+2026-09-23 在 Ubuntu、claude 2.1.280 上用 `claude -p`（`--allowedTools Bash` 放开整个 Bash）实测：
+Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`、`rm -rf .std` 全部被拒，读
+`.std/` 放行；`check_all` 红时 `git commit -am`、`bash -c "git commit …"`、`env git commit`、
+`/usr/bin/git commit` 全部被拒；`.std/` 有未暂存改动时 `git commit -am` 被拒、理由是
+`adoption/embedded-modified`，`git stash push -- .std` 放行，移出后提交放行；`check_all` 红时
+`git log --grep=commit` 也被拒（即上面说的代价）。
 
-3. **每台机器**跑一次 `claude plugin marketplace add ./.std`（换机器、换路径都要重跑）。
+**盲区**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
 
-**生效标志（在场信号）**：装上之后，新会话的上下文里会出现一行「std 拦截层已加载 · guard `<sha8>` ·
-`.std` 只读 · 提交前跑 check_all」。**这一行不出现就是没在跑**——不要假设它在，它正是下面第 1、2 条
-盲区唯一的外部可见信号。不要用 `claude plugin list` 自证：它只列用户级启用的插件，项目级 `enabledPlugins` 不在其中。
+1. 解释器子进程写 `.std/`（如 `python3 -c "open(…, 'w')"`，实测放行）、`git checkout -- .std` 之类
+   git 自己的写入，写入当时不拦；改的是已跟踪文件，提交时被 `check_all` 拦下；新建的未跟踪文件
+   `check_all` 不看。
+2. 同一条 Bash 命令里先改 `.std/` 再提交（含 `git add -A && git commit` 带进新文件）：钩子在整条
+   命令之前跑，看不见之后才发生的改动。
+3. 钩子超过时限（command 钩子默认 600 秒，可用 `timeout` 字段改）会被宿主取消，按官方文档不阻断，
+   提交照常执行。其它出错不在此列：`python3` 缺失（退出 127）、`cd` 失败都被 `|| exit 2` 转成阻断，
+   后果是每次提交都被拦（出错即拦），要先修好环境。
+4. git 别名（如 `git ci`）没有 `commit` 字样，不触发。`if` 匹配是尽力而为，Claude Code 判不出一条
+   命令会跑什么时照样触发钩子，不会因此漏掉。
+5. 不经 Claude Code 的提交：人在终端手敲、IDE 里点的提交——接上面那个 git pre-commit 钩子。两层
+   互补，不是二选一：git 钩子拦人（但被 `--no-verify` 跳过、看不见 `git merge`），这一层拦 agent
+   （拦得住 `--no-verify`，只覆盖 Claude Code 自己发起的动作）。两层都不是全覆盖，各自的盲区按
+   [01 §5.6](../../标准/01-项目管理标准.md#gates) 记。
 
-拦什么，三条，全部只覆盖 Claude Code 自己发起的动作：
-
-- Edit/Write/MultiEdit/NotebookEdit 写 `.std/` → **拒绝**；写本项目 `.claude/settings.json` 或
-  `.claude/settings.local.json` → **先问**（拦截层自己的开关就在里面）。
-- Bash 按 `&&`/`||`/`;`/`|`/换行分段，某段既是写形态（`>`、`>>`、`tee`、`rm`、`mv`、`cp`——含
-  `git rm`/`git mv`——、`sed -i`、`git checkout … --`、`python -c`/`python3 -c`、`node -e`）又提及
-  `.std` 或上面两个 settings → **先问**。`.std` 写成 `.std`、`./.std` 或 `<项目根绝对路径>/.std`，带不带
-  尾斜杠都算（`rm -rf .std`、`mv .std old` 命中，`.std-backup`、`out/.std` 不算）；settings 任何前缀都算。
-  以 `git subtree` 开头且不带重定向的段是升级通道，放行；读形态放行。**这一条只是提早提醒**：写入
-  动词永远列不全，挡住改动的是下一条的兜底。
-- 提交门。Bash 里精确认出 `git commit`（含 `--no-verify`、`--amend`、`git -c … commit`、
-  `git -C … commit`）→ 先查 `.std/` 下有没有改动（已暂存或已跟踪未暂存都算——`git commit -a` 在钩子
-  之后才暂存），有就**拒绝**：不论 `.std/` 是被哪条命令改的，都进不了提交；再跑
-  `check_all . --no-scope`，退出 0 才放行；退出 1／2 **拒绝**，并把计数行、结论行与前 8 条 `id：`
-  交给模型；跑不成（崩溃、超时 300 秒、退出码不在 {0,1,2}、`git status` 查不了）**同样拒绝**——
-  "没检查"不算"检查过了"（[CONTRACT §1](CONTRACT.md)）。同一段里有 `git` 与 `commit` 两个词、却没被
-  精确认出的（`bash -c "git commit …"`、`(git commit)`、`/usr/bin/git commit`、`env`/`command`/`nohup`/
-  `time` 前缀）过同一道门，不过时给**先问**而不是拒绝——模糊命中可能是误判，交人裁决。
-  `hooks.json` 给这个钩子显式写了 310 秒时限：宿主时限先到会取消钩子、动作照常执行，内部 300 秒
-  必须先到。`.std/tools/std/check_all.py` 不在位（插件被装到没内嵌标准的项目上）则不表态，不锁死
-  那个项目。
-
-每次有判断的动作（拒绝／先问／跑过检查才放行／跳过）和每次会话开始，都往
-`${CLAUDE_PLUGIN_DATA}/receipts.log` 追加一行：时间、会话号、项目根、事件、工具、对象、决定。回执由
-拦截层自己写、落在仓外，不是被约束者的自述；与受控动作清单对账见
-[01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)。
-
-**2026-09-22 在 Ubuntu、claude 2.1.278 上经真实会话实测两点**：① 无头模式（`claude -p`）没有人回答「先问」，宿主把它当拒绝——动作不执行、文件不落地，`--allowedTools` 的放行盖不过 hook 的先问；② 在场信号那一行加上标准正文，会让模型自己放弃动作（实测它引用「`.std` 只读」拒绝了往 `.std/x.md` 的 Write 与往 `.std/` 的 subtree），这时钩子根本没被调用、也没有回执——**模型自律不计为受控**，与钩子的拒绝／先问分开记，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions) 只有回执里那一行算数。
-
-**盲区七条**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
-
-1. 无头模式（`claude -p`）下项目 settings 的 `extraKnownMarketplaces` **不会**自动注册，必须先在这台
-   机器上 `marketplace add` 过一次——第 3 步漏做，整层静默不生效。
-2. `python3` 缺失或 hook 崩溃／卡死超过宿主时限（`hooks.json` 里的 310 秒）→ **静默放行**：
-   Claude Code 至多报一条非阻断错误，动作照常执行。2026-09-22 在 Ubuntu 上实测过一次——`hooks.json` 当时写的是 `python`，
-   该命令不存在，hook 退出码 127，整层一声不响地不生效。在场信号那一行不出现，即此。
-3. 不经 Bash/Edit 的通道一律不命中：IDE 里的提交、人在终端手敲的命令、MCP 文件工具、`git merge` /
-   `git rebase` 带进来的改动。子 agent 的 Write 会命中。
-4. 写入期提醒认不全：heredoc 与变量拼接（`python - <<'P' … P`/`python3 - <<'P' … P` 那种）、
-   `cd .std && …`、从子目录写 `../.std`、清单外的写入动词都不命中。这些改动进不了
-   提交（提交门兜底），但工作区里的改动本身没人拦、也不会被撤；**同一条 Bash 命令里先改 `.std/`
-   再提交**的，钩子在整条命令之前跑，兜底也看不见。兜底不看未跟踪文件（免得误拦 `__pycache__`），
-   所以在 `.std/` 里新建文件后用一条 `git add -A && git commit` 提交，兜底同样看不见；`git add` 与
-   `git commit` 分两条命令执行则会被拦。
-5. 回执落在用户目录、按插件名共用：同一台机器上所有采用项目的回执混在一个文件里（行内带项目根可
-   区分），跨机器对账要人工收集；`--plugin-dir` 与 marketplace 两种装法的回执还分在两个目录。
-6. 内嵌目录是符号链接时，`realpath` 会把它解析到项目外，整层漏判。
-7. git 别名（如 `git ci`）不解析：既不精确命中也没有 `commit` 这个词，提交门整道不跑。
-
-与上面那段 git pre-commit 示意是**两层互补**，不是二选一：git 钩子拦人（但被 `--no-verify` 跳过、
-看不见 `git merge`），这一层拦 agent（拦得住 `--no-verify`，但只覆盖 Claude Code 自己发起的动作）。
-两层都不是全覆盖，各自的盲区按 [01 §5.6](../../标准/01-项目管理标准.md#gates) 记。
+官方文档：[hooks](https://code.claude.com/docs/en/hooks)（exit 2 语义、`if` 字段、时限）、
+[permissions](https://code.claude.com/docs/en/permissions)（Edit 规则的路径写法与 Bash 文件写的覆盖面）、
+[permission-modes#protected-paths](https://code.claude.com/docs/en/permission-modes#protected-paths)、
+[plugins-reference](https://code.claude.com/docs/en/plugins-reference)（插件 settings 只支持的键）。
 
 ## 加一个自己的检查器
 

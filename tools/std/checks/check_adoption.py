@@ -13,6 +13,10 @@ FAIL——两边都是被扫项目里的文件，比的是记录与实物。标�
 项目。读到的值原样写进 evidence 供人核，**不与工具侧任何常量比对**——
 这条硬约束由 `selftest` 里的变异验证守着，不是靠本段注释。
 
+同样只在内嵌运行时，另判 01 §8「内嵌的 `.std/` 只放标准，只读……项目不在里面改」：内嵌目录下
+有已跟踪文件的改动（已暂存或未暂存都算，覆盖 `git commit -a`）判 FAIL。规则放在检查器里而不是
+某个宿主工具的钩子里，git 钩子、CI 与 Agent 的提交前钩子只要调 `check_all` 就同样受益。
+
 本模块只用标准库。
 """
 from __future__ import annotations
@@ -20,6 +24,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -112,6 +117,75 @@ def _embedded_revision(root, embedded_rel, version):
         evidence="%s：%s；%s：%s" % (_REL, version, readme_rel, got))
 
 
+def _git(root, *args):
+    """只读 git 调用：不抢可选锁（与并行的 git 操作不互相干扰），路径原样输出。"""
+    cmd = ["git", "--no-optional-locks", "-C", root, "-c", "core.quotepath=false"] + list(args)
+    return subprocess.run(cmd, capture_output=True, timeout=60)
+
+
+def _embedded_readonly(root, embedded_rel):
+    """内嵌运行时的一条判定：内嵌目录下有没有已跟踪文件的改动（01 §8：`.std/` 只读）。
+
+    看工作区与暂存区两边（`git status`），不只看暂存区：`git commit -a` 在提交前钩子之后才暂存。
+    不看未跟踪文件——`__pycache__` 之类会误报；新建文件要进提交须先 `git add`，那时已是已跟踪。
+    先确认内嵌目录确实被本仓跟踪：被 .gitignore 忽略、或是嵌套的独立 clone 时 `git status`
+    恒为空，拿空输出判 PASS 就是假通过（契约 §1：空输出不是通过）。
+    """
+    why = ("01 §8：内嵌的 `.std/` 只放标准，只读、升级时整体替换，项目不在里面改——就地改下次升级会被"
+           "覆盖（上游没改的行 subtree pull 还会静默保留本地改动），合规结论也不再可复算")
+    where = "%s/" % embedded_rel
+
+    def _unknown(out, what):
+        return finding(
+            NAME, UNDETERMINED, "查不了 %s 有无改动" % where,
+            where=where, kind="embedded-readonly-unknown",
+            reason="%s 退出码 %d：%s" % (
+                what, out.returncode, (out.stderr or b"").decode("utf-8", "replace").strip()[:200]),
+            why=why)
+
+    try:
+        listed = _git(root, "ls-files", "-z", "--", embedded_rel)
+        if listed.returncode != 0:
+            return _unknown(listed, "git ls-files")
+        if not (listed.stdout or b"").strip(b"\0"):
+            return finding(
+                NAME, UNDETERMINED, "%s 没有被本仓 git 跟踪，判不了它有没有被改" % where,
+                where=where, kind="embedded-untracked",
+                reason="`git ls-files -- %s` 为空：内嵌目录被 .gitignore 忽略，或是嵌套的独立 clone，"
+                       "本仓的 git status 看不见里面的改动；按「接入一个项目」用 subtree 取用"
+                       % embedded_rel,
+                why=why)
+        out = _git(root, "status", "--porcelain", "--untracked-files=no", "--", embedded_rel)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return undetermined_from_exception(NAME, exc, "查 %s 有无改动（git）" % where)
+    if out.returncode != 0:
+        return _unknown(out, "git status")
+    lines = [ln for ln in (out.stdout or b"").decode("utf-8", "replace").splitlines() if ln.strip()]
+    if not lines:
+        return finding(
+            NAME, PASS, "%s 只读：没有已跟踪文件被改动" % where,
+            where=where, why=why,
+            evidence="`git status --porcelain --untracked-files=no -- %s` 输出为空" % embedded_rel)
+    return finding(
+        NAME, FAIL, "%s 只读，改标准走合并回标准仓再 subtree pull" % where,
+        where=where, kind="embedded-modified",
+        reason="%s 下有 %d 个已跟踪文件被改动（已暂存或未暂存）；先移出如 `git stash push -- %s`"
+               "（不丢内容），要改标准就把改动合并回标准仓再 subtree pull"
+               % (where, len(lines), embedded_rel),
+        why=why,
+        evidence="`git status --porcelain --untracked-files=no -- %s`：\n%s"
+                 % (embedded_rel, "\n".join(lines[:10])))
+
+
+def _readonly_findings(root, embedded):
+    if not embedded:
+        return [finding(
+            NAME, SKIP, "内嵌目录只读：非内嵌运行，不适用",
+            reason="被扫根下没有正在运行的本工具（在标准仓自身、或用仓外的工具副本扫项目）："
+                   "被扫项目里的内嵌目录不是正在跑的这份，是不是内嵌、在哪都无从确认")]
+    return [_embedded_readonly(root, embedded)]
+
+
 def scope(cfg):
     return {
         "covered": [
@@ -121,6 +195,8 @@ def scope(cfg):
             "把读到的版本值原样写进证据，供人核",
             "以内嵌方式运行时（本工具在被扫项目的 .std/ 之类目录里）：版本值与内嵌标准 "
             "<内嵌目录>/标准/README.md 里「候选实现修订：`…`」的值是否相等，不等判 FAIL",
+            "以内嵌方式运行时：内嵌目录下有没有已跟踪文件的改动（git status，含已暂存与未暂存），"
+            "有判 FAIL（01 §8 只读）；git 查不了记未定",
         ],
         "not_covered": [
             "不验证读到的版本值背后的 tag 是否真实存在——核实它要联网或读被扫项目之外的 git 元数据，本工具两样都不做",
@@ -136,11 +212,15 @@ def scope(cfg):
             "本检查对该项不产出任何发现：调和该由上游做，不由每份报告里塞一条恒定未定代劳",
             "不核实 adopted_at 的日期是否属实，也不判它与版本发布时间的先后",
             "只看 %s 这一个位置：01 §3.1 把它定在这里，项目挪了位置本检查报缺失而不去猜" % _REL,
+            "内嵌目录没被本仓 git 跟踪（被忽略或是嵌套的独立 clone）时记未定 embedded-untracked，不判改没改；"
+            "内嵌目录只读：不看未跟踪文件（新建而未 git add 的），不看已提交进历史的改动"
+            "——后者用 `git log --oneline -- .std` 查（见 tools/std/README「升级」）；非内嵌运行不判",
         ],
     }
 
 
-def run(cfg):
+def run(cfg, tool_root=None):
+    """tool_root 只为自检注入（同 stdlib.embedded_std_rel），生产路径不传。"""
     tailored, reason = is_tailored_out(cfg, NAME)
     if tailored:
         return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
@@ -148,6 +228,7 @@ def run(cfg):
     root = cfg.get("_root") or "."
     path = os.path.join(root, _REL)
     out = []
+    embedded = embedded_std_rel(root, tool_root)
 
     if not os.path.isfile(path):
         out.append(finding(
@@ -158,13 +239,13 @@ def run(cfg):
                 "『我原来是哪一版』无从回答，§4.7『标准升级』那一行也就没有可执行的起点",
             evidence="按 cfg[_root] 拼出的路径不存在：%s" % path,
         ))
-        return out
+        return out + _readonly_findings(root, embedded)
 
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             text = fh.read()
     except OSError as exc:
-        return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)]
+        return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)] + _readonly_findings(root, embedded)
 
     version, adopted, pairs = _parse(text)
     raw_head = "；".join(ln.strip() for ln in text.splitlines() if ln.strip())[:200] or "（空文件）"
@@ -189,7 +270,6 @@ def run(cfg):
                      "值原样列在这里，供人核。" % version,
         ))
 
-    embedded = embedded_std_rel(root)
     if embedded and version:
         out.append(_embedded_revision(root, embedded, version))
 
@@ -214,7 +294,7 @@ def run(cfg):
                      "本检查不核实这个日期是否属实，也不判它与版本发布的先后。" % adopted,
         ))
 
-    return out
+    return out + _readonly_findings(root, embedded)
 
 
 # --------------------------------------------------------------------------
@@ -231,8 +311,8 @@ _MUTANT_TOOL_VERSION = "2026-09-10"
 _pristine_run = run
 
 
-def run(cfg):  # noqa: F811
-    out = _pristine_run(cfg)
+def run(cfg, tool_root=None):  # noqa: F811
+    out = _pristine_run(cfg, tool_root)
     path = os.path.join(cfg.get("_root") or ".", _REL)
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
@@ -279,6 +359,105 @@ def _value_insensitive(run_fn, tmp):
     return a == b, (a, b)
 
 
+# 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行（同 check_derived 的 _GIT_ID）
+_GIT_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
+           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+           "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
+
+
+def _git_fixture(repo, *args):
+    cmd = ["git", "-C", repo, "-c", "init.defaultBranch=main"] + _GIT_ID + list(args)
+    r = subprocess.run(cmd, capture_output=True, timeout=60)
+    if r.returncode != 0:
+        raise RuntimeError("git %s 退出码 %d：%s" % (
+            " ".join(args), r.returncode, (r.stderr or b"").decode("utf-8", "replace")[:200]))
+
+
+def _embedded_repo(repo, ignore_std=False):
+    """造一个内嵌采用项目：STANDARD_VERSION 与内嵌 README 修订号一致，`.std/` 已提交
+    （ignore_std 时 `.std/` 被 .gitignore 忽略、从未跟踪）。返回内嵌目录路径（即注入的 tool_root）。"""
+    files = {
+        _REL: u"2026-09-22.2\nadopted_at: 2025-03-03\n",
+        ".std/标准/README.md": u"**候选实现修订：`2026-09-22.2`。**\n",
+        ".std/x.md": u"标准\n",
+    }
+    if ignore_std:
+        files[".gitignore"] = u".std/\n"
+    for rel, body in files.items():
+        path = os.path.join(repo, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(body)
+    _git_fixture(repo, "init", "-q")
+    _git_fixture(repo, "add", "-A")
+    _git_fixture(repo, "commit", "-q", "-m", "s")
+    return os.path.join(repo, ".std")
+
+
+def _readonly_selftest():
+    """经 run() 注入 tool_root 走真实的内嵌分支：
+    未暂存改动 → FAIL（覆盖 `git commit -a`）、已暂存改动 → FAIL、干净与仅未跟踪新文件 → PASS、
+    内嵌目录被 .gitignore 忽略 → 未定 embedded-untracked、不在 git 仓库 → 未定。"""
+    def _ro(fs):
+        hit = [f for f in fs if f["id"].startswith(NAME + "/") and "只读" in f["title"]
+               or f["id"] in ("adoption/embedded-untracked", "adoption/embedded-readonly-unknown")]
+        return [(f["status"], f["id"]) for f in hit]
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = os.path.join(tmp, "repo")
+            tr = _embedded_repo(repo)
+            cfg = {"_root": repo}
+            clean = _ro(run(cfg, tool_root=tr))
+            with io.open(os.path.join(repo, ".std", "new.md"), "w", encoding="utf-8") as fh:
+                fh.write(u"未跟踪\n")
+            untracked = _ro(run(cfg, tool_root=tr))
+            with io.open(os.path.join(repo, ".std", "x.md"), "a", encoding="utf-8") as fh:
+                fh.write(u"就地改\n")
+            dirty_fs = run(cfg, tool_root=tr)
+            dirty = _ro(dirty_fs)
+            _git_fixture(repo, "add", "--", ".std/x.md")
+            staged = _ro(run(cfg, tool_root=tr))
+
+            ign = os.path.join(tmp, "ignored")
+            ignored = _ro(run({"_root": ign}, tool_root=_embedded_repo(ign, ignore_std=True)))
+
+            nogit = os.path.join(tmp, "nogit")
+            os.makedirs(os.path.join(nogit, ".std"))
+            # 临时目录的上级万一在某个 git 仓库里，nogit 就会被当成它的子目录；设天花板挡住上溯
+            saved = os.environ.get("GIT_CEILING_DIRECTORIES")
+            os.environ["GIT_CEILING_DIRECTORIES"] = tmp
+            try:
+                outside = _embedded_readonly(nogit, ".std")
+            finally:
+                if saved is None:
+                    os.environ.pop("GIT_CEILING_DIRECTORIES", None)
+                else:
+                    os.environ["GIT_CEILING_DIRECTORIES"] = saved
+
+            fail = [f for f in dirty_fs if f["id"] == "adoption/embedded-modified"]
+            ok = (len(clean) == 1 and clean[0][0] == PASS
+                  and untracked == clean
+                  and dirty == [(FAIL, "adoption/embedded-modified")]
+                  and staged == [(FAIL, "adoption/embedded-modified")]
+                  and bool(fail) and "git stash push -- .std" in fail[0]["reason"]
+                  and "只读" in fail[0]["title"]
+                  and ignored == [(UNDETERMINED, "adoption/embedded-untracked")]
+                  and outside["status"] == UNDETERMINED
+                  and outside["id"] == "adoption/embedded-readonly-unknown")
+            return finding(
+                NAME, PASS if ok else FAIL,
+                "内嵌目录只读（经 run() 注入内嵌）：未暂存或已暂存改动 FAIL embedded-modified、"
+                "干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定",
+                evidence="干净 %s；仅未跟踪 %s；未暂存 %s；已暂存 %s；被忽略 %s；非 git %s"
+                         % (clean, untracked, dirty, staged, ignored, (outside["status"], outside["id"])),
+                why="01 §8：内嵌的 `.std/` 只读；契约 §3 静默失效探测")
+    except Exception as exc:  # noqa: BLE001
+        return finding(NAME, FAIL, "内嵌目录只读的自检跑不起来",
+                       evidence="%s: %s" % (type(exc).__name__, exc),
+                       why="契约 §3：自检崩了，本检查器对目标仓库的结论作废")
+
+
 def selftest():
     """反例与正例。见契约 §3：抓不出违规的检查器，其结论作废。
 
@@ -287,15 +466,15 @@ def selftest():
     """
     results = []
     cases = [
-        (None, (FAIL,),
+        (None, (FAIL, SKIP),
          "反例：文件缺失应判 FAIL（01 §8 第一条）"),
-        (u"\n   \n", (FAIL, UNDETERMINED),
+        (u"\n   \n", (FAIL, UNDETERMINED, SKIP),
          "反例：空文件——版本读不出判 FAIL，采用日期读不出记未定"),
-        (u"adopted_at: 2025-03-03\n", (FAIL, PASS),
+        (u"adopted_at: 2025-03-03\n", (FAIL, PASS, SKIP),
          "反例：只有采用日期、读不出版本值应判 FAIL"),
-        (u"1.0\n", (PASS, UNDETERMINED),
+        (u"1.0\n", (PASS, UNDETERMINED, SKIP),
          "只有版本值、没有采用日期记未定：日期字段名是工具约定，落空不判 FAIL（契约 §1.1）"),
-        (_COMPLETE, (PASS, PASS),
+        (_COMPLETE, (PASS, PASS, SKIP),
          "正例：示例项目的实物形状应判 PASS，本检查器对该输入不再产出任何未定"),
     ]
     try:
@@ -356,11 +535,15 @@ def selftest():
             _put(u"**候选实现修订：`2026-09-22.2`。**\n")
             ids = [f["id"] for f in run(_write(tmp, u"2026-09-10\nadopted_at: 2025-03-03\n"))]
             results.append(finding(
-                NAME, PASS if (len(ids) == 2 and "adoption/version-mismatch" not in ids) else FAIL,
-                "非内嵌运行（被扫根不含本工具）时不产出内嵌修订号比对这一条",
+                NAME, PASS if (len(ids) == 3 and "adoption/version-mismatch" not in ids
+                               and not any("embedded-modified" in i for i in ids)) else FAIL,
+                "非内嵌运行（被扫根不含本工具）时不产出内嵌修订号比对，内嵌目录只读记不适用",
                 evidence="实得 %s" % ids,
                 why="只在内嵌运行时比对：外部工具副本扫项目时，被扫项目里的 .std/ 不是正在跑的这份",
             ))
+
+            # —— 内嵌目录只读（01 §8）：同上，直接测判定函数 ——
+            results.append(_readonly_selftest())
 
             # —— 变异验证 ——
             ok_real, detail_real = _value_insensitive(run, tmp)

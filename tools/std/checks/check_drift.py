@@ -682,7 +682,7 @@ def _git_commit(tmp):
     env = dict(os.environ)
     env["GIT_COMMITTER_DATE"] = _COMMIT_DATE
     env["GIT_AUTHOR_DATE"] = _COMMIT_DATE
-    # 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行（同 hooks/guard.py 的 selftest git()）
+    # 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行（同 check_derived 的 _GIT_ID）
     cmds = (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
             ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"],
             ["git", "-C", tmp, "-c", "user.email=a@b", "-c", "user.name=a",
