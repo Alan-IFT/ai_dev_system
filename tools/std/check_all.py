@@ -27,7 +27,7 @@ sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    embedded_std_rel, finding, load_config, load_exceptions, tracked_files,
+    embedded_std_rel, finding, finding_id, load_config, load_exceptions, tracked_files,
     undetermined_from_exception, work_root,
 )
 
@@ -520,22 +520,24 @@ def _entry_smoke_selftest():
 
 
 def _shared_fact_selftest(mods):
-    """跨检查器的三条反例：同一事实只报一次（契约 §1），同一工件只有一份候选、同一个配置键
-    只有一份缺省（01 §1 G2）。
+    """跨检查器的四条反例：同一事实只报一次（契约 §1），同一工件只有一份候选、同一个配置键
+    只有一份缺省或一种读法（01 §1 G2）。
 
     单个检查器的 selftest 看不见别的检查器，这几条只能在汇总层断言。来由：工作项目录
     不在时 layout / evidence / freshness 各报一条未定，采用方得为同一件事登记三行；
     状态工件的候选 layout 与 drift 各写一份且不一致，同一个项目被一个说"有"、一个说"没有"；
-    未配 layout.docs_root 时 layout 兜底取 docs，freshness 与 drift 却记未定。
+    未配 layout.docs_root 时 layout 兜底取 docs，freshness 与 drift 却记未定；
+    未配 layout.entry 时 layout 按候选找到入口，entry-budget 却记「未配置入口文件」。
     """
     import subprocess
     import tempfile
 
     by = dict((n, m) for n, m, err in mods if err is None)
     need = ("layout", "evidence", "freshness", "drift")
-    if any(n not in by for n in need):
+    if any(n not in by for n in need + ("entry-budget",)):
         return [finding("shared-fact", UNDETERMINED, "跨检查器自检缺检查器",
-                        reason="需要 %s，实有 %s" % ("/".join(need), "/".join(sorted(by))))]
+                        reason="需要 %s，实有 %s" % ("/".join(need + ("entry-budget",)),
+                                                   "/".join(sorted(by))))]
 
     def _repo(tmp, files):
         for rel, body in files.items():
@@ -608,6 +610,42 @@ def _shared_fact_selftest(mods):
             "未配 layout.docs_root：各检查器取同一个缺省 docs 并注明，不再一家兜底一家记未定",
             why="契约 §5：缺省只有一处（stdlib.docs_root_of），取了默认就在证据里写明",
             evidence="记未配置的 %r；freshness 按缺省判出的 %r" % (unset, judged)))
+
+        # D：未配 layout.entry。layout 与 entry-budget 按同一种读法（stdlib.entry_files）认入口：
+        #    两个候选同时在时都取第一个（AGENTS.md），候选入口超预算只记未定（契约 §1.1），
+        #    声明之后才判 FAIL；候选全不在时入口缺失只由 layout 报一次，entry-budget 记不适用。
+        got_d = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, {"AGENTS.md": u"x\n" * 20, "CLAUDE.md": u"@AGENTS.md\n"})
+            cfg = {"_root": tmp, "tier": "L0", "budgets": {"entry_lines": 10}}
+            got_d["layout"] = sorted(f["where"] for f in by["layout"].run(cfg)
+                                     if f["status"] == PASS and f["title"].startswith(u"入口 "))
+            got_d["guessed"] = [(f["id"], f["status"]) for f in by["entry-budget"].run(cfg)]
+            cfg["layout"] = {"entry": ["AGENTS.md"]}
+            got_d["declared"] = [f["status"] for f in by["entry-budget"].run(cfg)]
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, {"README.md": u"# 说明\n"})
+            cfg = {"_root": tmp, "tier": "L0"}
+            fs = by["layout"].run(cfg) + by["entry-budget"].run(cfg)
+            got_d["absent"] = sorted((f["id"], f["status"]) for f in fs if u"入口" in f["title"])
+            cfg["layout"] = {"entry": ["GONE.md"]}     # 声明了、文件不在：同样只由 layout 报
+            fs = by["layout"].run(cfg) + by["entry-budget"].run(cfg)
+            got_d["declared_absent"] = sorted((f["check"], f["status"], f["where"]) for f in fs
+                                              if u"入口" in f["title"])
+        want_d = {
+            "layout": ["AGENTS.md"],
+            "guessed": [("entry-budget/candidate-over/AGENTS.md", UNDETERMINED)],
+            "declared": [FAIL],
+            "declared_absent": [("entry-budget", SKIP, "GONE.md"), ("layout", FAIL, "GONE.md")],
+            "absent": sorted([("entry-budget/entry-absent", SKIP),
+                              (finding_id("layout", u"★ 入口 类工件没找到（entry）"), UNDETERMINED)]),
+        }
+        out.append(finding(
+            "shared-fact", PASS if got_d == want_d else FAIL,
+            "未配 layout.entry：layout 与 entry-budget 认同一个入口，候选超预算记未定，入口缺失只报一次",
+            why="01 §1 G2：同一配置一种读法（stdlib.entry_files）；契约 §1.1 候选只出通过或未定；"
+                "契约 §1 同一事实只报一次",
+            evidence="实得 %r；应得 %r" % (got_d, want_d)))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))
     return out

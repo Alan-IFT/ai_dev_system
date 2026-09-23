@@ -549,6 +549,7 @@ def in_frozen(cfg, relpath):
 # layout 与 drift 各写一份且两份不一致（一份照模板树、一份照标准仓自己的文件名），
 # 同一个项目会被两个检查器说成"有状态工件"和"没有状态工件"。文档根的缺省同理：
 # layout 与候选改基取 `docs`，freshness 与 drift 却记未定，同一份配置两种读法。
+# 入口同理：未配 layout.entry 时 layout 按候选找到了入口，entry-budget 却记「未配置入口文件」。
 # --------------------------------------------------------------------------
 
 # 01 §3.1 文档树的根。契约 §5：`layout.docs_root` 缺省取它并在证据里注明。
@@ -562,6 +563,11 @@ DEFAULT_WORK_ROOT = "docs/state/work"
 # 模板文件名（templates/PROJECT_STATUS.md）不是落点——PRD.md 落成 ACCEPTANCE.md 也是同一回事。
 STATUS_CANDIDATES = ("WORK.md", "docs/state/STATUS.md")
 
+# ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。`AGENTS.md` 是模板 L0 树的入口，
+# `CLAUDE.md` 是 Claude Code 默认读的文件名，`CONTEXT.md` 不在现行树里、保留它是兼容按旧模板
+# 落地的项目（删了它们的入口会无故变未定）。
+ENTRY_CANDIDATES = ("CONTEXT.md", "AGENTS.md", "CLAUDE.md")
+
 
 def docs_root_of(cfg):
     """文档根：`layout.docs_root`，未配则取 DEFAULT_DOCS_ROOT。
@@ -573,6 +579,25 @@ def docs_root_of(cfg):
     if raw:
         return str(raw), ""
     return DEFAULT_DOCS_ROOT, "docs_root 用的是默认 %s（未配 layout.docs_root）" % DEFAULT_DOCS_ROOT
+
+
+def entry_files(cfg):
+    """入口文件：项目声明优先，未声明则取 ENTRY_CANDIDATES 里第一个存在的。
+
+    返回 (相对路径列表, 注记)。注记为空＝取自项目声明（`layout.entry`，未配时认
+    `layout.artifacts.entry`），原样返回、不判存在；注记非空＝取自候选，列表只含命中的那一个，
+    候选全不在时为空。候选是工具约定：据此只许出 PASS 或未定，不许出 FAIL（契约 §1.1）。
+    """
+    declared = cfg_get(cfg, "layout.entry") or cfg_get(cfg, "layout.artifacts.entry")
+    if declared:
+        return [str(x) for x in ([declared] if isinstance(declared, str) else declared)], ""
+    root = cfg.get("_root") or "."
+    hits = [c for c in ENTRY_CANDIDATES if os.path.isfile(os.path.join(root, c))]
+    note = "未配 layout.entry，按候选 %s 的顺序取第一个存在的" % "、".join(ENTRY_CANDIDATES)
+    if not hits:
+        return [], note + "：都不存在"
+    return hits[:1], note + "：%s%s" % (
+        hits[0], "（同时存在 %s，未取）" % "、".join(hits[1:]) if hits[1:] else "")
 
 
 def note_default(findings, note):

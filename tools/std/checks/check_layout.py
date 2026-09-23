@@ -18,9 +18,9 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    DEFAULT_WORK_ROOT, FAIL, PASS, SKIP, STATUS_CANDIDATES, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, date_fields_of, docs_root_of, finding, is_tailored_out, rebase_docs,
-    undetermined_from_exception,
+    DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, PASS, SKIP, STATUS_CANDIDATES, STATUS_FIELDS,
+    UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, finding, is_tailored_out,
+    rebase_docs, undetermined_from_exception,
 )
 
 NAME = "layout"
@@ -34,8 +34,6 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 #   L1  该文件 §3「L1 · 一人多会话」的树
 #   L2  该文件 §4「L2 · 团队」的树
 #   L3  该文件 §5「L3 · 无人值守」的树
-# 入口候选里的 CONTEXT.md 已不在现行树里（L0 入口现为 AGENTS.md），保留它是为兼容按旧模板
-#   落地的项目——删了它们的入口会无故变未定。证据里把它标成兼容旧模板的候选。
 # ★ 三类（入口 / 验收 / 状态）取自 标准/01-项目管理标准.md §3.1 正文
 #   「最小起点是入口、验收、状态三类工件（标 ★）」。
 #
@@ -46,9 +44,10 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 # 每项候选路径给两套：模板的 L0 扁平摆法，以及 01 §3.1 大项目树的摆法
 # （01 §3.1 明说「文件路径可按 §3.1 合并映射」，所以命中任一即算存在）。
 # 项目可用 governance/project.yaml 的 layout.artifacts.<role> 指定自己的路径，
-# 指定了就只认它，不再猜候选。状态与实时状态源两项的候选别的检查器也要用，
-# 放在 stdlib（STATUS_CANDIDATES / DEFAULT_WORK_ROOT）只写一处；实时状态源未声明时
-# 先认 layout.work_root——工作项目录就是它的目录形态（01 §3.1 `state/work/`）。
+# 指定了就只认它，不再猜候选。入口、状态与实时状态源三项的候选别的检查器也要用，
+# 放在 stdlib（ENTRY_CANDIDATES / STATUS_CANDIDATES / DEFAULT_WORK_ROOT）只写一处；
+# 入口的解析（layout.entry 优先、未配取候选里第一个存在的）同在 stdlib.entry_files；
+# 实时状态源未声明时先认 layout.work_root——工作项目录就是它的目录形态（01 §3.1 `state/work/`）。
 #
 # **候选路径列不是判据依据，是提示。** 它只有两个用途：项目没声明时试着找一下，
 # 以及未命中时把这份清单写进 evidence，告诉采用方"该往哪儿放，或该在
@@ -57,14 +56,13 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 # --------------------------------------------------------------------------
 
 _TEMPLATE_SOURCE = "templates/文件树与落地路径.md"
-_LEGACY_CANDIDATES = {"CONTEXT.md": "兼容旧模板的候选"}   # 不来自现行树，见上
 _SNAPSHOT_DATE = "2026-09-10"
 
 # (role, 中文名, 是否 ★, 存在性判据, 候选相对路径)
 # 存在性判据：file=必须是文件 / dir=必须是目录 / any=文件或目录 / glob=通配命中任一
 _TIER_ITEMS = {
     "L0": [
-        ("entry", "入口", True, "file", ["CONTEXT.md", "AGENTS.md", "CLAUDE.md"]),
+        ("entry", "入口", True, "file", list(ENTRY_CANDIDATES)),
         ("acceptance", "验收", True, "any", ["ACCEPTANCE.md", "docs/product/acceptance"]),
         ("status", "状态", True, "any", list(STATUS_CANDIDATES)),
         ("playbook", "方法与坑", False, "any", ["PLAYBOOK.md", "docs/knowledge/PLAYBOOK.md"]),
@@ -157,13 +155,14 @@ def _has_field(head, field):
 def scope(cfg):
     tier = cfg_get(cfg, "tier")
     docs_root, dnote = docs_root_of(cfg)
-    entries = cfg_get(cfg, "layout.entry", []) or []
+    entries, guessed = entry_files(cfg)
     fields, used_default = date_fields_of(cfg)
     return {
         "covered": [
             "按 project.yaml 的 tier（当前 %s）查该档要求的工件在不在" % (tier or "未声明"),
-            "只在项目根、layout.entry（%s）与 layout.docs_root（%s）下解析工件路径"
-            % (", ".join(map(str, entries)) or "未配置", _norm(docs_root) + ("，默认" if dnote else "")),
+            "只在项目根、入口（%s）与 layout.docs_root（%s）下解析工件路径"
+            % ((", ".join(entries) or "没找到") + ("，按候选" if guessed else ""),
+               _norm(docs_root) + ("，默认" if dnote else "")),
             "只对 acceptance / status 两角色的 markdown 工件查 01 §3.5 的头部元信息："
             "日期字段 %s 与状态字段 %s"
             % ("/".join(fields) + ("（默认值）" if used_default else ""),
@@ -217,7 +216,6 @@ def _run(cfg):
         )]
 
     docs_root = _norm(docs_root_of(cfg)[0])
-    entries = [str(x) for x in (cfg_get(cfg, "layout.entry", []) or [])]
     overrides = cfg_get(cfg, "layout.artifacts") or {}
     if not isinstance(overrides, dict):
         overrides = {}
@@ -236,14 +234,16 @@ def _run(cfg):
             ))
             continue
 
-        # 入口以 layout.entry 为准：那是项目自己声明的默认加载合同
-        if role == "entry" and entries:
+        # 入口与 entry-budget 同一种读法（stdlib.entry_files）：声明优先，未声明取候选里存在的那个。
+        # 候选全不在时落到下面的通用分支，记 ★ 未定一次（entry-budget 那边记不适用）。
+        entries, guessed = entry_files(cfg) if role == "entry" else ([], "")
+        if entries:
             for rel in entries:
                 rel = _norm(rel)
                 if _exists(root, rel, "file"):
                     out.append(finding(
                         NAME, PASS, "入口 %s 在" % rel, where=rel,
-                        evidence="来自 layout.entry",
+                        evidence=guessed or "来自项目声明（layout.entry／layout.artifacts.entry）",
                     ))
                     md_to_check.append((role, label, rel))
                 else:
@@ -251,7 +251,8 @@ def _run(cfg):
                         NAME, FAIL, "★ 入口缺失：%s" % rel, where=rel,
                         why="01 §3.1：入口、验收、状态是最小起点（★）；01 §3.2 入口每次整份加载，"
                             "缺了默认加载合同就不成立",
-                        evidence="layout.entry 列了它，%s 下没有" % os.path.abspath(root),
+                        evidence="来自项目声明（layout.entry／layout.artifacts.entry），%s 下没有"
+                                 % os.path.abspath(root),
                     ))
             continue
 
@@ -268,9 +269,7 @@ def _run(cfg):
                 break
 
         src = src_key if override else \
-              "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(
-                  c + ("（%s）" % _LEGACY_CANDIDATES[c] if c in _LEGACY_CANDIDATES else "")
-                  for c in cand_list))
+              "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(cand_list))
 
         if hit is None:
             if star and override:
