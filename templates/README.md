@@ -19,10 +19,10 @@ governed_by：D-014、D-020
 
 - **[AGENTS.md](AGENTS.md)：agent 工作规范的常驻核**，按行业推荐标准配置。复制到项目根即生效（DSH / Claude Code / Codex 三家都读这个文件名），只填 §0。**只放"晚一秒就来不及"的规则**：权威位置、不可逆动作、三态、停机条件。
 - **[agent-skills/](agent-skills/)：同一套规范的按需层**，7 份，复制到 `<项目根>/.agents/skills/`。DSH 按 rank 200 自动扫描，**只有 description 常驻、正文命中才加载**。切分判据是"这条在它该生效那一刻必须已在上下文里吗"——是则进常驻核，否则进这里。
-- [Default Context Contract](CONTEXT_MANIFEST.md)：唯一声明默认/按需上下文入口。
+- [Default Context Contract](CONTEXT_MANIFEST.md)：唯一声明默认/按需上下文入口。落地为入口 `AGENTS.md` 的加载合同一节，不另建文件。
 - [PRD](PRD.md)：定义目标、范围和稳定验收 ID。
 - [架构说明](ARCHITECTURE.md)：记录当前有效系统设计。
-- [项目状态](PROJECT_STATUS.md)：里程碑摘要，不承载实时任务步骤。
+- [项目状态](PROJECT_STATUS.md)：里程碑摘要，不承载实时任务步骤。落地为 `WORK.md` 的摘要部分（01 §3.1 大项目树为 `docs/state/STATUS.md`）。
 - [工作项](WORK_ITEM.md)：实时任务状态源与验收到证据映射。
 - [会话交接](SESSION_HANDOFF.md)：带 worktree/HEAD/revision 的临时快照。
 - [ADR](ADR.md)：记录决策效力、范围、取舍与验证。

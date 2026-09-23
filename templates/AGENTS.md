@@ -1,6 +1,6 @@
 # AGENTS.md — Agent 工作规范（常驻核）
 
-> **用法**：复制到项目根命名 `AGENTS.md`；`templates/agent-skills/*.md` 复制到 `<项目根>/.agents/skills/`。DSH 自动加载两者（skill 只常驻标题行，正文按需）。Claude Code 用户把 skills 放 `.claude/skills/`。**只需填 §0。** 本引用块复制后删掉。
+> **用法**：复制到项目根命名 `AGENTS.md`；`templates/agent-skills/*.md` 复制到 `<项目根>/.agents/skills/`。DSH 自动加载两者（skill 只常驻标题行，正文按需）。Claude Code 用户把 skills 放 `.claude/skills/`。默认加载合同按 `templates/CONTEXT_MANIFEST.md` 写成本文件的一节。**只需填 §0。** 本引用块复制后删掉。
 
 **本文件只放"晚一秒就来不及"的规则。** 细则在 §6 的 skill 里，用到时才加载——这是刻意的：规则越多，每条被遵守的概率越低。
 
@@ -25,7 +25,7 @@
 
 ## 1. 权威位置：一次定死
 
-**每类事实只有一处。第二处副本即缺陷——引用写链接，不抄值。**
+**每类事实只有一处。第二处副本即缺陷——引用写链接，不抄值。** 表中路径以 `governance/project.yaml` 的 `layout.artifacts` 为准。
 
 | 事实 | 唯一位置 |
 |---|---|
@@ -33,7 +33,7 @@
 | 任务状态、下一步 | `WORK.md` |
 | 项目知识、踩过的坑 | `PLAYBOOK.md` |
 | 失败记录 | `FAILURES.md` |
-| 决策 | `docs/adr/NNNN-*.md` |
+| 决策 | `docs/decisions/ADR-*.md` |
 | 证据（测试/构建/部署结果） | CI 产物；`WORK.md` 只存指针 |
 | 代码结构、依赖、配置 | **代码本身——不写进本文件**，会先于代码过期 |
 
