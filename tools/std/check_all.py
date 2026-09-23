@@ -410,7 +410,7 @@ def _entry_smoke_selftest():
             if eol["lf"] == eol["mut"]:
                 raise AssertionError("契约 §8：内容不同的文件身份不应相等")
 
-            # 3g) 契约 §9 例外登记。四条断言**打在结果上，不打在退出码上**——退出码只有
+            # 3g) 契约 §9 例外登记。五条断言**打在结果上，不打在退出码上**——退出码只有
             #     三个取值，靠它分不清"登记生效了"与"这次恰好没别的未定"。
             und = [f for f in findings if f["status"] == UNDETERMINED]
             if not und:
@@ -480,6 +480,15 @@ def _entry_smoke_selftest():
                 raise AssertionError("④ 没过期的孤儿行不得报 expired")
             if not _has(fs, "orphan"):
                 raise AssertionError("④ rule 匹配不到任何 id 应多一条 exception-register/orphan")
+
+            skips = [f["id"] for f in findings if f["status"] == SKIP
+                     and not f["id"].startswith(("tool-identity/", EXCEPTION_CHECK + "/"))]
+            if not skips:
+                raise AssertionError("冒烟仓没有 SKIP 发现，⑤ 无从自检")
+            fs, _, _ = _register(skips[0], ok_day)
+            if not _has(fs, "orphan"):
+                raise AssertionError("⑤ rule 匹配到 SKIP（不是未定）也应报 exception-register/orphan，"
+                                     "否则死行会在日后该条转回未定时静默复活")
             os.remove(ex_path)
 
             # 3h) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
@@ -537,8 +546,9 @@ def _entry_smoke_selftest():
                  "内嵌目录自排除（embedded_std_rel 三例 + tracked_files 只剩项目自己的文件）、"
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
                  "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
-                 "例外登记四条（有效登记生效／过期不生效且报 expired／"
-                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired；有过期行时首部标出其中几行已过期）、"
+                 "例外登记五条（有效登记生效／过期不生效且报 expired／"
+                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan；"
+                 "有过期行时首部标出其中几行已过期）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
     return out
@@ -826,7 +836,6 @@ def _join_exceptions(findings, cfg):
 
     today = datetime.date.today()
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
-    all_ids = set(f.get("id") for f in findings)
     by_id = {}
     for f in findings:
         if f["status"] == UNDETERMINED:
@@ -835,10 +844,9 @@ def _join_exceptions(findings, cfg):
     expired, orphan = [], []
     for row in rows:
         hit = by_id.get(row["rule"])
-        if not hit:
-            if row["rule"] not in all_ids:
-                orphan.append(row)
-            continue                       # 匹配到 FAIL/PASS/SKIP：不可登记，也不是孤儿
+        if not hit:                        # 含匹配到 PASS/SKIP/FAIL：死行不留，免得日后条件变了静默复活
+            orphan.append(row)
+            continue
         if row["expires_date"] < today:
             expired.append(row)
             continue
@@ -877,7 +885,7 @@ def _join_exceptions(findings, cfg):
     if orphan:
         findings.append(finding(
             EXCEPTION_CHECK, UNDETERMINED,
-            "例外登记里有 %d 行的规则匹配不到本次任何发现" % len(orphan),
+            "例外登记里有 %d 行的规则匹配不到本次任何未定发现" % len(orphan),
             where=info["display"], kind="orphan",
             reason="；".join("第 %d 行 %s：%s" % (r["lineno"], r["ex_id"] or "（无编号）", r["rule"])
                              for r in orphan[:_MAX_REGISTER_LISTED])

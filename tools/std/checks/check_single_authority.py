@@ -34,7 +34,7 @@ STANDARD_REFS = ["01 §1 G2", "01 §2 N2", "01 §3.4", "01 §5.10"]
 # 只有当一组重复的**全部出现位置**都落在非文档文件时才丢弃。这样
 # 「文档抄了代码里的一段」（§5.10 的对象）仍然报得出来。
 _DOC_SUFFIXES = (".md", ".markdown", ".txt", ".rst", ".adoc", ".org")
-_MAX_DISCARDED_SAMPLES = 5       # 汇总那条未定里给几个代表位置
+_MAX_DISCARDED_SAMPLES = 5       # 汇总那条 SKIP 里给几个代表位置
 
 # 01 §3.7 没给这两个的数值，取本工具默认并在 evidence 里注明（契约 §5）
 _DEFAULT_MIN_LINES = 3
@@ -360,8 +360,8 @@ def scope(cfg):
         ],
         "not_covered": [
             u"判据 2、3 不判「全部出现位置都在非文档文件」的重复——源码与配置之间"
-            u"等价的重复实现归 02 §4 公共能力清单，按技术债处置，不在这里判失败；"
-            u"这些组汇总成一条未定，不静默丢弃",
+            u"等价的重复实现归 02 §4 公共能力清单，按技术债处置，不在这里判；"
+            u"这些组汇总成一条 SKIP（判据不适用，契约 §1），带代表位置，不静默丢弃",
             u"不把 .yaml / .json / .html 等配置与产物算作文档：它们之间的结构性重复"
             u"不进判据 2、3（判据 1 的逐字节相同仍然看它们）",
             u"不看非文本文件（二进制、含 NUL 或非 UTF-8 的文件）",
@@ -492,14 +492,15 @@ def _run(cfg):
         ))
     if code_blocks:
         out.append(finding(
-            NAME, UNDETERMINED,
+            NAME, SKIP,
             u"另有 %d 组重复文本块的全部出现位置都在非文档文件，本检查器不判" % len(code_blocks),
             kind=u"nondoc-dup-block",
             reason=u"判据 2 的对象是文档（01 §1 G2 限定「同一数值/状态/清单」、§3.4 限定"
                    u"「文档 A 复制文档 B 的一段」）。源码与配置之间等价的重复实现按 "
                    u"02 §4 公共能力清单的失败处置「记入技术债并指定收敛方向」，"
-                   u"不由本检查器判失败，也不当成通过",
-            why=u"契约 §1：判据本身不适用记未定",
+                   u"不由本检查器判失败，也不当成通过。判据的对象是文档，这组的全部位置"
+                   u"都不是文档，所以不适用",
+            why=u"契约 §1：不适用记 SKIP 并给理由",
             evidence=u"代表位置：%s%s" % (
                 u"、".join(u"%s:%d" % (rep["places"][0][0], rep["places"][0][1])
                           for rep in code_blocks[:_MAX_DISCARDED_SAMPLES]),
@@ -559,13 +560,14 @@ def _run(cfg):
             for r, v in [sorted(code_claims[key].items())[0]]
         )
         out.append(finding(
-            NAME, UNDETERMINED,
+            NAME, SKIP,
             u"另有 %d 组重复数值声明的全部出现位置都在非文档文件，本检查器不判" % len(code_claims),
             kind=u"nondoc-count-claim",
             reason=u"判据 3 的对象是文档里的值（01 §1 G2、§2 N2）。源码与配置之间的同形数字"
                    u"多为常量与样板，等价的重复实现按 02 §4 公共能力清单记入技术债，"
-                   u"不由本检查器判，也不当成通过",
-            why=u"契约 §1：判据本身不适用记未定",
+                   u"不由本检查器判，也不当成通过。判据的对象是文档，这组的全部位置"
+                   u"都不是文档，所以不适用",
+            why=u"契约 §1：不适用记 SKIP 并给理由",
             evidence=u"代表位置：%s%s" % (
                 u"、".join(samples),
                 u"（共 %d 组，只列前 %d 组）" % (len(code_claims), _MAX_DISCARDED_SAMPLES)
@@ -851,7 +853,8 @@ def selftest():
     # ---- 以下五条覆盖"判据 2、3 只判文档"这次收窄的边界。每条一个独立临时仓，
     #      不把 .py 与 .md 混在同一仓里断言 `FAIL in got`——那样分不清 FAIL 来自谁。
 
-    # 边界一：重复只出现在源码之间 → 不得判 FAIL，须留下汇总的那条未定
+    # 边界一：重复只出现在源码之间 → 不得判 FAIL，也不得记未定，须留下汇总的那条 SKIP
+    #         （判据不适用，契约 §1）；id 仍是 nondoc-dup-block，采用方旧登记行只失效不成孤儿
     try:
         with tempfile.TemporaryDirectory() as tmp:
             cfg = _mkrepo(tmp, {
@@ -861,17 +864,39 @@ def selftest():
             })
             res = run(cfg)
         got = [f["status"] for f in res]
-        summarized = [f for f in res if f["status"] == UNDETERMINED
+        summarized = [f for f in res if f["status"] == SKIP
                       and u"都在非文档文件" in f["title"]]
-        ok = FAIL not in got and len(summarized) == 1
+        ok = (FAIL not in got and UNDETERMINED not in got and len(summarized) == 1
+              and summarized[0]["id"] == NAME + u"/nondoc-dup-block")
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            u"边界一：重复只在 .py 之间应不判 FAIL，且汇总成一条未定",
-            evidence=u"实得 %s；汇总条数 %d" % (got, len(summarized)),
-            why=u"01 §1 G2 的对象是文档里的值；源码重复实现归 02 §4 技术债（契约 §1 记未定）",
+            u"边界一：重复只在 .py 之间应不判 FAIL、不记未定，且汇总成一条 SKIP（id 不变）",
+            evidence=u"实得 %s；汇总条数 %d；id %s" % (
+                got, len(summarized), summarized[0]["id"] if summarized else u"（无）"),
+            why=u"01 §1 G2 的对象是文档里的值；源码重复实现归 02 §4 技术债（契约 §1 不适用记 SKIP）",
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"边界一自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 边界一之二：同形数值只出现在源码之间 → 同样汇总成一条 SKIP，id 不变
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, dict(
+                ("svc/%s.py" % n, u"# 本模块共 12 个部件\nX_%s = 1\n" % n.upper())
+                for n in ("alpha", "beta", "gamma")))
+            res = run(cfg)
+        got = [f["status"] for f in res]
+        summarized = [f for f in res if f["id"] == NAME + u"/nondoc-count-claim"]
+        ok = (UNDETERMINED not in [f["status"] for f in res if u"都在非文档文件" in f["title"]]
+              and len(summarized) == 1 and summarized[0]["status"] == SKIP)
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"边界一之二：同形数值只在 .py 之间应汇总成一条 SKIP（id 不变）",
+            evidence=u"实得 %s；汇总 %s" % (got, [f["status"] for f in summarized]),
+            why=u"判据 3 的对象是文档里的值；源码常量归 02 §4 技术债（契约 §1 不适用记 SKIP）",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"边界一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 边界二：.md 抄了 .py 里的一段 → 仍须判 FAIL，且落点在 .md 不在 .py
     try:
