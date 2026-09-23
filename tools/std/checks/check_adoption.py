@@ -5,7 +5,9 @@
 `governance/STANDARD_VERSION`），并接住 01 §4.7「标准升级」那一行的验收判据
 （`STANDARD_VERSION` 与差异记录一致）。契约见 ../CONTRACT.md。
 
-**本检查只判"记没记"，不判"记得对不对"。** 标准仓的 tag 机制已经建立（版本值 = `release`
+**本检查主要判"记没记"；"记得对不对"只判一处**：以内嵌方式运行（本工具就在被扫项目的 `.std/`
+里）时，把记下的版本值与内嵌标准 `.std/标准/README.md` 第 3 行的「候选实现修订」比对，不一致判
+FAIL——两边都是被扫项目里的文件，比的是记录与实物。标准仓的 tag 机制已经建立（版本值 = `release`
 分支上的 tag 名，标准按该 tag 以 subtree 内嵌进项目的 `.std/`），但**核实那个 tag 是否真的
 存在，要么访问远端、要么读 `.std/` 之外的 git 元数据，本工具两样都不做**：不联网、不越出被扫
 项目。读到的值原样写进 evidence 供人核，**不与工具侧任何常量比对**——
@@ -24,8 +26,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP,
-    finding, is_tailored_out, undetermined_from_exception,
+    FAIL, PASS, SKIP, UNDETERMINED,
+    embedded_std_rel, finding, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "adoption"
@@ -40,6 +42,9 @@ _REL = "governance/STANDARD_VERSION"
 _VERSION_KEYS = ("standard_version", "version", "adopted_version", "标准版本", "采用版本")
 # §8 要求可追溯"何时采用的哪一版"，日期字段名放宽到这几个等价写法。
 _ADOPTED_KEYS = ("adopted_at", "adopted", "adoption_date", "采用日期", "采用时间")
+
+# 内嵌标准 README 第 3 行的修订号（`**候选实现修订：`2026-09-22.2`。**`）。
+_EMBED_REV_RE = re.compile(u"候选实现修订：`([^`]+)`")
 
 _KEY_LINE = re.compile(r"^([A-Za-z_][A-Za-z0-9_.\-]*|[一-鿿]+)\s*:\s*(.*)$")
 
@@ -77,6 +82,35 @@ def _parse(text):
     return version, adopted, pairs
 
 
+def _embedded_revision(root, embedded_rel, version):
+    """内嵌运行时的一条比对：STANDARD_VERSION 的版本值 vs 内嵌标准 README 的修订号。"""
+    readme_rel = "%s/标准/README.md" % embedded_rel
+    try:
+        with io.open(os.path.join(root, readme_rel), encoding="utf-8", errors="replace") as fh:
+            m = _EMBED_REV_RE.search(fh.read())
+    except OSError as exc:
+        return undetermined_from_exception(NAME, exc, "读 %s" % readme_rel)
+    why = ("01 §8 第一条：项目记录采用的标准版本；01 §4.7『标准升级』行的验收判据要求 "
+           "STANDARD_VERSION 与实际采用的一致")
+    if not m:
+        return finding(
+            NAME, UNDETERMINED, "内嵌标准的修订号取不到，没法与 %s 比对" % _REL,
+            where=readme_rel, kind="embedded-revision-unreadable",
+            reason="%s 里没有『候选实现修订：`…`』这一句" % readme_rel, why=why)
+    got = m.group(1)
+    if got == version:
+        return finding(
+            NAME, PASS, "%s 与内嵌标准的修订号一致" % _REL, where=_REL, why=why,
+            evidence="%s：%s；%s：%s" % (_REL, version, readme_rel, got))
+    return finding(
+        NAME, FAIL, "%s 记的版本与内嵌标准的修订号不一致" % _REL,
+        where=_REL, kind="version-mismatch",
+        reason="%s 记的是 %s，%s 的候选实现修订是 %s；升级后改 STANDARD_VERSION，在 pull 之后改"
+               % (_REL, version, readme_rel, got),
+        why=why,
+        evidence="%s：%s；%s：%s" % (_REL, version, readme_rel, got))
+
+
 def scope(cfg):
     return {
         "covered": [
@@ -84,11 +118,16 @@ def scope(cfg):
             "能否从中读出**版本值**（首行裸值，或 version/standard_version 键）",
             "能否从中读出**采用日期**（adopted_at 或等价键）",
             "把读到的版本值原样写进证据，供人核",
+            "以内嵌方式运行时（本工具在被扫项目的 .std/ 之类目录里）：版本值与内嵌标准 "
+            "<内嵌目录>/标准/README.md 里「候选实现修订：`…`」的值是否相等，不等判 FAIL",
         ],
         "not_covered": [
             "不验证读到的版本值背后的 tag 是否真实存在——核实它要联网或读被扫项目之外的 git 元数据，本工具两样都不做",
             "不与工具侧任何常量比对（check_all 的 _SMOKE_CONFIG、check_layout 的 _SNAPSHOT_DATE 都不比）；"
-            "拿工具自己的常量当真相比，结论就是编的",
+            "拿工具自己的常量当真相比，结论就是编的。内嵌运行时比对的对象是被扫项目里的内嵌 "
+            "README（记录与实物），不是工具常量",
+            "只在内嵌运行时比对修订号：在标准仓自身、或用仓外的工具副本扫项目时不产出这一条"
+            "——那时正在跑的不是被扫项目 .std/ 里那份，拿它的 README 比对说明不了项目实际采用的是哪版",
             "不判裁剪内容是否合理、是否完整——那是内容判断，契约 §7 说了不做",
             "不判裁剪登记齐不齐：裁剪的权威位置是 governance/project.yaml 的 tailoring"
             "（01 §3.2 职责卡的权威域逐字含『裁剪与派生登记』），本文件只承载采用的标准修订；"
@@ -144,10 +183,14 @@ def run(cfg):
             where="%s:1" % _REL,
             why="01 §8 第一条：项目记录采用的标准版本",
             evidence="读到的版本值（原样）：%s\n"
-                     "本检查到此为止：不核实该值背后的 tag 是否真实存在（要联网或读仓外 git 元数据，本工具不做），"
+                     "不核实该值背后的 tag 是否真实存在（要联网或读仓外 git 元数据，本工具不做），"
                      "也不与工具侧任何常量比对——拿工具自己的常量当真相比，结论就是编的。"
                      "值原样列在这里，供人核。" % version,
         ))
+
+    embedded = embedded_std_rel(root)
+    if embedded and version:
+        out.append(_embedded_revision(root, embedded, version))
 
     if not adopted:
         out.append(finding(
@@ -274,6 +317,46 @@ def selftest():
                 "正例的证据里带原样版本值与『不核实 tag、不比工具常量』的限定",
                 evidence="evidence 首 120 字：%s" % ev[:120].replace("\n", " / "),
                 why="契约 §4：evidence 要可复算；A2 的落点是把值写进报告供人核",
+            ))
+
+            # —— 内嵌运行时：STANDARD_VERSION 与内嵌标准第 3 行修订号比对 ——
+            # embedded_std_rel 依赖工具自身路径，自检模拟不了内嵌，故直接测比对函数，
+            # 另测 run() 在非内嵌时不产出这条。
+            readme = os.path.join(tmp, ".std", "标准", "README.md")
+            os.makedirs(os.path.dirname(readme), exist_ok=True)
+
+            def _put(text):
+                with io.open(readme, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(text)
+
+            _put(u"# 标准\n\n**候选实现修订：`2026-09-22.2`。** 其余说明。\n")
+            same = _embedded_revision(tmp, ".std", u"2026-09-22.2")
+            diff = _embedded_revision(tmp, ".std", u"2026-09-10")
+            _put(u"# 标准\n\n这一版没写修订号。\n")
+            blank = _embedded_revision(tmp, ".std", u"2026-09-22.2")
+            os.remove(readme)
+            gone = _embedded_revision(tmp, ".std", u"2026-09-22.2")
+            ev = same.get("evidence") or ""
+            ok = (same["status"] == PASS and "2026-09-22.2" in ev
+                  and _REL in ev and ".std/标准/README.md" in ev
+                  and diff["status"] == FAIL and diff["id"] == "adoption/version-mismatch"
+                  and "2026-09-10" in diff["reason"] and "2026-09-22.2" in diff["reason"]
+                  and blank["status"] == UNDETERMINED and gone["status"] == UNDETERMINED)
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "内嵌修订号比对：相等 PASS（证据带两值两路径）、不等 FAIL version-mismatch、"
+                "README 取不到值或读不到记未定",
+                evidence="实得 %s" % [(f["status"], f["id"]) for f in (same, diff, blank, gone)],
+                why="01 §4.7『标准升级』验收判据：STANDARD_VERSION 与实际采用的一致",
+            ))
+
+            _put(u"**候选实现修订：`2026-09-22.2`。**\n")
+            ids = [f["id"] for f in run(_write(tmp, u"2026-09-10\nadopted_at: 2025-03-03\n"))]
+            results.append(finding(
+                NAME, PASS if (len(ids) == 2 and "adoption/version-mismatch" not in ids) else FAIL,
+                "非内嵌运行（被扫根不含本工具）时不产出内嵌修订号比对这一条",
+                evidence="实得 %s" % ids,
+                why="只在内嵌运行时比对：外部工具副本扫项目时，被扫项目里的 .std/ 不是正在跑的这份",
             ))
 
             # —— 变异验证 ——
