@@ -657,3 +657,92 @@ def work_root_absent(check, cfg):
                "L0 档的工作项按模板合在状态工件里，不要求这个目录）。本检查不再另记一条未定",
         evidence="%s；负责报告的检查器：layout" % note,
     )
+
+
+# --------------------------------------------------------------------------
+# 工作项扫描：evidence 与 freshness 都要「列工作项目录下的 markdown → 读头部状态字段 → 聚合跳过项」，
+# 此前两边各持一份逐字相同的小工具（drift 另有路径两件），同一写法三处副本（01 §1 G2）。
+# --------------------------------------------------------------------------
+
+HEAD_CHARS = 4000   # 元信息只在文件头找；正文里再出现同名字段不算
+LIST_CAP = 12       # 聚合类 Finding 的证据里最多列几条路径
+
+
+def norm_rel(p):
+    return str(p).replace("\\", "/").strip()
+
+
+def under(rel, sub):
+    """rel 是否落在 sub 目录下。sub 为空或 '.' 视为整仓。"""
+    sub = norm_rel(sub).rstrip("/")
+    if sub in ("", "."):
+        return True
+    return rel == sub or rel.startswith(sub + "/")
+
+
+def markdown_under(root, sub):
+    """sub 目录下 git 跟踪的 markdown。返回 (相对路径列表, 问题)。"""
+    files, problem = tracked_files(root)
+    if problem:
+        return None, problem
+    return sorted(r for r in map(norm_rel, files) if r.lower().endswith(".md") and under(r, sub)), None
+
+
+def clean(value):
+    return str(value).replace("*", "").replace("`", "").strip()
+
+
+def find_field(text, names):
+    """在文本里找 `名字: 值` 或 `名字：值`。返回 (值, 命中的名字)，找不到返回 (None, None)。
+
+    值以换行、表格竖线或全角空格为界——示例项目把三个字段写在同一行，用全角空格分隔。
+    """
+    for name in names:
+        pat = r"(?:^|[\s　|*>-])" + re.escape(str(name)) + r"\s*[:：]\s*([^\n　|]*)"
+        m = re.search(pat, text, re.M | re.I)
+        if m:
+            return m.group(1).strip(), str(name)
+    return None, None
+
+
+def item_status(text):
+    """工作项头部的状态值（去装饰、去括注、小写）；没有状态字段返回 None。"""
+    raw, _hit = find_field(text[:HEAD_CHARS], STATUS_FIELDS)
+    return None if raw is None else re.split(r"[（(]", clean(raw))[0].strip().lower()
+
+
+def state_list(cfg, path, default):
+    """状态词表配置（列表或单个字符串），未配取 default。归一为去空白小写的列表。"""
+    states = cfg_get(cfg, path) or list(default)
+    if isinstance(states, str):
+        states = [states]
+    return [str(s).strip().lower() for s in states if str(s).strip()]
+
+
+def agg(check, status, title, paths, reason, why=""):
+    """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。"""
+    more = "" if len(paths) <= LIST_CAP else "；另有 %d 份未列出" % (len(paths) - LIST_CAP)
+    return finding(check, status, "%s（%d 份）" % (title, len(paths)),
+                   reason=reason, why=why, evidence="；".join(paths[:LIST_CAP]) + more)
+
+
+# 自检样本：写文件、让 git 跟踪（evidence / freshness / drift 的自检共用）
+
+def write_text(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
+
+
+def git_track(tmp):
+    """自检样本要被 git 跟踪才进得了扫描范围。返回 None 或错误串。"""
+    for cmd in (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
+                ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return "%s 跑不了：%s" % (cmd[0], exc)
+        if out.returncode != 0:
+            return "%s 退出码 %d：%s" % (" ".join(cmd[:3]), out.returncode,
+                                        (out.stderr or "").strip()[:200])
+    return None

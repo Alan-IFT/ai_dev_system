@@ -108,8 +108,11 @@ _RE_WS = re.compile(r"\s+")
 # 两位数在文档里一律是编号。本仓实测这一处收窄消掉的正是 `01 项目管理标`（10 文件）
 # 与 `02 条款`（4 文件）两组编号噪声，`44 篇公众号文`、`52 个独立来源`
 # 等真候选一条不少。反例见 selftest 的「探测三之三」。
+# 千分位只认半角逗号后恰好三位（「1,614」整取，不截成「614」），比较时去逗号。全角「，」是
+# 标点不是千分位：采用方实测的「截至 09-21，933 个自然日」是一个日期加一个计数，不是 21933。
+# 「3,45 个」「1、2」不并成一个数。反例见 selftest 的「探测三之五」。
 _RE_COUNT_CLAIM = re.compile(
-    u"(?<![0-9.])([1-9][0-9]+(?:[,，][0-9]{3})*)\\s*"
+    u"(?<![0-9.])([1-9][0-9]{0,2}(?:,[0-9]{3})+|[1-9][0-9]+)\\s*"
     u"(个|份|条|张|处|项|次|篇|轮|页|套|组|类|种|台|块|人|家|款|批|行|列|字|步)"
     u"([\\u4e00-\\u9fa5A-Za-z][\\u4e00-\\u9fa5A-Za-z_·]{0,3})"
 )
@@ -336,7 +339,7 @@ def _count_claims(files):
             for m in _RE_COUNT_CLAIM.finditer(line):
                 if _RE_ORDINAL_PREFIX.search(line, 0, m.start(1)):
                     continue
-                num = m.group(1).replace(u",", u"").replace(u"，", u"")
+                num = m.group(1).replace(u",", u"")
                 key = (num, m.group(2), m.group(3)[:_CLAIM_NOUN_KEY])
                 claims.setdefault(key, {}).setdefault(rel, (lineno, m.group(0)))
     return {k: v for k, v in claims.items() if len(v) >= _CLAIM_MIN_FILES}
@@ -835,6 +838,22 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, u"探测三之四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 探测三之五：千分位「1,614」与「1614」是同一个数；「3,45 个」「1、2」与全角「，」不并数。
+    try:
+        line = u"库里共 1,614 条记录，另有 3,45 个文件、1、2 项注，至 09-21，933 个自然日。\n"
+        keys = set(_count_claims([(u"k%d.md" % i, t, None) for i, t in
+                                  enumerate((line, line.replace(u"1,614", u"1614"), line))]))
+        want = {(u"1614", u"条", u"记录"), (u"45", u"个", u"文件"), (u"933", u"个", u"自然")}
+        results.append(finding(
+            NAME, PASS if keys == want else FAIL,
+            u"探测三之五：「1,614」与「1614」同键，「3,45」「1、2」「21，933」不并数",
+            evidence=u"实得 %s" % sorted(keys),
+            why=u"截成「614」会与别处的 614 误并，又与写成 1614 的同一事实漏并",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(
+            NAME, FAIL, u"探测三之五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:

@@ -29,9 +29,10 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    DEFAULT_WORK_ROOT, FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, docs_root_of, finding, in_frozen, is_tailored_out, note_default, read_text,
-    rebase_docs, tracked_files, undetermined_from_exception, work_root, work_root_absent,
+    DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
+    cfg_get, docs_root_of, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
+    rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
+    write_text,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
 # 再抄一份 markdown 表解析器必然与它漂（01 §1 G2）。
@@ -71,7 +72,6 @@ _LEAD_TRIM = u" \t　>#-*|"      # 行首装饰：引用、标题、列表、加
 
 _INDEX_NAMES = ("README.md", "INDEX.md")
 # 状态工件候选与工作项目录缺省在 stdlib（与 layout 共用一处），这里不另写。
-_LIST_CAP = 12
 
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _WI_RE = re.compile(r"\bWI-\d{3,}\b")
@@ -88,24 +88,13 @@ _ZERO_SHA = "0" * 40
 # 小工具
 # --------------------------------------------------------------------------
 
-def _norm_rel(p):
-    return str(p).replace("\\", "/").strip()
-
-
-def _under(rel, sub):
-    sub = _norm_rel(sub).rstrip("/")
-    if sub in ("", "."):
-        return True
-    return rel == sub or rel.startswith(sub + "/")
-
-
 def _md_under(files, sub):
-    return sorted(f for f in files if f.lower().endswith(".md") and _under(f, sub))
+    return sorted(f for f in files if f.lower().endswith(".md") and under(f, sub))
 
 
 def _cap(items):
-    shown = list(items)[:_LIST_CAP]
-    more = "" if len(items) <= _LIST_CAP else u"；另有 %d 条未列出" % (len(items) - _LIST_CAP)
+    shown = list(items)[:LIST_CAP]
+    more = "" if len(items) <= LIST_CAP else u"；另有 %d 条未列出" % (len(items) - LIST_CAP)
     return u"、".join(shown) + more
 
 
@@ -294,7 +283,7 @@ def _adr_dir(cfg, root, files, docs_root):
     """返回 (目录相对路径, 是否项目声明, 说不通时的 Finding)。"""
     declared = cfg_get(cfg, "layout.artifacts.decisions")
     if declared:
-        rel = _norm_rel(declared).rstrip("/")
+        rel = norm_rel(declared).rstrip("/")
         path = os.path.join(root, rel)
         if os.path.isfile(path):
             rel = os.path.dirname(rel) or "."
@@ -309,7 +298,7 @@ def _adr_dir(cfg, root, files, docs_root):
 
     found = set()
     for f in files:
-        if not _under(f, docs_root):
+        if not under(f, docs_root):
             continue
         parts = f.split("/")
         for i, seg in enumerate(parts[:-1]):
@@ -502,7 +491,7 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
 def _check_work_items(cfg, root, files):
     declared = cfg_get(cfg, "layout.artifacts.status")
     if declared:
-        status_rel = _norm_rel(declared).rstrip("/")
+        status_rel = norm_rel(declared).rstrip("/")
         status_path = os.path.join(root, status_rel)
         if not (os.path.isfile(status_path) or os.path.isdir(status_path)):
             return [finding(
@@ -543,7 +532,7 @@ def _check_work_items(cfg, root, files):
         return []
 
     wroot, note = work_root(cfg)
-    wroot = _norm_rel(wroot)
+    wroot = norm_rel(wroot)
     # 目录不在是 layout 报的那一件事（契约 §1）；逐 ID 再报一遍就是同一事实报 N 次。
     # L0 按模板把工作项写在 WORK.md 里、本就没有这个目录，更不该逐条报"没有文件"。
     absent = work_root_absent(NAME, cfg)
@@ -643,7 +632,7 @@ def run(cfg):
     if problem:
         return [finding(NAME, UNDETERMINED, u"列不出 git 跟踪的文档", reason=problem,
                         why=u"01 §2 N1：依赖不可用记未定，不记通过")]
-    files = [_norm_rel(f) for f in files if f.lower().endswith(".md")]
+    files = [norm_rel(f) for f in files if f.lower().endswith(".md")]
 
     out = []
     try:
@@ -686,12 +675,6 @@ def run(cfg):
 # --------------------------------------------------------------------------
 
 _COMMIT_DATE = "2026-09-21T05:26:00+08:00"      # 基准日 2026-09-21，不随运行机日期漂
-
-
-def _write(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(text)
 
 
 def _git_commit(tmp):
@@ -742,12 +725,12 @@ def selftest():
     # ---- 1a/1b/1d：真提交后比 blame 日；1c：未提交行取运行时刻 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         doc = os.path.join(tmp, "docs", "a.md")
-        _write(doc,
-               u"# 样本\n\n"
-               u"- 协调方 2026-09-22 裁定 X。\n"                        # 1a 报
-               u"- v1 保留至 2026-12-31。\n"                            # 1b 不报
-               u"- 批准 2026-05-12 → 到期 2026-10-31，届时复核。\n"      # 1b 不报
-               u"- 复查：2026-12-08（半年）——已复查，无回退。\n")        # 1d 不报
+        write_text(doc,
+                   u"# 样本\n\n"
+                   u"- 协调方 2026-09-22 裁定 X。\n"                        # 1a 报
+                   u"- v1 保留至 2026-12-31。\n"                            # 1b 不报
+                   u"- 批准 2026-05-12 → 到期 2026-10-31，届时复核。\n"      # 1b 不报
+                   u"- 复查：2026-12-08（半年）——已复查，无回退。\n")        # 1d 不报
         err = _git_commit(tmp)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs"}}
         res = run(cfg) if not err else []
@@ -774,16 +757,16 @@ def selftest():
 
     # ---- 2a/2b/2c：ADR 就地修订标记从第 0 个字符起 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        _write(os.path.join(tmp, "docs", "decisions", "README.md"),
-               u"# 索引\n\n| ID | 标题 | 状态 | 文件 |\n|---|---|---|---|\n"
-               u"| ADR-0001 | 甲 | active | [ADR-0001](ADR-0001-x.md) |\n"
-               u"| ADR-0002 | 乙 | active | ADR-0002 |\n")
-        _write(os.path.join(tmp, "docs", "decisions", "ADR-0001-x.md"),
-               u"# ADR-0001\n\n> **修订二**：补充了一段说明。\n")          # 2a 报
-        _write(os.path.join(tmp, "docs", "decisions", "ADR-0002-y.md"),
-               u"# ADR-0002\n\n正文里补充索引后，检索更快。\n")             # 2b 不报
-        _write(os.path.join(tmp, "docs", "notes", "变更记录.md"),
-               u"# 变更记录\n\n修订三：这份不在 decisions 下。\n")          # 2c 不报
+        write_text(os.path.join(tmp, "docs", "decisions", "README.md"),
+                   u"# 索引\n\n| ID | 标题 | 状态 | 文件 |\n|---|---|---|---|\n"
+                   u"| ADR-0001 | 甲 | active | [ADR-0001](ADR-0001-x.md) |\n"
+                   u"| ADR-0002 | 乙 | active | ADR-0002 |\n")
+        write_text(os.path.join(tmp, "docs", "decisions", "ADR-0001-x.md"),
+                   u"# ADR-0001\n\n> **修订二**：补充了一段说明。\n")          # 2a 报
+        write_text(os.path.join(tmp, "docs", "decisions", "ADR-0002-y.md"),
+                   u"# ADR-0002\n\n正文里补充索引后，检索更快。\n")             # 2b 不报
+        write_text(os.path.join(tmp, "docs", "notes", "变更记录.md"),
+                   u"# 变更记录\n\n修订三：这份不在 decisions 下。\n")          # 2c 不报
         err = _git_commit(tmp)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs",
                                         "artifacts": {"decisions": "docs/decisions"}}}
@@ -834,12 +817,12 @@ def selftest():
 
     # ---- 3a/3b/3c：索引对账，声明与回退的结论必须不同 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        _write(os.path.join(tmp, "docs", "decisions", "README.md"),
-               u"# 索引\n\n| ID | 标题 | 状态 | 文件 |\n|---|---|---|---|\n"
-               u"| ADR-0001 | 甲 | active | [ADR-0001](ADR-0001-x.md) |\n"
-               u"| ADR-0002 | 乙 | active | ADR-0002 |\n")
-        _write(os.path.join(tmp, "docs", "decisions", "ADR-0001-x.md"), u"# ADR-0001\n\n正文。\n")
-        _write(os.path.join(tmp, "docs", "decisions", "ADR-0003-y.md"), u"# ADR-0003\n\n正文。\n")
+        write_text(os.path.join(tmp, "docs", "decisions", "README.md"),
+                   u"# 索引\n\n| ID | 标题 | 状态 | 文件 |\n|---|---|---|---|\n"
+                   u"| ADR-0001 | 甲 | active | [ADR-0001](ADR-0001-x.md) |\n"
+                   u"| ADR-0002 | 乙 | active | ADR-0002 |\n")
+        write_text(os.path.join(tmp, "docs", "decisions", "ADR-0001-x.md"), u"# ADR-0001\n\n正文。\n")
+        write_text(os.path.join(tmp, "docs", "decisions", "ADR-0003-y.md"), u"# ADR-0003\n\n正文。\n")
         err = _git_commit(tmp)
         declared = {"_root": tmp, "layout": {"docs_root": "docs",
                                              "artifacts": {"decisions": "docs/decisions"}}}
@@ -870,10 +853,10 @@ def selftest():
 
     # ---- 4a/4b/4c：STATUS 声明的工作项 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        _write(os.path.join(tmp, "docs", "state", "STATUS.md"),
-               u"# 状态\n\n- WI-0001 在做。\n- WI-0003 也在做。\n")
-        _write(os.path.join(tmp, "docs", "state", "work", "WI-0003-a.md"), u"# WI-0003\n")
-        _write(os.path.join(tmp, "docs", "state", "work", "WI-0002-b.md"), u"# WI-0002\n")
+        write_text(os.path.join(tmp, "docs", "state", "STATUS.md"),
+                   u"# 状态\n\n- WI-0001 在做。\n- WI-0003 也在做。\n")
+        write_text(os.path.join(tmp, "docs", "state", "work", "WI-0003-a.md"), u"# WI-0003\n")
+        write_text(os.path.join(tmp, "docs", "state", "work", "WI-0002-b.md"), u"# WI-0002\n")
         err = _git_commit(tmp)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs",
                                         "artifacts": {"status": "docs/state/STATUS.md"}}}
@@ -904,9 +887,9 @@ def selftest():
 
     # ---- 4d/4e：状态源声明为目录（一件一文件）视为存在；路径不存在仍报 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        _write(os.path.join(tmp, "docs", "items", "a.md"), u"# 甲\n\n- WI-0007 在做。\n")
-        _write(os.path.join(tmp, "docs", "items", "sub", "b.md"), u"- WI-0009 不递归。\n")
-        _write(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
+        write_text(os.path.join(tmp, "docs", "items", "a.md"), u"# 甲\n\n- WI-0007 在做。\n")
+        write_text(os.path.join(tmp, "docs", "items", "sub", "b.md"), u"- WI-0009 不递归。\n")
+        write_text(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
         err = _git_commit(tmp)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}
         res = run(cfg) if not err else []
@@ -925,8 +908,8 @@ def selftest():
 
     # ---- 4f：L0 形态——WORK.md 里写着 WI-，没有工作项目录 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        _write(os.path.join(tmp, "WORK.md"), u"# 工作\n\n- WI-0001 在做。\n")
-        _write(os.path.join(tmp, "docs", "a.md"), u"# 甲\n")
+        write_text(os.path.join(tmp, "WORK.md"), u"# 工作\n\n- WI-0001 在做。\n")
+        write_text(os.path.join(tmp, "docs", "a.md"), u"# 甲\n")
         err = _git_commit(tmp)
         res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
         got = sorted(f["id"] for f in res if f["id"].startswith((u"drift/status", u"drift/work")))

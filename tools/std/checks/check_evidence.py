@@ -5,24 +5,21 @@
 ① 断言（具体说了什么）② 原始证据（命令 + 完整输出，或 CI 链接；不许只写结论）
 ③ 版本与工作区身份 ④ 适用范围 ⑤ 观察时间 ⑥ 确认方法。**缺一项声明无效。**
 
-契约见 ../CONTRACT.md。只用标准库。本模块与 check_freshness 各自实现了几个同名小工具
-（`_find_field` 等）——它们本该在 stdlib 里，但 stdlib 由多人并行使用，本次不改它。
+契约见 ../CONTRACT.md。只用标准库。工作项扫描的小工具（`find_field` 等）与 check_freshness 共用，在 stdlib。
 """
 from __future__ import annotations
 
-import io
 import os
 import re
-import subprocess
 import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, finding, is_tailored_out, read_text, tracked_files,
-    undetermined_from_exception, work_root, work_root_absent,
+    FAIL, PASS, SKIP, UNDETERMINED,
+    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status, markdown_under,
+    read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
 )
 
 NAME = "evidence"
@@ -31,8 +28,6 @@ STANDARD_REFS = ["01 §1 G4", "01 §2 N1", "01 §3.1", "01 §4.1", "01 §4.2"]
 _DEFAULT_DONE_STATES = ("done", "完成", "delivered")
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _EVIDENCE_HEADINGS = ("证据",)
-_HEAD_CHARS = 4000
-_LIST_CAP = 12
 
 # 六字段。顺序即匹配优先级：同一行命中多个时取靠前的那个。
 FIELDS = (
@@ -82,49 +77,9 @@ _PLACEHOLDERS = {
 # 小工具
 # --------------------------------------------------------------------------
 
-def _norm_rel(p):
-    return str(p).replace("\\", "/").strip()
-
-
-def _under(rel, sub):
-    sub = _norm_rel(sub).rstrip("/")
-    if sub in ("", "."):
-        return True
-    return rel == sub or rel.startswith(sub + "/")
-
-
-def _clean(value):
-    return str(value).replace("*", "").replace("`", "").strip()
-
-
 def _is_placeholder(value):
-    v = _clean(value).lower().replace(" ", "").replace("　", "")
+    v = clean(value).lower().replace(" ", "").replace("　", "")
     return v in _PLACEHOLDERS
-
-
-def _find_field(text, names):
-    for name in names:
-        pat = r"(?:^|[\s　|*>-])" + re.escape(str(name)) + r"\s*[:：]\s*([^\n　|]*)"
-        m = re.search(pat, text, re.M | re.I)
-        if m:
-            return m.group(1).strip(), str(name)
-    return None, None
-
-
-def _markdown_under(root, sub):
-    files, problem = tracked_files(root)
-    if problem:
-        return None, problem
-    out = [_norm_rel(f) for f in files
-           if _norm_rel(f).lower().endswith(".md") and _under(_norm_rel(f), sub)]
-    return sorted(out), None
-
-
-def _agg(status, title, paths, reason, why=""):
-    shown = paths[:_LIST_CAP]
-    more = "" if len(paths) <= _LIST_CAP else "；另有 %d 份未列出" % (len(paths) - _LIST_CAP)
-    return finding(NAME, status, "%s（%d 份）" % (title, len(paths)),
-                   reason=reason, why=why, evidence="；".join(shown) + more)
 
 
 # --------------------------------------------------------------------------
@@ -174,7 +129,7 @@ def _parse_list_blocks(rows):
         if m and not _label_field(ln)[0]:
             if cur:
                 blocks.append(cur)
-            cur = {"name": _clean(m.group("name")), "line": lineno, "fields": {},
+            cur = {"name": clean(m.group("name")), "line": lineno, "fields": {},
                    "limit_cols": [], "kind": "条目"}
             continue
         if cur is None:
@@ -218,7 +173,7 @@ def _map_header(cells):
     """表头 → {列号: 字段键}。以 _id 结尾的列当标识符，不当字段（acceptance_id 除外）。"""
     cols = {}
     for idx, cell in enumerate(cells):
-        name = _clean(cell).lower()
+        name = clean(cell).lower()
         if not name:
             continue
         if name.endswith("_id") and "acceptance" not in name:
@@ -253,7 +208,7 @@ def _parse_table_blocks(rows):
                     val = cells[idx]
                     if key not in blk["fields"] or _is_placeholder(blk["fields"][key]):
                         blk["fields"][key] = val
-                    if key == "scope" and any(w in _clean(header[idx]).lower()
+                    if key == "scope" and any(w in clean(header[idx]).lower()
                                               for w in _LIMIT_WORDS):
                         blk["limit_cols"].append(val)
                 blocks.append(blk)
@@ -322,10 +277,7 @@ def _run(cfg):
     root = cfg.get("_root") or "."
     wroot, wnote = work_root(cfg)
 
-    states = cfg_get(cfg, "work_item_done_states") or list(_DEFAULT_DONE_STATES)
-    if isinstance(states, str):
-        states = [states]
-    states = [str(s).strip().lower() for s in states if str(s).strip()]
+    states = state_list(cfg, "work_item_done_states", _DEFAULT_DONE_STATES)
     states_default = not cfg_get(cfg, "work_item_done_states")
     note = ("完成态用的是默认 %s（未配 work_item_done_states）" % "/".join(states)
             if states_default else "完成态取自 project.yaml：%s" % "/".join(states))
@@ -335,7 +287,7 @@ def _run(cfg):
     if absent:
         return [absent]
 
-    files, problem = _markdown_under(root, wroot)
+    files, problem = markdown_under(root, wroot)
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
@@ -348,11 +300,10 @@ def _run(cfg):
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
-        raw, _hit = _find_field(text[:_HEAD_CHARS], STATUS_FIELDS)
-        if raw is None:
+        status = item_status(text)
+        if status is None:
             nostatus.append(rel)
             continue
-        status = re.split(r"[（(]", _clean(raw))[0].strip().lower()
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
             continue
@@ -360,11 +311,11 @@ def _run(cfg):
         out.extend(_check_one(rel, text, status, note))
 
     if nostatus:
-        out.append(_agg(SKIP, "工作项目录下没有状态字段的文件", nostatus,
-                        reason="读不到状态字段，不当作工作项（README、索引之类）"))
+        out.append(agg(NAME, SKIP, "工作项目录下没有状态字段的文件", nostatus,
+                       reason="读不到状态字段，不当作工作项（README、索引之类）"))
     if other:
-        out.append(_agg(SKIP, "未完成的工作项不查完成证据", other,
-                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
+        out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other,
+                       reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
     if not out:
         out.append(finding(
             NAME, UNDETERMINED, "%s 下没有可判定的工作项" % wroot, where=wroot,
@@ -459,29 +410,10 @@ _FIVE = """**E-01**（INV-014，staging）
 """
 
 
-def _write(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with io.open(path, "w", encoding="utf-8") as fh:
-        fh.write(text)
-
-
-def _git_init(tmp):
-    for cmd in (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
-                ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]):
-        try:
-            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
-        except (OSError, subprocess.SubprocessError) as exc:
-            return "%s 跑不了：%s" % (cmd[0], exc)
-        if out.returncode != 0:
-            return "%s 退出码 %d：%s" % (" ".join(cmd[:3]), out.returncode,
-                                        (out.stderr or "").strip()[:200])
-    return None
-
-
 def _sample(tmp, body, frozen=None):
-    _write(os.path.join(tmp, "work", "WI-0001-x.md"),
-           "# WI-0001\n\n状态：**done**\n\n## 验收证据\n\n" + body)
-    err = _git_init(tmp)
+    write_text(os.path.join(tmp, "work", "WI-0001-x.md"),
+               "# WI-0001\n\n状态：**done**\n\n## 验收证据\n\n" + body)
+    err = git_track(tmp)
     layout = {"work_root": "work"}
     if frozen is not None:
         layout["frozen"] = frozen

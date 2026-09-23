@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import datetime
-import io
 import os
 import re
 import subprocess
@@ -23,9 +22,10 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, date_fields_of, docs_root_of, finding, in_frozen, is_tailored_out, note_default,
-    parse_date, parse_yaml_subset, read_text, tracked_files, undetermined_from_exception, work_root, work_root_absent,
+    FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
+    agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
+    is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
+    read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
 )
 
 NAME = "freshness"
@@ -79,49 +79,17 @@ def _metadata_requirement(cfg, rel):
 
 _DEFAULT_IN_PROGRESS = ("in_progress", "进行中")
 
-_HEAD_CHARS = 4000        # 元信息只在文件头找；正文里再出现同名字段不算
-_LIST_CAP = 12            # 聚合类 Finding 的证据里最多列几条路径
-
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _TRANSITION_FIELDS = ("last_transition_at", "state_changed_at", "最后状态转换时间", "状态更新时间")
 _TRANSITION_HEADINGS = ("状态转换记录", "状态转换", "转换记录", "transition")
 
 
 # --------------------------------------------------------------------------
-# 小工具（stdlib 里没有，按任务约定在本模块内实现，不改公共库）
+# 小工具（工作项扫描共用的几件在 stdlib）
 # --------------------------------------------------------------------------
 
-def _norm_rel(p):
-    return str(p).replace("\\", "/").strip()
-
-
-def _under(rel, sub):
-    """rel 是否落在 sub 目录下。sub 为空或 '.' 视为整仓。"""
-    sub = _norm_rel(sub).rstrip("/")
-    if sub in ("", "."):
-        return True
-    return rel == sub or rel.startswith(sub + "/")
-
-
-def _find_field(text, names):
-    """在文本里找 `名字: 值` 或 `名字：值`。返回 (值, 命中的名字)，找不到返回 (None, None)。
-
-    值以换行、表格竖线或全角空格为界——示例项目把三个字段写在同一行，用全角空格分隔。
-    """
-    for name in names:
-        pat = r"(?:^|[\s　|*>-])" + re.escape(str(name)) + r"\s*[:：]\s*([^\n　|]*)"
-        m = re.search(pat, text, re.M | re.I)
-        if m:
-            return m.group(1).strip(), str(name)
-    return None, None
-
-
-def _clean(value):
-    return str(value).replace("*", "").replace("`", "").strip()
-
-
 # 日期解析已提到 stdlib：例外登记的到期也要解析同样的形态，留两份必然漂（01 §1 G2）。
-# 本名保留是因为本模块内有七处调用点，改名只会制造无谓的 diff。
+# 本名保留是因为本模块内有多处调用点，改名只会制造无谓的 diff。
 _parse_date = parse_date
 
 
@@ -168,11 +136,11 @@ def _last_transition(text):
     类别 'absent' 表示文件里根本没写，可以退到提交时间；'bad' 表示写了但解析不了，
     按 01 §2 N1 记未定，不退到提交时间去猜。
     """
-    val, name = _find_field(text[:_HEAD_CHARS] + "\n" + text, _TRANSITION_FIELDS)
+    val, name = find_field(text[:HEAD_CHARS] + "\n" + text, _TRANSITION_FIELDS)
     if val:
         d, err = _parse_date(val)
         if d:
-            return d, "取自显式字段 %s = %s" % (name, _clean(val)), None
+            return d, "取自显式字段 %s = %s" % (name, clean(val)), None
         return None, None, ("bad", "字段 %s 的值解析不了（%s）" % (name, err))
 
     block = _section_body(text, _TRANSITION_HEADINGS)
@@ -201,33 +169,10 @@ def _int_budget(cfg, path, default):
     return raw, False, None
 
 
-def _markdown_under(root, sub):
-    """sub 目录下 git 跟踪的 markdown。返回 (相对路径列表, 问题)。"""
-    files, problem = tracked_files(root)
-    if problem:
-        return None, problem
-    out = []
-    for f in files:
-        rel = _norm_rel(f)
-        if rel.lower().endswith(".md") and _under(rel, sub):
-            out.append(rel)
-    return sorted(out), None
-
-
 def _note(used_default, name, value):
     if used_default:
         return "%s 用的是本工具默认值 %s，项目未校准（契约 §5）" % (name, value)
     return "%s = %s，取自 project.yaml" % (name, value)
-
-
-def _agg(status, title, paths, reason, why=""):
-    shown = paths[:_LIST_CAP]
-    more = "" if len(paths) <= _LIST_CAP else "；另有 %d 份未列出" % (len(paths) - _LIST_CAP)
-    return finding(
-        NAME, status, "%s（%d 份）" % (title, len(paths)),
-        reason=reason, why=why,
-        evidence="；".join(shown) + more,
-    )
 
 
 # --------------------------------------------------------------------------
@@ -243,7 +188,7 @@ def _classify_stats(cfg):
     docs_root = docs_root_of(cfg)[0]
     root = cfg.get("_root") or "."
     try:
-        files, problem = _markdown_under(root, docs_root)
+        files, problem = markdown_under(root, docs_root)
     except Exception:  # noqa: BLE001  覆盖边界不该把主流程带崩
         return None
     if problem or files is None:
@@ -335,7 +280,7 @@ def _check_docs(cfg, root, today, base):
     fnote = ("日期字段名用的是默认 %s（未配 metadata_fields）" % ", ".join(names)
              if names_default else "日期字段名取自 metadata_fields：%s" % ", ".join(names))
 
-    path = os.path.join(root, _norm_rel(docs_root))
+    path = os.path.join(root, norm_rel(docs_root))
     if not os.path.isdir(path):
         return [finding(
             NAME, UNDETERMINED, "文档根目录不存在：%s" % docs_root, where=str(docs_root),
@@ -344,7 +289,7 @@ def _check_docs(cfg, root, today, base):
             why="01 §3.1：文档树是约定的位置，位置不成立则新鲜度无从判起",
         )]
 
-    files, problem = _markdown_under(root, docs_root)
+    files, problem = markdown_under(root, docs_root)
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的文档", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
@@ -365,8 +310,8 @@ def _check_docs(cfg, root, today, base):
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
-        value, hit = _find_field(text[:_HEAD_CHARS], names)
-        if value is None or not _clean(value):
+        value, hit = find_field(text[:HEAD_CHARS], names)
+        if value is None or not clean(value):
             need = _metadata_requirement(cfg, rel)
             if need == "not_required":
                 out.append(finding(
@@ -386,7 +331,7 @@ def _check_docs(cfg, root, today, base):
                 NAME, FAIL, "缺日期字段：%s" % rel, where="%s:1" % rel,
                 why="01 §3.5 要求重要文档头部带 %s；01 §3.2 要求每份文档答得出"
                     "'它过期了怎么被发现'——没有日期就发现不了" % "/".join(names),
-                evidence="文件头 %d 字符内没有找到 %s。%s" % (_HEAD_CHARS, "/".join(names), fnote),
+                evidence="文件头 %d 字符内没有找到 %s。%s" % (HEAD_CHARS, "/".join(names), fnote),
             ))
             continue
 
@@ -394,7 +339,7 @@ def _check_docs(cfg, root, today, base):
         if d is None:
             out.append(finding(
                 NAME, UNDETERMINED, "日期解析不了：%s" % rel, where="%s:1" % rel,
-                reason="%s 的原文是 %r，%s；本工具不猜日期" % (hit, _clean(value), err),
+                reason="%s 的原文是 %r，%s；本工具不猜日期" % (hit, clean(value), err),
                 why="01 §2 N1：证据不足而无法判定记未定",
                 evidence=fnote,
             ))
@@ -423,11 +368,11 @@ def _check_docs(cfg, root, today, base):
             ))
 
     if frozen:
-        out.append(_agg(SKIP, "归档区文档不参与新鲜度", frozen,
-                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
+        out.append(agg(NAME, SKIP, "归档区文档不参与新鲜度", frozen,
+                       reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if declared_none:
-        out.append(_agg(
-            SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none,
+        out.append(agg(
+            NAME, SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none,
             reason="project.yaml 把 metadata_required 显式写成空列表：项目声明自己没有 "
                    "01 §3.5 那六类文档（验收、架构、模块、契约、ADR、runbook）。这是项目自己的声明，"
                    "故记不适用；声明错了由写下它的人负责，本工具不复核。"
@@ -436,8 +381,8 @@ def _check_docs(cfg, root, today, base):
     if unclassified:
         # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
-        out.append(_agg(
-            UNDETERMINED, "缺日期字段，且判不了它们属不属于 01 §3.5 的六类", unclassified,
+        out.append(agg(
+            NAME, UNDETERMINED, "缺日期字段，且判不了它们属不属于 01 §3.5 的六类", unclassified,
             reason="项目未配 metadata_required，且这些路径里没有出现 acceptance / architecture / "
                    "modules / contracts / decisions / runbooks 任一目录名。"
                    "『这份文档算不算验收/架构/模块/契约/ADR/runbook』要看内容，"
@@ -459,16 +404,13 @@ def _check_work_items(cfg, root, today, base):
                         why="01 §4.1 的复查时间是参数，但必须是可比较的数")]
     note = _note(used_default, "budgets.work_item_stale_days", days) + "；" + wnote
 
-    states = cfg_get(cfg, "work_item_in_progress_states") or list(_DEFAULT_IN_PROGRESS)
-    if isinstance(states, str):
-        states = [states]
-    states = [str(s).strip().lower() for s in states if str(s).strip()]
+    states = state_list(cfg, "work_item_in_progress_states", _DEFAULT_IN_PROGRESS)
 
     absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
     if absent:
         return [absent]
 
-    files, problem = _markdown_under(root, wroot)
+    files, problem = markdown_under(root, wroot)
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
@@ -484,11 +426,10 @@ def _check_work_items(cfg, root, today, base):
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
-        raw, _hit = _find_field(text[:_HEAD_CHARS], STATUS_FIELDS)
-        if raw is None:
+        status = item_status(text)
+        if status is None:
             nostatus.append(rel)
             continue
-        status = re.split(r"[（(]", _clean(raw))[0].strip().lower()
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
             continue
@@ -541,15 +482,15 @@ def _check_work_items(cfg, root, today, base):
             ))
 
     if frozen:
-        out.append(_agg(SKIP, "归档区工作项不参与活性巡检", frozen,
-                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
+        out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen,
+                       reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if nostatus:
-        out.append(_agg(SKIP, "工作项目录下没有状态字段的文件", nostatus,
-                        reason="读不到状态字段，不当作工作项（README、索引之类）；本检查只巡检有状态的工作项"))
+        out.append(agg(NAME, SKIP, "工作项目录下没有状态字段的文件", nostatus,
+                       reason="读不到状态字段，不当作工作项（README、索引之类）；本检查只巡检有状态的工作项"))
     if other:
-        out.append(_agg(SKIP, "非进行中状态的工作项", other,
-                        reason="01 §4.1 对 planned / blocked / in_validation 也要求巡检，"
-                               "但复查时间是每项自己约定的值，工具读不到，故不判"))
+        out.append(agg(NAME, SKIP, "非进行中状态的工作项", other,
+                       reason="01 §4.1 对 planned / blocked / in_validation 也要求巡检，"
+                              "但复查时间是每项自己约定的值，工具读不到，故不判"))
     if not out:
         out.append(finding(
             NAME, UNDETERMINED, "%s 下没有可判定的工作项" % wroot, where=wroot,
@@ -561,26 +502,6 @@ def _check_work_items(cfg, root, today, base):
 # --------------------------------------------------------------------------
 # 自检：反例与正例各一（契约 §3）
 # --------------------------------------------------------------------------
-
-def _write(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with io.open(path, "w", encoding="utf-8") as fh:
-        fh.write(text)
-
-
-def _git_init(tmp):
-    """自检样本要被 git 跟踪才进得了扫描范围。返回 None 或错误串。"""
-    for cmd in (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
-                ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]):
-        try:
-            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
-        except (OSError, subprocess.SubprocessError) as exc:
-            return "%s 跑不了：%s" % (cmd[0], exc)
-        if out.returncode != 0:
-            return "%s 退出码 %d：%s" % (" ".join(cmd[:3]), out.returncode,
-                                        (out.stderr or "").strip()[:200])
-    return None
-
 
 def _cfg(tmp, extra=None):
     cfg = {"_root": tmp,
@@ -595,9 +516,9 @@ def _sample(tmp, doc_text, work_text):
     # 放在 architecture/ 下：这份样本是**照着被测约定造的**，所以它只能证明
     # "约定命中时判得对"，结构上永远抓不到"约定与标准不匹配"那一类缺陷。
     # 那一类由下面的 _sample_unconventional 覆盖。
-    _write(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
-    _write(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
-    err = _git_init(tmp)
+    write_text(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
+    write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
+    err = git_track(tmp)
     return _cfg(tmp), err
 
 
@@ -609,12 +530,12 @@ def _sample_unconventional(tmp, work_text, metadata_required=None):
     一套英文目录名约定对它零命中）。中文名那份是关键——上面那份还能靠加
     `*runbook*` 文件名模式蒙对，中文树连蒙的机会都没有。
     """
-    _write(os.path.join(tmp, "docs", "ops", "pitr-runbook.md"),
-           "# PITR 恢复手册\n\n正文：按时间点恢复的操作步骤。\n")
-    _write(os.path.join(tmp, "docs", "运维", "数据恢复手册.md"),
-           "# 数据恢复手册\n\n正文：故障后的数据恢复步骤。\n")
-    _write(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
-    err = _git_init(tmp)
+    write_text(os.path.join(tmp, "docs", "ops", "pitr-runbook.md"),
+               "# PITR 恢复手册\n\n正文：按时间点恢复的操作步骤。\n")
+    write_text(os.path.join(tmp, "docs", "运维", "数据恢复手册.md"),
+               "# 数据恢复手册\n\n正文：故障后的数据恢复步骤。\n")
+    write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
+    err = git_track(tmp)
     extra = ({"metadata_required": list(metadata_required)}
              if metadata_required is not None else None)
     return _cfg(tmp, extra), err
