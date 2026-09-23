@@ -306,7 +306,9 @@ def _check_one(root, idx, item):
 # 自检（契约 §3）
 # --------------------------------------------------------------------------
 
-_GIT_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std"]
+# 夹具不受全局配置左右：不签名、不跑全局钩子（同 hooks/guard.py 的 selftest git()）
+_GIT_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
+           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
 
 
 def _git(root, *args, **kw):
