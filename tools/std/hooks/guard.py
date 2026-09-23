@@ -245,7 +245,8 @@ def selftest():
     root = _norm(tempfile.mkdtemp(prefix="stdguard-"))
     std, fails, total, G = root + "/.std", [], 0, "git commit -m x"
     try:
-        os.makedirs(std + "/tools/std")   # 只有内嵌目录必须真实存在：大小写归一要靠它
+        os.makedirs(std + "/tools/std")   # 只有内嵌目录必须真实存在：check_all 在位判定要靠这个占位
+        os.symlink(std, root + "/lnk")     # 经符号链接写进内嵌目录：realpath 解析后才判得出
         with io.open(std + "/tools/std/check_all.py", "w", encoding="utf-8") as fh:
             fh.write(u"# 占位\n")
 
@@ -261,6 +262,7 @@ def selftest():
                  (u"Edit settings", ed("Edit", root + "/.claude/settings.json"), "ask"),
                  (u"Notebook 内嵌目录",
                   ed("NotebookEdit", std + "/n.ipynb", "notebook_path"), "deny"),
+                 (u"Write 经符号链接进内嵌目录", ed("Write", root + "/lnk/x.md"), "deny"),
                  (u"假门 退出 0", bs(G, (0, u""))[0], None),
                  (u"假门 退出 1", bs(G, (1, u"结论：有失败。\n"))[0], "deny"),
                  (u"假门 退出 2", bs(G, (2, FAKE2))[0], "deny"),
