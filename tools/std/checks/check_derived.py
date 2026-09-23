@@ -328,7 +328,7 @@ def _commit(root, rel, body, when):
 
 _SRC = u'{"modules": ["inventory", "settlement"]}\n'
 _GOOD = u"""<!-- 派生缓存，权威是 src/map.json；不要手改，改动由下面的命令重建 -->
-<!-- regen: python tools/build_map.py -->
+<!-- regen: python3 tools/build_map.py -->
 <h1>模块图</h1>
 """
 _BAD = u"""<h1>模块图</h1>
@@ -365,7 +365,7 @@ def selftest():
             _commit(tmp, "docs/map.html", _BAD, "2026-01-02T00:00:00 +0000")
             cfg["derived"] = [{"artifact": "docs/map.html",
                                "source": "src/map.json",
-                               "regen": "python tools/build_map.py"}]
+                               "regen": "python3 tools/build_map.py"}]
             got = [f["status"] for f in run(cfg)]
         ok = FAIL in got
         results.append(finding(
@@ -384,7 +384,7 @@ def selftest():
             _commit(tmp, "src/map.json", _SRC, "2026-02-01T00:00:00 +0000")
             cfg["derived"] = [{"artifact": "docs/map.html",
                                "source": "src/map.json",
-                               "regen": "python tools/build_map.py"}]
+                               "regen": "python3 tools/build_map.py"}]
             got = [f["status"] for f in run(cfg)]
         ok = FAIL in got
         results.append(finding(
@@ -404,7 +404,7 @@ def selftest():
             _commit(tmp, "docs/map.html", _GENERATOR_ONLY, "2026-01-02T00:00:00 +0000")
             cfg["derived"] = [{"artifact": "docs/map.html",
                                "source": "src/map.json",
-                               "regen": "python tools/build_map.py"}]
+                               "regen": "python3 tools/build_map.py"}]
             res = run(cfg)
         hdr = [f for f in res if u"头部" in (f.get("title") or u"")]
         got = [f["status"] for f in res]
@@ -431,7 +431,7 @@ def selftest():
             _commit(tmp, "docs/map.html", _GOOD, "2026-01-02T00:00:00 +0000")
             cfg["derived"] = [{"artifact": "docs/map.html",
                                "source": "src/map.json",
-                               "regen": "python tools/build_map.py"}]
+                               "regen": "python3 tools/build_map.py"}]
             got = [f["status"] for f in run(cfg)]
         ok = bool(got) and set(got) == {PASS}
         results.append(finding(

@@ -102,7 +102,7 @@ class _Cache(object):
         self.errors = {}
 
     def path_kind(self, abspath):
-        key = os.path.normcase(os.path.normpath(abspath))
+        key = os.path.normpath(abspath)
         if key not in self.exists:
             self.exists[key] = os.path.exists(abspath)
             self.isdir[key] = os.path.isdir(abspath)
@@ -110,7 +110,7 @@ class _Cache(object):
 
     def anchors_of(self, abspath):
         """返回 (锚点集合, 出错原因)。读不了时锚点为 None。"""
-        key = os.path.normcase(os.path.normpath(abspath))
+        key = os.path.normpath(abspath)
         if key in self.anchors:
             return self.anchors[key], self.errors.get(key)
         try:

@@ -120,7 +120,7 @@ def _has_status_token(line):
 
 
 def _norm(path):
-    return os.path.normcase(os.path.normpath(os.path.abspath(path))).replace("\\", "/")
+    return os.path.normpath(os.path.abspath(path)).replace("\\", "/")
 
 
 def _is_git_repo(path):

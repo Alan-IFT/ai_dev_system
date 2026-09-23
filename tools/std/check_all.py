@@ -2,10 +2,10 @@
 """汇总入口：跑 checks/ 下的全部检查器，按三态汇总。
 
 用法：
-    python tools/std/check_all.py [项目根]           # 默认当前目录
-    python tools/std/check_all.py --selftest         # 只跑检查器自检
-    python tools/std/check_all.py --json             # 机器可读
-    python tools/std/check_all.py <项目> --config <别处的.yaml>
+    python3 tools/std/check_all.py [项目根]           # 默认当前目录
+    python3 tools/std/check_all.py --selftest         # 只跑检查器自检
+    python3 tools/std/check_all.py --json             # 机器可读
+    python3 tools/std/check_all.py <项目> --config <别处的.yaml>
         # 扫描只读项目：配置放在被测项目之外，全程不往被测项目写任何东西
 
 退出码：有 FAIL → 1；无 FAIL 但有**未登记**的 UNDETERMINED → 2；否则 0。
