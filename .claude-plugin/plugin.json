@@ -1,1 +1,0 @@
-{"name": "std", "description": "AI 辅助开发标准的 Claude Code 拦截层：.std/ 只读、提交前必过 check_all", "hooks": "./tools/std/hooks/hooks.json"}
