@@ -22,7 +22,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent  # 2026-09-02：脚本移入附录后多一层目录
 LOG = ROOT / "docs" / "决策日志.md"
 
-FORCE_STATES = ("提议", "试行", "已接受", "已取代", "已拒绝")
+FORCE_STATES = ("提议", "试行", "已接受", "已取代", "已拒绝", "已执行")
 EFFECTIVE_STATES = ("试行", "已接受")
 
 REQUIRED_FIELDS = {
