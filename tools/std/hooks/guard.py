@@ -30,13 +30,10 @@ INTERP = re.compile(r"\b(?:python3?|node)\b[^|]*\s-[ce]\b[^|]*(?:\bopen\s*\(|wri
 TAIL = u"不要修改 %s 内的判据；要改标准走合并回标准仓再 pull；未定项按 governance/exceptions.md 逐条登记"
 
 def _rel(target, base):
-    try:    # 跨盘符 relpath 会抛（契约 §4 为此踩过一次），按"不在其下"算，不崩
-        return os.path.relpath(target, base).replace("\\", "/")
-    except ValueError:
-        return ""
+    return os.path.relpath(target, base).replace("\\", "/")
 
 def _norm(path):
-    """反斜杠→正斜杠 + realpath（Windows 上顺带归一盘符与大小写）。"""
+    """反斜杠→正斜杠 + realpath。"""
     if not path:
         return ""
     try:
@@ -275,10 +272,6 @@ def selftest():
                  (u"subtree 带重定向不白名单",
                   bs("git subtree pull --prefix=.std . main > .std/log")[0], "ask"),
                  (u"check_all 不在位记 skip", bs(G, None, root + "/nostd")[3], u"skip")]
-        if os.name == "nt":
-            cases.append((u"Write 大小写 .STD", ed("Write", root + "/.STD/x.md"), "deny"))
-        else:
-            sys.stdout.write(u"跳过「Write 大小写 .STD」：非 Windows，realpath 不归一大小写\n")
         cases += [(u"Bash %s" % t.replace("\n", u"⏎")[:46], bs(t.format(N=".std"))[0], w)
                   for t, w in BASH_CASES]
         cases += [(u"commit? %s" % c,

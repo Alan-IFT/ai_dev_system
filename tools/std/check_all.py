@@ -337,29 +337,11 @@ def _entry_smoke_selftest():
             if u"（在被扫描项目内）" not in t2:
                 raise AssertionError("--config 指向项目内部时应如实标注在项目内")
 
-            # 3d) 跨盘符不许崩：commonpath / relpath 在 C: 对 D: 上抛 ValueError，
-            #     而 render 是在全部检查跑完之后才走到这一步的，崩在这里等于白跑一整轮。
-            for a, b in ((r"C:\proj", r"D:\elsewhere\project.yaml"),
-                         (r"C:\proj", r"C:\project\x.yaml"),
-                         (r"c:\proj", r"C:\proj\governance\project.yaml"),
-                         ("/t/proj", "/t/project/x.yaml"),
-                         ("/t/proj", "/t/proj/x.yaml")):
-                outside, why_o = config_outside_root(a, b)
-                if outside is None:
-                    raise AssertionError("config_outside_root(%r,%r) 判不了：%s" % (a, b, why_o))
-            # POSIX 形状断言的是**取值**，不只是"不崩"：本仓只跑 Linux（D-102），上面三条盘符
-            # 用例在这里只验得出不崩，带分隔符的前缀比较要靠下面两条把关。
+            # 3d) 前缀比较必须带分隔符：断言的是**取值**——/t/proj 不许把 /t/project 吞成内部。
             if config_outside_root("/t/proj", "/t/project/x.yaml")[0] is not True:
                 raise AssertionError("/t/proj 不该把 /t/project/x.yaml 吞成内部")
             if config_outside_root("/t/proj", "/t/proj/x.yaml")[0] is not False:
                 raise AssertionError("/t/proj 下的 /t/proj/x.yaml 应判为项目内")
-            if os.name == "nt":
-                if config_outside_root(r"C:\proj", r"D:\x\y.yaml")[0] is not True:
-                    raise AssertionError("跨盘符应判为项目外")
-                if config_outside_root(r"C:\proj", r"C:\project\x.yaml")[0] is not True:
-                    raise AssertionError("C:/proj 不该把 C:/project/x.yaml 吞成内部")
-                if config_outside_root(r"c:\proj", r"C:\proj\g\p.yaml")[0] is not False:
-                    raise AssertionError("盘符大小写不同应归一化后判为项目内")
 
             # 3e) 缺陷：默认配置的 `_path` 是**相对被扫根**的，判在不在项目内时却按**当前工作
             #     目录**解析它——工作目录 ≠ 被扫根时，项目自己的 governance/project.yaml 被说成
@@ -370,10 +352,10 @@ def _entry_smoke_selftest():
             with io.open(dflt_cfg, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(_SMOKE_CONFIG)
             cwd_before = os.getcwd()
-            if os.path.normcase(cwd_before) == os.path.normcase(proj):
+            if cwd_before == proj:
                 os.chdir(tmp)      # 自检正常在仓根跑；万一就在被扫根里跑，换个目录才验得出
             try:
-                if os.path.normcase(os.getcwd()) == os.path.normcase(proj):
+                if os.getcwd() == proj:
                     raise AssertionError("这一节要在工作目录 ≠ 被扫根时验，实得两者都是 %s" % proj)
                 f3, c3 = run_all(proj, selftest_only=False)
                 t3 = render(f3, proj, c3, show_scope=False)
@@ -530,7 +512,7 @@ def _entry_smoke_selftest():
                  "内嵌目录自排除（embedded_std_rel 三例 + tracked_files 只剩项目自己的文件）、"
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
                  "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
-                 "跨盘符与盘符大小写不崩、例外登记四条（有效登记生效／过期不生效且报 expired／"
+                 "例外登记四条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired；有过期行时首部标出其中几行已过期）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
@@ -785,27 +767,22 @@ def config_outside_root(root, path):
     在仓根跑 `check_all <项目>` 把项目自己的配置说成外部，`cd` 进该项目再跑又对了。
     所以非绝对路径先接到 `root` 上再归一化，与 `_config_dir` 同一做法。
 
-    实现上避开三个坑（都实测过）：
-
-    - `os.path.commonpath` / `os.path.relpath` **跨盘符抛 ValueError**（`C:` 对 `D:`）。
-      `render` 是在全部检查跑完之后才调它的，崩在这里等于白跑一整轮，所以不用这两个函数。
-    - `abspath` 不归一化盘符大小写（`c:/` != `C:/`），必须 `normcase`。
-    - 前缀比较必须**带分隔符**，否则 `C:/proj` 会把 `C:/project/x.yaml` 判成内部。
+    前缀比较必须**带分隔符**，否则 `/t/proj` 会把 `/t/project/x.yaml` 判成内部。
+    `render` 是在全部检查跑完之后才调它的，归一化出错也不许崩，按判不了返回 None。
     """
     try:
         raw_root = str(root or ".")
         raw_path = str(path)
         if not os.path.isabs(raw_path):          # 相对的 `_path` 是相对被扫根的，不是相对 CWD
             raw_path = os.path.join(raw_root, raw_path)
-        r = os.path.normcase(os.path.abspath(raw_root))
-        p = os.path.normcase(os.path.abspath(raw_path))
+        r = os.path.abspath(raw_root)
+        p = os.path.abspath(raw_path)
     except (OSError, ValueError) as exc:  # 归一化本身出问题也不许崩，按判不了处理
         return None, "路径归一化失败：%s: %s" % (type(exc).__name__, exc)
-    seps = [os.sep] + ([os.altsep] if os.altsep else [])
-    r = r.rstrip("".join(seps))
+    r = r.rstrip(os.sep)
     if p == r:
         return False, ""
-    return (not any(p.startswith(r + sep) for sep in seps)), ""
+    return not p.startswith(r + os.sep), ""
 
 
 def render(findings, root, cfg=None, show_scope=True):

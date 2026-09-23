@@ -14,8 +14,7 @@
 
 ## 前提
 
-- Linux / macOS，`python3`，不装任何第三方包。**Windows 不再是支持平台**（2026-09-22 起；此前的
-  Windows 实测只作历史记录）。入口与拦截层都以 `python3` 调用。
+- Linux / macOS，`python3`，不装任何第三方包。入口与拦截层都以 `python3` 调用。
 - **被扫描目录必须是 git 仓库。** 检查对象来自 `git ls-files`。不在 git 仓库里跑，links 与
   single-authority 会报"git ls-files 退出码 128"并记未定，整体退出 2。这不是工具坏了。
 - 项目根有 `governance/project.yaml`（或同名 `.yml`）。配置加载只认这两个路径；换个文件名
@@ -231,7 +230,7 @@ exec python3 .std/tools/std/check_all.py .
 4. heredoc 与变量拼接形式的写入不命中（`python - <<'P' … P`/`python3 - <<'P' … P` 那种）。
 5. 回执落在用户目录、按插件名共用：同一台机器上所有采用项目的回执混在一个文件里（行内带项目根可
    区分），跨机器对账要人工收集；`--plugin-dir` 与 marketplace 两种装法的回执还分在两个目录。
-6. 内嵌目录是符号链接／junction 时，`realpath` 会把它解析到项目外，整层漏判。
+6. 内嵌目录是符号链接时，`realpath` 会把它解析到项目外，整层漏判。
 
 与上面那段 git pre-commit 示意是**两层互补**，不是二选一：git 钩子拦人（但被 `--no-verify` 跳过、
 看不见 `git merge`），这一层拦 agent（拦得住 `--no-verify`，但只覆盖 Claude Code 自己发起的动作）。

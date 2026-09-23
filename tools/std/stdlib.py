@@ -472,10 +472,10 @@ def embedded_std_rel(root, tool_root=None):
     try:
         tr = os.path.realpath(str(tool_root or TOOL_ROOT))
         r = os.path.realpath(str(root or "."))
-        if os.path.normcase(tr) == os.path.normcase(r):
+        if tr == r:
             return None
         rel = os.path.relpath(tr, r).replace("\\", "/")
-    except (OSError, ValueError):   # 跨盘符 relpath 会抛，按"不在其下"算，不崩
+    except (OSError, ValueError):   # realpath 遇坏路径（如含 NUL）会抛，按"不在其下"算，不崩
         return None
     if rel == ".." or rel.startswith("../") or os.path.isabs(rel):
         return None
