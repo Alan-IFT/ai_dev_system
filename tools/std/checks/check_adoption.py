@@ -90,8 +90,8 @@ def _embedded_revision(root, embedded_rel, version):
             m = _EMBED_REV_RE.search(fh.read())
     except OSError as exc:
         return undetermined_from_exception(NAME, exc, "读 %s" % readme_rel)
-    why = ("01 §8 第一条：项目记录采用的标准版本；01 §4.7『标准升级』行的验收判据要求 "
-           "STANDARD_VERSION 与实际采用的一致")
+    why = ("01 §8 第一条：项目记录采用的标准版本；01 §4.7『标准升级』行的验收判据："
+           "『`STANDARD_VERSION` 与差异记录一致』——记录与内嵌进来的实物不是同一版，就对不上")
     if not m:
         return finding(
             NAME, UNDETERMINED, "内嵌标准的修订号取不到，没法与 %s 比对" % _REL,
@@ -347,7 +347,7 @@ def selftest():
                 "内嵌修订号比对：相等 PASS（证据带两值两路径）、不等 FAIL version-mismatch、"
                 "README 取不到值或读不到记未定",
                 evidence="实得 %s" % [(f["status"], f["id"]) for f in (same, diff, blank, gone)],
-                why="01 §4.7『标准升级』验收判据：STANDARD_VERSION 与实际采用的一致",
+                why="01 §4.7『标准升级』验收判据：『`STANDARD_VERSION` 与差异记录一致』",
             ))
 
             _put(u"**候选实现修订：`2026-09-22.2`。**\n")

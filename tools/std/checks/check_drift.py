@@ -65,7 +65,7 @@ _REVISION_MARKERS = (u"修订", u"变更记录", u"补充", u"更新于", u"追�
 # 以标记词开头却是指代句（「修订后的结论见 §13.1」），不是修订块——采用项目实测误报。
 _REVISION_NOT = (u"修订后",)
 # 英文标记常作普通名词（`revision id "0053_x"`），只在标题或标签形态才算：
-# `#` 标题行，或去装饰后该词后面紧跟 `:`／`：`／行尾。
+# `#` 标题行，或去装饰后该词后面紧跟 `:`／`：`／表格竖线／行尾。
 _REVISION_LABEL_ONLY = (u"revision", u"changelog")
 _LEAD_TRIM = u" \t　>#-*|"      # 行首装饰：引用、标题、列表、加粗、表格竖线
 
@@ -79,6 +79,8 @@ _WI_RE = re.compile(r"\bWI-\d{3,}\b")
 _ADR_RE = re.compile(r"ADR-\d+")
 _ADR_FILE_RE = re.compile(r"^(ADR-\d+)")
 _BLAME_HEAD = re.compile(r"^([0-9a-f]{40})\s+(\d+)\s+(\d+)(?:\s+(\d+))?$")
+# CommonMark 围栏：同一字符连续 3 个以上；闭合须同字符、不短于开围栏、其后只有空白。
+_FENCE_RE = re.compile(u"^(`{3,}|~{3,})(.*)$")
 _MD_LINK_RE = re.compile(r"\]\(([^)]+)\)")
 _ZERO_SHA = "0" * 40
 
@@ -335,12 +337,14 @@ def _revision_hits(text):
     out, fence = [], None
     for n, line in enumerate(text.splitlines(), 1):
         bare = line.lstrip(u" \t　>")
+        fm = _FENCE_RE.match(bare)
         if fence:                           # 围栏代码块里的行是样例，不是正文
-            if bare.startswith(fence):
+            if (fm and fm.group(1)[0] == fence[0] and len(fm.group(1)) >= len(fence)
+                    and not fm.group(2).strip()):
                 fence = None
             continue
-        if bare.startswith((u"```", u"~~~")):
-            fence = bare[:3]
+        if fm and not (fm.group(1)[0] == u"`" and u"`" in fm.group(2)):   # ```x``` 是行内代码
+            fence = fm.group(1)
             continue
         s = line.lstrip(_LEAD_TRIM)
         low = s.lower()
@@ -349,9 +353,9 @@ def _revision_hits(text):
         for mark in _REVISION_MARKERS:
             if not low.startswith(mark):
                 continue
-            rest = s[len(mark):].lstrip(u"*").rstrip()
+            rest = s[len(mark):].lstrip(u"* \t").rstrip()
             if (mark in _REVISION_LABEL_ONLY and not bare.startswith(u"#")
-                    and rest and rest[0] not in u":："):
+                    and rest and rest[0] not in u":：|"):
                 continue
             out.append((n, s[:40], mark))
             break
@@ -590,7 +594,7 @@ def scope(cfg):
             % (docs_root or u"（未配置）", _ACT_WINDOW, _PLAN_WINDOW),
             u"ADR 目录（layout.artifacts.decisions，当前 %r；未声明则在 docs_root 内找名为 "
             u"decisions 的目录）里除索引外、不在 frozen 内的 *.md：围栏代码块之外的行首是否以就地修订"
-            u"标记词开头（英文 revision/changelog 只认 `#` 标题或后跟冒号/行尾的标签形态；"
+            u"标记词开头（围栏按 CommonMark 开闭；英文 revision/changelog 只认 `#` 标题或后跟冒号/表格竖线/行尾的标签形态；"
             u"「修订后」开头的指代句不算）"
             % (decisions or u"（未声明）"),
             u"同一目录的索引（%s 的第一张表）与目录里 `ADR-<数字>` 实物的双向对账：索引有 ID 无实物、"
@@ -805,6 +809,20 @@ def selftest():
                 u"`## 修订记录`、`修订五：`、`> **修订：**`、`补充说明（…）`、`## Changelog`、`Revision: 2` 缺一即失败",
                 u"期望命中行 %s，实得 %s" % (want, [(n, s) for n, s, _m in hits]),
                 why=u"采用项目实测误报：围栏里的样例、英文 revision 作普通名词、「修订后」作指代")
+
+        # 2f/2g/2h：围栏按 CommonMark 开闭（同字符、长度 ≥ 开围栏；行首 ```x``` 是内联不开围栏）；
+        # 表格标签行 `| Revision | 2 |` 仍命中
+        sample = [u"````md", u"```", u"修订：外层围栏里的样例", u"```", u"````",
+                  u"修订六：外层围栏之后的真标记",                       # 第 6 行
+                  u"```x``` 是行内代码，不开围栏",
+                  u"修订七：内联代码之后的真标记",                       # 第 8 行
+                  u"| Revision | 2 |"]                                    # 第 9 行
+        got2 = sorted(n for n, _s, _m in _revision_hits(u"\n".join(sample)))
+        _assert(results, got2 == [6, 8, 9],
+                u"2f/2g/2h：4 反引号外层内嵌 ``` 后的真标记、行首 ```x``` 后的真标记、"
+                u"表格行 `| Revision | 2 |` 都须命中，外层围栏里的样例不得命中",
+                u"期望命中行 [6, 8, 9]，实得 %s" % got2,
+                why=u"CommonMark：闭合围栏须同字符且不短于开围栏；反引号围栏的信息串不得含反引号")
 
         # 3d：「文件」列写裸 ID 而实物叫 ADR-0002-y.md → 不得计入缺实物
         _assert(results, (not err) and _ids(res, "adr-index-missing") == [],
