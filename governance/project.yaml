@@ -13,9 +13,8 @@ layout:
   # 按默认常量找不到目录，各记一条 SKIP 指向 layout，不重复报（CONTRACT §1）。
   artifacts:                          # 本仓库的工件叫别的名字，按 01 §3.1「可按职责合并映射」登记
     status: PROJECT_STATUS.md
-    # 本仓库确实没有验收条目工件。声明落点是为了让它报 FAIL 而不是未定——
-    # "我没有这件工件" 与 "我没告诉你它在哪" 是两件事，前者是失败，后者才是未定。
-    acceptance: docs/product/acceptance/
+    failures: docs/失败Case清单.md
+    playbook: docs/附录-载体实例/仓库工作须知.md   # 仓内动手的机械约束与坑
   frozen:                             # 只读区：抓来的原文与历史归档，不承担更新义务
     - docs/归档                       # 已消化的输入目录归档区，见 docs/归档/README.md
     - docs/参考资料
@@ -31,3 +30,6 @@ tailoring:
   - check: cross-repo
     applicable: false
     reason: 单仓项目，01 §3.8 记不适用
+  - check: layout:acceptance            # Alan 2026-09-23 批准裁剪（D-111）
+    applicable: false
+    reason: D-057「本仓库不是一个交付软件的项目」，没有验收条目这类对象
