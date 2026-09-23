@@ -8,18 +8,23 @@ layout:
     - CONTEXT_MANIFEST.md             # 本仓库的入口叫这个名字，不叫 AGENTS.md
   docs_root: docs
   # work_root 不配：本仓库确实没有工作项目录（git ls-files 里没有任何 WI-* 或
-  # state/ 条目），原先写的 docs/state/work 并不存在，是一句假事实。删掉之后
-  # layout 的实时状态源（work_current）一项记一条未定——那是诚实结果；evidence/freshness
-  # 按默认常量找不到目录，各记一条 SKIP 指向 layout，不重复报（CONTRACT §1）。
+  # state/ 条目），原先写的 docs/state/work 并不存在，是一句假事实。实时状态源由
+  # 决策日志承担（下方 artifacts.work_current，D-112）；evidence/freshness 按默认常量
+  # 找不到工作项目录，各记一条 SKIP 指向 layout，不重复报（CONTRACT §1）。
   artifacts:                          # 本仓库的工件叫别的名字，按 01 §3.1「可按职责合并映射」登记
     status: PROJECT_STATUS.md
     failures: docs/失败Case清单.md
     playbook: docs/附录-载体实例/仓库工作须知.md   # 仓内动手的机械约束与坑
+    work_current: docs/决策日志.md    # 实时状态源：本仓不开工作项，进行中的事以决策日志状态列为准（D-112）
+    handoff: docs/附录-载体实例/会话交接.md   # 滚动单文件，每次交接整份重写，历史交给 git（D-112）
   frozen:                             # 只读区：抓来的原文与历史归档，不承担更新义务
     - docs/归档                       # 已消化的输入目录归档区，见 docs/归档/README.md
     - docs/参考资料
     - docs/参考资料-Claude
     - docs/审计记录
+
+metadata_required:                    # 01 §3.5 六类里本仓只有架构一类；决策日志是逐行日期的表，不列入（D-112）
+  - docs/架构确定.md
 
 budgets:
   entry_lines: 150
@@ -33,3 +38,6 @@ tailoring:
   - check: layout:acceptance            # Alan 2026-09-23 批准裁剪（D-111）
     applicable: false
     reason: D-057「本仓库不是一个交付软件的项目」，没有验收条目这类对象
+  - check: layout:work_artifacts        # Alan 2026-09-23 批准裁剪（D-112）
+    applicable: false
+    reason: 01 §3.1 允许工具原文用完即弃，本仓各决策行靠可复跑命令现取；本仓不建空目录，因为空目录在干净克隆和本机上的读数不一致
