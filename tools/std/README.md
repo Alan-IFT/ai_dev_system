@@ -182,7 +182,7 @@ exec python3 .std/tools/std/check_all.py . --no-scope
   "permissions": { "deny": ["Edit(/.std/**)"] },
   "hooks": { "PreToolUse": [{ "matcher": "Bash", "hooks": [{
     "type": "command", "if": "Bash(*git*commit*)",
-    "command": "cd \"$CLAUDE_PROJECT_DIR\" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2"
+    "command": "python3 -c \"import sys,json,re; sys.exit(0 if re.search(r'git.*commit', json.load(sys.stdin)['tool_input']['command'], re.S) else 3)\"; [ $? -eq 3 ] && exit 0; cd \"$CLAUDE_PROJECT_DIR\" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2"
   }]}]}
 }
 ```
@@ -191,13 +191,17 @@ exec python3 .std/tools/std/check_all.py . --no-scope
   全部内置编辑工具（Edit、Write、NotebookEdit），也作用于 Claude Code 认得出的 Bash 文件写——重定向
   目标、`tee`、`sed -i`、`cp`、`mv`、`rm`；读不受影响。deny 在任何权限模式下都生效，
   `bypassPermissions` 也不例外。
-- **提交前必过 `check_all`**：`if` 只让含 `git…commit` 字样的 Bash 命令触发这个钩子；`check_all` 退出
-  非 0（有 FAIL，或有未登记的未定）就 `exit 2`。**只有 exit 2 阻断**，其它非 0 退出码只是非阻断错误、
-  动作照常执行；检查结论走 stderr 回给模型，它看得到是哪一条没过。`.std/` 有改动时拦下提交的就是
-  上面那条 `adoption/embedded-modified`，不论 `.std/` 是被哪条命令改的。
-- **`if` 故意写宽**：`bash -c "git commit …"`、`env git commit`、`/usr/bin/git commit`、
-  `git -C … commit`、`git -c … commit` 都命中。代价是 `check_all` 红着的时候，含这两个词的只读命令
-  （如 `git log --grep=commit`）也被拦，拒绝信息就是完整的检查结论，照它清账即可。
+- **提交前必过 `check_all`**：命令前半段从 stdin 读出这条 Bash 命令的全文，明确判为不含 `git…commit`
+  （可跨行）才退出 3、`exit 0` 放行；其余都跑 `check_all`，退出非 0（有 FAIL，或有未登记的未定）
+  就 `exit 2`。**只有 exit 2 阻断**，其它非 0 退出码只是非阻断错误、动作照常执行；检查结论走 stderr
+  回给模型，它看得到是哪一条没过。`.std/` 有改动时拦下提交的就是上面那条
+  `adoption/embedded-modified`，不论 `.std/` 是被哪条命令改的。
+- **`if` 只是预过滤**：它按 Claude Code 解析出的子命令匹配，[官方文档](https://code.claude.com/docs/en/hooks#bash-if-matching)
+  说明这是尽力而为，解析不了的命令形状一律触发。实测会触发的有 `$(…)`、反引号、`{ …; }`（不带 `$`
+  与重定向也算）、循环体里用了变量；`$VAR` 作普通参数、单条重定向不触发。所以真正做判断的是命令
+  前半段，只看文本，故意写宽：`bash -c "git commit …"`、`env git commit`、`/usr/bin/git commit`、
+  `git -C … commit`、`git -c … commit` 都命中。代价是 `check_all` 红着的时候，文本含 `git…commit` 的
+  命令（如 `git log --grep=commit`）也被拦，拒绝信息就是完整的检查结论，照它清账即可。
 - **不另设的**：`.claude/` 与 `.git/` 是 Claude Code 的内置受保护路径，写入不会被自动放行
   （`bypassPermissions` 除外），不再自写规则。**不做成插件**：插件的 `settings.json` 不支持
   `permissions`，而拦 `.std/` 写入要的正是权限规则。
@@ -207,7 +211,12 @@ Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`�
 `.std/` 放行；`check_all` 红时 `git commit -am`、`bash -c "git commit …"`、`env git commit`、
 `/usr/bin/git commit` 全部被拒；`.std/` 有未暂存改动时 `git commit -am` 被拒、理由是
 `adoption/embedded-modified`，`git stash push -- .std` 放行，移出后提交放行；`check_all` 红时
-`git log --grep=commit` 也被拒（即上面说的代价）。
+`git log --grep=commit` 也被拒（即上面说的代价）。同日另测：只有 `if`、没有前半段时，真实采用项目里
+两条不含 commit 的复合命令（含 `$(git rev-parse --short HEAD)`）在 `check_all` 红时被拦；加上前半段
+（`claude -p` 实跑的是早先出错即放行的版本，与上面片段只在过滤自身出错时不同）后这两条与
+`echo $(git rev-parse HEAD)` 放行，上面的提交变形与 `git -C . commit`、`git -c x=y commit` 仍被拒。
+上面这版片段只在 shell 里配假 `check_all` 复跑过：`git commit`、反斜杠续行的提交、非 JSON 输入、缺
+`command` 字段在 `check_all` 红时都退出 2、绿时退出 0，`git status` 退出 0，`python3` 缺失退出 2。
 
 **盲区**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
 
@@ -217,10 +226,11 @@ Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`�
 2. 同一条 Bash 命令里先改 `.std/` 再提交（含 `git add -A && git commit` 带进新文件）：钩子在整条
    命令之前跑，看不见之后才发生的改动。
 3. 钩子超过时限（command 钩子默认 600 秒，可用 `timeout` 字段改）会被宿主取消，按官方文档不阻断，
-   提交照常执行。其它出错不在此列：`python3` 缺失（退出 127）、`cd` 失败都被 `|| exit 2` 转成阻断，
-   后果是每次提交都被拦（出错即拦），要先修好环境。
-4. git 别名（如 `git ci`）没有 `commit` 字样，不触发。`if` 匹配是尽力而为，Claude Code 判不出一条
-   命令会跑什么时照样触发钩子，不会因此漏掉。
+   提交照常执行。其它出错不在此列：`python3` 缺失、`cd` 失败、`check_all` 跑不起来都转成阻断，
+   后果是每次提交都被拦（出错即拦），要先修好环境。前半段本身出错（stdin 不是合法 JSON、没有
+   `command` 字段）不放行，退化为触发了 `if` 的命令都要过 `check_all`，即只有 `if` 时的宽度。
+4. 文本里看不到 `git` 在前、`commit` 在后的命令放行：git 别名（如 `git ci`）、经变量拼出的提交（如
+   `c=commit; git $c -m x`，`check_all` 红时实测退出 0；`git $(echo commit)` 字面可见，仍退出 2）。
 5. 不经 Claude Code 的提交：人在终端手敲、IDE 里点的提交——接上面那个 git pre-commit 钩子。两层
    互补，不是二选一：git 钩子拦人（但被 `--no-verify` 跳过、看不见 `git merge`），这一层拦 agent
    （拦得住 `--no-verify`，只覆盖 Claude Code 自己发起的动作）。两层都不是全覆盖，各自的盲区按

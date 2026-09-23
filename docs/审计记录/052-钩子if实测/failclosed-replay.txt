@@ -1,0 +1,18 @@
+# 钩子命令（从 tools/std/README.md 的 JSON 片段 json.loads 取出，原样执行：bash -c）
+python3 -c "import sys,json,re; sys.exit(0 if re.search(r'git.*commit', json.load(sys.stdin)['tool_input']['command'], re.S) else 3)"; [ $? -eq 3 ] && exit 0; cd "$CLAUDE_PROJECT_DIR" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2
+
+# 假 check_all：FAKE=green 退出 0，FAKE=red 退出 1；CLAUDE_PROJECT_DIR 指向带假 .std/ 的临时目录
+# 情形 | check_all | 钩子退出码
+非 JSON | red | 2
+非 JSON | green | 0
+缺 command 字段 | red | 2
+缺 command 字段 | green | 0
+git status | red | 0
+git status | green | 0
+git commit -m x | red | 2
+git commit -m x | green | 0
+反斜杠续行的提交 | red | 2
+反斜杠续行的提交 | green | 0
+
+# 附：python3 缺失（PATH 只含一个指向 bash 的链接，python3 找不到，退出 127）
+python3 缺失 | 跑不起来 | 2

@@ -1,0 +1,5 @@
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[
+ {"type":"command","command":"python3 /tmp/claude-1000/hookif-probe/attempt.py"},
+ {"type":"command","if":"Bash(*git*commit*)",
+  "command":"python3 -c \"import sys,json,re; sys.exit(0 if re.search(r'git.*commit', json.load(sys.stdin)['tool_input']['command'], re.S) else 1)\" || exit 0; cd \"$CLAUDE_PROJECT_DIR\" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2"}
+]}]}}

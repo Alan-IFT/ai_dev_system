@@ -1,0 +1,53 @@
+# 说明（2026-09-23 补记，以下原始记录一字未改）
+# - ATTEMPT：attempt.py 记下的每次 Bash 调用（无 if，每条都进）；FIRED：fired.py 记下的 if 命中（第一阶段 settings-phase1.json，命中即 exit 2）。
+# - CHECK_ALL_RAN：临时仓 .std/tools/std/check_all.py 是假的，每次被调用写一行 CHECK_ALL_RAN、恒为红（退出 1），钩子因此 exit 2。
+#   runB（settings-B.json，早先的出错即放行版）期间每条提交变形后的 CHECK_ALL_RAN 即 check_all 被调用；这些命令被拒另见同目录 out-runB.json（该轮 claude -p 输出）的 permission_denials。
+# - run1b 末尾那两条 CHECK_ALL_RAN：run1b 用的是 settings-phase1.json，不调 check_all，留存文件说明不了来源，只能读作「check_all 被调用」了两次，与 run1b 的结论无关。
+ATTEMPT	"git rev-parse HEAD"
+ATTEMPT	"echo $(git rev-parse HEAD)"
+FIRED	"echo $(git rev-parse HEAD)"
+FIRED	"{ echo a; echo b; } > /tmp/claude-1000/hookif-probe/p1.txt"
+ATTEMPT	"{ echo a; echo b; } > /tmp/claude-1000/hookif-probe/p1.txt"
+ATTEMPT	"for s in a b; do echo hi; done"
+ATTEMPT	"for s in a b; do echo $s; done"
+FIRED	"for s in a b; do echo $s; done"
+ATTEMPT	"A=1; echo hi"
+ATTEMPT	"A=1; echo $A"
+ATTEMPT	"echo $(date)"
+FIRED	"echo $(date)"
+ATTEMPT	"echo `date`"
+FIRED	"echo `date`"
+ATTEMPT	"ls $HOME"
+FIRED	"S=/tmp/claude-1000/hookif-probe/s; U=/tmp/claude-1000/hookif-probe/u; O=/tmp/claude-1000/hookif-probe/acc.log; { echo \"# B-255 \u9a8c\u6536\u5bf9\u7167 $(date '+%F %T %Z') HEAD=$(git rev-parse --short HEAD)\"; for s in gen_and_compare.py xlsx_inspect.py run_parser.py; do echo \"\\$ python3 $s ...\"; done; echo; echo \"## gen_and_compare.py\"; python3 $S/gen_and_compare.py $U/*.xlsx 2>&1; echo; echo \"## run_parser.py\"; python3 $S/run_parser.py $U/*.xlsx 2>&1; } > $O; wc -l $O; grep -iE \"fail|error|\u4e0d\u7b26|mismatch\" $O | head"
+ATTEMPT	"S=/tmp/claude-1000/hookif-probe/s; U=/tmp/claude-1000/hookif-probe/u; O=/tmp/claude-1000/hookif-probe/acc.log; { echo \"# B-255 \u9a8c\u6536\u5bf9\u7167 $(date '+%F %T %Z') HEAD=$(git rev-parse --short HEAD)\"; for s in gen_and_compare.py xlsx_inspect.py run_parser.py; do echo \"\\$ python3 $s ...\"; done; echo; echo \"## gen_and_compare.py\"; python3 $S/gen_and_compare.py $U/*.xlsx 2>&1; echo; echo \"## run_parser.py\"; python3 $S/run_parser.py $U/*.xlsx 2>&1; } > $O; wc -l $O; grep -iE \"fail|error|\u4e0d\u7b26|mismatch\" $O | head"
+ATTEMPT	"S=/tmp/claude-1000/hookif-probe/s; U=/tmp/claude-1000/hookif-probe/u; O=/tmp/claude-1000/hookif-probe/acc.log; { echo \"# B-255 \u9a8c\u6536\u5bf9\u7167 $(date '+%F %T %Z') HEAD=$(git rev-parse --short HEAD)\"; echo; echo \"## \\$ python3 gen_and_compare.py <\u4e24\u4efd\u4e0a\u4f20\u6587\u4ef6>\"; cat $S/gen_and_compare.py; echo \"----- \u8f93\u51fa -----\"; python3 $S/gen_and_compare.py $U/*.xlsx 2>&1; echo; echo \"## \\$ python3 run_parser.py <\u4e24\u4efd\u4e0a\u4f20\u6587\u4ef6>\"; cat $S/run_parser.py; echo \"----- \u8f93\u51fa -----\"; python3 $S/run_parser.py $U/*.xlsx 2>&1; } > $O; wc -l $O; grep -iE \"PARSE FAILED|Traceback|\u4e0d\u7b26|mismatch\" $O | head"
+FIRED	"S=/tmp/claude-1000/hookif-probe/s; U=/tmp/claude-1000/hookif-probe/u; O=/tmp/claude-1000/hookif-probe/acc.log; { echo \"# B-255 \u9a8c\u6536\u5bf9\u7167 $(date '+%F %T %Z') HEAD=$(git rev-parse --short HEAD)\"; echo; echo \"## \\$ python3 gen_and_compare.py <\u4e24\u4efd\u4e0a\u4f20\u6587\u4ef6>\"; cat $S/gen_and_compare.py; echo \"----- \u8f93\u51fa -----\"; python3 $S/gen_and_compare.py $U/*.xlsx 2>&1; echo; echo \"## \\$ python3 run_parser.py <\u4e24\u4efd\u4e0a\u4f20\u6587\u4ef6>\"; cat $S/run_parser.py; echo \"----- \u8f93\u51fa -----\"; python3 $S/run_parser.py $U/*.xlsx 2>&1; } > $O; wc -l $O; grep -iE \"PARSE FAILED|Traceback|\u4e0d\u7b26|mismatch\" $O | head"
+ATTEMPT	"git commit --allow-empty -m probe"
+FIRED	"git commit --allow-empty -m probe"
+--- run1b
+ATTEMPT	"echo a > /tmp/claude-1000/hookif-probe/p2.txt"
+ATTEMPT	"{ echo a; echo b; }"
+FIRED	"{ echo a; echo b; }"
+ATTEMPT	"echo \"$HOME\""
+FIRED	"echo $(date)"
+ATTEMPT	"echo $(date)"
+CHECK_ALL_RAN
+CHECK_ALL_RAN
+--- runB
+ATTEMPT	"S=/tmp/claude-1000/hookif-probe/s; U=/tmp/claude-1000/hookif-probe/u; O=/tmp/claude-1000/hookif-probe/acc.log; { echo \"# B-255 \u9a8c\u6536\u5bf9\u7167 $(date '+%F %T %Z') HEAD=$(git rev-parse --short HEAD)\"; for s in gen_and_compare.py xlsx_inspect.py run_parser.py; do echo \"\\$ python3 $s ...\"; done; echo; echo \"## gen_and_compare.py\"; python3 $S/gen_and_compare.py $U/*.xlsx 2>&1; echo; echo \"## run_parser.py\"; python3 $S/run_parser.py $U/*.xlsx 2>&1; } > $O; wc -l $O; grep -iE \"fail|error|\u4e0d\u7b26|mismatch\" $O | head"
+ATTEMPT	"S=/tmp/claude-1000/hookif-probe/s; U=/tmp/claude-1000/hookif-probe/u; O=/tmp/claude-1000/hookif-probe/acc.log; { echo \"# B-255 \u9a8c\u6536\u5bf9\u7167 $(date '+%F %T %Z') HEAD=$(git rev-parse --short HEAD)\"; echo; echo \"## \\$ python3 gen_and_compare.py <\u4e24\u4efd\u4e0a\u4f20\u6587\u4ef6>\"; cat $S/gen_and_compare.py; echo \"----- \u8f93\u51fa -----\"; python3 $S/gen_and_compare.py $U/*.xlsx 2>&1; echo; echo \"## \\$ python3 run_parser.py <\u4e24\u4efd\u4e0a\u4f20\u6587\u4ef6>\"; cat $S/run_parser.py; echo \"----- \u8f93\u51fa -----\"; python3 $S/run_parser.py $U/*.xlsx 2>&1; } > $O; wc -l $O; grep -iE \"PARSE FAILED|Traceback|\u4e0d\u7b26|mismatch\" $O | head"
+ATTEMPT	"echo $(git rev-parse HEAD)"
+ATTEMPT	"git commit -am probe"
+CHECK_ALL_RAN
+ATTEMPT	"bash -c \"git commit --allow-empty -m probe\""
+CHECK_ALL_RAN
+ATTEMPT	"env git commit --allow-empty -m probe"
+CHECK_ALL_RAN
+ATTEMPT	"/usr/bin/git commit --allow-empty -m probe"
+CHECK_ALL_RAN
+ATTEMPT	"git -C . commit --allow-empty -m probe"
+CHECK_ALL_RAN
+ATTEMPT	"git -c x=y commit --allow-empty -m probe"
+CHECK_ALL_RAN
+ATTEMPT	"git log --grep=commit --oneline"
+CHECK_ALL_RAN
