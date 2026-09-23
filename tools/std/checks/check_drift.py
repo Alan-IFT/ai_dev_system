@@ -4,7 +4,8 @@
 四条判据都只回答"文档说的和仓库里的对不对得上"，不回答"内容对不对"：
 
 1. `future-date`   记录里写成既成事实的日期，晚于写下它的那次提交（基准取 `git blame` 行级提交时间）。
-2. `adr-revision`  ADR 正文里出现就地修订的标记（02 §8「ADR 不就地修订」）。
+2. `adr-revision`  ADR 正文里出现就地修订的标记（02 §8「ADR 不就地修订」）；围栏代码块不看，
+   英文标记只认标题/标签形态，「修订后」开头的指代句不算。
 3. `adr-index-*`   ADR 索引与目录里实物的双向对账（02 §8「decisions/README.md 是索引」）。
 4. `work-item-missing` STATUS 声明的工作项没有对应文件（01 §4.1 每个状态都要求工作项工件）；
    状态源可以是一份文件，也可以是一个目录（一件一文件，ID 取其直接一层的 *.md）。
@@ -61,6 +62,11 @@ _PLAN_WINDOW = 6
 # （`- 只追加地保存原始记录…`、`- 与现有理论：修订 D-027…`），那是实测出来的误报形态。
 _REVISION_MARKERS = (u"修订", u"变更记录", u"补充", u"更新于", u"追加", u"修改记录",
                      u"版本历史", u"revision", u"changelog")
+# 以标记词开头却是指代句（「修订后的结论见 §13.1」），不是修订块——采用项目实测误报。
+_REVISION_NOT = (u"修订后",)
+# 英文标记常作普通名词（`revision id "0053_x"`），只在标题或标签形态才算：
+# `#` 标题行，或去装饰后该词后面紧跟 `:`／`：`／行尾。
+_REVISION_LABEL_ONLY = (u"revision", u"changelog")
 _LEAD_TRIM = u" \t　>#-*|"      # 行首装饰：引用、标题、列表、加粗、表格竖线
 
 _INDEX_NAMES = ("README.md", "INDEX.md")
@@ -326,14 +332,29 @@ def _adr_dir(cfg, root, files, docs_root):
 # --------------------------------------------------------------------------
 
 def _revision_hits(text):
-    out = []
+    out, fence = [], None
     for n, line in enumerate(text.splitlines(), 1):
+        bare = line.lstrip(u" \t　>")
+        if fence:                           # 围栏代码块里的行是样例，不是正文
+            if bare.startswith(fence):
+                fence = None
+            continue
+        if bare.startswith((u"```", u"~~~")):
+            fence = bare[:3]
+            continue
         s = line.lstrip(_LEAD_TRIM)
         low = s.lower()
+        if low.startswith(_REVISION_NOT):
+            continue
         for mark in _REVISION_MARKERS:
-            if low.startswith(mark.lower()):
-                out.append((n, s[:40], mark))
-                break
+            if not low.startswith(mark):
+                continue
+            rest = s[len(mark):].lstrip(u"*").rstrip()
+            if (mark in _REVISION_LABEL_ONLY and not bare.startswith(u"#")
+                    and rest and rest[0] not in u":："):
+                continue
+            out.append((n, s[:40], mark))
+            break
     return out
 
 
@@ -568,7 +589,9 @@ def scope(cfg):
             u"且左侧 %d 字内不带计划词的那些日期，是否晚于该行 `git blame` 的提交日"
             % (docs_root or u"（未配置）", _ACT_WINDOW, _PLAN_WINDOW),
             u"ADR 目录（layout.artifacts.decisions，当前 %r；未声明则在 docs_root 内找名为 "
-            u"decisions 的目录）里除索引外、不在 frozen 内的 *.md：行首是否以就地修订标记词开头"
+            u"decisions 的目录）里除索引外、不在 frozen 内的 *.md：围栏代码块之外的行首是否以就地修订"
+            u"标记词开头（英文 revision/changelog 只认 `#` 标题或后跟冒号/行尾的标签形态；"
+            u"「修订后」开头的指代句不算）"
             % (decisions or u"（未声明）"),
             u"同一目录的索引（%s 的第一张表）与目录里 `ADR-<数字>` 实物的双向对账：索引有 ID 无实物、"
             u"实物不在索引 ID 列" % u" 或 ".join(_INDEX_NAMES),
@@ -766,6 +789,22 @@ def selftest():
                 u"（标记词在第 3 位）与 decisions 之外的 `变更记录.md` 都不得报",
                 u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
                 why=u"D-3：放宽成『前 8 个字符内』时本仓 docs/ 的候选从 10 行涨到 67 行，全是正文句子")
+
+        # 2d/2e：围栏代码块、英文词作普通名词、「修订后」指代句不命中；标题/标签形态仍命中
+        must_hit = [u"## 修订记录", u"修订五：补一段。", u"> **修订：** 改了一句。",
+                    u"补充说明（2026-09-01）", u"## Changelog", u"Revision: 2"]
+        must_miss = [u"```", u"修订：围栏里的样例", u"## Changelog", u"```",
+                     u"~~~sql", u"Revision: 9", u"~~~",
+                     u"revision id `\"0053_x\"`（迁移脚本名）照旧。",
+                     u"修订后的结论见 §13.1。", u"修订后：以新表为准。"]
+        hits = _revision_hits(u"\n".join(must_miss + must_hit))
+        hit_lines = sorted(n for n, _s, _m in hits)
+        want = list(range(len(must_miss) + 1, len(must_miss) + len(must_hit) + 1))
+        _assert(results, hit_lines == want,
+                u"2d 正例 + 2e 反例：围栏代码块内、`revision id …` 叙述行、「修订后」开头的指代句都不得命中；"
+                u"`## 修订记录`、`修订五：`、`> **修订：**`、`补充说明（…）`、`## Changelog`、`Revision: 2` 缺一即失败",
+                u"期望命中行 %s，实得 %s" % (want, [(n, s) for n, s, _m in hits]),
+                why=u"采用项目实测误报：围栏里的样例、英文 revision 作普通名词、「修订后」作指代")
 
         # 3d：「文件」列写裸 ID 而实物叫 ADR-0002-y.md → 不得计入缺实物
         _assert(results, (not err) and _ids(res, "adr-index-missing") == [],
