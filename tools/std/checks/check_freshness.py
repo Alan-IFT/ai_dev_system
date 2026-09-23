@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, parse_date, read_text, tracked_files,
-    undetermined_from_exception,
+    undetermined_from_exception, work_root, work_root_absent,
 )
 
 NAME = "freshness"
@@ -73,7 +73,6 @@ def _metadata_requirement(cfg, rel):
     return "unknown"
 
 
-_DEFAULT_WORK_ROOT = "docs/state/work"
 _DEFAULT_IN_PROGRESS = ("in_progress", "进行中")
 
 _HEAD_CHARS = 4000        # 元信息只在文件头找；正文里再出现同名字段不算
@@ -278,7 +277,6 @@ def _classify_stats(cfg):
 
 def scope(cfg):
     docs_root = cfg_get(cfg, "layout.docs_root")
-    work_root = cfg_get(cfg, "layout.work_root") or _DEFAULT_WORK_ROOT
     stats = _classify_stats(cfg)
     if stats is None:
         cls = ("本次未能统计分类结果（未配 docs_root 或列不出 git 跟踪的文档）")
@@ -292,9 +290,11 @@ def scope(cfg):
             "layout.docs_root（当前 %r）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
             "距基准日是否超 budgets.stale_days" % (docs_root or "（未配置）"),
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
-            "是否超 budgets.work_item_stale_days" % work_root,
+            "是否超 budgets.work_item_stale_days" % work_root(cfg)[0],
         ],
         "not_covered": [
+            "L0 合在状态工件（WORK.md 之类）里的工作项不扫：活性巡检只扫工作项目录，目录不在记 SKIP，"
+            "目录在不在由 layout 报",
             "**不判断一份文档到底属不属于 01 §3.5 的六类**（验收、架构、模块、契约、ADR、"
             "runbook）。未配 metadata_required 时只按目录名约定（%s）识别，"
             "这是约定不是判定，会两头误：runbook 放在 docs/ops/ 认不出，中文目录树"
@@ -459,34 +459,25 @@ def _check_docs(cfg, root, today, base):
 
 
 def _check_work_items(cfg, root, today, base):
-    work_root = cfg_get(cfg, "layout.work_root")
-    root_default = work_root is None
-    work_root = work_root or _DEFAULT_WORK_ROOT
+    wroot, wnote = work_root(cfg)
 
     days, used_default, bad = _int_budget(
         cfg, "budgets.work_item_stale_days", _DEFAULT_WORK_ITEM_STALE_DAYS)
     if bad:
         return [finding(NAME, UNDETERMINED, "工作项活性阈值不是正整数", reason=bad,
                         why="01 §4.1 的复查时间是参数，但必须是可比较的数")]
-    note = _note(used_default, "budgets.work_item_stale_days", days)
-    if root_default:
-        note += "；work_root 用的是默认 %s（未配 layout.work_root）" % _DEFAULT_WORK_ROOT
+    note = _note(used_default, "budgets.work_item_stale_days", days) + "；" + wnote
 
     states = cfg_get(cfg, "work_item_in_progress_states") or list(_DEFAULT_IN_PROGRESS)
     if isinstance(states, str):
         states = [states]
     states = [str(s).strip().lower() for s in states if str(s).strip()]
 
-    path = os.path.join(root, _norm_rel(work_root))
-    if not os.path.isdir(path):
-        return [finding(
-            NAME, UNDETERMINED, "工作项目录不存在：%s" % work_root, where=str(work_root),
-            reason="项目可能还没建工作项，或 layout.work_root 配错；两者本工具分不出",
-            why="01 §4.1 的活性巡检以工作项为对象，对象不在则判不了（契约 §1）",
-            evidence=note,
-        )]
+    absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
+    if absent:
+        return [absent]
 
-    files, problem = _markdown_under(root, work_root)
+    files, problem = _markdown_under(root, wroot)
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
@@ -570,7 +561,7 @@ def _check_work_items(cfg, root, today, base):
                                "但复查时间是每项自己约定的值，工具读不到，故不判"))
     if not out:
         out.append(finding(
-            NAME, UNDETERMINED, "%s 下没有可判定的工作项" % work_root, where=str(work_root),
+            NAME, UNDETERMINED, "%s 下没有可判定的工作项" % wroot, where=wroot,
             reason="空集上说不出'全部工作项都活着'（01 §2 N1）", evidence=note,
         ))
     return out

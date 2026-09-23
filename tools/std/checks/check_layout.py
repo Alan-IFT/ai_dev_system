@@ -4,7 +4,7 @@
 执行 01 §3.1（文档树，★ 是最小起点）、§3.2（职责卡的"它过期了怎么被发现"）、
 §3.5（文档元信息与状态）。契约见 ../CONTRACT.md。
 
-本模块只用标准库。需要 stdlib 里没有的函数在本文件内实现，不改 stdlib。
+本模块只用标准库。与其他检查器共用的候选路径（状态、工作项目录）在 stdlib。
 """
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, finding, is_tailored_out, undetermined_from_exception,
+    DEFAULT_WORK_ROOT, FAIL, PASS, SKIP, STATUS_CANDIDATES, STATUS_FIELDS, UNDETERMINED,
+    cfg_get, finding, is_tailored_out, rebase_docs, undetermined_from_exception,
 )
 
 NAME = "layout"
@@ -43,7 +43,9 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 # 每项候选路径给两套：模板的 L0 扁平摆法，以及 01 §3.1 大项目树的摆法
 # （01 §3.1 明说「文件路径可按 §3.1 合并映射」，所以命中任一即算存在）。
 # 项目可用 governance/project.yaml 的 layout.artifacts.<role> 指定自己的路径，
-# 指定了就只认它，不再猜候选。
+# 指定了就只认它，不再猜候选。状态与实时状态源两项的候选别的检查器也要用，
+# 放在 stdlib（STATUS_CANDIDATES / DEFAULT_WORK_ROOT）只写一处；实时状态源未声明时
+# 先认 layout.work_root——工作项目录就是它的目录形态（01 §3.1 `state/work/`）。
 #
 # **候选路径列不是判据依据，是提示。** 它只有两个用途：项目没声明时试着找一下，
 # 以及未命中时把这份清单写进 evidence，告诉采用方"该往哪儿放，或该在
@@ -60,12 +62,12 @@ _TIER_ITEMS = {
     "L0": [
         ("entry", "入口", True, "file", ["CONTEXT.md", "AGENTS.md", "CLAUDE.md"]),
         ("acceptance", "验收", True, "any", ["ACCEPTANCE.md", "docs/product/acceptance"]),
-        ("status", "状态", True, "any", ["WORK.md", "docs/state/STATUS.md"]),
+        ("status", "状态", True, "any", list(STATUS_CANDIDATES)),
         ("playbook", "方法与坑", False, "any", ["PLAYBOOK.md", "docs/knowledge/PLAYBOOK.md"]),
         ("failures", "失败清单", False, "any", ["FAILURES.md", "docs/knowledge/FAILURES.md"]),
     ],
     "L1": [
-        ("work_current", "实时状态源", False, "any", ["work/current.md", "docs/state/work"]),
+        ("work_current", "实时状态源", False, "any", ["work/current.md", DEFAULT_WORK_ROOT]),
         ("handoff", "会话交接", False, "any", ["work/handoff.md", "docs/state/handoff"]),
         ("work_artifacts", "工具原文落点", False, "dir", ["work/artifacts", "docs/state/artifacts"]),
     ],
@@ -96,14 +98,6 @@ _META_HEAD_LINES = 40                   # 元信息在"头部"，只看头部若
 
 def _norm(p):
     return str(p).replace("\\", "/").strip().rstrip("/")
-
-
-def _rebase_docs(cand, docs_root):
-    """候选路径里以 docs/ 开头的，按项目的 layout.docs_root 改基。"""
-    docs_root = _norm(docs_root or "docs")
-    if cand.startswith("docs/") and docs_root != "docs":
-        return docs_root + cand[4:]
-    return cand
 
 
 def _exists(root, rel, kind):
@@ -268,9 +262,11 @@ def _run(cfg):
                     ))
             continue
 
-        override = overrides.get(role)
+        override, src_key = overrides.get(role), "layout.artifacts.%s" % role
+        if not override and role == "work_current" and cfg_get(cfg, "layout.work_root"):
+            override, src_key = cfg_get(cfg, "layout.work_root"), "layout.work_root"
         cand_list = [_norm(override)] if override else [
-            _rebase_docs(c, docs_root) for c in cands
+            rebase_docs(c, docs_root) for c in cands
         ]
         hit = None
         for rel in cand_list:
@@ -278,7 +274,7 @@ def _run(cfg):
                 hit = rel
                 break
 
-        src = "layout.artifacts.%s" % role if override else \
+        src = src_key if override else \
               "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(cand_list))
 
         if hit is None:
@@ -288,7 +284,7 @@ def _run(cfg):
                     NAME, FAIL, "★ %s 类工件缺失（%s）" % (label, role),
                     where=cand_list[0],
                     why="01 §3.1：入口、验收、状态是最小起点（★），少一件这套管理就没有落点",
-                    evidence="项目在 layout.artifacts.%s 声明了它，该路径下没有。%s" % (role, src),
+                    evidence="项目在 %s 声明了它，该路径下没有。%s" % (src_key, src),
                 ))
             elif star:
                 # 未声明 + 候选未命中。候选路径只是本工具从模板抄来的一份猜测，
@@ -302,6 +298,18 @@ def _run(cfg):
                     why="01 §3.1：入口、验收、状态是最小起点（★）。要把它判成缺失，"
                         "先在 layout.artifacts 里声明落点——声明后仍然没有才记 FAIL",
                     evidence="候选都不存在。%s" % src,
+                ))
+            elif src_key == "layout.work_root":
+                # 路径是项目声明的，不是工具猜的；它不在就说它不在，不往"可能是有意裁剪"上推。
+                out.append(finding(
+                    NAME, UNDETERMINED,
+                    "%s 档要求的 %s（%s）：layout.work_root 声明的目录不在" % (tier, label, role),
+                    where=cand_list[0],
+                    reason="layout.work_root 声明的目录 %s 不在；是还没建还是配置过期，本工具判不了"
+                           % cand_list[0],
+                    why="01 §3.1：%s 档的树里有这一项；工作项目录是它的目录形态" % tier,
+                    evidence="未声明 layout.artifacts.work_current，取 layout.work_root：%s"
+                             % cand_list[0],
                 ))
             else:
                 out.append(finding(

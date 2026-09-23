@@ -26,9 +26,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     embedded_std_rel, finding, load_config, load_exceptions, tracked_files,
-    undetermined_from_exception,
+    undetermined_from_exception, work_root,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -519,6 +519,82 @@ def _entry_smoke_selftest():
     return out
 
 
+def _shared_fact_selftest(mods):
+    """跨检查器的两条反例：同一事实只报一次（契约 §1），同一工件只有一份候选（01 §1 G2）。
+
+    单个检查器的 selftest 看不见别的检查器，这两条只能在汇总层断言。来由：工作项目录
+    不在时 layout / evidence / freshness 各报一条未定，采用方得为同一件事登记三行；
+    状态工件的候选 layout 与 drift 各写一份且不一致，同一个项目被一个说"有"、一个说"没有"。
+    """
+    import subprocess
+    import tempfile
+
+    by = dict((n, m) for n, m, err in mods if err is None)
+    need = ("layout", "evidence", "freshness", "drift")
+    if any(n not in by for n in need):
+        return [finding("shared-fact", UNDETERMINED, "跨检查器自检缺检查器",
+                        reason="需要 %s，实有 %s" % ("/".join(need), "/".join(sorted(by))))]
+
+    def _repo(tmp, files):
+        for rel, body in files.items():
+            path = os.path.join(tmp, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(body)
+        subprocess.run(["git", "init", "-q", tmp], capture_output=True, timeout=60)
+        subprocess.run(["git", "-C", tmp, "add", "-A"], capture_output=True, timeout=60)
+
+    out = []
+    try:
+        # A：L1 项目没有工作项目录，缺省与声明两种 work_root 各跑一遍四个检查器。
+        #    断言目录缺失这件事在未定/失败里只出现一次、由 layout 报，
+        #    evidence 与 freshness 各记一条 work-root-absent 的 SKIP。
+        got_a = []
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, {"CLAUDE.md": u"# 入口\n"})
+            for extra in ({}, {"work_root": "items"}):
+                layout = dict({"entry": ["CLAUDE.md"], "docs_root": "docs"}, **extra)
+                cfg = {"_root": tmp, "tier": "L1", "layout": layout}
+                wr = work_root(cfg)[0]
+                fs = [f for n in need for f in by[n].run(cfg)]
+                told = [f for f in fs if f["status"] in (UNDETERMINED, FAIL)
+                        and (u"工作项目录" in f["title"] or u"（work_current）" in f["title"])]
+                skips = sorted(f["id"] for f in fs if f["id"].endswith("/work-root-absent")
+                               and u"负责报告的检查器：layout" in (f["evidence"] or ""))
+                ok = (len(told) == 1 and told[0]["check"] == "layout"
+                      and wr in (told[0]["where"] or "") + (told[0]["evidence"] or "")
+                      and skips == ["evidence/work-root-absent", "freshness/work-root-absent"])
+                got_a.append((wr, ok, [(f["id"], f["title"]) for f in told], skips))
+        out.append(finding(
+            "shared-fact", PASS if all(g[1] for g in got_a) else FAIL,
+            "工作项目录不在：未定只由 layout 报一次，evidence/freshness 记不适用并指向它",
+            why="契约 §1：同一事实只由一个检查器报；报两次采用方就得登记两行",
+            evidence="实得 %r" % (got_a,)))
+
+        # B：只放一份状态文件（外加它列的那件工作项，让 drift 走到对账），layout 与 drift
+        #    对它在不在给同一个答案；候选之外的名字（模板文件名 PROJECT_STATUS.md）两边都不认。
+        got_b = []
+        for rel in list(STATUS_CANDIDATES) + ["PROJECT_STATUS.md"]:
+            with tempfile.TemporaryDirectory() as tmp:
+                _repo(tmp, {"CLAUDE.md": u"# 入口\n", rel: u"# 状态\n\n- WI-0001 在做。\n",
+                            "docs/state/work/WI-0001-a.md": u"# WI-0001\n"})
+                cfg = {"_root": tmp, "tier": "L0",
+                       "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs"}}
+                lay = any(f["status"] == PASS and f["where"] == rel for f in by["layout"].run(cfg))
+                dri = any(f["id"] == "drift/work-item" and f["where"] == rel
+                          for f in by["drift"].run(cfg))
+                got_b.append((rel, lay, dri))
+        want = [(r, r in STATUS_CANDIDATES, r in STATUS_CANDIDATES) for r, _l, _d in got_b]
+        out.append(finding(
+            "shared-fact", PASS if got_b == want else FAIL,
+            "状态工件候选：layout 与 drift 认同一份（stdlib.STATUS_CANDIDATES）",
+            why="01 §1 G2：同一事实一处权威；两份候选让同一个项目被说成既有又没有状态工件",
+            evidence="实得 (路径, layout 命中, drift 命中) %r；应得 %r" % (got_b, want)))
+    except Exception as exc:  # noqa: BLE001
+        out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))
+    return out
+
+
 def _hook_guard_selftest():
     """带跑 Claude Code 拦截层的反例自检（契约 §3）。
 
@@ -582,6 +658,7 @@ def run_all(root, selftest_only=False, config_path=None):
         findings.extend(_contract_examples_selftest())
         findings.extend(_entry_smoke_selftest())
         findings.extend(_hook_guard_selftest())
+        findings.extend(_shared_fact_selftest(mods))
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))

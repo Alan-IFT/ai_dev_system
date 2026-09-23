@@ -528,3 +528,59 @@ def in_frozen(cfg, relpath):
         if rel == pre or rel.startswith(pre + "/"):
             return True
     return False
+
+
+# --------------------------------------------------------------------------
+# 工件落点：多个检查器都要找的同一件工件，候选与缺省只在这里写一处（01 §1 G2）
+#
+# 此前工作项目录的缺省在 evidence / freshness / drift 各写一份，状态工件的候选在
+# layout 与 drift 各写一份且两份不一致（一份照模板树、一份照标准仓自己的文件名），
+# 同一个项目会被两个检查器说成"有状态工件"和"没有状态工件"。
+# --------------------------------------------------------------------------
+
+# 01 §3.1 大项目树的 `docs/state/work/`（工作项，一件一文件）。契约 §5：缺省取它并在证据里注明。
+DEFAULT_WORK_ROOT = "docs/state/work"
+
+# ★ 状态工件没在 layout.artifacts.status 声明落点时的候选。只取两处依据：
+# templates/文件树与落地路径.md §2 的 L0 摆法 `WORK.md`，与 01 §3.1 的 `docs/state/STATUS.md`。
+# 模板文件名（templates/PROJECT_STATUS.md）不是落点——PRD.md 落成 ACCEPTANCE.md 也是同一回事。
+STATUS_CANDIDATES = ("WORK.md", "docs/state/STATUS.md")
+
+
+def rebase_docs(rel, docs_root):
+    """以 `docs/` 开头的候选/缺省路径，按项目的 layout.docs_root 改基（缺省 docs 即不改）。"""
+    rel = str(rel).replace("\\", "/").strip().rstrip("/")
+    docs_root = str(docs_root or "docs").replace("\\", "/").strip().rstrip("/")
+    if rel.startswith("docs/") and docs_root != "docs":
+        return docs_root + rel[4:]
+    return rel
+
+
+def work_root(cfg):
+    """工作项目录：`layout.work_root`，未配则取 DEFAULT_WORK_ROOT（随 docs_root 改基）。
+
+    返回 (相对路径, 证据注记)。注记写明取的是配置还是默认——契约 §5 要求取了默认就得说。
+    """
+    raw = cfg_get(cfg, "layout.work_root")
+    if raw:       # 原样返回不归一：它会进 finding 标题，标题变了兜底 id 就变（契约 §4）
+        return str(raw), "work_root 取自 layout.work_root：%s" % raw
+    rel = rebase_docs(DEFAULT_WORK_ROOT, cfg_get(cfg, "layout.docs_root"))
+    return rel, "work_root 用的是默认 %s（未配 layout.work_root）" % rel
+
+
+def work_root_absent(check, cfg):
+    """工作项目录不在时返回一条 SKIP，在则返回 None。给以工作项为对象的检查器用。
+
+    「目录在不在」是 01 §3.1 的存在性事实，由 layout 报一次（契约 §1「同一事实只报一次」）；
+    evidence / freshness 从前各报一条未定，采用方得为同一件事登记两行。
+    """
+    rel, note = work_root(cfg)
+    if os.path.isdir(os.path.join(cfg.get("_root") or ".", rel.replace("\\", "/").strip())):
+        return None
+    return finding(
+        check, SKIP, "本检查只扫工作项目录，它不在：%s" % rel, where=rel, kind="work-root-absent",
+        reason="目录在不在由 layout 报：01 §3.1 的存在性判定归它（L1 起的「实时状态源」"
+               "work_current 一项，未声明 layout.artifacts.work_current 时认的就是这个目录；"
+               "L0 档的工作项按模板合在状态工件里，不要求这个目录）。本检查不再另记一条未定",
+        evidence="%s；负责报告的检查器：layout" % note,
+    )

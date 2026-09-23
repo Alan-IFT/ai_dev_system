@@ -9,7 +9,8 @@ layout:
   docs_root: docs
   # work_root 不配：本仓库确实没有工作项目录（git ls-files 里没有任何 WI-* 或
   # state/ 条目），原先写的 docs/state/work 并不存在，是一句假事实。删掉之后
-  # evidence/freshness 会按默认常量记一条未定并注明用的是默认——那是诚实结果。
+  # layout 的实时状态源（work_current）一项记一条未定——那是诚实结果；evidence/freshness
+  # 按默认常量找不到目录，各记一条 SKIP 指向 layout，不重复报（CONTRACT §1）。
   artifacts:                          # 本仓库的工件叫别的名字，按 01 §3.1「可按职责合并映射」登记
     status: PROJECT_STATUS.md
     # 本仓库确实没有验收条目工件。声明落点是为了让它报 FAIL 而不是未定——

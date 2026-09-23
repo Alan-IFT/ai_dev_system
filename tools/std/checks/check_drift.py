@@ -29,9 +29,9 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, read_text, tracked_files,
-    undetermined_from_exception,
+    DEFAULT_WORK_ROOT, FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
+    cfg_get, finding, in_frozen, is_tailored_out, read_text, rebase_docs, tracked_files,
+    undetermined_from_exception, work_root, work_root_absent,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
 # 再抄一份 markdown 表解析器必然与它漂（01 §1 G2）。
@@ -70,8 +70,7 @@ _REVISION_LABEL_ONLY = (u"revision", u"changelog")
 _LEAD_TRIM = u" \t　>#-*|"      # 行首装饰：引用、标题、列表、加粗、表格竖线
 
 _INDEX_NAMES = ("README.md", "INDEX.md")
-_DEFAULT_WORK_ROOT = "docs/state/work"          # 契约 §5：缺省取常量并在证据里注明
-_STATUS_CANDIDATES = ("PROJECT_STATUS.md", "docs/state/STATUS.md")
+# 状态工件候选与工作项目录缺省在 stdlib（与 layout 共用一处），这里不另写。
 _LIST_CAP = 12
 
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -515,15 +514,16 @@ def _check_work_items(cfg, root, files):
                 why=u"01 §4.1 的工作项以 STATUS 的声明为入口，入口不在则判不了")]
     else:
         status_rel = None
-        for cand in _STATUS_CANDIDATES:
-            if os.path.isfile(os.path.join(root, cand)):
+        cands = [rebase_docs(c, cfg_get(cfg, "layout.docs_root")) for c in STATUS_CANDIDATES]
+        for cand in cands:
+            if os.path.exists(os.path.join(root, cand)):
                 status_rel = cand
                 break
         if status_rel is None:
             return [finding(
                 NAME, SKIP, u"没有状态文件，判据 4（STATUS 声明的工作项）本次未执行",
                 reason=u"未声明 layout.artifacts.status，候选 %s 也都不存在；"
-                       u"本工具不猜状态文件叫什么" % u" / ".join(_STATUS_CANDIDATES),
+                       u"本工具不猜状态文件叫什么" % u" / ".join(cands),
                 why=u"01 §4.1 以工作项为对象；契约 §1.1：候选路径是约定，猜不到不记通过")]
 
     # 状态源是目录（一件一文件即状态源）时，ID 取它直接一层的 *.md，不递归。
@@ -543,14 +543,16 @@ def _check_work_items(cfg, root, files):
     if not seen:                       # 一个 ID 都没有：无结论，不产条目
         return []
 
-    work_root = cfg_get(cfg, "layout.work_root")
-    used_default = work_root is None
-    work_root = _norm_rel(work_root or _DEFAULT_WORK_ROOT)
-    note = (u"work_root 用的是默认 %s（未配 layout.work_root）" % _DEFAULT_WORK_ROOT
-            if used_default else u"work_root 取自 layout.work_root：%s" % work_root)
+    wroot, note = work_root(cfg)
+    wroot = _norm_rel(wroot)
+    # 目录不在是 layout 报的那一件事（契约 §1）；逐 ID 再报一遍就是同一事实报 N 次。
+    # L0 按模板把工作项写在 WORK.md 里、本就没有这个目录，更不该逐条报"没有文件"。
+    absent = work_root_absent(NAME, cfg)
+    if absent:
+        return [absent]
 
     have = set()
-    for rel in _md_under(files, work_root):
+    for rel in _md_under(files, wroot):
         base = os.path.basename(rel)
         for wid in seen:
             if base.startswith(wid):
@@ -559,12 +561,12 @@ def _check_work_items(cfg, root, files):
     out = []
     for wid in sorted(set(seen) - have):
         out.append(finding(
-            NAME, UNDETERMINED, u"%s 在 %s 里声明了，%s 下没有它的文件" % (wid, status_rel, work_root),
+            NAME, UNDETERMINED, u"%s 在 %s 里声明了，%s 下没有它的文件" % (wid, status_rel, wroot),
             where=seen[wid],
             kind="work-item-missing", key=wid,
             reason=u"%s 下没有文件名以 %s 开头的工件；是还没建、建在别处，还是这个 ID 只是"
                    u"正文里提了一句，本工具判不了。ID 形态 WI-<三位以上数字> 是工具约定"
-                   u"（契约 §1.1），永不 FAIL" % (work_root, wid),
+                   u"（契约 §1.1），永不 FAIL" % (wroot, wid),
             why=u"01 §4.1：每个状态都写明**必需工件**，`planned` 起就要有工作项文件；"
                 u"工件缺失即不得进入该状态",
             evidence=note))
@@ -572,7 +574,7 @@ def _check_work_items(cfg, root, files):
         return out
     return [finding(
         NAME, PASS,
-        u"work-item：状态文件列了 %d 个 ID，%s 下都有文件" % (len(seen), work_root),
+        u"work-item：状态文件列了 %d 个 ID，%s 下都有文件" % (len(seen), wroot),
         where=status_rel, kind="work-item",
         why=u"01 §5.6：门跑过与没跑过要分得出；本条列出来是为了让静默失效看得见",
         evidence=u"状态文件 %s；ID 形态 `WI-<三位以上数字>`；%s" % (status_rel, note))]
@@ -586,7 +588,7 @@ def scope(cfg):
     docs_root = cfg_get(cfg, "layout.docs_root")
     decisions = cfg_get(cfg, "layout.artifacts.decisions")
     status = cfg_get(cfg, "layout.artifacts.status")
-    work_root = cfg_get(cfg, "layout.work_root") or _DEFAULT_WORK_ROOT
+    wroot = work_root(cfg)[0]
     return {
         "covered": [
             u"layout.docs_root（当前 %r）下 git 跟踪、不在 frozen 内的 *.md：日期后 %d 字内带动作词"
@@ -601,7 +603,7 @@ def scope(cfg):
             u"实物不在索引 ID 列" % u" 或 ".join(_INDEX_NAMES),
             u"状态文件（layout.artifacts.status，当前 %r；声明为目录时取其直接一层、git 跟踪的 *.md，"
             u"不递归）正文里的 `WI-<三位以上数字>`，在 %s 下有没有同名开头的文件"
-            % (status or u"（未声明）", work_root),
+            % (status or u"（未声明）", wroot),
         ],
         "not_covered": [
             u"**两份词表都是工具常量，换一种写法就漏**：日期动作词 %d 个、ADR 修订标记词 %d 个。"
@@ -899,7 +901,7 @@ def selftest():
                 (not err) and u"默认" in
                 (([f for f in res if f["id"] in got] or [{}])[0].get("evidence") or u""),
                 u"4a 附带：未声明 layout.work_root 时取常量 %s，证据里须注明用的是默认"
-                % _DEFAULT_WORK_ROOT,
+                % DEFAULT_WORK_ROOT,
                 u"证据 %r" % (([f for f in res if f["id"] in got] or [{}])[0].get("evidence")))
 
     # ---- 4d/4e：状态源声明为目录（一件一文件）视为存在；路径不存在仍报 ----
@@ -922,4 +924,17 @@ def selftest():
                 (not err) and _ids(res, "status-missing") == [u"drift/status-missing/docs/nope"],
                 u"4e 反例：layout.artifacts.status 指向的路径文件与目录都不存在，仍须报 status-missing",
                 u"实得 %s" % _ids(res, "status-missing"))
+
+    # ---- 4f：L0 形态——WORK.md 里写着 WI-，没有工作项目录 ----
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        _write(os.path.join(tmp, "WORK.md"), u"# 工作\n\n- WI-0001 在做。\n")
+        _write(os.path.join(tmp, "docs", "a.md"), u"# 甲\n")
+        err = _git_commit(tmp)
+        res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
+        got = sorted(f["id"] for f in res if f["id"].startswith((u"drift/status", u"drift/work")))
+        _assert(results,
+                (not err) and got == [u"drift/work-root-absent"],
+                u"4f 正例：状态文件列了 ID 而工作项目录不在，只记一条 work-root-absent（SKIP），"
+                u"不逐 ID 报 work-item-missing——目录不在由 layout 报一次（契约 §1），L0 本不要求它",
+                u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""))
     return results

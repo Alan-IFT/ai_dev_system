@@ -22,13 +22,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
     cfg_get, finding, is_tailored_out, read_text, tracked_files,
-    undetermined_from_exception,
+    undetermined_from_exception, work_root, work_root_absent,
 )
 
 NAME = "evidence"
 STANDARD_REFS = ["01 §1 G4", "01 §2 N1", "01 §3.1", "01 §4.1", "01 §4.2"]
 
-_DEFAULT_WORK_ROOT = "docs/state/work"
 _DEFAULT_DONE_STATES = ("done", "完成", "delivered")
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _EVIDENCE_HEADINGS = ("证据",)
@@ -282,13 +281,12 @@ def _judge(block):
 # --------------------------------------------------------------------------
 
 def scope(cfg):
-    work_root = cfg_get(cfg, "layout.work_root") or _DEFAULT_WORK_ROOT
     return {
         "covered": [
             "layout.work_root（当前 %r）下 git 跟踪的 *.md 中状态为已完成的工作项，"
             "**包括落在 layout.frozen 里的**：frozen 的语义是「不承担更新义务」（01 §3.1），"
             "而本检查判的是「这条完成声明当初成不成立」，与要不要更新无关；"
-            "把 frozen 当跳过条件，等于把 §3.1 的一条豁免搬到一条它不适用的判据上" % work_root,
+            "把 frozen 当跳过条件，等于把 §3.1 的一条豁免搬到一条它不适用的判据上" % work_root(cfg)[0],
             "它们证据段里每条证据的六字段（01 §4.2）是否齐全、值是否为空或占位",
             "两种写法：加粗条目行下的编号字段，以及表头能映射到六字段的字段表",
         ],
@@ -296,6 +294,8 @@ def scope(cfg):
             "不判断证据内容是否属实：只判字段在不在、值空不空。命令是否真跑过、输出是否被裁剪过、"
             "版本号是否对得上，本工具一概不看（契约 §7）",
             "不打开证据里引用的 artifacts 文件或 CI 链接，不核对它们存在与否",
+            "L0 合在状态工件（WORK.md 之类）里的工作项不扫：只扫工作项目录，目录不在记 SKIP，"
+            "目录在不在由 layout 报",
             "不核对证据是否逐条绑到验收 ID（01 §4.1 done 行要求绑），也不追进验收文件核对主张",
             "不判断 01 §4.2 ④ 里「跨边界后采集」这一条是否满足——那要看证据内容",
             "不看未被 git 跟踪的文件，不看 .md 以外的文件，不看 PR/提交说明里承载的轻量简记"
@@ -320,9 +320,7 @@ def _run(cfg):
         return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
 
     root = cfg.get("_root") or "."
-    work_root = cfg_get(cfg, "layout.work_root")
-    root_default = work_root is None
-    work_root = work_root or _DEFAULT_WORK_ROOT
+    wroot, wnote = work_root(cfg)
 
     states = cfg_get(cfg, "work_item_done_states") or list(_DEFAULT_DONE_STATES)
     if isinstance(states, str):
@@ -331,20 +329,13 @@ def _run(cfg):
     states_default = cfg_get(cfg, "work_item_done_states") is None
     note = ("完成态用的是默认 %s（未配 work_item_done_states）" % "/".join(states)
             if states_default else "完成态取自 project.yaml：%s" % "/".join(states))
-    if root_default:
-        note += "；work_root 用的是默认 %s" % _DEFAULT_WORK_ROOT
+    note += "；" + wnote
 
-    path = os.path.join(root, _norm_rel(work_root))
-    if not os.path.isdir(path):
-        return [finding(
-            NAME, UNDETERMINED, "工作项目录不存在：%s" % work_root, where=str(work_root),
-            reason="项目可能还没建工作项，或 layout.work_root 配错；两者本工具分不出，"
-                   "所以不记失败",
-            why="01 §1 G4 的对象是完成声明；对象不在则判不了（契约 §1）",
-            evidence=note,
-        )]
+    absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
+    if absent:
+        return [absent]
 
-    files, problem = _markdown_under(root, work_root)
+    files, problem = _markdown_under(root, wroot)
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
@@ -376,7 +367,7 @@ def _run(cfg):
                         reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
     if not out:
         out.append(finding(
-            NAME, UNDETERMINED, "%s 下没有可判定的工作项" % work_root, where=str(work_root),
+            NAME, UNDETERMINED, "%s 下没有可判定的工作项" % wroot, where=wroot,
             reason="空集上说不出'全部完成声明都有证据'（01 §2 N1：X 为空集时判未定）",
             evidence=note,
         ))
