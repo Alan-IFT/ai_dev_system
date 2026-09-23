@@ -520,11 +520,13 @@ def _entry_smoke_selftest():
 
 
 def _shared_fact_selftest(mods):
-    """跨检查器的两条反例：同一事实只报一次（契约 §1），同一工件只有一份候选（01 §1 G2）。
+    """跨检查器的三条反例：同一事实只报一次（契约 §1），同一工件只有一份候选、同一个配置键
+    只有一份缺省（01 §1 G2）。
 
-    单个检查器的 selftest 看不见别的检查器，这两条只能在汇总层断言。来由：工作项目录
+    单个检查器的 selftest 看不见别的检查器，这几条只能在汇总层断言。来由：工作项目录
     不在时 layout / evidence / freshness 各报一条未定，采用方得为同一件事登记三行；
-    状态工件的候选 layout 与 drift 各写一份且不一致，同一个项目被一个说"有"、一个说"没有"。
+    状态工件的候选 layout 与 drift 各写一份且不一致，同一个项目被一个说"有"、一个说"没有"；
+    未配 layout.docs_root 时 layout 兜底取 docs，freshness 与 drift 却记未定。
     """
     import subprocess
     import tempfile
@@ -590,6 +592,22 @@ def _shared_fact_selftest(mods):
             "状态工件候选：layout 与 drift 认同一份（stdlib.STATUS_CANDIDATES）",
             why="01 §1 G2：同一事实一处权威；两份候选让同一个项目被说成既有又没有状态工件",
             evidence="实得 (路径, layout 命中, drift 命中) %r；应得 %r" % (got_b, want)))
+
+        # C：未配 layout.docs_root。四个检查器按同一个缺省（stdlib.DEFAULT_DOCS_ROOT）读，
+        #    不再有的兜底、有的记「未配置文档根目录」；freshness 照判 docs/ 下的文档并注明用了默认。
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, {"CLAUDE.md": u"# 入口\n", "docs/architecture/a.md": u"# 架构\n"})
+            cfg = {"_root": tmp, "tier": "L1", "layout": {"entry": ["CLAUDE.md"]}}
+            fs = [f for n in need for f in by[n].run(cfg)]
+            unset = [f["id"] for f in fs if u"未配置文档根目录" in f["title"]]
+            judged = [f["id"] for f in fs if f["check"] == "freshness" and f["status"] == FAIL
+                      and f["where"].startswith("docs/architecture/a.md")
+                      and u"未配 layout.docs_root" in (f["evidence"] or "")]
+        out.append(finding(
+            "shared-fact", PASS if not unset and len(judged) == 1 else FAIL,
+            "未配 layout.docs_root：各检查器取同一个缺省 docs 并注明，不再一家兜底一家记未定",
+            why="契约 §5：缺省只有一处（stdlib.docs_root_of），取了默认就在证据里写明",
+            evidence="记未配置的 %r；freshness 按缺省判出的 %r" % (unset, judged)))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))
     return out

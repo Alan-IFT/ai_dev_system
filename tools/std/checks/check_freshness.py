@@ -24,8 +24,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, parse_date, read_text, tracked_files,
-    undetermined_from_exception, work_root, work_root_absent,
+    cfg_get, date_fields_of, docs_root_of, finding, in_frozen, is_tailored_out, note_default,
+    parse_date, read_text, tracked_files, undetermined_from_exception, work_root, work_root_absent,
 )
 
 NAME = "freshness"
@@ -33,7 +33,6 @@ STANDARD_REFS = ["01 §2 N1", "01 §3.2", "01 §3.5", "01 §4.1"]
 
 _DEFAULT_STALE_DAYS = 90              # 标准正文未给文档新鲜度默认值，本工具取 90 天作起步参数
 _DEFAULT_WORK_ITEM_STALE_DAYS = 14    # 01 §4.1 的 in_progress 复查参数默认 5 天，本工具放宽到 14
-_DEFAULT_DATE_FIELDS = ("updated_at",)
 
 # 01 §3.5 的元信息要求是一个封闭清单：验收、架构、模块、契约、ADR、runbook。
 # 索引页、README、PLAYBOOK 不在其列——§3.2 那张表说 INDEX.md 过期是靠链接检查发现的。
@@ -188,25 +187,6 @@ def _last_transition(text):
     return max(found), "取自状态转换记录里最晚的日期（共 %d 个）" % len(found), None
 
 
-def _date_fields(cfg):
-    """文档日期字段名。返回 (名字列表, 是否用的默认值)。"""
-    raw = cfg_get(cfg, "metadata_fields")
-    if raw is None:
-        return list(_DEFAULT_DATE_FIELDS), True
-    if isinstance(raw, str):
-        return [raw], False
-    if isinstance(raw, dict):
-        for key in ("updated_at", "updated", "date"):
-            if raw.get(key):
-                return [str(raw[key])], False
-        return list(_DEFAULT_DATE_FIELDS), True
-    if isinstance(raw, list):
-        names = [str(x).strip() for x in raw if str(x).strip()]
-        if names:
-            return names, False
-    return list(_DEFAULT_DATE_FIELDS), True
-
-
 def _int_budget(cfg, path, default):
     raw = cfg_get(cfg, path)
     if raw is None:
@@ -255,10 +235,8 @@ def _classify_stats(cfg):
     只为把覆盖边界说准：契约 §2 要求写明"没检查什么"，而"有多少份文档根本没被分类"
     正是这个检查器最大的盲区——它此前一个字都没写。取不到时返回 None，不猜。
     """
-    docs_root = cfg_get(cfg, "layout.docs_root")
+    docs_root = docs_root_of(cfg)[0]
     root = cfg.get("_root") or "."
-    if not docs_root:
-        return None
     try:
         files, problem = _markdown_under(root, docs_root)
     except Exception:  # noqa: BLE001  覆盖边界不该把主流程带崩
@@ -276,10 +254,10 @@ def _classify_stats(cfg):
 
 
 def scope(cfg):
-    docs_root = cfg_get(cfg, "layout.docs_root")
+    docs_root, dnote = docs_root_of(cfg)
     stats = _classify_stats(cfg)
     if stats is None:
-        cls = ("本次未能统计分类结果（未配 docs_root 或列不出 git 跟踪的文档）")
+        cls = ("本次未能统计分类结果（列不出 git 跟踪的文档）")
     else:
         cls = ("本次参与分类的 %d 份文档里（另有归档区 %d 份不参与），判定为需要元信息 %d 份、"
                "项目声明不需要 %d 份、**未能分类 %d 份**"
@@ -287,8 +265,8 @@ def scope(cfg):
                   stats["not_required"], stats["unknown"]))
     return {
         "covered": [
-            "layout.docs_root（当前 %r）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
-            "距基准日是否超 budgets.stale_days" % (docs_root or "（未配置）"),
+            "layout.docs_root（当前 %r%s）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
+            "距基准日是否超 budgets.stale_days" % (docs_root, "，默认" if dnote else ""),
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
             "是否超 budgets.work_item_stale_days" % work_root(cfg)[0],
         ],
@@ -332,19 +310,14 @@ def _run(cfg):
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
 
     out = []
-    out.extend(_check_docs(cfg, root, today, base))
+    # 文档部分整组依赖 docs_root：取了默认就在这里统一注明，不在各条 finding 里逐个拼
+    out.extend(note_default(_check_docs(cfg, root, today, base), docs_root_of(cfg)[1]))
     out.extend(_check_work_items(cfg, root, today, base))
     return out
 
 
 def _check_docs(cfg, root, today, base):
-    docs_root = cfg_get(cfg, "layout.docs_root")
-    if not docs_root:
-        return [finding(
-            NAME, UNDETERMINED, "未配置文档根目录",
-            reason="governance/project.yaml 缺 layout.docs_root；本工具不猜文档放在哪（契约 §5）",
-            why="01 §3.5 要求重要文档带日期，但先要说清哪些是文档",
-        )]
+    docs_root, dnote = docs_root_of(cfg)
 
     days, used_default, bad = _int_budget(cfg, "budgets.stale_days", _DEFAULT_STALE_DAYS)
     if bad:
@@ -352,7 +325,7 @@ def _check_docs(cfg, root, today, base):
                         why="01 §3.5 的复核周期是参数，但必须是可比较的数")]
     note = _note(used_default, "budgets.stale_days", days)
 
-    names, names_default = _date_fields(cfg)
+    names, names_default = date_fields_of(cfg)
     fnote = ("日期字段名用的是默认 %s（未配 metadata_fields）" % ", ".join(names)
              if names_default else "日期字段名取自 metadata_fields：%s" % ", ".join(names))
 
@@ -360,7 +333,8 @@ def _check_docs(cfg, root, today, base):
     if not os.path.isdir(path):
         return [finding(
             NAME, UNDETERMINED, "文档根目录不存在：%s" % docs_root, where=str(docs_root),
-            reason="layout.docs_root 指向的目录不在；是配置过期还是目录被移走，本工具判不了",
+            reason="layout.docs_root 指向的目录不在；是配置过期还是目录被移走，本工具判不了"
+            if not dnote else "未配 layout.docs_root，默认的文档根不在；文档放在别处就在 project.yaml 写明",
             why="01 §3.1：文档树是约定的位置，位置不成立则新鲜度无从判起",
         )]
 

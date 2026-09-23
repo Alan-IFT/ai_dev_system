@@ -28,6 +28,10 @@ STATUSES = (PASS, FAIL, UNDETERMINED, SKIP)
 # 那是 01 §2 N1 禁止的确定性错误结论。**新增写法只在这里加，不在检查器里另起一张表。**
 STATUS_FIELDS = (u"状态", u"status", u"state")
 
+# 01 §3.5 的日期字段名缺省（`metadata_fields` 未配时取它，契约 §5）。此前 layout 与 freshness
+# 各持一份、解析写法也不同（freshness 另认一种契约里没有的映射写法），解析只在 `date_fields_of` 一处。
+DEFAULT_DATE_FIELDS = (u"updated_at",)
+
 
 def normalize_key(key):
     """Finding id 里 key 段的归一化：去首尾空白、内部空白与换行折成 `_`、`|` 换成 `｜`。
@@ -453,6 +457,14 @@ def is_tailored_out(cfg, check_name):
     return False, None
 
 
+def date_fields_of(cfg):
+    """文档日期字段名：`metadata_fields`（字符串列表，也接受单个字符串）。返回 (名字列表, 是否用的默认值)。"""
+    raw = cfg_get(cfg, "metadata_fields")
+    raw = [raw] if isinstance(raw, str) else raw
+    names = [str(x).strip() for x in raw if str(x).strip()] if isinstance(raw, list) else []
+    return (names, False) if names else (list(DEFAULT_DATE_FIELDS), True)
+
+
 # --------------------------------------------------------------------------
 # 文件与仓库
 # --------------------------------------------------------------------------
@@ -535,8 +547,12 @@ def in_frozen(cfg, relpath):
 #
 # 此前工作项目录的缺省在 evidence / freshness / drift 各写一份，状态工件的候选在
 # layout 与 drift 各写一份且两份不一致（一份照模板树、一份照标准仓自己的文件名），
-# 同一个项目会被两个检查器说成"有状态工件"和"没有状态工件"。
+# 同一个项目会被两个检查器说成"有状态工件"和"没有状态工件"。文档根的缺省同理：
+# layout 与候选改基取 `docs`，freshness 与 drift 却记未定，同一份配置两种读法。
 # --------------------------------------------------------------------------
+
+# 01 §3.1 文档树的根。契约 §5：`layout.docs_root` 缺省取它并在证据里注明。
+DEFAULT_DOCS_ROOT = "docs"
 
 # 01 §3.1 大项目树的 `docs/state/work/`（工作项，一件一文件）。契约 §5：缺省取它并在证据里注明。
 DEFAULT_WORK_ROOT = "docs/state/work"
@@ -547,10 +563,34 @@ DEFAULT_WORK_ROOT = "docs/state/work"
 STATUS_CANDIDATES = ("WORK.md", "docs/state/STATUS.md")
 
 
+def docs_root_of(cfg):
+    """文档根：`layout.docs_root`，未配则取 DEFAULT_DOCS_ROOT。
+
+    返回 (相对路径, 证据注记)。配了原样返回、注记为空（它会进 finding 标题，契约 §4）；
+    取了默认，注记写明——契约 §5 要求取了默认就得说。
+    """
+    raw = cfg_get(cfg, "layout.docs_root")
+    if raw:
+        return str(raw), ""
+    return DEFAULT_DOCS_ROOT, "docs_root 用的是默认 %s（未配 layout.docs_root）" % DEFAULT_DOCS_ROOT
+
+
+def note_default(findings, note):
+    """给一组依赖某项缺省的 finding 在 `evidence` 末尾统一补上注记（契约 §5：取了默认就得说）。
+
+    只改证据不改标题，finding id 不变。注记为空或已含时不动。返回原列表。
+    """
+    for f in findings if note else ():
+        ev = f.get("evidence") or ""
+        if note not in ev:
+            f["evidence"] = ev + ("；" if ev else "") + note
+    return findings
+
+
 def rebase_docs(rel, docs_root):
     """以 `docs/` 开头的候选/缺省路径，按项目的 layout.docs_root 改基（缺省 docs 即不改）。"""
     rel = str(rel).replace("\\", "/").strip().rstrip("/")
-    docs_root = str(docs_root or "docs").replace("\\", "/").strip().rstrip("/")
+    docs_root = str(docs_root or DEFAULT_DOCS_ROOT).replace("\\", "/").strip().rstrip("/")
     if rel.startswith("docs/") and docs_root != "docs":
         return docs_root + rel[4:]
     return rel
@@ -564,7 +604,7 @@ def work_root(cfg):
     raw = cfg_get(cfg, "layout.work_root")
     if raw:       # 原样返回不归一：它会进 finding 标题，标题变了兜底 id 就变（契约 §4）
         return str(raw), "work_root 取自 layout.work_root：%s" % raw
-    rel = rebase_docs(DEFAULT_WORK_ROOT, cfg_get(cfg, "layout.docs_root"))
+    rel = rebase_docs(DEFAULT_WORK_ROOT, docs_root_of(cfg)[0])
     return rel, "work_root 用的是默认 %s（未配 layout.work_root）" % rel
 
 

@@ -19,7 +19,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, PASS, SKIP, STATUS_CANDIDATES, STATUS_FIELDS, UNDETERMINED,
-    cfg_get, finding, is_tailored_out, rebase_docs, undetermined_from_exception,
+    cfg_get, date_fields_of, docs_root_of, finding, is_tailored_out, rebase_docs,
+    undetermined_from_exception,
 )
 
 NAME = "layout"
@@ -28,11 +29,13 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 # --------------------------------------------------------------------------
 # 分档工件清单
 #
-# 派生自 templates/文件树与落地路径.md，提取日期 2026-09-10：
-#   L0  该文件 §2「L0 · 一人一工具（5 个文件）」第 20-30 行的树 + 第 32-38 行的职责表
-#   L1  该文件 §3「L1 · 一人多会话（+3）」第 44-53 行的树
-#   L2  该文件 §4「L2 · 团队（+5）」第 58-73 行的树
-#   L3  该文件 §5「L3 · 无人值守（+3）」第 79-87 行的树
+# 派生自 templates/文件树与落地路径.md，提取日期 2026-09-10（按节名引用，不记行号——行号随编辑漂）：
+#   L0  该文件 §2「L0 · 一人一工具」的树与其下的职责表
+#   L1  该文件 §3「L1 · 一人多会话」的树
+#   L2  该文件 §4「L2 · 团队」的树
+#   L3  该文件 §5「L3 · 无人值守」的树
+# 入口候选里的 CONTEXT.md 已不在现行树里（L0 入口现为 AGENTS.md），保留它是为兼容按旧模板
+#   落地的项目——删了它们的入口会无故变未定。证据里把它标成兼容旧模板的候选。
 # ★ 三类（入口 / 验收 / 状态）取自 标准/01-项目管理标准.md §3.1 正文
 #   「最小起点是入口、验收、状态三类工件（标 ★）」。
 #
@@ -54,6 +57,7 @@ STANDARD_REFS = ["01 §3.1", "01 §3.2", "01 §3.5"]
 # --------------------------------------------------------------------------
 
 _TEMPLATE_SOURCE = "templates/文件树与落地路径.md"
+_LEGACY_CANDIDATES = {"CONTEXT.md": "兼容旧模板的候选"}   # 不来自现行树，见上
 _SNAPSHOT_DATE = "2026-09-10"
 
 # (role, 中文名, 是否 ★, 存在性判据, 候选相对路径)
@@ -89,7 +93,7 @@ _TIER_ITEMS = {
 
 _TIER_ORDER = ["L0", "L1", "L2", "L3"]
 
-_DEFAULT_DATE_FIELDS = ["updated_at"]   # 01 §3.5 的字段名
+# 日期字段名的缺省与解析在 stdlib.date_fields_of（与 freshness 共用）。
 # 状态字段名取自 stdlib.STATUS_FIELDS（01 §3.5：draft | active | superseded | retired，
 # 中文文档写「状态：进行中」同样算）。此前这里是英文单值 "status"，与 freshness/evidence
 # 手上的三词表不一致，对本仓 PROJECT_STATUS.md 产出过一条假 FAIL。
@@ -148,29 +152,18 @@ def _has_field(head, field):
     return re.search(pat, head, re.M) is not None
 
 
-def _date_fields(cfg):
-    raw = cfg_get(cfg, "metadata_fields")
-    if raw is None:
-        return list(_DEFAULT_DATE_FIELDS), True
-    if isinstance(raw, str):
-        raw = [raw]
-    if not isinstance(raw, list) or not raw:
-        return list(_DEFAULT_DATE_FIELDS), True
-    return [str(x) for x in raw], False
-
-
 # --------------------------------------------------------------------------
 
 def scope(cfg):
     tier = cfg_get(cfg, "tier")
-    docs_root = _norm(cfg_get(cfg, "layout.docs_root") or "docs")
+    docs_root, dnote = docs_root_of(cfg)
     entries = cfg_get(cfg, "layout.entry", []) or []
-    fields, used_default = _date_fields(cfg)
+    fields, used_default = date_fields_of(cfg)
     return {
         "covered": [
             "按 project.yaml 的 tier（当前 %s）查该档要求的工件在不在" % (tier or "未声明"),
             "只在项目根、layout.entry（%s）与 layout.docs_root（%s）下解析工件路径"
-            % (", ".join(map(str, entries)) or "未配置", docs_root),
+            % (", ".join(map(str, entries)) or "未配置", _norm(docs_root) + ("，默认" if dnote else "")),
             "只对 acceptance / status 两角色的 markdown 工件查 01 §3.5 的头部元信息："
             "日期字段 %s 与状态字段 %s"
             % ("/".join(fields) + ("（默认值）" if used_default else ""),
@@ -223,12 +216,12 @@ def _run(cfg):
             why="01 §3.1 / %s 只定义了四档" % _TEMPLATE_SOURCE,
         )]
 
-    docs_root = _norm(cfg_get(cfg, "layout.docs_root") or "docs")
+    docs_root = _norm(docs_root_of(cfg)[0])
     entries = [str(x) for x in (cfg_get(cfg, "layout.entry", []) or [])]
     overrides = cfg_get(cfg, "layout.artifacts") or {}
     if not isinstance(overrides, dict):
         overrides = {}
-    date_fields, used_default_fields = _date_fields(cfg)
+    date_fields, used_default_fields = date_fields_of(cfg)
 
     out = []
     md_to_check = []   # [(role, 中文名, relpath)]
@@ -275,7 +268,9 @@ def _run(cfg):
                 break
 
         src = src_key if override else \
-              "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(cand_list))
+              "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(
+                  c + ("（%s）" % _LEGACY_CANDIDATES[c] if c in _LEGACY_CANDIDATES else "")
+                  for c in cand_list))
 
         if hit is None:
             if star and override:

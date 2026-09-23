@@ -30,8 +30,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, read_text, rebase_docs, tracked_files,
-    undetermined_from_exception, work_root, work_root_absent,
+    cfg_get, docs_root_of, finding, in_frozen, is_tailored_out, note_default, read_text,
+    rebase_docs, tracked_files, undetermined_from_exception, work_root, work_root_absent,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
 # 再抄一份 markdown 表解析器必然与它漂（01 §1 G2）。
@@ -206,7 +206,6 @@ def _check_dates(cfg, root, files, docs_root):
             cand_total += len(cand)
     if scanned == 0:
         return []                       # 空集上说不出"全部通过"（01 §2 N1）
-
     def _clean_pass():
         return [finding(
             NAME, PASS,
@@ -514,7 +513,7 @@ def _check_work_items(cfg, root, files):
                 why=u"01 §4.1 的工作项以 STATUS 的声明为入口，入口不在则判不了")]
     else:
         status_rel = None
-        cands = [rebase_docs(c, cfg_get(cfg, "layout.docs_root")) for c in STATUS_CANDIDATES]
+        cands = [rebase_docs(c, docs_root_of(cfg)[0]) for c in STATUS_CANDIDATES]
         for cand in cands:
             if os.path.exists(os.path.join(root, cand)):
                 status_rel = cand
@@ -585,15 +584,15 @@ def _check_work_items(cfg, root, files):
 # --------------------------------------------------------------------------
 
 def scope(cfg):
-    docs_root = cfg_get(cfg, "layout.docs_root")
+    docs_root, dnote = docs_root_of(cfg)
     decisions = cfg_get(cfg, "layout.artifacts.decisions")
     status = cfg_get(cfg, "layout.artifacts.status")
     wroot = work_root(cfg)[0]
     return {
         "covered": [
-            u"layout.docs_root（当前 %r）下 git 跟踪、不在 frozen 内的 *.md：日期后 %d 字内带动作词"
+            u"layout.docs_root（当前 %r%s）下 git 跟踪、不在 frozen 内的 *.md：日期后 %d 字内带动作词"
             u"且左侧 %d 字内不带计划词的那些日期，是否晚于该行 `git blame` 的提交日"
-            % (docs_root or u"（未配置）", _ACT_WINDOW, _PLAN_WINDOW),
+            % (docs_root, u"，默认" if dnote else u"", _ACT_WINDOW, _PLAN_WINDOW),
             u"ADR 目录（layout.artifacts.decisions，当前 %r；未声明则在 docs_root 内找名为 "
             u"decisions 的目录）里除索引外、不在 frozen 内的 *.md：围栏代码块之外的行首是否以就地修订"
             u"标记词开头（围栏按 CommonMark 开闭；英文 revision/changelog 只认 `#` 标题或后跟冒号/表格竖线/行尾的标签形态；"
@@ -638,12 +637,7 @@ def run(cfg):
         return [finding(NAME, SKIP, u"项目已裁剪本检查", reason=reason or u"project.yaml 未写理由")]
 
     root = cfg.get("_root") or "."
-    docs_root = cfg_get(cfg, "layout.docs_root")
-    if not docs_root:
-        return [finding(
-            NAME, UNDETERMINED, u"未配置文档根目录",
-            reason=u"governance/project.yaml 缺 layout.docs_root；本工具不猜文档放在哪（契约 §5）",
-            why=u"01 §2 N1：判不了的记未定，不记通过")]
+    docs_root, dnote = docs_root_of(cfg)
 
     files, problem = tracked_files(root, ["*.md"])
     if problem:
@@ -656,11 +650,13 @@ def run(cfg):
         out.extend(_check_dates(cfg, root, _md_under(files, docs_root), docs_root))
     except Exception as exc:  # noqa: BLE001  契约 §4：run 不抛异常
         out.append(undetermined_from_exception(NAME, exc, u"判日期是否晚于提交"))
+    note_default(out, dnote)            # 日期判据整组依赖 docs_root，取了默认在此统一注明
 
     try:
         adr_dir, declared, problem_f = _adr_dir(cfg, root, files, docs_root)
+        adr_note = "" if declared else dnote    # 未声明时 ADR 目录是在 docs_root 下找的
         if problem_f is not None:
-            out.append(problem_f)
+            out.append(note_default([problem_f], adr_note)[0])
         else:
             # 归档区不承担更新义务（01 §3.1）：既不判就地修订，也不参与索引对账。
             adr_all = [f for f in _md_under(files, adr_dir)
@@ -672,8 +668,9 @@ def run(cfg):
                     index_rel = cand
                     break
             adr_files = [f for f in adr_all if os.path.basename(f) not in _INDEX_NAMES]
-            out.extend(_check_revision(root, adr_dir, adr_files))
-            out.extend(_check_index(root, adr_dir, adr_files, index_rel, declared))
+            out.extend(note_default(
+                _check_revision(root, adr_dir, adr_files)
+                + _check_index(root, adr_dir, adr_files, index_rel, declared), adr_note))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception(NAME, exc, u"对账 ADR 索引"))
 
