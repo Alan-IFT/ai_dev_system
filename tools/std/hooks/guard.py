@@ -307,9 +307,10 @@ def selftest():
     bare = _norm(tempfile.mkdtemp(prefix="stdguard-nogit-"))
     std, fails, total, G = root + "/.std", [], 0, "git commit -m x"
 
-    def git(*args):         # 夹具不受全局配置左右：不签名、不跑全局钩子
+    def git(*args):         # 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行
         subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t",
-                        "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"] + list(args),
+                        "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+                        "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"] + list(args),
                        cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
 
     def put(rel, text):

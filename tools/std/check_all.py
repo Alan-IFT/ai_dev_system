@@ -246,6 +246,29 @@ def _contract_examples_selftest():
                 "CONTRACT.md 第 %d 段 yaml 示例解析通过" % i,
                 where="tools/std/CONTRACT.md",
             ))
+
+    # §5 写明"唯一接受的流式写法是空列表 []，且只作键的值"。三种形状各钉一下：
+    # 键值 [] 得空列表；列表项 - [] 与非空流式 [a, b] 都必须拒收，不许静默解析成别的形状
+    got, bad = None, []
+    try:
+        got = parse_yaml_subset(u"k: []\n").get("k")
+    except Exception as exc:  # noqa: BLE001
+        bad.append(u"k: [] 被拒：%s" % exc)
+    if got != []:
+        bad.append(u"k: [] 应得 []，实得 %r" % (got,))
+    for text in (u"k:\n  - []\n", u"k: [a, b]\n"):
+        try:
+            val = parse_yaml_subset(text)
+        except Exception:  # noqa: BLE001
+            continue
+        bad.append(u"%r 应被拒收，实得 %r" % (text, val))
+    out.append(finding(
+        "contract-examples", FAIL if bad else PASS,
+        u"解析器的流式写法边界与 CONTRACT §5 一致：只有键值 [] 被接受",
+        where="tools/std/CONTRACT.md",
+        why=u"歧义即拒绝；列表项位置的 [] 若被静默收下会解析成嵌套空列表",
+        evidence=u"；".join(bad) or u"键值 [] → []；- [] 与 [a, b] 均拒收",
+    ))
     return out
 
 
@@ -293,7 +316,8 @@ def _entry_smoke_selftest():
             with io.open(cfg_path, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(_SMOKE_CONFIG)
             subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", proj, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
+                            "add", "-A"], capture_output=True, timeout=60)
 
             # 1) run_all 的返回形状：必须是 (findings, cfg)，不是列表
             ret = run_all(proj, selftest_only=False, config_path=cfg_path)
@@ -471,7 +495,8 @@ def _entry_smoke_selftest():
                 with io.open(f_path, "w", encoding="utf-8", newline="\n") as fh:
                     fh.write(u"# 样本\n")
             subprocess.run(["git", "init", "-q", emb], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", emb, "add", "-A"], capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", emb, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
+                            "add", "-A"], capture_output=True, timeout=60)
             for r, tr, want in ((emb, std_dir, ".std"), (emb, emb, None), (emb, tmp, None)):
                 got = embedded_std_rel(r, tr)
                 if got != want:
@@ -546,7 +571,8 @@ def _shared_fact_selftest(mods):
             with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(body)
         subprocess.run(["git", "init", "-q", tmp], capture_output=True, timeout=60)
-        subprocess.run(["git", "-C", tmp, "add", "-A"], capture_output=True, timeout=60)
+        subprocess.run(["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
+                        "add", "-A"], capture_output=True, timeout=60)
 
     out = []
     try:

@@ -106,13 +106,18 @@ _RE_WS = re.compile(r"\s+")
 # 数字 + 量词 + 名词。误报率高，按判据 3 一律记未定。
 # 首位不取 0：中文行文不把计数写成前导零（「01 个」「02 条」不成句），带前导零的
 # 两位数在文档里一律是编号。本仓实测这一处收窄消掉的正是 `01 项目管理标`（10 文件）
-# 与 `02 条款`（4 文件）两组编号噪声，`44 篇公众号文`、`52 个独立来源`、
-# `1614 个同名文件` 等真候选一条不少。反例见 selftest 的「探测三之三」。
+# 与 `02 条款`（4 文件）两组编号噪声，`44 篇公众号文`、`52 个独立来源`
+# 等真候选一条不少。反例见 selftest 的「探测三之三」。
 _RE_COUNT_CLAIM = re.compile(
     u"(?<![0-9.])([1-9][0-9]+(?:[,，][0-9]{3})*)\\s*"
     u"(个|份|条|张|处|项|次|篇|轮|页|套|组|类|种|台|块|人|家|款|批|行|列|字|步)"
     u"([\\u4e00-\\u9fa5A-Za-z][\\u4e00-\\u9fa5A-Za-z_·]{0,3})"
 )
+# 序数不是计数：「第 16 个部件」「第 15、16 个部件」说的是位次，不声明有多少。
+# 只看数字前面紧挨着的「第」，或「第 N、」起头的并列序数；「3、16 个文件」
+# 这种不带「第」的并列照常计。反例见 selftest 的「探测三之四」。
+_RE_ORDINAL_PREFIX = re.compile(u"第\\s*(?:[0-9]+\\s*、\\s*)*$")
+
 # 名词只取前两字作键。同一事实在不同句子里后接的字不同（「192 份归档，按季度」
 # 与「192 份归档由资料员保管」），按全长比会漏判。放宽只会多报，而本判据按设计
 # 一律记未定，不会因此升格为失败。
@@ -329,6 +334,8 @@ def _count_claims(files):
         for lineno, raw in prose_lines(text):
             line = _mask_links(raw)
             for m in _RE_COUNT_CLAIM.finditer(line):
+                if _RE_ORDINAL_PREFIX.search(line, 0, m.start(1)):
+                    continue
                 num = m.group(1).replace(u",", u"").replace(u"，", u"")
                 key = (num, m.group(2), m.group(3)[:_CLAIM_NOUN_KEY])
                 claims.setdefault(key, {}).setdefault(rel, (lineno, m.group(0)))
@@ -592,7 +599,8 @@ def _mkrepo(tmp, files):
         with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(body)
     subprocess.run(["git", "init", "-q", tmp], capture_output=True, text=True, timeout=60)
-    subprocess.run(["git", "-C", tmp, "add", "-A"], capture_output=True, text=True, timeout=60)
+    subprocess.run(["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
+                    "add", "-A"], capture_output=True, text=True, timeout=60)
     return {"_root": tmp, "layout": {"frozen": []}}
 
 
@@ -796,6 +804,35 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, u"探测三之三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 探测三之四：序数「第 N 个」「第 N、M 个」不是计数，跨 3 个文件不得报；
+    # 同批不带「第」的真计数「23 个部件」与并列「3、18 个文件」必须照报——排除只认「第」。
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            body = {}
+            for i, uniq in enumerate((_UNIQ_A, _UNIQ_B, _UNIQ_C), 1):
+                body["q%d.md" % i] = (
+                    uniq
+                    + u"\n边缘的不算第 15、16 个部件，也不算第 17 个部件。\n"
+                    + u"\n本轮共有 23 个部件在册，另有 3、18 个文件两批。\n")
+            res = run(_mkrepo(tmp, body))
+        titles = [f["title"] for f in res if u"同一数值声明" in f["title"]]
+        noise = [t for t in titles if any(n in t for n in (u"15 个", u"16 个", u"17 个"))]
+        real = [t for t in titles if u"23 个" in t or u"18 个" in t]
+        ok = not noise and len(real) == 2 and FAIL not in [f["status"] for f in res]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"探测三之四：序数「第 N 个」「第 N、M 个」跨 3 个文件不得报，"
+            u"同批的基数「23 个…」「3、18 个…」必须照报",
+            evidence=u"序数命中 %d 条：%s；基数命中 %d 条：%s" % (
+                len(noise), u"；".join(noise) or u"（无）",
+                len(real), u"；".join(real) or u"（无）"),
+            why=u"01 §1 G2 的对象是被声明的数值；序数是位次不是数值。"
+                u"排除若过头会连并列基数一起吃掉，所以两侧一起钉",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(
+            NAME, FAIL, u"探测三之四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:

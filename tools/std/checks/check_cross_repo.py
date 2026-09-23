@@ -302,7 +302,7 @@ def scope(cfg):
             "不判断入口内容是否真的只是投影：只判有没有指向系统仓，不判系统级规则正文有没有被抄进来",
             "登记一条只按'名字 + 同一行的状态词'判：名字出现但同行没有状态词一律记未定（不记通过也不记失败），"
             "写的那个状态与 repos 里的 role 一不一致也不判",
-            "不做跨仓同名文档的重复检测（M-26 观察一的 1614 个同名文件），那是另一条判据",
+            "不做跨仓同名文档的重复检测（M-26 观察一的同名文件），那是另一条判据",
             "不跨机器解析部署主机路径：以 / 开头的绝对路径一律记未定，不判存在性",
             "'两跳'判到第二跳为止——入口本身算第一跳，入口里指向本仓内文件的链接算第二跳；"
             "不展开第三跳，也不跟随外链与 http 链接",
@@ -993,7 +993,8 @@ def _alias_probe(body, former):
             if nm == "app":
                 _mk(os.path.join(d, "docs", "note.md"), body + u"\n")
             for arg in (["init", "-q"], ["add", "-A"]):
-                subprocess.run(["git", "-C", d] + arg, capture_output=True, timeout=60)
+                subprocess.run(["git", "-C", d, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"] + arg,
+                               capture_output=True, timeout=60)
         got = [f for f in run({
             "_root": tmp, "layout": {"entry": ["CLAUDE.md"]},
             "repos": [{"name": "sys", "path": "sys", "role": "system", "former_names": former},

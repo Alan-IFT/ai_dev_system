@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_FIELDS, UNDETERMINED,
     cfg_get, date_fields_of, docs_root_of, finding, in_frozen, is_tailored_out, note_default,
-    parse_date, read_text, tracked_files, undetermined_from_exception, work_root, work_root_absent,
+    parse_date, parse_yaml_subset, read_text, tracked_files, undetermined_from_exception, work_root, work_root_absent,
 )
 
 NAME = "freshness"
@@ -50,6 +50,9 @@ def _metadata_requirement(cfg, rel):
     - `"required"`   —— 项目配置命中，或路径里出现约定的目录名；
     - `"not_required"` —— 项目配了 `metadata_required` 而本文件不在清单内。
       这是**项目自己的声明**，是确定结论，可以记 SKIP；
+    - `"declared_none"` —— 项目把 `metadata_required` 显式写成空列表 `[]`：声明
+      本项目没有 01 §3.5 那六类文档。同是项目声明，调用方整轮聚成一条 SKIP；
+      与"键缺失"（没声明）必须分开——后者才落到 `"unknown"`；
     - `"unknown"`    —— 项目没配，目录名约定也没命中。
       "这份文档算不算 01 §3.5 的六类"要看内容，不是机械可判定的（契约 §7），
       所以**不能**记成 SKIP（"不适用"是确定结论），按 01 §2 N1 记未定。
@@ -60,7 +63,9 @@ def _metadata_requirement(cfg, rel):
     """
     parts = [p for p in str(rel).replace("\\", "/").split("/") if p]
     override = cfg_get(cfg, "metadata_required")
-    if isinstance(override, list) and override:
+    if isinstance(override, list):
+        if not override:
+            return "declared_none"
         joined = "/".join(parts)
         for pre in override:
             pre = str(pre).replace("\\", "/").strip("/")
@@ -248,7 +253,8 @@ def _classify_stats(cfg):
         if in_frozen(cfg, rel):
             stats["frozen"] += 1
             continue
-        stats[_metadata_requirement(cfg, rel)] += 1
+        need = _metadata_requirement(cfg, rel)
+        stats["not_required" if need == "declared_none" else need] += 1   # 同是项目声明不需要
     stats["scanned"] = stats["required"] + stats["not_required"] + stats["unknown"]
     return stats
 
@@ -348,7 +354,7 @@ def _check_docs(cfg, root, today, base):
             reason="空集上说不出'全部文档都新鲜'（01 §2 N1：X 为空集时'全部 X 通过'判未定）",
         )]
 
-    out, frozen, unclassified = [], [], []
+    out, frozen, unclassified, declared_none = [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -372,6 +378,9 @@ def _check_docs(cfg, root, today, base):
                 continue
             if need == "unknown":
                 unclassified.append(rel)
+                continue
+            if need == "declared_none":
+                declared_none.append(rel)
                 continue
             out.append(finding(
                 NAME, FAIL, "缺日期字段：%s" % rel, where="%s:1" % rel,
@@ -416,6 +425,14 @@ def _check_docs(cfg, root, today, base):
     if frozen:
         out.append(_agg(SKIP, "归档区文档不参与新鲜度", frozen,
                         reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
+    if declared_none:
+        out.append(_agg(
+            SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none,
+            reason="project.yaml 把 metadata_required 显式写成空列表：项目声明自己没有 "
+                   "01 §3.5 那六类文档（验收、架构、模块、契约、ADR、runbook）。这是项目自己的声明，"
+                   "故记不适用；声明错了由写下它的人负责，本工具不复核。"
+                   "键缺失不是这个意思——那种情况记未定",
+            why="契约 §5：metadata_required 给了就只认它；空列表即『一类都不要求』"))
     if unclassified:
         # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
@@ -554,7 +571,7 @@ def _write(path, text):
 def _git_init(tmp):
     """自检样本要被 git 跟踪才进得了扫描范围。返回 None 或错误串。"""
     for cmd in (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
-                ["git", "-C", tmp, "add", "-A", "-f"]):
+                ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]):
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
         except (OSError, subprocess.SubprocessError) as exc:
@@ -598,7 +615,8 @@ def _sample_unconventional(tmp, work_text, metadata_required=None):
            "# 数据恢复手册\n\n正文：故障后的数据恢复步骤。\n")
     _write(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
     err = _git_init(tmp)
-    extra = {"metadata_required": list(metadata_required)} if metadata_required else None
+    extra = ({"metadata_required": list(metadata_required)}
+             if metadata_required is not None else None)
     return _cfg(tmp, extra), err
 
 
@@ -685,6 +703,29 @@ def selftest():
                      % ([f["status"] for f in res], len(fails), len(skips), len(aggs),
                         ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §5：metadata_required 给了就只认它，整体替换目录名约定",
+        ))
+
+    # 反例四之二：metadata_required 显式写成空列表 `[]`，是项目声明"一类都不要求"，
+    # 须整轮一条 SKIP、不留聚合未定；同一样本不配这个键（反例三）才记未定——两者不得混同。
+    # 取值经解析器读出，连同"解析器接受 `[]`"一起钉住。
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        declared = parse_yaml_subset("metadata_required: []\n")["metadata_required"]
+        cfg, err = _sample_unconventional(tmp, work_fresh, metadata_required=declared)
+        res = run(cfg) if not err else []
+        skips = [f for f in res if f["status"] == SKIP and "项目声明没有" in (f["title"] or "")]
+        aggs = [f for f in res if f["status"] == UNDETERMINED and "判不了它们" in (f["title"] or "")]
+        ev = (skips[0].get("evidence") or "") if skips else ""
+        ok = ((not err) and len(skips) == 1 and not aggs
+              and FAIL not in [f["status"] for f in res]
+              and "docs/ops/pitr-runbook.md" in ev and "docs/运维/数据恢复手册.md" in ev)
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "反例四之二：metadata_required: [] 时无日期文档整轮记一条不适用，"
+            "不留聚合未定（键缺失才记未定，见反例三）",
+            evidence="实得 %s；声明型 SKIP %d 条，残留聚合未定 %d 条%s"
+                     % ([f["status"] for f in res], len(skips), len(aggs),
+                        ("；git 准备失败：%s" % err) if err else ""),
+            why="契约 §5：空列表是项目的声明，键缺失是没声明，前者可给确定结论、后者不能",
         ))
 
     # 反例五（id 稳定性，契约 §9）：同一份文档再放一阵子，**标题里的天数要变、id 不能变**。

@@ -133,6 +133,10 @@ def _scalar(raw, lineno):
     s = raw.strip()
     if not s:
         return ""
+    if s == "[]":
+        # 唯一接受的流式写法：空列表没有歧义，且 metadata_required 靠它区分
+        # "声明一类都没有"与"没声明"（契约 §5）
+        return []
     if s[0] in "[{&*|>!%@`":
         raise ConfigError(
             "第 %d 行用了本解析器不支持的 YAML 语法 %r。"
@@ -216,6 +220,10 @@ def parse_yaml_subset(text):
                         item[k2.strip()] = _scalar(v2, n2)
                         idx += 1
                     items.append(item)
+                elif rest == "[]":
+                    # 空列表只作键的值才有意义（区分"声明没有"与"没声明"）；
+                    # 作列表项是嵌套空列表，没有哪个键收这个形状
+                    raise ConfigError("第 %d 行的列表项是空列表 []；只有键的值可以写 []" % n)
                 elif rest:
                     items.append(_scalar(rest, n))
                     idx += 1

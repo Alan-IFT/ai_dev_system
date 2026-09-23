@@ -308,7 +308,8 @@ def _check_one(root, idx, item):
 
 # 夹具不受全局配置左右：不签名、不跑全局钩子（同 hooks/guard.py 的 selftest git()）
 _GIT_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
-           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+           "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
 
 
 def _git(root, *args, **kw):

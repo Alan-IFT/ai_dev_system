@@ -326,7 +326,7 @@ def _run(cfg):
     if isinstance(states, str):
         states = [states]
     states = [str(s).strip().lower() for s in states if str(s).strip()]
-    states_default = cfg_get(cfg, "work_item_done_states") is None
+    states_default = not cfg_get(cfg, "work_item_done_states")
     note = ("完成态用的是默认 %s（未配 work_item_done_states）" % "/".join(states)
             if states_default else "完成态取自 project.yaml：%s" % "/".join(states))
     note += "；" + wnote
@@ -467,7 +467,7 @@ def _write(path, text):
 
 def _git_init(tmp):
     for cmd in (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
-                ["git", "-C", tmp, "add", "-A", "-f"]):
+                ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]):
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
         except (OSError, subprocess.SubprocessError) as exc:
