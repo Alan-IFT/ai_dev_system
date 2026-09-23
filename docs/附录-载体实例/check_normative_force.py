@@ -5,7 +5,7 @@
 校验：
   C1  所有 governed_by 引用的 decision_id 在决策索引中存在
   C2  生效登记表中每条记录的必需字段齐全（按状态区分）
-  C3  生效登记表中的「试行」条目 expiry 可解析（不可解析＝不合规）；已过期只作到期通告，不计入不合规
+  C3  生效登记表中的「试行」条目 expiry 可解析（不可解析＝不合规）；已过期只作到期通告，不计入不合规，也不计入生效规则
   C4  决策索引状态列与生效登记表一致
   C5  规范正文中不存在第三处状态值副本
   C6  所有规范文档都声明了 governed_by
@@ -93,6 +93,7 @@ def main() -> int:
     log = LOG.read_text(encoding="utf-8")
     findings: list[Finding] = []
     expired: list[Finding] = []  # 到期通告：不计入不合规项、不影响退出码
+    expired_ids: set[str] = set()  # 已过 expiry 的试行项：按 08 §6 已退回提议，不算生效（D-082）
 
     # ---- 解析生效登记表 ----
     reg_block = _section(log, "生效登记表")
@@ -144,6 +145,7 @@ def main() -> int:
                 findings.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）的 expiry 不是可解析日期：{exp!r}"))
             elif _dt.date(*map(int, m.groups())) < today:
+                expired_ids.add(did)
                 expired.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）已于 {exp} 到期，按 D-014 §6 自动退回「提议」，"
                     f"须从生效登记表移除或重新批准（历史结果不追溯）"))
@@ -251,12 +253,15 @@ def main() -> int:
                 f"自行声明了语料版本号「{m.group(0)}」；版本号只允许出现在 PROJECT_STATUS.md 的 "
                 f"corpus_version（D-014 §7 单一副本）。此处应删除或改为指向该字段的链接"))
 
-    eff_ids = sorted(d for d, r in register.items() if _strip(r.get("状态", "")) in EFFECTIVE_STATES)
+    # 生效集合只在这里算一次，C9 与报头共用；已到期的试行项不算（D-082）
+    eff_ids = sorted(d for d, r in register.items()
+                     if _strip(r.get("状态", "")) in EFFECTIVE_STATES and d not in expired_ids)
 
     # ---- C9：决策日志里的散文计数须与表对账（Case C-005） ----
     cnt_re = re.compile(r"当前生效规则数：\*\*(\d+)\*\*")
     m = cnt_re.search(LOG.read_text(encoding="utf-8"))
-    if m and int(m.group(1)) != len(eff_ids):
+    # 散文数恰好多出已到期条数：是日历翻页，归到期通告，不进 FAIL（同 D-078 2a）
+    if m and int(m.group(1)) not in (len(eff_ids), len(eff_ids) + len(expired_ids)):
         findings.append(Finding("C9", str(LOG.relative_to(ROOT)), None,
             f"散文写「生效规则数 {m.group(1)}」，与生效登记表实算 {len(eff_ids)} 条不一致"))
 
@@ -287,11 +292,12 @@ def main() -> int:
                     f"引用了 {ch} 章的 §{sec}，但该章只有 §" + "/§".join(sorted(body_secs[ch]))))
 
     # ---- 报告 ----
-    eff = [d for d, r in register.items() if _strip(r.get("状态", "")) in EFFECTIVE_STATES]
     print("D-014 规范效力检查器")
-    print(f"  决策总数：{len(index)}   生效规则：{len(eff)}"
-          f"（{'、'.join(sorted(eff)) or '无'}）   扫描文档：{len(md_files)}")
-    if not eff:
+    print(f"  决策总数：{len(index)}   生效规则：{len(eff_ids)}"
+          f"（{'、'.join(eff_ids) or '无'}）   扫描文档：{len(md_files)}")
+    if expired_ids:
+        print(f"  已到期：{len(expired_ids)}（{'、'.join(sorted(expired_ids))}）——不计入生效规则，见下方到期通告")
+    if not eff_ids:
         print("  注意：生效规则集为空。任何『全部规则通过』的判定应计为 UNDETERMINED"
               "，不得视为 PASS（D-014 §4）。")
     print()
