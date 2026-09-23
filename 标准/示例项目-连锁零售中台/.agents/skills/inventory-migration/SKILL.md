@@ -9,7 +9,7 @@ description: 在本项目做 schema 或事件契约的 expand/contract 迁移时
 
 ## 前置
 
-- ADR `active`；工作项变更级别"高影响"；契约登记表消费者列已对账（`python tools/check_contracts.py --consumers <契约>`）。
+- ADR `active`；工作项变更级别"高影响"；契约登记表消费者列已对账（`python3 tools/check_contracts.py --consumers <契约>`）。
 - 切换顺序按回滚代价从低到高（PB-13）：投影类 → 网关类 → 结算类。
 
 ## expand
@@ -24,7 +24,7 @@ description: 在本项目做 schema 或事件契约的 expand/contract 迁移时
 
 1. 消费者切到 v2 队列；消费方契约测试。
 2. 幂等去重经 `platform.idempotency_receipt`，不自建。
-3. 重放验证（INV-016）：`python tools/replay.py --consumer <c> --from <d> --to <d+1>`，比对快照差异为零，**先断言快照非空**。
+3. 重放验证（INV-016）：`python3 tools/replay.py --consumer <c> --from <d> --to <d+1>`，比对快照差异为零，**先断言快照非空**。
 4. 发布后 `check_receipts --event <契约> --consumer <c> --days 7` 差集为零才算该消费者 done。
 5. 回滚：切回 v1 队列（v1 仍在发）。
 

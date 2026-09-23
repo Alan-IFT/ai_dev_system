@@ -7,7 +7,7 @@ updated_at: 2026-05-12
 
 # 依赖规则
 
-机械检查：`python tools/check_deps.py`（CI 阻断，G9）。规则本体是下面的矩阵；本文以外任何地方的"应该"都不算数。
+机械检查：`python3 tools/check_deps.py`（CI 阻断，G9）。规则本体是下面的矩阵；本文以外任何地方的"应该"都不算数。
 
 ## 分层
 

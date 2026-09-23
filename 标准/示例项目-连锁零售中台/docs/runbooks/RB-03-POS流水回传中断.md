@@ -13,7 +13,7 @@ source_rev: f0a1b3e
 ## 0. 先判断范围（2 分钟）
 
 ```
-python tools/pos_status.py --silent-since 30m
+python3 tools/pos_status.py --silent-since 30m
 ```
 输出按厂商分组的静默门店。**全部是同一厂商** → 厂商侧问题（走 §1）；**单店** → 门店网络或 POS 本地（走 §2）；**跨厂商** → 我方入口（走 §3）。空输出先确认脚本能连 prod 只读副本（返回码 0、总门店数 60）。
 
@@ -23,7 +23,7 @@ python tools/pos_status.py --silent-since 30m
 2. 看我方入口日志：`kubectl logs -l app=pos-gateway --since=1h | grep -E 'tls|handshake|401|403'`。
 3. 证书问题：联系厂商更新；我方 mTLS 信任链在 `k8s/pos-gateway/tls-trust.yaml`，更新是**不可逆动作**（需确认）。
 4. 恢复后：厂商侧会补传缓存流水；观察 `pos_sales_inbound_lag_seconds` 回落；**补传按流水号幂等，不会重复入账**（PB-11；厂商 B 注意跨日）。
-5. 对账：`python tools/check_receipts.py --env prod --vendor <B> --since <中断开始>`，差集为零才关闭事件。
+5. 对账：`python3 tools/check_receipts.py --env prod --vendor <B> --since <中断开始>`，差集为零才关闭事件。
 
 ## 2. 单店静默
 

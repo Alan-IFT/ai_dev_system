@@ -35,11 +35,11 @@
 | `migrate` | `alembic upgrade head` | prod 由发布流程执行，agent 不直接跑 |
 | `deps_audit` | `pip-audit && npm audit --audit-level=high` | G6 |
 | `secrets` | `gitleaks detect --no-banner` | G7 |
-| `check_deps` | `python tools/check_deps.py` | G9 |
-| `check_contracts` | `python tools/check_contracts.py` | G10 |
-| `check_docs` | `python tools/check_docs_fresh.py` | G11；判据是模块 `source_rev` 落后 ≤ 8 次相关提交 |
-| `check_receipts` | `python tools/check_receipts.py --env staging` | G13 |
-| `check_handoff` | `python tools/check_handoff.py` | G12 |
+| `check_deps` | `python3 tools/check_deps.py` | G9 |
+| `check_contracts` | `python3 tools/check_contracts.py` | G10 |
+| `check_docs` | `python3 tools/check_docs_fresh.py` | G11；判据是模块 `source_rev` 落后 ≤ 8 次相关提交 |
+| `check_receipts` | `python3 tools/check_receipts.py --env staging` | G13 |
+| `check_handoff` | `python3 tools/check_handoff.py` | G12 |
 
 `tools/check_*.py` 的脚本实现不含在本示例里（见 `../tools/README.md`）。不适用的检查写 reason，不删掉这一行。
 
