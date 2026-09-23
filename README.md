@@ -4,7 +4,7 @@
 
 **适用范围约束（2026-09-02 确立）**：本规范必须在 codex、Claude Code、opencode、DeepSeek harness、VSCode Copilot 等既有 AI 辅助编程工具上通用。因此规范正文只写**语义不变量**，不写任何具体工具的入口文件名、目录结构、配置格式或脚本。判定与检验机制见[跨工具通用性](docs/09-跨工具通用性.md)（D-020，已接受）：**一条要求说不出两种机制类型不同的落地方式，就不得进入正文。** 载体上的实现只作为[附录·载体实例](docs/附录-载体实例/README.md)与[模板](templates/README.md)存在，效力为零。
 
-当前只构建理论、候选协议与 Markdown 模板，不编写业务代码；尚无候选规则被安装成真实 Gate。**语料版本号只有一处**，在[项目状态](PROJECT_STATUS.md)的 `corpus_version`——本文与各章都不再各自声明版本。
+当前只构建理论、候选协议与 Markdown 模板，不编写业务代码；候选规则已可装成真实 Gate——`tools/std` 的 `check_all` 可作提交门，Claude Code 拦截层（`tools/std/hooks`，随发布分发）会在 `git commit` 前跑它，采用项目 NFBY_CMS_FullStack 已装。**语料版本号只有一处**，在[项目状态](PROJECT_STATUS.md)的 `corpus_version`——本文与各章都不再各自声明版本。
 
 > 决策效力：**当前哪些规则可阻断或授权，只查[生效登记表](docs/决策日志.md#effective-register)。** 本文不复制那张表的内容——**条数也不抄**，抄一次就多一处会过期的副本（08 §7）。2026-09-03 起[正文 117 条原则整套进入`试行`](docs/决策日志.md#effective-register)（D-057，到期 2026-12-03）：**正文文本自此有阻断与授权效力**，此前十四轮它们全无执行点。
 

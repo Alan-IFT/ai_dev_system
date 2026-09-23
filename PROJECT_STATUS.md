@@ -2,7 +2,7 @@
 
 status_revision：`32`
 corpus_version：`v0.7-theory-draft`  ← **全仓唯一权威版本号**。各文档不再各自声明版本（2026-09-03 去掉 26 处副本，取值曾在 v0.5/v0.6/v0.7 之间漂移）。冻结快照 `docs/归档/历史/`、研究材料与 `.staging/` 保留各自的版本号，那是它们被冻结时的值。  
-updated_at：2026-09-12
+updated_at：2026-09-23
 last_status_change：2026-09-12（删除逐轮叙事，逐轮经过只看 git log 与审计记录）
 当前里程碑：研究架构保持现有组织；候选标准增加长期管理、架构演进、Agent 治理与运行维护内容，具体交付和检查见[本轮完善记录](docs/审计记录/本轮完善记录.md)。实际项目效果仍待验证；规则效力只查生效登记表。
 状态：进行中  
@@ -27,7 +27,7 @@ last_status_change：2026-09-12（删除逐轮叙事，逐轮经过只看 git lo
 
 ## 当前工作区身份
 
-- repository：`D:/Programs/AI辅助开发规范及工作流确定`
+- repository：`/home/alan/Programs/AI辅助开发规范及工作流确定`
 - worktree/branch：`main`。HEAD 取值不在此抄录——git 是其唯一权威，抄一份必然漂移（[08 §7](docs/08-规范效力元治理.md)）。**更正**：此前记载的"本会话对该文件夹无删除权限、git 无法运行"已不成立——2026-09-03 本会话直接完成了第九轮提交（需先清除一个残留的零字节 `.git/index.lock`）。
 - activity_work_item：`N/A`
 - last_verified_at：2026-09-03
