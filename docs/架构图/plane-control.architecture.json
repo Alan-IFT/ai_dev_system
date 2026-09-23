@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "控制平面展开：做对了吗、失控了吗、怎么自我修正（纪律，可只用文档实现）",
-    "subtitle": "节点上的数字是 52 个独立来源中把该类失败归因到本部件的来源数（00 总览 §6）；连线括号内是明确画出该关系的独立来源数（00 总览 §4）",
+    "subtitle": "节点上的数字是把该类失败归因到本部件的独立来源数（00 总览 §6，来源基数见架构确定）；连线括号内是明确画出该关系的独立来源数（00 总览 §4）",
     "locale": "zh-CN",
     "output": "plane-control.architecture.html",
     "quality_profile": "showcase",
