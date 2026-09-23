@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""采用记录：项目有没有记下自己采用的是标准的哪一版、什么时候采用的。
+"""采用记录：项目有没有记下自己采用的是标准的哪一版（顺带看有没有采用日期）。
 
 执行 01 §8「采用、例外与升级」第一条（项目记录采用的标准版本
 `governance/STANDARD_VERSION`），并接住 01 §4.7「标准升级」那一行的验收判据
@@ -40,7 +40,8 @@ _REL = "governance/STANDARD_VERSION"
 
 # 版本值可以是首行裸值（示例项目的实物形状），也可以写成 `version: 1.0`。
 _VERSION_KEYS = ("standard_version", "version", "adopted_version", "标准版本", "采用版本")
-# §8 要求可追溯"何时采用的哪一版"，日期字段名放宽到这几个等价写法。
+# 采用日期不是标准原文的要求（01 §8 只要求记录版本），这几个字段名是本工具的约定：
+# 按契约 §1.1，命中记 PASS，落空只记未定。
 _ADOPTED_KEYS = ("adopted_at", "adopted", "adoption_date", "采用日期", "采用时间")
 
 # 内嵌标准 README 第 3 行的修订号（`**候选实现修订：`2026-09-22.2`。**`）。
@@ -116,7 +117,7 @@ def scope(cfg):
         "covered": [
             "%s 是否存在、是否非空" % _REL,
             "能否从中读出**版本值**（首行裸值，或 version/standard_version 键）",
-            "能否从中读出**采用日期**（adopted_at 或等价键）",
+            "能否从中读出**采用日期**（adopted_at 或等价键；字段名是本工具的约定，落空只记未定）",
             "把读到的版本值原样写进证据，供人核",
             "以内嵌方式运行时（本工具在被扫项目的 .std/ 之类目录里）：版本值与内嵌标准 "
             "<内嵌目录>/标准/README.md 里「候选实现修订：`…`」的值是否相等，不等判 FAIL",
@@ -192,21 +193,23 @@ def run(cfg):
     if embedded and version:
         out.append(_embedded_revision(root, embedded, version))
 
+    why_date = ("01 §8 第一条：『项目记录采用的标准版本（`governance/STANDARD_VERSION`）』；"
+                "01 §4.7『标准升级』行的验收判据：『`STANDARD_VERSION` 与差异记录一致』"
+                "——采用日期是对账时的线索，不是标准原文的要求")
     if not adopted:
         out.append(finding(
-            NAME, FAIL, "%s 没有采用日期" % _REL,
-            where=_REL,
-            why="01 §8 第一条要求可追溯『何时采用的哪一版』：只有版本值、没有采用日期，"
-                "就说不出这个值是哪一次评估落下的；01 §4.7『标准升级』行的验收判据是"
-                "『STANDARD_VERSION 与差异记录一致』，对账靠的正是日期",
-            evidence="没找到 %s 中的任何一个键。全文非空行：%s"
-                     % ("/".join(_ADOPTED_KEYS), raw_head),
+            NAME, UNDETERMINED, "%s 里没找到采用日期" % _REL,
+            where=_REL, kind="adopted-date-missing",
+            reason="日期字段名是本工具的约定（%s），没找到只说明不在约定处，推不出没记"
+                   "（契约 §1.1）；加一行 `adopted_at: <日期>` 即得通过" % "/".join(_ADOPTED_KEYS),
+            why=why_date,
+            evidence="全文非空行：%s" % raw_head,
         ))
     else:
         out.append(finding(
             NAME, PASS, "%s 记了采用日期" % _REL,
             where=_REL,
-            why="01 §8 第一条：采用记录要能追溯何时采用的哪一版",
+            why=why_date,
             evidence="读到的采用日期（原样）：%s\n"
                      "本检查不核实这个日期是否属实，也不判它与版本发布的先后。" % adopted,
         ))
@@ -286,12 +289,12 @@ def selftest():
     cases = [
         (None, (FAIL,),
          "反例：文件缺失应判 FAIL（01 §8 第一条）"),
-        (u"\n   \n", (FAIL, FAIL),
-         "反例：空文件——版本与采用日期都读不出，两条 FAIL"),
+        (u"\n   \n", (FAIL, UNDETERMINED),
+         "反例：空文件——版本读不出判 FAIL，采用日期读不出记未定"),
         (u"adopted_at: 2025-03-03\n", (FAIL, PASS),
          "反例：只有采用日期、读不出版本值应判 FAIL"),
-        (u"1.0\n", (PASS, FAIL),
-         "反例：只有版本值、没有采用日期应判 FAIL（§8 要求可追溯何时采用的哪一版）"),
+        (u"1.0\n", (PASS, UNDETERMINED),
+         "只有版本值、没有采用日期记未定：日期字段名是工具约定，落空不判 FAIL（契约 §1.1）"),
         (_COMPLETE, (PASS, PASS),
          "正例：示例项目的实物形状应判 PASS，本检查器对该输入不再产出任何未定"),
     ]

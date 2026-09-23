@@ -115,7 +115,9 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   `git subtree add --prefix=.std https://github.com/Alan-IFT/ai-dev-std.git main --squash`。
   之后入口里的路径写 `.std/标准/…`，检查命令写 `python3 .std/tools/std/check_all.py .`；
   `.std/标准/README.md` 第 3 行「候选实现修订」的值就是拉到的版本，写进
-  `governance/STANDARD_VERSION`。
+  `governance/STANDARD_VERSION` 首行；第二行可同时写 `adopted_at: <日期>`（形态见示例项目的
+  [`governance/STANDARD_VERSION`](../../标准/示例项目-连锁零售中台/governance/STANDARD_VERSION)），
+  不写的话 `adoption` 记一条未定。
 - **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
   提交的内容落在仓根、不在 `.std/` 下，路径过滤看不到它）；每次 add/pull 各贡献 1 条 merge 提交，
   条数 = 取用 1 次 + 升级次数，多出来的任何一条就是项目在 `.std/` 里改了标准，先把改动合并回标准仓
