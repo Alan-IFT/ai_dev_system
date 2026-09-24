@@ -118,7 +118,7 @@ def selftest() -> list[dict]:
 | 给了 `kind` | `check/kind`，再给 `key` 则接 `/` 与归一化后的 key（首尾空白去掉、内部空白折成 `_`、竖线换成 `｜`） | **判据不变它就不变**：标题怎么改、命中几个文件、超期几天，都不影响它。跨工具版本升级时仍须按 §8 的身份重跑核对 |
 | 没给 `kind` | `check/` + `sha1(title)[:8]` | **只在同一工具身份内稳定**：标题改一个字就换一个 id，对应的登记行随之失效。这是兜底，不是承诺 |
 
-给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的三条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`，标题带路径或行数），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
+给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的三条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
 
 ---
 
@@ -190,6 +190,8 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
 | `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
 | `budgets.entry_lines` | 正整数 | 否 | 取 01 §3.7 默认 150 并注明未校准；不是正整数记 `UNDETERMINED` |
+| `budgets.status_lines` / `work_item_lines` / `handoff_lines` / `module_lines` | 正整数 | 否 | 缺失即该类不判，记 `SKIP`（`budget-undeclared/<键>`）——01 §3.7 的 80 / 150 / 60 / 200 是参考值，不取来当门槛；不是正整数记 `UNDETERMINED`（`budget-invalid/<键>`）。对象见下方「01 §3.7」一节 |
+| `compatibility.policy` | 非空（字符串、映射或列表） | **是**（01 §5.3） | `check_adoption` 判 `FAIL`（`adoption/compatibility-policy`）。只判有没有，不判内容；写成指向项目里权威位置的指针也算 |
 | `budgets.stale_days` | 正整数 | 否 | 取常量 90 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.work_item_stale_days` | 正整数 | 否 | 取常量 14 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.duplicate_min_lines` | 整数 ≥2 | 否 | 取常量 3 并注明未校准 |
@@ -202,24 +204,24 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `repos` | 列表，每项 `name` / `path` / `role`；**`path` 只有 `role: archived` 可省略**（01 §3.8 的 archived 就是"已移出工作区，只在远端"）| 否 | `cross-repo` 记 `SKIP`：未声明或不足两个条目记不适用（单仓项目，01 §3.8）。`role` 取 `system`/`app`/`retired`/`archived`。`archived` 省略 `path` 或 `path` 在本机不存在时，"各仓可定位"一条按定义记 `PASS`，凡需读该仓本地文件的各条（入口、退役仓失效标记、跨仓引用）对它记 `SKIP`；给了 `path` 且目录在则照读照判。`retired` 不享受这条——它仍要求本地有检出可核 |
 | `repos[].former_names` | 字符串列表 | 否 | **不声明就一字不查**——不猜哪个名字是旧名（判据八）。别名与任何在册 `name` 相撞时该项记 `UNDETERMINED` 且不扫描：那种情况下命中的多半是在役引用 |
 
-**缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键，以及 `layout.docs_root`、`layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；`repos` 与 `derived` 是另一类例外——缺失时整条记 `SKIP`（不适用），既不取默认也不记未定：单仓项目按 01 §3.8「单仓项目记不适用」，未声明派生关系时主从由项目指定、不由检查器推定（01 §3.4）；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。**被多个检查器读的键，常量缺省只在 `stdlib` 写一处**（01 §1 G2）：同一个键不得被一个检查器取常量兜底、另一个记未定。`check_layout` 按分档快照找候选路径、`stdlib.entry_files` 在 `layout.entry` 未配时找入口候选名，都不算缺省——候选是 §1.1 所说的工具约定（提示），命中只许记通过或未定、未命中只记未定，不当作该键的取值。除这些之外的键缺失一律记 `UNDETERMINED`。
+**缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键（`status_lines`／`work_item_lines`／`handoff_lines`／`module_lines` 四个除外，缺失即该类不判、记 `SKIP`），以及 `layout.docs_root`、`layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；`repos` 与 `derived` 是另一类例外——缺失时整条记 `SKIP`（不适用），既不取默认也不记未定：单仓项目按 01 §3.8「单仓项目记不适用」，未声明派生关系时主从由项目指定、不由检查器推定（01 §3.4）；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。**被多个检查器读的键，常量缺省只在 `stdlib` 写一处**（01 §1 G2）：同一个键不得被一个检查器取常量兜底、另一个记未定。`check_layout` 按分档快照找候选路径、`stdlib.entry_files` 在 `layout.entry` 未配时找入口候选名，都不算缺省——候选是 §1.1 所说的工具约定（提示），命中只许记通过或未定、未命中只记未定，不当作该键的取值。除这些之外的键缺失一律记 `UNDETERMINED`。
 
-### 01 §3.7 给了六项篇幅预算，本工具只执行其中一项
+### 01 §3.7 给了六项篇幅预算，本工具执行其中五项
 
-按 §2「未覆盖的部分不是没问题，是没看」，这里把边界写死：
+按 §2「未覆盖的部分不是没问题，是没看」，这里把边界写死。五项都在 `check_entry_budget`：
 
-| 01 §3.7 的预算项 | 默认值 | 本工具 |
-|---|---|---|
-| `AGENTS.md`（入口） | 150 行 | **执行**：`check_entry_budget` 读 `budgets.entry_lines`，对象是 `layout.entry` 列出的文件，未配时是候选里第一个存在的那个（§5） |
-| `INDEX.md` | 每份文档一行 | **无检查器** |
-| `STATUS.md` | 80 行 | **无检查器** |
-| 工作项 | 150 行 | **无检查器** |
-| 交接 | 60 行 | **无检查器** |
-| 模块文档 | 200 行 | **无检查器** |
+| 01 §3.7 的预算项 | 默认值（后四项为参考值） | 预算键 | 对象（先认项目声明，未声明才按候选） |
+|---|---|---|---|
+| `AGENTS.md`（入口） | 150 行 | `budgets.entry_lines` | `layout.entry` 列出的文件，未配时是候选里第一个存在的那个（§5） |
+| `STATUS.md` | 80 行（参考值） | `budgets.status_lines` | `layout.artifacts.status`，须是文件；候选 `stdlib.STATUS_CANDIDATES`。声明为目录时记 `SKIP`（`status-dir`）：80 行是单份 STATUS 的预算，目录形态下没有对应对象 |
+| 工作项 | 150 行（参考值） | `budgets.work_item_lines` | `layout.work_root` 下直接一层、头部带状态字段的 `*.md`；未配时是缺省目录 |
+| 交接 | 60 行（参考值） | `budgets.handoff_lines` | `layout.artifacts.handoff`，文件或目录下直接一层的 `*.md`；候选 `stdlib.HANDOFF_CANDIDATES` |
+| 模块文档 | 200 行（参考值） | `budgets.module_lines` | `layout.artifacts.modules`，同上；候选 `docs/architecture/modules`（随 `layout.docs_root` 改基） |
+| `INDEX.md` | 每份文档一行 | — | **不执行**：预算不是行数，一行里有没有摘要以外的内容要读内容（§7） |
 
-后五项**没有任何检查器执行**，报告里既不会 PASS 也不会 FAIL，连一条未定都不会出现——它们根本没被看过。按 [01 §1 G5](../../标准/01-项目管理标准.md)（高价值规则要有检查方式），它们在本工具的覆盖范围内**目前等于没有**。采用项目要么自建检查器把它们接上，要么在 `tailoring` 里登记不适用，别把"报告没报"当成"没超预算"。
+**后四项只在项目声明了对应预算键时判**：01 §3.7 说表中数字只是试验参数、不是合格门槛，所以未声明的记 `SKIP`（`budget-undeclared/<键>`），参考值只写进说明；入口一项照旧，未声明取 150 判——它与另外四类不同：入口文件每次会话都会加载，预算直接决定每次会话的固定上下文成本，所以默认值即判；另外四类按需读取，超了的代价随项目而异，由项目声明了预算才判。声明了预算之后的三态：落点来自项目声明（`layout.work_root` 未配时的缺省目录不算声明）且超预算判 `FAIL`（`doc-over/<路径>`）；落点来自候选只记未定（`candidate-over/<路径>`，§1.1）；在预算内汇成一条 `PASS`（`docs-within`）；某类一份都没有记 `SKIP`（`<role>-absent`），在不在归 `layout` 报。**同一份文件同时是几类工件**（如采用方把工作项目录同时声明为交接或状态）：超过其中最宽的预算才判 `FAIL`，只超较紧的记未定（`merged-over/<路径>`）——01 §3.7 按文档类给预算，没写合并承担几类职责的文件用哪条。`layout.frozen` 下的文件不数。
 
-**这五项不对应任何配置键，也不要为它们加键。** 加一个没有读者的键，等于在配置里写一句不会被执行的承诺——`budgets.status_lines` 与 `budgets.work_item_lines` 这两个键正是因为这个原因被删掉的。缺的是检查器，不是键；键要跟着检查器一起来（§1.1）。
+预算键不是正整数记未定。键跟着检查器一起来：此前 `budgets.status_lines` 与 `budgets.work_item_lines` 因为没有读者被删过，现在有了读者才重新加上。
 
 ### `metadata_required` 的两件事，都容易踩
 
@@ -290,7 +292,7 @@ tool_identity_files:
 
 **一行有效要五项齐全**：规则、理由、范围、批准人非空，到期能被解析（`YYYY-MM-DD` 或 ISO8601）。**到期必填**，没有到期的登记就是一键静音。`替代检查`／补偿控制这一列本工具**不校验**——那一列写的是项目自己的补偿措施，机械判不了它是否落实（§7）。到期由工具按**运行日**比较，基准日写进证据；过了期该行自动失效，对应发现回到未登记，并多出一条 `exception-register/expired`。
 
-**规则列写的是 Finding id**（报告里每条未定下面那行 `id：…`，直接抄）。比较前去首尾空白、剥首尾反引号，然后**精确相等**才算命中。与项目自己的门号例外（`G6`、`G9` 之类）共用一张表：**规则列不含 `/` 的行本工具一概不理**，既不登记也不校验——那是项目的门，不是本工具的发现。规则含 `/` 却匹配不到本次任何**未定**发现（含匹配到 `PASS`／`SKIP`／`FAIL`）的行即为孤儿，出一条 `exception-register/orphan`（判据变了、该条已不是未定，或抄错了，都该清理——留着的死行会在日后该条转回未定时静默复活）。
+**规则列写的是 Finding id**（报告里每条未定下面那行 `id：…`，直接抄）。比较前去首尾空白、剥首尾反引号，然后**精确相等**才算命中。与项目自己的门号例外（`G6`、`G9` 之类）共用一张表：**规则列不含 `/` 的行本工具不登记、不校验五项**——那是项目的门，不是本工具的发现，拿去匹配只会成批报孤儿。**但它们的到期照判**（[02 §4](../../标准/02-项目架构描述规范.md)：依赖规则的例外「带到期；到期未清理 CI 转红」）：未关闭且到期早于运行日的判 `FAIL`（`exception-register/own-expired/<编号>`，编号为空取规则列），到期写不成日期的汇成一条未定（`exception-register/own-undated`）；未到期的不出发现。规则含 `/` 却匹配不到本次任何**未定**发现（含匹配到 `PASS`／`SKIP`／`FAIL`）的行即为孤儿，出一条 `exception-register/orphan`（判据变了、该条已不是未定，或抄错了，都该清理——留着的死行会在日后该条转回未定时静默复活）。
 
 **FAIL 不可登记。** 本工具的 FAIL 按 §1.1 只在项目自己声明的事实下产出，那是确定的违规，处置是修或改声明。整块判据在本项目不适用走 `tailoring`（§5）——那是"这个检查器对我不适用"，粒度是整个检查器；例外登记是"这一条发现我看过并接受到某日"，粒度是单条发现。两者不可互换。
 

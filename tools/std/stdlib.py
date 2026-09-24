@@ -340,8 +340,22 @@ _EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
                (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
                (u"到期", "expires"), (u"状态", "status"))
 
-# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。词前带否定或未完成前缀（「待关闭」
+# 「未处理」「非 done」「not closed」）不算关闭——含词即关闭会把尚在生效的例外当成历史行放过。
 _EX_CLOSED = (u"关闭", u"closed", u"done", u"已处理")
+_EX_NOT_PREFIX = (u"未", u"待", u"非", u"不", u"not")
+
+
+def _ex_closed(status):
+    low = status.lower()
+    for tok in _EX_CLOSED:
+        start = low.find(tok)
+        while start >= 0:
+            head = low[:start]
+            if not (head.endswith(u"un") or head.rstrip(u" -*`").endswith(_EX_NOT_PREFIX)):
+                return True
+            start = low.find(tok, start + 1)
+    return False
 
 _MD_SEP_RE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
 
@@ -398,25 +412,27 @@ def load_exceptions(config_dir):
     """读例外登记册：配置文件**同目录**的 `exceptions.md`（契约 §9）。
 
     不带 `--config` 时就是 `<项目根>/governance/exceptions.md`。
-    返回 `(rows, problems, source_path)`：
+    返回 `(rows, problems, source_path, own)`：
 
     - `rows`：本工具认领且五项齐全的登记行（rule 含 `/`，即 Finding id 的形态）。
-      与项目自己的门号例外（`G6` 之类）共用一张表，**不含 `/` 的行本工具不理**，
-      既不登记也不校验——那是项目的门，不是本工具的发现。
+      与项目自己的门号例外（`G6` 之类）共用一张表，**不含 `/` 的行本工具不登记、不校验五项**
+      ——那是项目的门，不是本工具的发现，拿它去匹配发现只会成批报孤儿。
     - `problems`：本工具认领但不合格的行（行号 + 缺什么）。
     - `source_path`：文件路径；文件不存在时为 None。
+    - `own`：未关闭的项目自有例外行（rule 不含 `/`），只取到期：`expires_date` 解析不了时为 None。
+      02 §4「到期未清理 CI 转红」对它们同样成立，到期由调用方按运行日判。
     """
     path = os.path.join(config_dir, EXCEPTIONS_FILE)
     if not os.path.isfile(path):
-        return [], [], None
+        return [], [], None, []
     try:
         with io.open(path, encoding="utf-8") as fh:
             text = fh.read()
     except OSError as exc:
-        return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path
+        return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path, []
     table = _first_md_table(text)
     if table is None:
-        return [], [u"%s 里没有 markdown 表；本工具只读第一张表" % EXCEPTIONS_FILE], path
+        return [], [u"%s 里没有 markdown 表；本工具只读第一张表" % EXCEPTIONS_FILE], path, []
 
     hdr_lineno, header, raw_rows = table
     cols, dup, problems = {}, [], []
@@ -432,7 +448,7 @@ def load_exceptions(config_dir):
         problems.append(u"第 %d 行（表头）有多列都命中 %s，按先命中者为准"
                         % (hdr_lineno, u"、".join(sorted(set(dup)))))
 
-    rows = []
+    rows, own = [], []
     for lineno, cells in raw_rows:
         if not any(c for c in cells):
             continue
@@ -442,14 +458,16 @@ def load_exceptions(config_dir):
             return _cells[i].strip() if i is not None and i < len(_cells) else u""
 
         status = get("status")
-        low = status.lower()
-        if any(tok in status or tok in low for tok in _EX_CLOSED):
+        if _ex_closed(status):
             continue                                  # 先判关闭
         rule = get("rule").strip().strip(u"`").strip()
-        if u"/" not in rule:
-            continue                                  # 不是本工具的发现，不理
         ex_id, reason, scope = get("ex_id"), get("reason"), get("scope")
         approver, expires_raw = get("approver"), get("expires")
+        if u"/" not in rule:                          # 项目自己的例外：只取到期
+            day, err = parse_date(expires_raw)
+            own.append({"ex_id": ex_id, "rule": rule, "expires": expires_raw, "expires_date": day,
+                        "error": err, "lineno": lineno})
+            continue
         missing = [n for n, v in ((u"规则", rule), (u"理由", reason),
                                   (u"范围", scope), (u"批准人", approver)) if not v]
         day, err = parse_date(expires_raw)
@@ -463,7 +481,7 @@ def load_exceptions(config_dir):
         rows.append({"ex_id": ex_id, "rule": rule, "reason": reason, "scope": scope,
                      "approver": approver, "expires": day.isoformat(), "expires_date": day,
                      "status": status, "lineno": lineno})
-    return rows, problems, path
+    return rows, problems, path, own
 
 
 def cfg_get(cfg, path, default=None):
@@ -590,6 +608,10 @@ DEFAULT_WORK_ROOT = "docs/state/work"
 # templates/文件树与落地路径.md §2 的 L0 摆法 `WORK.md`，与 01 §3.1 的 `docs/state/STATUS.md`。
 # 模板文件名（templates/PROJECT_STATUS.md）不是落点——PRD.md 落成 ACCEPTANCE.md 也是同一回事。
 STATUS_CANDIDATES = ("WORK.md", "docs/state/STATUS.md")
+
+# 会话交接没在 layout.artifacts.handoff 声明落点时的候选：模板 L1 树的 `work/handoff.md` 与
+# 01 §3.1 的 `docs/state/handoff/`。layout（存在性）与 entry-budget（篇幅）共用。
+HANDOFF_CANDIDATES = ("work/handoff.md", "docs/state/handoff")
 
 # ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。`AGENTS.md` 是模板 L0 树的入口，
 # `CLAUDE.md` 是 Claude Code 默认读的文件名，`CONTEXT.md` 不在现行树里、保留它是兼容按旧模板

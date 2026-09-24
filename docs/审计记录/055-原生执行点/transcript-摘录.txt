@@ -1,0 +1,39 @@
+# 从 ~/.claude/projects/-tmp-claude-1000-ss-probe/ 会话记录里抽出的钩子与关键事件（claude 2.1.281，2026-09-24）
+
+== f21c8ffd-b63c-409a-8621-ba417fbf3755.jsonl
+hook_success SessionStart:startup | "HEAD c5143c9 probe init\n## master\n M a.txt\n?? .claude/\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+hook_success SessionStart:resume | "HEAD 5bd6e02 probe second\n## master\n?? .claude/\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+hook_success SessionStart:resume | "HEAD 5bd6e02 probe second\n## master\n M a.txt\n?? .claude/\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+compact_boundary 2026-09-24T03:03:48.533Z
+hook_success SessionStart:compact | "HEAD 5bd6e02 probe second\n## master\n M a.txt\n?? .claude/\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+
+== 30601413-48fe-44cc-8e98-63b42cc70f25/subagents/agent-a48650b4915989993.jsonl
+meta {"agentType":"std-reviewer","description":"工具权限测试","toolUseId":"toolu_01QZdcawYE9DJeengNGJjisv","spawnDepth":1,"requestShape":"background","requestNonInteractive":true}
+
+== 30601413-48fe-44cc-8e98-63b42cc70f25.jsonl
+hook_success SessionStart:startup | "HEAD 5bd6e02 probe second\n## master\n M a.txt\n?? .claude/\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+tool_use Write {"file_path": "/tmp/claude-1000/ss-probe/ctrl.txt", "content": "ok"}
+tool_use Agent {"description": "工具权限测试", "subagent_type": "std-reviewer", "prompt": "这是工具权限测试，不是审查。请尝试用 Write 工具（或任何能写文件的工具）在当前目录创建 sub
+
+== f93ff42e-dcea-4a88-bbac-65390db70705.jsonl
+hook_success SessionStart:startup | "HEAD 5bd6e02 probe second\n## master\n M a.txt\n?? .claude/\n?? ctrl.txt\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+skill_body(前 200 字) "Base directory for this skill: /tmp/claude-1000/ss-probe/.claude/skills/std-handoff\n\n# 收工与交接\n\n调用时的工作区（由 Claude Code 注入）：\n\n## master\n M a.txt\n?? .claude/\n?? ctrl.txt\n\n5bd6e02 probe second\nc5143c9 probe"
+tool_use Bash {"command": "find /tmp/claude-1000/ss-probe -name \"project.yaml\" -o -name \"CLAUDE.md\" -o -name \".claude\" -type d |
+tool_use Bash {"command": "ls -la /tmp/claude-1000/ss-probe/.claude/ 2>/dev/null || echo \"No .claude directory contents yet\"; find /
+tool_use Bash {"command": "find . -maxdepth 3 -type f \\( -name \"*.md\" -o -name \"*.yaml\" -o -name \"*.json\" \\) | head -30"}
+tool_use Read {"file_path": "/tmp/claude-1000/ss-probe"}
+tool_use Bash {"command": "git log --oneline -10 && echo \"---\" && ls -la"}
+tool_use Read {"file_path": "/tmp/claude-1000/ss-probe/a.txt"}
+tool_use Read {"file_path": "/tmp/claude-1000/ss-probe/ctrl.txt"}
+
+== 2d7fa7f7-c00a-4fcc-bb02-4086be6c5272/subagents/agent-ad7ed5911ade87f23.jsonl
+tool_use Read {"file_path": "/tmp/claude-1000/ss-probe/a.txt"}
+user(meta) "Stop hook feedback:\n返回前在末尾加一行 SUBSTOP-OK"
+hook_blocking_error SubagentStop | "返回前在末尾加一行 SUBSTOP-OK"
+meta {"agentType":"std-reviewer","description":"读 a.txt 并报告行数","toolUseId":"toolu_012FQJtvYCnVVYKmyrrjGx6o","spawnDepth":1,"requestShape":"background","requestNonInteractive":true}
+
+== 2d7fa7f7-c00a-4fcc-bb02-4086be6c5272.jsonl
+hook_success SessionStart:startup | "HEAD 5bd6e02 probe second\n## master\n M a.txt\n?? .claude/\n?? ctrl.txt\n按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。"
+tool_use Agent {"description": "读 a.txt 并报告行数", "subagent_type": "std-reviewer", "prompt": "读 a.txt，报告它有几行。"}
+user(meta) "Stop hook feedback:\n收工前再输出一行 STOPHOOK-OK"
+hook_blocking_error Stop | "收工前再输出一行 STOPHOOK-OK"

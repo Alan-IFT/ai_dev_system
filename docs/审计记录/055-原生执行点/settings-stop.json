@@ -1,0 +1,35 @@
+{
+ "hooks": {
+  "SessionStart": [
+   {
+    "hooks": [
+     {
+      "type": "command",
+      "command": "cd \"$CLAUDE_PROJECT_DIR\" && git log -1 --format='HEAD %h %s' && git status -sb | head -20; echo '按入口文件的加载合同开工：先读状态源与当前工作项，核对上面的分支、HEAD、未提交改动与工作项、交接是否一致，不一致先停。压缩或清空后重读当前工作项，不凭摘要续做。'"
+     }
+    ]
+   }
+  ],
+  "Stop": [
+   {
+    "hooks": [
+     {
+      "type": "command",
+      "command": "cd \"$CLAUDE_PROJECT_DIR\"; [ -f .stop1 ] || { touch .stop1; echo '{\"decision\":\"block\",\"reason\":\"收工前再输出一行 STOPHOOK-OK\"}'; }"
+     }
+    ]
+   }
+  ],
+  "SubagentStop": [
+   {
+    "matcher": "std-reviewer",
+    "hooks": [
+     {
+      "type": "command",
+      "command": "cd \"$CLAUDE_PROJECT_DIR\"; [ -f .sub1 ] || { touch .sub1; echo '{\"decision\":\"block\",\"reason\":\"返回前在末尾加一行 SUBSTOP-OK\"}'; }"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,9 +1,13 @@
 # retail-core 的项目配置。只写检查器读的键（CONTRACT §5）：档次、路径、预算、元信息范围。
 # 其余事实各有唯一位置，这里不复述：命令见 GATES.md「命令」节；栈见 AGENTS.md §0；
-# 环境与数据保留见 docs/architecture/overview.md §6/§7；兼容策略见 docs/architecture/
-# invariants.md INV-07 与 docs/architecture/contracts/README.md 的「兼容策略」列。
+# 环境与数据保留见 docs/architecture/overview.md §6/§7；兼容策略的正文在 docs/architecture/
+# invariants.md INV-07 与 docs/architecture/contracts/README.md 的「兼容策略」列，下方 compatibility.policy
+# （01 §5.3 必填）只写指针，不复述。
 # 采用的标准修订不在本文件，见 governance/STANDARD_VERSION（01 §8）
 tier: L2                                 # 四人团队（Zhao/Li/Zhou/Wang），有闸门、例外登记与 ADR
+
+compatibility:
+  policy: 已上线、有门店与历史数据，按 docs/architecture/invariants.md INV-07 与 docs/architecture/contracts/README.md「兼容策略」列执行
 
 layout:
   entry:

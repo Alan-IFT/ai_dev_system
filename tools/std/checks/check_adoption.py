@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""采用记录：项目有没有记下自己采用的是标准的哪一版（顺带看有没有采用日期）。
+"""采用记录：项目有没有记下自己采用的是标准的哪一版（顺带看有没有采用日期），及另两处项目级声明。
 
 执行 01 §8「采用、例外与升级」第一条（项目记录采用的标准版本
 `governance/STANDARD_VERSION`），并接住 01 §4.7「标准升级」那一行的验收判据
@@ -17,11 +17,15 @@ FAIL——两边都是被扫项目里的文件，比的是记录与实物。标�
 有已跟踪文件的改动（已暂存或未暂存都算，覆盖 `git commit -a`）判 FAIL。规则放在检查器里而不是
 某个宿主工具的钩子里，git 钩子、CI 与 Agent 的提交前钩子只要调 `check_all` 就同样受益。
 
+另判项目级声明的两处：01 §5.3「`project.yaml` 的 `compatibility.policy` 必填」，与 01 §5.5 审批
+疲劳段「能执行任意代码的通配放行项……不作为免审批项保留」（只读入库的 `.claude/settings.json`）。
+
 本模块只用标准库。
 """
 from __future__ import annotations
 
 import io
+import json
 import os
 import re
 import subprocess
@@ -32,11 +36,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    embedded_std_rel, finding, is_tailored_out, undetermined_from_exception,
+    cfg_get, embedded_std_rel, finding, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "adoption"
-STANDARD_REFS = ["01 §8", "01 §4.7", "01 §3.1"]
+STANDARD_REFS = ["01 §8", "01 §4.7", "01 §3.1", "01 §5.3", "01 §5.5"]
 
 # 位置由 01 §3.1 的文档树定死（`governance/ └─ STANDARD_VERSION  采用的标准版本`），
 # 不做成配置项：再加一个 layout 键，就等于让被检查方自己指定这条判据看哪儿。
@@ -197,6 +201,11 @@ def scope(cfg):
             "<内嵌目录>/标准/README.md 里「候选实现修订：`…`」的值是否相等，不等判 FAIL",
             "以内嵌方式运行时：内嵌目录下有没有已跟踪文件的改动（git status，含已暂存与未暂存），"
             "有判 FAIL（01 §8 只读）；git 查不了记未定",
+            "配置里有没有非空的 compatibility.policy（01 §5.3 必填，不分档），没有判 FAIL",
+            "%s 的 permissions.allow 里有没有通配放行项：`Bash`、`Bash(*)`，或命令解释器、脚本运行器、"
+            "包管理器运行命令后面只剩通配（如 `Bash(python3 *)`、`Bash(npm run *)`、`Bash(uv run:*)`），"
+            "以及整类放行 `PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`；有判 FAIL，文件不在记 SKIP"
+            % _SETTINGS_REL,
         ],
         "not_covered": [
             "不验证读到的版本值背后的 tag 是否真实存在——核实它要联网或读被扫项目之外的 git 元数据，本工具两样都不做",
@@ -215,6 +224,17 @@ def scope(cfg):
             "内嵌目录没被本仓 git 跟踪（被忽略或是嵌套的独立 clone）时记未定 embedded-untracked，不判改没改；"
             "内嵌目录只读：不看未跟踪文件（新建而未 git add 的），不看已提交进历史的改动"
             "——后者用 `git log --oneline -- .std` 查（见 tools/std/README「升级」）；非内嵌运行不判",
+            "compatibility.policy 只判有没有，不判写得对不对、是否覆盖数据/接口/配置/旧客户端四项（契约 §7）",
+            "免审批清单只读入库的 %s：不读 .claude/settings.local.json（不入库，内容因人因机器而异，"
+            "同一提交在不同机器上会得出不同结论，CI 也看不到）与用户级设置，那里的通配放行项本检查看不见；"
+            "不读别的宿主工具的清单；只判 Bash 规则，不判 MCP、WebFetch 等其他工具的放行范围；"
+            "解释器与运行器按一份固定清单认，清单外能执行任意代码的命令（如 `git *` 经别名、`make` 之外的"
+            "任务运行器）认不出；不判清单每项有没有加入理由、加入人与复审条件（01 §5.5 同段的另一半）"
+            % _SETTINGS_REL,
+            "不判 permissions.defaultMode：bypassPermissions 写在项目级或 local 设置里 Claude Code 自身不生效"
+            "（官方 settings 文档），交给宿主处理",
+            "auto 模式下 Claude Code 自己就会丢弃这类通配放行规则；本检查的增量在 manual、acceptEdits 等"
+            "会照单放行的模式下",
         ],
     }
 
@@ -224,8 +244,11 @@ def run(cfg, tool_root=None):
     tailored, reason = is_tailored_out(cfg, NAME)
     if tailored:
         return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-
     root = cfg.get("_root") or "."
+    return _version(cfg, root, tool_root) + [_compatibility(cfg)] + _settings_allow(root)
+
+
+def _version(cfg, root, tool_root):
     path = os.path.join(root, _REL)
     out = []
     embedded = embedded_std_rel(root, tool_root)
@@ -298,6 +321,112 @@ def run(cfg, tool_root=None):
 
 
 # --------------------------------------------------------------------------
+# 项目级声明的另两处：兼容策略（01 §5.3）与入库的免审批清单（01 §5.5）
+# --------------------------------------------------------------------------
+
+_SETTINGS_REL = ".claude/settings.json"
+
+# 能执行任意代码的命令：命令解释器、脚本运行器、包管理器的运行命令（01 §5.5 原文举的三类），
+# 以及把后面整条命令原样执行的包装命令。放行项在它们之后只剩通配（和选项）即算通配放行。
+_INTERPRETERS = frozenset((
+    "bash", "sh", "zsh", "dash", "ksh", "fish", "python", "python2", "python3", "node", "deno", "bun",
+    "perl", "ruby", "php", "lua", "pwsh", "powershell", "osascript",
+    "env", "xargs", "sudo", "eval", "exec", "nohup", "timeout", "nice", "watch",
+))
+_RUNNERS = (
+    ("npm", "run"), ("npm", "run-script"), ("npm", "exec"), ("npm", "x"), ("npx",),
+    ("pnpm", "run"), ("pnpm", "exec"), ("pnpm", "dlx"), ("pnpx",),
+    ("yarn", "run"), ("yarn", "exec"), ("yarn", "dlx"), ("bun", "run"), ("bun", "x"), ("bunx",),
+    ("deno", "run"), ("uv", "run"), ("uvx",), ("poetry", "run"), ("pipx", "run"), ("pdm", "run"),
+    ("hatch", "run"), ("cargo", "run"), ("go", "run"), ("make",), ("just",),
+)
+
+
+# 整条规则即放行任意代码或任意委托的写法，取自 Claude Code auto 模式进入时会丢弃的那份原生清单
+_WHOLE_TOOLS = frozenset(("PowerShell", "PowerShell(*)", "PowerShell(:*)", "Monitor", "Agent"))
+
+
+def _wildcard_allow(rule):
+    """一条 permissions.allow 是否放行任意代码。返回命中说明或 None。
+
+    写法取 Claude Code 的规则语法：`Bash` / `Bash(命令前缀 *)`，旧写法 `Bash(前缀:*)` 同义。
+    只判 Bash 一类：取通配号之前的前缀拆成词，词为空（放行一切）、或是解释器后面只剩选项、
+    或是某个运行器命令（含其前缀，如 `npm *` 覆盖 `npm run`）的，即通配放行。
+    """
+    rule = str(rule).strip()
+    if rule == "Bash":
+        return "整个 Bash 工具不设范围"
+    if rule in _WHOLE_TOOLS:
+        return "%s 整类放行" % rule
+    if not (rule.startswith("Bash(") and rule.endswith(")")):
+        return None
+    inner = rule[5:-1].replace(":*", " *").strip()
+    if "*" not in inner:
+        return None
+    words = [w for w in inner.split("*", 1)[0].split() if w]
+    if not words:
+        return "通配号前没有命令，放行一切命令"
+    head = os.path.basename(words[0])
+    if head in _INTERPRETERS and all(w.startswith("-") for w in words[1:]):
+        return "命令解释器 %s 后面是通配" % head
+    names = tuple([head] + words[1:])
+    for runner in _RUNNERS:
+        if runner[:len(names)] == names:
+            return "运行器 %s 后面是通配" % " ".join(runner[:max(len(names), 1)])
+    return None
+
+
+def _settings_allow(root):
+    why = ("01 §5.5 审批疲劳段的验收：能执行任意代码的通配放行项（整个命令解释器、脚本运行器或包管理器的"
+           "运行命令）不作为免审批项保留，只放行窄到具体动作的规则")
+    path = os.path.join(root, _SETTINGS_REL)
+    if not os.path.isfile(path):
+        return [finding(
+            NAME, SKIP, "没有入库的 %s，免审批清单无从读" % _SETTINGS_REL, kind="settings-absent",
+            reason="本检查只读 Claude Code 的项目级共享设置；项目不用它或把清单放在别的宿主里时，"
+                   "那份清单本工具不读（见覆盖边界）", why=why)]
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        perms = data.get("permissions") or {}
+        allow = perms.get("allow") or []
+        if not isinstance(allow, list):
+            raise ValueError("permissions.allow 不是列表：%r" % (allow,))
+    except (OSError, ValueError, AttributeError) as exc:
+        return [undetermined_from_exception(NAME, exc, "读 %s 的 permissions" % _SETTINGS_REL)]
+    out = []
+    for rule in allow:
+        hit = _wildcard_allow(rule)
+        if hit:
+            out.append(finding(
+                NAME, FAIL, "免审批清单里有通配放行项：%s" % rule, where=_SETTINGS_REL,
+                kind="wildcard-allow", key=str(rule), why=why,
+                reason="%s；改成窄到具体动作的规则（如 `Bash(python3 tools/std/check_all.py *)`），"
+                       "或移出清单" % hit))
+    if not out:
+        out.append(finding(
+            NAME, PASS, "%s 的免审批清单里没有通配放行项" % _SETTINGS_REL, where=_SETTINGS_REL,
+            kind="no-wildcard-allow", why=why,
+            evidence="permissions.allow %d 条：%s" % (len(allow), "；".join(map(str, allow[:12])) or "（空）")))
+    return out
+
+
+def _compatibility(cfg):
+    """01 §5.3：`project.yaml` 的 `compatibility.policy` 必填。"""
+    where = str(cfg.get("_path") or "governance/project.yaml")
+    why = ("01 §5.3：`project.yaml` 的 `compatibility.policy` 必填——数据、接口、配置、旧版本客户端各支持到"
+           "什么程度；未上线项目可选破坏性重构，但要记录前提")
+    val = cfg_get(cfg, "compatibility.policy")
+    if val is None or val is False or (isinstance(val, (str, list, dict)) and not val):
+        return finding(
+            NAME, FAIL, "配置里没有 compatibility.policy", where=where, kind="compatibility-policy",
+            why=why, reason="在 %s 里加 `compatibility:` 下的 `policy:`，写明数据、接口、配置、旧版本客户端"
+                            "各支持到什么程度；未上线的写明“可破坏性重构”及其前提" % where)
+    return finding(NAME, PASS, "配置里写了 compatibility.policy", where=where, kind="compatibility-policy",
+                   why=why, evidence="原样值：%s（内容写得对不对不判，契约 §7）" % (val,))
+
+
+# --------------------------------------------------------------------------
 # 自检（契约 §3）
 # --------------------------------------------------------------------------
 
@@ -341,7 +470,7 @@ def _write(tmp, content):
     else:
         with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(content)
-    return {"_root": tmp}
+    return {"_root": tmp, "compatibility": {"policy": u"未上线，可破坏性重构"}}
 
 
 def _statuses(run_fn, cfg):
@@ -458,6 +587,46 @@ def _readonly_selftest():
                        why="契约 §3：自检崩了，本检查器对目标仓库的结论作废")
 
 
+def _declarations_selftest(tmp):
+    """compatibility.policy（01 §5.3）与免审批清单的通配放行项（01 §5.5）。"""
+    compat = [(_compatibility(c)["status"]) for c in (
+        {}, {"compatibility": {}}, {"compatibility": {"policy": ""}}, {"compatibility": {"policy": u"x"}},
+        {"compatibility": {"policy": {"data": u"两个版本"}}})]
+    wild = ["PowerShell", "PowerShell(*)", "Monitor", "Agent", "Bash", "Bash(*)", "Bash(:*)", "Bash(python3 *)", "Bash(python3 -c *)", "Bash(/usr/bin/node:*)",
+            "Bash(npm run *)", "Bash(npm *)", "Bash(uv run:*)", "Bash(npx *)", "Bash(make *)", "Bash(sudo *)"]
+    narrow = ["Read", "Edit", "Bash(git status)", "Bash(npm run test)", "Bash(npm run test:*)",
+              "Bash(python3 tools/std/check_all.py *)", "Bash(bash scripts/verify_all.sh:*)", "Bash(git add:*)",
+              "mcp__x__y", "Bash(python3)", "Agent(std-reviewer)", "PowerShell(Get-ChildItem *)"]
+    missed = [r for r in wild if not _wildcard_allow(r)]
+    false_hit = [r for r in narrow if _wildcard_allow(r)]
+    sdir = os.path.join(tmp, ".claude")
+    os.makedirs(sdir, exist_ok=True)
+    path = os.path.join(sdir, "settings.json")
+
+    def _put(obj):
+        with io.open(path, "w", encoding="utf-8") as fh:
+            fh.write(obj if isinstance(obj, str) else json.dumps(obj))
+        return [(f["status"], f["id"]) for f in _settings_allow(tmp)]
+
+    bad = _put({"permissions": {"allow": ["Bash(git status)", "Bash(python3 *)"]}})
+    good = _put({"permissions": {"allow": narrow}})
+    broken = _put("{not json")
+    os.remove(path)
+    absent = _settings_allow(tmp)
+    ok = (compat == [FAIL, FAIL, FAIL, PASS, PASS] and not missed and not false_hit
+          and bad == [(FAIL, "adoption/wildcard-allow/Bash(python3_*)")]
+          and good == [(PASS, "adoption/no-wildcard-allow")]
+          and [x[0] for x in broken] == [UNDETERMINED]
+          and [f["id"] for f in absent] == ["adoption/settings-absent"] and absent[0]["status"] == SKIP)
+    return finding(
+        NAME, PASS if ok else FAIL,
+        "compatibility.policy 缺或空判 FAIL、有值 PASS；免审批清单通配放行判 FAIL、窄规则 PASS、"
+        "坏 JSON 记未定、无文件 SKIP",
+        evidence="compat %s；漏报 %s；误报 %s；反例 %s；正例 %s；坏文件 %s；无文件 %s"
+                 % (compat, missed, false_hit, bad, good, broken, [f["status"] for f in absent]),
+        why="01 §5.3 compatibility.policy 必填；01 §5.5 通配放行项不作为免审批项保留；契约 §3")
+
+
 def selftest():
     """反例与正例。见契约 §3：抓不出违规的检查器，其结论作废。
 
@@ -466,15 +635,15 @@ def selftest():
     """
     results = []
     cases = [
-        (None, (FAIL, SKIP),
+        (None, (FAIL, SKIP, PASS, SKIP),
          "反例：文件缺失应判 FAIL（01 §8 第一条）"),
-        (u"\n   \n", (FAIL, UNDETERMINED, SKIP),
+        (u"\n   \n", (FAIL, UNDETERMINED, SKIP, PASS, SKIP),
          "反例：空文件——版本读不出判 FAIL，采用日期读不出记未定"),
-        (u"adopted_at: 2025-03-03\n", (FAIL, PASS, SKIP),
+        (u"adopted_at: 2025-03-03\n", (FAIL, PASS, SKIP, PASS, SKIP),
          "反例：只有采用日期、读不出版本值应判 FAIL"),
-        (u"1.0\n", (PASS, UNDETERMINED, SKIP),
+        (u"1.0\n", (PASS, UNDETERMINED, SKIP, PASS, SKIP),
          "只有版本值、没有采用日期记未定：日期字段名是工具约定，落空不判 FAIL（契约 §1.1）"),
-        (_COMPLETE, (PASS, PASS, SKIP),
+        (_COMPLETE, (PASS, PASS, SKIP, PASS, SKIP),
          "正例：示例项目的实物形状应判 PASS，本检查器对该输入不再产出任何未定"),
     ]
     try:
@@ -535,7 +704,7 @@ def selftest():
             _put(u"**候选实现修订：`2026-09-22.2`。**\n")
             ids = [f["id"] for f in run(_write(tmp, u"2026-09-10\nadopted_at: 2025-03-03\n"))]
             results.append(finding(
-                NAME, PASS if (len(ids) == 3 and "adoption/version-mismatch" not in ids
+                NAME, PASS if (len(ids) == 5 and "adoption/version-mismatch" not in ids
                                and not any("embedded-modified" in i for i in ids)) else FAIL,
                 "非内嵌运行（被扫根不含本工具）时不产出内嵌修订号比对，内嵌目录只读记不适用",
                 evidence="实得 %s" % ids,
@@ -544,6 +713,8 @@ def selftest():
 
             # —— 内嵌目录只读（01 §8）：同上，直接测判定函数 ——
             results.append(_readonly_selftest())
+
+            results.append(_declarations_selftest(tmp))
 
             # —— 变异验证 ——
             ok_real, detail_real = _value_insensitive(run, tmp)

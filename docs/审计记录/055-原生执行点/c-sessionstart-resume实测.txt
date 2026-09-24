@@ -1,0 +1,13 @@
+c · SessionStart matcher "resume|compact" 片段实测（2026-09-24，claude 2.1.281，--model haiku，-p，禁 Bash/Read/Grep/Glob/Edit/Write）
+片段取法：json.loads(tools/std/README.md「Claude Code 接法」的 json 代码块) → hooks.SessionStart 原样写进临时仓 .claude/settings.json：
+{"hooks": {"SessionStart": [{"matcher": "resume|compact", "hooks": [{"type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && { git log -1 --format='HEAD %h %s'; git status -sb | head -20; }; echo '压缩或恢复后先重读当前工作项。'"}]}]}}
+
+bash -c 直跑（CLAUDE_PROJECT_DIR=临时仓）：
+  有提交的仓：输出 "HEAD 0851954 first" / "## master" / "?? a.txt" / 提醒句，退出 0
+  无提交的仓（git log 失败）：git log 报 fatal，git status 照常输出 "## 尚无提交于 master" / "?? b.txt"，提醒句照常，退出 0（git log 失败不再短路 git status）
+
+claude -p 两次（同一会话）：
+  r1 startup，HEAD 9eed23b：问有没有 'HEAD ' 开头的注入行 → 答 "NONE"（matcher 不含 startup，未注入）  session=807ecdc9 cost=0.0229
+  新提交 15c98a5 后 r2 --resume：同问 → 答 "HEAD 15c98a5 third\n压缩或恢复后先重读当前工作项。"  cost=0.0289
+  会话记录里有一条 "SessionStart:resume hook success: HEAD 15c98a5 third\n## master\n压缩或恢复后先重读当前工作项。"
+合计 0.0518 美元；compact 未实测。临时仓已删。

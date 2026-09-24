@@ -489,6 +489,23 @@ def _entry_smoke_selftest():
             if not _has(fs, "orphan"):
                 raise AssertionError("⑤ rule 匹配到 SKIP（不是未定）也应报 exception-register/orphan，"
                                      "否则死行会在日后该条转回未定时静默复活")
+
+            # ⑥ 项目自有例外（规则列不含 `/`）只按到期判：过期未关闭 FAIL、到期写不成日期记未定、
+            #    未到期与已关闭的不出发现，也不当孤儿（02 §4 到期未清理 CI 转红）
+            fs, hit, _ = _register(target, ok_day, (
+                u"| EX-003 | G9 依赖规则 | 过期 | 全仓 | 自检 | %s | active |\n"
+                u"| EX-004 | G6 依赖审计 | 未到期 | 全仓 | 自检 | %s | active |\n"
+                u"| EX-005 | G11 文档新鲜度 | 无到期 | 全仓 | 自检 |  | active |\n"
+                u"| EX-006 | G7 | 已关闭 | 全仓 | 自检 | %s | 已处理 |\n"
+                u"| EX-007 | G8 | 待关闭不是关闭 | 全仓 | 自检 | %s | 待关闭 |\n") % (yesterday, ok_day, yesterday, yesterday))
+            own = sorted((f["status"], f["id"]) for f in fs if f["id"].startswith(EXCEPTION_CHECK + "/"))
+            if own != [(FAIL, EXCEPTION_CHECK + "/own-expired/EX-003"),
+                       (FAIL, EXCEPTION_CHECK + "/own-expired/EX-007"),
+                       (UNDETERMINED, EXCEPTION_CHECK + "/own-undated")]:
+                raise AssertionError("⑥ 项目自有例外应只得 own-expired/EX-003、EX-007（状态「待关闭」不是关闭）"
+                                     "FAIL 与 own-undated，实得 %r" % (own,))
+            if (hit.get("registered") or {}).get("id") != "EX-001":
+                raise AssertionError("⑥ 项目自有例外行不得影响 Finding id 行的登记")
             os.remove(ex_path)
 
             # 3h) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
@@ -547,7 +564,8 @@ def _entry_smoke_selftest():
                  "文本与 --json 都带检查器身份块、--config 指向项目内部时不标外部配置、"
                  "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
                  "例外登记五条（有效登记生效／过期不生效且报 expired／"
-                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan；"
+                 "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan／"
+                 "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated；"
                  "有过期行时首部标出其中几行已过期）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
@@ -651,14 +669,17 @@ def _shared_fact_selftest(mods):
         #    两个候选同时在时都取第一个（AGENTS.md），候选入口超预算只记未定（契约 §1.1），
         #    声明之后才判 FAIL；候选全不在时入口缺失只由 layout 报一次，entry-budget 记不适用。
         got_d = {}
+        other = tuple("entry-budget/budget-undeclared/%s_lines" % r
+                      for r in ("status", "handoff", "work_item", "module"))
         with tempfile.TemporaryDirectory() as tmp:
             _repo(tmp, {"AGENTS.md": u"x\n" * 20, "CLAUDE.md": u"@AGENTS.md\n"})
             cfg = {"_root": tmp, "tier": "L0", "budgets": {"entry_lines": 10}}
             got_d["layout"] = sorted(f["where"] for f in by["layout"].run(cfg)
                                      if f["status"] == PASS and f["title"].startswith(u"入口 "))
-            got_d["guessed"] = [(f["id"], f["status"]) for f in by["entry-budget"].run(cfg)]
+            got_d["guessed"] = [(f["id"], f["status"]) for f in by["entry-budget"].run(cfg)
+                                if f["id"] not in other]
             cfg["layout"] = {"entry": ["AGENTS.md"]}
-            got_d["declared"] = [f["status"] for f in by["entry-budget"].run(cfg)]
+            got_d["declared"] = [f["status"] for f in by["entry-budget"].run(cfg) if f["id"] not in other]
         with tempfile.TemporaryDirectory() as tmp:
             _repo(tmp, {"README.md": u"# 说明\n"})
             cfg = {"_root": tmp, "tier": "L0"}
@@ -890,7 +911,7 @@ def _join_exceptions(findings, cfg):
         cdir = _config_dir(cfg)
         if cdir is None:
             return info
-        rows, problems, src = load_exceptions(cdir)
+        rows, problems, src, own = load_exceptions(cdir)
     except Exception as exc:  # noqa: BLE001 —— 读登记册出错也是未定，不静默当成没有登记
         findings.append(undetermined_from_exception(EXCEPTION_CHECK, exc, "读例外登记"))
         return info
@@ -963,7 +984,39 @@ def _join_exceptions(findings, cfg):
                 "两种都不该留在册子里当作还在生效",
             evidence=base,
         ))
+    findings.extend(_own_exceptions(own, info["display"], today, base))
     return info
+
+
+def _own_exceptions(own, where, today, base):
+    """项目自有例外行（规则列不含 `/`，如依赖规则、依赖审计的门号例外）：只按到期判。
+
+    不登记、不校验五项（那是项目的门，不是本工具的发现）；但 02 §4「例外登记在
+    `governance/exceptions.md`，带到期；到期未清理 CI 转红」对它们同样成立：未关闭且已过期判
+    FAIL（FAIL 不可登记，不能用登记去静音一条过期的登记）；到期写不成日期记未定。
+    """
+    why = ("02 §4：依赖规则的例外登记在 governance/exceptions.md，带到期；到期未清理 CI 转红"
+           "（01 §8：例外记录含到期，不能只是一份让检查永久跳过的名单）")
+    out, undated = [], []
+    for r in own:
+        label = "第 %d 行 %s" % (r["lineno"], r["ex_id"] or r["rule"] or "（无编号）")
+        if r["expires_date"] is None:
+            undated.append("%s：%s" % (label, r["error"]))
+        elif r["expires_date"] < today:
+            out.append(finding(
+                EXCEPTION_CHECK, FAIL, "项目例外 %s 已于 %s 到期，未关闭" % (label, r["expires_date"].isoformat()),
+                where=where, kind="own-expired", key=r["ex_id"] or r["rule"] or str(r["lineno"]), why=why,
+                reason="清理这条例外（修掉偏离后在状态列写处理方式，如「已处理」「关闭」），"
+                       "或经批准人重新评估后改到期",
+                evidence="%s；规则列：%s" % (base, r["rule"] or "（空）")))
+    if undated:
+        out.append(finding(
+            EXCEPTION_CHECK, UNDETERMINED, "有 %d 行项目例外的到期写不成日期，到没到期判不了" % len(undated),
+            where=where, kind="own-undated", why=why,
+            reason="；".join(undated[:_MAX_REGISTER_LISTED])
+                   + ("；……共 %d 行" % len(undated) if len(undated) > _MAX_REGISTER_LISTED else ""),
+            evidence=base))
+    return out
 
 
 def _sealed(findings, ident_before):

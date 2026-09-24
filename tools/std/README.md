@@ -71,6 +71,10 @@
 `exception-register/expired`；过期的行在首部标「其中 M 行已过期」。**FAIL 不能登记**——那是
 确定的违规，处置是修；整个检查器不适用走 `tailoring`。语义细则见 CONTRACT.md §9。
 
+同一张表里项目自己的门号例外（规则列不含 `/`，如依赖规则、依赖审计）不参与登记，但**也按到期判**：
+没关闭、到期早于运行日的判 FAIL（`exception-register/own-expired/<编号>`），到期写不成日期的记一条
+未定。关闭的写法是状态列写「已处理」「关闭」之类并写明处理方式。
+
 ## 命令行开关
 
 `check_all.py` 只有这些：
@@ -104,7 +108,10 @@
 
 配置字段的语义见 CONTRACT.md §5，实例见交付面内的
 [示例项目 `governance/project.yaml`](../../标准/示例项目-连锁零售中台/governance/project.yaml)——照实文件抄，本文不另立字段表；
-`tier` 是必填的，不写就得到一条未定。工具来源由 `.std/` 的 subtree 提交与
+`tier` 是必填的，不写就得到一条未定；`compatibility.policy` 也是必填的（01 §5.3），缺了判 FAIL——
+兼容策略正文若已有权威位置，这里写一句指针即可。四个篇幅预算键 `budgets.status_lines`／
+`handoff_lines`／`work_item_lines`／`module_lines` 可选：**不声明就不判**，01 §3.7 的 80／60／150／200
+只是参考值（原文：试验参数，不是合格门槛）；声明之后超了判 FAIL，处置是先移出，不是先加预算。工具来源由 `.std/` 的 subtree 提交与
 `governance/STANDARD_VERSION` 承载，不在 yaml 里另记。
 
 **取用、升级、发布三条命令线。** tag 仍打在每个发布提交上，日期格式（如 `2026-09-12`），打在
@@ -148,8 +155,9 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   `--follow-tags` 只推带注解的 tag，用 `git tag <tag>` 打的轻量 tag 不在其中，那就分两条：
   `git push <公开仓> release:main && git push <公开仓> <tag>`。本仓 main 含不可公开的脚手架，只推 `release`，不推 main。
 
-**执行层由采用项目自己接**，标准不发钩子、流水线或 agent 侧配置——它们随宿主工具变，上游给一份
-就会过期成第二处权威。接法只有一条：把 `check_all` 放进提交、合并或发布的必经路径，退出码非 0
+**执行层由采用项目自己接**，标准不发**生效的**钩子、流水线或 agent 侧配置——它们随宿主工具变，
+上游给一份就会过期成第二处权威；`templates/` 里的 agent、skill 文件是供复制的载体实例，拷进项目的
+`.claude/` 之后才生效，由采用方自己决定。接法只有一条：把 `check_all` 放进提交、合并或发布的必经路径，退出码非 0
 就不放行；退出码 0 已含"未定项全部登记"这层意思（见上文「未定项怎么登记」），执行层不必自己解释
 2。`.std/` 只读也在这一条里：内嵌运行时 `check_adoption` 看到内嵌目录下有已跟踪文件被改动（已暂存
 或未暂存都算，覆盖 `git commit -a`）即判 FAIL（`adoption/embedded-modified`），执行层不必另写判断。
@@ -176,7 +184,7 @@ worktree 里接这个钩子会写坏仓库（垃圾提交、`core.bare=true`）�
 
 ## Claude Code 接法
 
-**这是 Claude Code 一家的接法示意，不是标准正文，也不随标准发任何配置文件。** 只用 Claude Code
+**这是 Claude Code 一家的接法示意，不是标准正文，也不随标准发 settings 文件。** 只用 Claude Code
 自带的权限规则与钩子：采用项目把下面这段并进自己的 `.claude/settings.json`（已有 `permissions` 或
 `hooks` 的合并进去，不要整份覆盖）。**接之前先在项目根跑一次** `python3 .std/tools/std/check_all.py .`，
 退出 0 再接——否则接上即锁死这个项目的每一次提交。
@@ -184,10 +192,16 @@ worktree 里接这个钩子会写坏仓库（垃圾提交、`core.bare=true`）�
 ```json
 {
   "permissions": { "deny": ["Edit(/.std/**)"] },
-  "hooks": { "PreToolUse": [{ "matcher": "Bash", "hooks": [{
-    "type": "command", "if": "Bash(*git*commit*)",
-    "command": "python3 -c \"import sys,json,re; sys.exit(0 if re.search(r'git.*commit', json.load(sys.stdin)['tool_input']['command'], re.S) else 3)\"; [ $? -eq 3 ] && exit 0; cd \"$CLAUDE_PROJECT_DIR\" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2"
-  }]}]}
+  "hooks": {
+    "PreToolUse": [{ "matcher": "Bash", "hooks": [{
+      "type": "command", "if": "Bash(*git*commit*)",
+      "command": "python3 -c \"import sys,json,re; sys.exit(0 if re.search(r'git.*commit', json.load(sys.stdin)['tool_input']['command'], re.S) else 3)\"; [ $? -eq 3 ] && exit 0; cd \"$CLAUDE_PROJECT_DIR\" && python3 .std/tools/std/check_all.py . --no-scope >&2 || exit 2"
+    }]}],
+    "SessionStart": [{ "matcher": "resume|compact", "hooks": [{
+      "type": "command",
+      "command": "cd \"$CLAUDE_PROJECT_DIR\" && { git log -1 --format='HEAD %h %s'; git status -sb | head -20; }; echo '压缩或恢复后先重读当前工作项。'"
+    }]}]
+  }
 }
 ```
 
@@ -209,6 +223,14 @@ worktree 里接这个钩子会写坏仓库（垃圾提交、`core.bare=true`）�
 - **不另设的**：`.claude/` 与 `.git/` 是 Claude Code 的内置受保护路径，写入不会被自动放行
   （`bypassPermissions` 除外），不再自写规则。**不做成插件**：插件的 `settings.json` 不支持
   `permissions`，而拦 `.std/` 写入要的正是权限规则。
+- **恢复与压缩后注入（可选）**：`SessionStart` 设 `"matcher": "resume|compact"`——startup 时
+  Claude Code 已自带 gitStatus 快照，不重复注入。按官方文档，它的 stdout 直接进模型上下文。只注入
+  动态事实：HEAD、`git status -sb` 前 20 行（含分支），再加一句「压缩或恢复后先重读当前工作项」，
+  对应 [01 §4.2](../../标准/01-项目管理标准.md#session-protocol) 开工前八问②、
+  [03](../../标准/03-Agent信息获取与上下文管理.md) §8.2 重建后重核 HEAD。**静态提醒（按加载合同开工、
+  先读状态源与当前工作项、身份不一致先停）写进入口文件的加载合同**，不放钩子——照官方「CLAUDE.md
+  for static context」。只注入不阻断（这个事件本来也不能阻断）；`git log` 失败不影响 `git status`，
+  不在 git 仓里时 git 报错，提醒照样输出。
 
 2026-09-23 在 Ubuntu、claude 2.1.280 上用 `claude -p`（`--allowedTools Bash` 放开整个 Bash）实测：
 Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`、`rm -rf .std` 全部被拒，读
@@ -240,10 +262,44 @@ Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`�
    （拦得住 `--no-verify`，只覆盖 Claude Code 自己发起的动作）。两层都不是全覆盖，各自的盲区按
    [01 §5.6](../../标准/01-项目管理标准.md#gates) 记。
 
+**两份可选模板**在 [templates/claude-code/](../../templates/claude-code/)，拷到项目 `.claude/` 下的同名子目录即生效，不用改 settings；
+和其它模板一样，拷走即归项目所有，`.std/` 升级不会带着它变：
+
+- `agents/std-reviewer.md`：只读审查子 agent，对应 [01 §4.4](../../标准/01-项目管理标准.md#review-flow) 生产者≠验证者、
+  [03 §9](../../标准/03-Agent信息获取与上下文管理.md#delegation) 的返回三态与 expected/received/missing。`tools` 只给
+  Read、Grep、Glob，**不给 Bash**：Bash 限定不了只读。代价是它不能复跑测试，只能读生产者附上的命令与
+  完整输出（01 §4.2 四类出口允许读这份证据当作已核）；要它复跑就自己加 Bash，它也就不再只读。`model` 由项目定。
+- `skills/std-handoff/SKILL.md`：收工、交接技能，对应 01 §4.2 收工前第 1–3 条、03 §8.1 两半交接。调用时用 `!`
+  注入 `git status -sb` 与最近 5 条提交，`allowed-tools` 只预批这两条 git 命令；模板用项目自己的，找不到就停下问。可以敲 `/std-handoff`
+  手动触发，模型也会按 description 在收工、交接时自己调。
+
+2026-09-24 在 claude 2.1.281 上用 `claude -p --model haiku` 实测（当时未设 matcher 的旧片段）：
+SessionStart 在 startup、resume、`/compact` 三种情形都注入了，resume 前新做的提交也读对了；clear、
+fork 未实测。现行 `resume|compact` 片段的实测见本节末。std-reviewer 能被
+调用，让它写文件时它一次工具都没调，文件没建出来（对照：同一会话里主 agent 在 acceptEdits 下写入成功）。
+`/std-handoff` 能触发，`!` 注入生效。现行 `resume|compact` 片段同日另测（haiku，`claude -p`）：startup 不注入；
+新提交后 `--resume`，模型逐字读出新的 HEAD 行与提醒句；`git log` 失败（仓里还没有提交）时 `git status`
+照常输出。compact 未对现行片段实测。
+
+**免审批清单**：`check_adoption` 读本文件的 `permissions.allow`，放行任意代码或任意委托的整类规则
+（`Bash`、`Bash(*)`、解释器或运行器后只剩通配、`PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`）判
+FAIL（[01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）。auto 模式下 Claude Code 自己就会
+丢弃这类规则，本检查的增量在 manual、acceptEdits 这些会照单放行的模式下。`defaultMode:
+bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生效（官方 settings 文档），不判，交给宿主。
+
+**这几项的盲区**：SessionStart 只是提醒，模型可以不理会，也可以不读工作项；它注入的是事实，
+不替模型判断"与工作项一致吗"。std-handoff 没人调就没有交接。要在收工时卡住，得另接 Stop 钩子：
+官方文档写明 `decision: "block"` 能让模型继续干，本次顺带实测 Stop、SubagentStop 的阻断都生效。但
+交接写全没写全要靠判断，这里不接。std-reviewer 只做到上下文隔离：给它什么输入仍由委托它的人挑，
+01 §4.4 的执行点仍是评审者本人的人工核。
+
 官方文档：[hooks](https://code.claude.com/docs/en/hooks)（exit 2 语义、`if` 字段、时限）、
 [permissions](https://code.claude.com/docs/en/permissions)（Edit 规则的路径写法与 Bash 文件写的覆盖面）、
 [permission-modes#protected-paths](https://code.claude.com/docs/en/permission-modes#protected-paths)、
-[plugins-reference](https://code.claude.com/docs/en/plugins-reference)（插件 settings 只支持的键）。
+[plugins-reference](https://code.claude.com/docs/en/plugins-reference)（插件 settings 只支持的键）、
+[permission-modes](https://code.claude.com/docs/en/permission-modes)（auto 模式丢弃的通配放行规则）、
+[settings](https://code.claude.com/docs/en/settings)（`defaultMode` 的生效范围）、[memory](https://code.claude.com/docs/en/memory)（静态上下文写进 CLAUDE.md）、
+[sub-agents](https://code.claude.com/docs/en/sub-agents)（`tools` 字段）、[skills](https://code.claude.com/docs/en/skills#inject-dynamic-context)（`!` 注入与 `allowed-tools`）。
 
 ## 加一个自己的检查器
 
@@ -286,10 +342,19 @@ Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`�
 - CONTRACT.md §5 的字段表已按实现补齐（`tier`、`layout.work_root`/`artifacts`/`rule_files`、`derived`、
   `metadata_fields`/`metadata_required`、两个 `work_item_*_states`、两个 duplicate 阈值与两个 stale
   阈值），顶层 `rule_files` 这个重复拼法已从代码里删掉，只留 `layout.rule_files`。反向的缺口
-  （§5 写了但没有检查器读的键）已清空：`standard_version` 随 D-088 删除，
-  `budgets.status_lines` 与 `budgets.work_item_lines` 本轮从 §5 与本仓配置里一并删掉。
+  （§5 写了但没有检查器读的键）已清空：`standard_version` 已删除；`budgets.status_lines` 等四个
+  篇幅预算键曾因没有读者删掉，现在随 `check_entry_budget` 的四项预算一起回来。
 - **"§5 的键集合 == 实现读的键集合"目前只能靠人核对，没有机械手段。** 现在两边一致是一次人工 grep
   比对的结果，不是自检保证的；往检查器里加一个新配置键而忘了写进 §5，没有任何东西会报警。
+
+- **篇幅预算不全。** 01 §3.7 六项里 INDEX 一项不执行（「每份文档一行」不是行数）；状态、交接、
+  工作项、模块文档四项未声明预算键不判；工作项只看 `layout.work_root` 直接一层、头部带状态字段的
+  文件；状态声明为目录时不按 80 行判。
+- **免审批清单只读入库的 `.claude/settings.json`。** 不读 `.claude/settings.local.json` 与用户级设置
+  ——个人在交互里点「总是允许」攒下的通配放行项落在那里，本工具看不见（那份文件不入库、因人因机器
+  而异，读了会让同一提交在不同机器上结论不同）；要查就自己跑 `grep -n '"Bash' .claude/settings.local.json`。
+  只判 Bash 规则，解释器与运行器按一份固定清单认；不判 MCP、WebFetch 等工具的放行范围，也不判每项
+  有没有加入理由与复审条件。
 
 ## 本仓库自己的采用结果
 

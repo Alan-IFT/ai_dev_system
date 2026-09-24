@@ -18,9 +18,9 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, PASS, SKIP, STATUS_CANDIDATES, STATUS_FIELDS,
-    UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, finding, is_tailored_out,
-    rebase_docs, undetermined_from_exception,
+    DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
+    STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, finding,
+    is_tailored_out, rebase_docs, undetermined_from_exception,
 )
 
 NAME = "layout"
@@ -70,7 +70,7 @@ _TIER_ITEMS = {
     ],
     "L1": [
         ("work_current", "实时状态源", False, "any", ["work/current.md", DEFAULT_WORK_ROOT]),
-        ("handoff", "会话交接", False, "any", ["work/handoff.md", "docs/state/handoff"]),
+        ("handoff", "会话交接", False, "any", list(HANDOFF_CANDIDATES)),
         ("work_artifacts", "工具原文落点", False, "dir", ["work/artifacts", "docs/state/artifacts"]),
     ],
     "L2": [

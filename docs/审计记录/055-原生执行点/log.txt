@@ -1,0 +1,14 @@
+r1  startup：禁 Bash/Read/Grep/Glob，问 HEAD、分支、未提交改动，并原样引用开工提醒
+    session=f21c8ffd-b63c-409a-8621-ba417fbf3755 cost=0.0431 is_error=False
+r2  resume（先新提交 5bd6e02）：问上下文里钩子注入的 HEAD 行出现几次
+    session=f21c8ffd-b63c-409a-8621-ba417fbf3755 cost=0.0479 is_error=False
+r3  resume 会话里发 /compact：看 SessionStart:compact 是否在压缩边界之后触发
+    session=f21c8ffd-b63c-409a-8621-ba417fbf3755 cost=0.0590 is_error=False
+r4  acceptEdits：主会话 Write ctrl.txt 作对照；调 std-reviewer 让它写 sub.txt
+    session=30601413-48fe-44cc-8e98-63b42cc70f25 cost=0.0477 is_error=False
+r5  /std-handoff：禁 Write/Edit，看 ! 注入与无模板时是否停下问
+    session=f93ff42e-dcea-4a88-bbac-65390db70705 cost=0.0552 is_error=False
+r6  另加 Stop、SubagentStop 各阻断一次（settings-stop.json）：调 std-reviewer 读 a.txt
+    session=2d7fa7f7-c00a-4fcc-bb02-4086be6c5272 cost=0.0418 is_error=False
+合计花费 0.2946 美元；模型 haiku；claude 2.1.281；临时仓 /tmp/claude-1000/ss-probe（已删）
+读数：r1 答出 c5143c9/master/M a.txt 并逐字引用提醒；r2 答两次（c5143c9、5bd6e02）；r3 transcript-摘录 里 compact_boundary 之后有 SessionStart:compact；r4 ctrl.txt 已建、sub.txt 不存在，子 agent 零工具调用、自报只有 Read/Grep/Glob；r5 技能正文里 !`…` 已被替换成 git 输出，无 allowed-tools 也执行，无项目模板时停下问；r6 SubagentStop 阻断后子 agent 末尾补 SUBSTOP-OK，Stop 阻断后主会话继续并输出 STOPHOOK-OK。

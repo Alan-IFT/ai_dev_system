@@ -3,6 +3,9 @@
 # 采用的标准修订不在本文件，见 governance/STANDARD_VERSION（01 §8）
 tier: L1                              # 一人多会话；依据 templates/文件树与落地路径.md §8
 
+compatibility:                        # 01 §5.3 必填
+  policy: 本仓不持有用户数据；对采用方的接口是标准文本、project.yaml 的键与检查器 Finding id，按 release 分支日期 tag 发布，采用方钉 tag、升级时自评差异（01 §8），Finding id 的稳定承诺见 tools/std/CONTRACT.md §4
+
 layout:
   entry:
     - CONTEXT_MANIFEST.md             # 本仓库的入口叫这个名字，不叫 AGENTS.md
