@@ -1,7 +1,7 @@
 ---
 doc_id: 审计记录-052
 title: 045 §7 验证冲刺在真实项目 NFBY 上的计划与报告（● 类，不依赖沙箱与 Docker）
-状态: 已执行，§4、§5 已由执行会话回填（2026-09-23，NFBY 提交 `cda03161` 起），调度方已对 0.10 等条目作出裁定，2026-09-24 Alan 放置 managed settings 后补跑 0.7（NFBY 分支 `b258-p07m` 提交 `5d369411`，未合入 main），0.7 改记通过；待独立复核；执行中的偏离见 §7，§6 完成判据核对见 §8，发现见 §9
+状态: 已执行，§4、§5 已由执行会话回填（2026-09-23，NFBY 提交 `cda03161` 起），调度方已对 0.10 等条目作出裁定，2026-09-24 Alan 放置 managed settings 后补跑 0.7（NFBY 分支 `b258-p07m` 提交 `5d369411`，未合入 main），0.7 改记通过；2026-09-24 按 Alan 批准重跑 0.10（计划先提交于 NFBY 分支 `b258-p10v3` 提交 `e217f509`，读数提交 `bce1a0c0`，未合入 main），0.10 改记通过；待独立复核；执行中的偏离见 §7，§6 完成判据核对见 §8，发现见 §9
 效力: 零。本文只记录一次验证冲刺的计划与读数，不阻断、不授权；整体删除不影响任何一条规范的效力。文中的标志名、事件名、路径都是载体实例（[09 §7](../09-跨工具通用性.md#no-mapping-table)）。
 governed_by: D-014、D-087
 日期: 2026-09-23
@@ -96,7 +96,7 @@ governed_by: D-014、D-087
 | 0.7 | 布尔键不可覆盖、数组键追加能放宽 | 通过 | `docs/state/artifacts/B-258/raw/p07m-managed-settings.json`、`docs/state/artifacts/B-258/raw/p07m-a-haiku.json`、`docs/state/artifacts/B-258/raw/p07m-a-haiku.post`、`docs/state/artifacts/B-258/raw/p07m-a-haiku.debug-excerpt.log`、`docs/state/artifacts/B-258/raw/p07m-a-settings.json`、`docs/state/artifacts/B-258/raw/p07m-b-haiku.json`、`docs/state/artifacts/B-258/raw/p07m-b-haiku.post`、`docs/state/artifacts/B-258/raw/p07m-bctl-haiku.json`、`docs/state/artifacts/B-258/raw/p07m-bctl-haiku.post`@`5d369411`（NFBY 分支 `b258-p07m`，未合入 main）；非 managed 层与布尔键对照：`docs/state/artifacts/B-258/raw/p07-haiku.post`、`docs/state/artifacts/B-258/raw/p07b-haiku.json`、`docs/state/artifacts/B-258/raw/p07b-haiku.post`、`docs/state/artifacts/B-258/raw/p07b-local-settings.json`、`docs/state/artifacts/B-258/raw/p07-project-settings.json`、`docs/state/artifacts/B-258/raw/p07-flag-settings.json`@`cda03161` | managed 一半：haiku 3 次（2026-09-24 补跑，见 §7 第 2 条）；非 managed 层：haiku 2 次（2026-09-23）。managed 设 `{"disableAllHooks": true, "permissions": {"allow": ["Read"]}}`，探针 `--permission-mode dontAsk --setting-sources project,local`。**布尔键**：项目层与 `--settings` 都设 `disableAllHooks:false` 并配 PreToolUse 钩子（matcher `Read|Write`，只写 `hook.log`；项目层与 `--settings` 两层同一份 `p07m-a-settings.json`），模型读文件成功，`hook.log` 事后不存在；debug 日志记「Hooks: Found 0 total hooks in registry」（工具调用时，debug 摘录第 161、187 行）；「Policy disableAllHooks: skipping configured hooks」（SessionEnd，第 205 行）——不可覆盖。对照：无 managed 时 `p07-haiku`/`p07b-haiku` 中 `--settings` 的 `false` 覆盖项目层 `true`，`hook.log` 有「hook ran」（对照用 matcher `Write`、default 模式，与本次不全同；差异不影响结论，成因由 debug 日志直接记录）。**数组键**：本地层追加 `Edit(./x.txt)`（内容同 `p07b-local-settings.json`）后 `p07m-b-haiku` 用 Write 写成 `x.txt`、被拒清单空；对照 `p07m-bctl-haiku`（无追加）`x.txt` 不存在、被拒清单点名 `Write` `x.txt`——追加能放宽。**managed 被读到**：debug 日志记「Adding 1 allow rule(s) to destination 'policySettings': ["Read"]」且监视 `/etc/claude-code/managed-settings.json`。非 managed 层旧读数：`Write(...)` 写法未放宽、`Edit(...)` 放宽；未信任目录项目层 allow 被忽略，项目层能否放宽未测 |
 | 0.8 | 会话 JSONL 投影无缺口 | 通过 | `docs/state/artifacts/B-258/p08-projection.json`、`docs/state/artifacts/B-258/project_sessions.py`@`cda03161` | 不调模型。读探针会话与 NFBY 项目目录下已有会话（只读）：31 个会话 = 表 31 行；读入 35223 行 = 入表 35223 行，缺口 0；解析失败 0；045 §2 九个顶层字段缺失 0。断言范围：带 `uuid` 的事件断言九字段，不带的只断言 `type`；只落计数 |
 | 0.9 | 钩子超时后动作仍被拒 | 通过 | `docs/state/artifacts/B-258/raw/p09b-haiku.json`、`docs/state/artifacts/B-258/raw/p09b-haiku.hook_cancelled.jsonl`、`docs/state/artifacts/B-258/raw/p09b-haiku.post`、`docs/state/artifacts/B-258/raw/p09b-settings.json`@`cda03161` | haiku 2 次（`p09-haiku` 不计，见 §7 第 5 条）。钩子配 5 秒超时、脚本睡 600 秒：会话记录 `hook_cancelled`、`timedOut:true`、5013 毫秒，`touch target.txt` 仍被 deny 拦下、清单点名、文件不存在。另见：超时后钩子进程未被宿主结束，由执行者手动结束 |
-| 0.10 | 压缩后不变量核对器报差异 | 未定 | `docs/state/artifacts/B-258/raw/p10v2-notamper-haiku.checker.log`、`docs/state/artifacts/B-258/raw/p10v2-tamper3-haiku.checker.log`、`docs/state/artifacts/B-258/raw/p10-fp_check.v2.py`、`docs/state/artifacts/B-258/raw/p10-notamper-haiku.checker.log`、`docs/state/artifacts/B-258/raw/p10-fp_check.v1.py`@`cda03161` | haiku 5 次（2 次模型用 `limit` 偷读未触发压缩，不计）。3 次由撑满上下文触发自动压缩（`trigger=auto`）。**预先写定的 v1 核对器在未篡改时就报三条全差**：压缩把措辞改了（行尾句点被去掉；据宿主会话记录，仓外 `~/.claude/projects/-tmp-claude-1000-l3probe-p10/`，只作旁证），逐字节比对不适用于压缩摘要，这是假阳性，判据「不篡改时不报」在 v1 上不成立。v2（压空白、去行尾句点后比对）是看到结果后改的，按 [33 §2 P4](../33-评估与演进.md)「先写标准再运行」只作旁证：v2 未篡改时报 OK，篡改 INV-2 后报 `DIFF INV-1,INV-2`（INV-1 为压缩真实丢失，据同一仓外会话记录，只作旁证）。注意：核对器读的是钩子输入里的 `compact_summary`（6343 字符），与会话记录里的压缩摘要（5078 字符）不是同一份，钩子输入原文未落盘。调度方 2026-09-23 裁定记未定。下一步：运行前写定规范化规则，再真实重跑一次 |
+| 0.10 | 压缩后不变量核对器报差异 | 通过 | `docs/state/artifacts/B-258/raw/p10v3-plan.md`@`e217f509`；`docs/state/artifacts/B-258/raw/p10v3-A-haiku.checker.log`、`docs/state/artifacts/B-258/raw/p10v3-A-haiku.summary.txt`、`docs/state/artifacts/B-258/raw/p10v3-A-haiku.post`、`docs/state/artifacts/B-258/raw/p10v3-B-haiku.checker.log`、`docs/state/artifacts/B-258/raw/p10v3-B-haiku.summary.txt`、`docs/state/artifacts/B-258/raw/p10v3-B-haiku.post`@`bce1a0c0`（NFBY 分支 `b258-p10v3`，未合入 main）；旧读数 `docs/state/artifacts/B-258/raw/p10-fp_check.v1.py`、`docs/state/artifacts/B-258/raw/p10-fp_check.v2.py`、`docs/state/artifacts/B-258/raw/p10v2-tamper3-haiku.checker.log`@`cda03161` | 2026-09-24 重跑（见 §7 第 9 条），haiku 2 次，Claude Code 2.1.281。**计划先于探针**：核对器 v3、读取守卫、填充文件生成器、提示词与判定标准写进 `p10v3-plan.md`，提交 `e217f509` 时间 2026-09-24T08:28:20+08:00；首个探针 08:28:39 才启动；两次 `.post` 记探针目录 6 个文件的 sha256 与从该提交重新抽出的一致。v3 规则：小写、非字母数字换空格、按每条不变量的关键 token 整词判存；篡改只改提示词里 INV-2 的代号（4471→4472），基准文件两组相同。组 A 不篡改 `p10v3-A-haiku`：撑满上下文触发 `trigger=auto` 压缩 1 次，核对器报 `OK no difference`，符合；组 B 篡改 `p10v3-B-haiku`：`trigger=auto` 压缩 1 次，报 `DIFF INV-2`，符合（摘要把「The release codename is」改写成「Release codename is」，v3 不受影响）。守卫记两组各 14 次整文件 Read、拒 0 次，无偷读，未换 sonnet。钩子收到的 `compact_summary` 原文已落盘（5242、4768 字）。两组都符合，按计划记通过。已知代价：关键 token 规则不识别保留标识符但改了语义的改写，本次只测改标识符的篡改，不外推。旧 v1（假阳性）、v2（旁证）读数保留，不作本结论依据。v3 的检出面窄：关键 token 在摘要别处出现时，丢失该条可能不报（复核用 A 组摘要构造：INV-1 目录被替换、INV-3 整行删除、INV-1 语义改反均报 OK；删除 INV-1 全部行报 DIFF）。本次篡改选的 INV-2 代号 token 最独特，所以能报。结论只覆盖『改专属标识符』这类篡改，不外推。这是本仓自写核对器的质量问题，不是宿主的：宿主提供的 PreCompact/PostCompact 钩子与压缩摘要可供核对，这一点成立。 |
 | 0.11 | `InstructionsLoaded` 是否报丢弃或截断 | 未定 | `docs/state/artifacts/B-258/raw/p11-haiku.instructions_loaded.jsonl`、`docs/state/artifacts/B-258/raw/p11-haiku.post`、`docs/state/artifacts/B-258/raw/p11-haiku.json`@`cda03161` | haiku 1 次。导入链第 5 跳起（imp5～imp9）未加载（模型只报到 IMP4），`InstructionsLoaded` 只对已加载的 6 个文件各报一次，字段为 `file_path`/`memory_type`/`load_reason`/`parent_file_path`，没有表示丢弃或截断的字段。不报告，按判据记未定、以 0.10 为准 |
 | 0.12 | 沙箱 fail-closed | 未定 | — | 不跑，原因见 §1 |
 | 0.13 | 沙箱网络白名单 | 未定 | — | 不跑，原因见 §1 |
@@ -109,7 +109,7 @@ governed_by: D-014、D-087
 | 0.20 | Inspect AI 驱动 `claude -p` | 不适用 | `docs/state/artifacts/B-258/review-0.16-0.17-0.20.log`@`cda03161` | 复核成立：NFBY `git grep -i -e inspect_ai -e inspect-ai` 0 命中 |
 | 0.21 | 企业微信模板卡片交互回调 | 通过 | `docs/state/artifacts/B-258/p21-wecom-template-card.log`@`cda03161` | 不调模型。官方文档 developer.work.weixin.qq.com/document/path/101463 写明：用户点击模板卡片按钮时推送事件回调 `template_card_event`，开发者可用 `aibot_respond_update_msg` 更新卡片；摘录与页面 sha256 已落盘 |
 
-花费合计：3.6412 美元（逐次账见 `docs/state/artifacts/B-258/cost-ledger.tsv`@`5d369411`；其中 2026-09-24 补跑 0.7 managed 一半 3 次 0.0676 美元），调用次数：26（主模型 haiku 25 次、sonnet 1 次；其中 1 次 haiku 主会话带 sonnet 子执行者）。§2 版本命令启动时重跑过，但那次输出未落盘；2026-09-23 22:57（+08:00）补跑一次并落盘，读数与 §2 一致，无变化（`docs/state/artifacts/B-258/s2-env-rerun.log`，@`52e936e8`）。
+花费合计：5.0360 美元（逐次账见 `docs/state/artifacts/B-258/cost-ledger.tsv`@`bce1a0c0`；其中 2026-09-24 补跑 0.7 managed 一半 3 次 0.0676 美元，其中 2026-09-24 重跑 0.10 两次 1.3948 美元），调用次数：28（主模型 haiku 27 次、sonnet 1 次；其中 1 次 haiku 主会话带 sonnet 子执行者）。§2 版本命令启动时重跑过，但那次输出未落盘；2026-09-23 22:57（+08:00）补跑一次并落盘，读数与 §2 一致，无变化（`docs/state/artifacts/B-258/s2-env-rerun.log`，@`52e936e8`）。
 
 ## 5. 对 D-057 三项检验的映射
 
@@ -137,7 +137,7 @@ governed_by: D-014、D-087
 |---|---|---|---|
 | ① 探针拦截 | 算数 4 条：0.1（31 P5）、0.2（31 P6）、0.3（31 P6）、0.9（31 P9、P5），各自满足「通过＋清单点名目标＋目标事后未变」。0.15 通过但清单为空，不算数。原则对应已核 31 原文，未改 | 各条 §4 证据指针 | 执行点能拦；不等于真实工作中拦过 |
 | ① 真实工作中拦截 | NFBY 会话 `21b56b7a` 2026-09-23 14:29Z 两条被提交前钩子拦下（uuid `ca11bda6`、`533d8ba4`，`toolDenialKind=permission-rule`）。**被拦的不是 `git commit`**，而是写 `docs/state/artifacts/B-255/acceptance.log` 的 Bash 复合命令，只含 `$(git rev-parse --short HEAD)`，全文没有 "commit"：钩子被触发是 `if: Bash(*git*commit*)` 误中（或宿主对含命令替换的复合命令保守地放进了钩子）；当时 `check_all` 失败（B-255 缺证据段、断链），所以被阻断。`Edit(/.std/**)` deny 无留痕。另 2 条（会话 `f9ba4c29` 14:14Z）是旧 `std` 插件钩子因脚本缺失报错拦下，不属原生配置，不计 | `docs/state/artifacts/B-258/s5-native-interceptions.jsonl`（含被拦命令原文 `command` 字段；从 `~/.claude/projects/-home-alan-Programs-NFBY-CMS-FullStack/` 只读摘出）@`52e936e8` | 原生配置在真实工作中有拦截留痕，但拦的不是目标动作，是过滤误中；拦住提交的真实记录：无 |
-| ② 冲刺自身未定 | 6 条：0.10（判据在预先写定的核对器上不成立，改后读数只作旁证）、0.11（不报告即未定）、0.12～0.14、0.19（不跑）；每条 §4 备注都有非空原因 | 本文 §4 | 只报数，是否算大量由复审判 |
+| ② 冲刺自身未定 | 5 条：0.11（不报告即未定）、0.12～0.14、0.19（不跑）；每条 §4 备注都有非空原因 | 本文 §4 | 只报数，是否算大量由复审判 |
 | ② NFBY `check_all` 当期读数 | 提交 `cda03161` 上：通过 76、失败 0、未定 17（已登记 17、未登记 0）、不适用 24；检查器身份 sha256:e282b88dba69e281；17 条未定的「原因」「依据」两行各 17 行、空行 0 | 在 worktree 里对该提交跑 `python3 .std/tools/std/check_all.py .`（退出码 0） | 只报数；未定全部可读（机械部分） |
 | ③ 0.1 对 045:126 的实测 | 8.61 秒退出、未等输入（stdin 为 /dev/null，无挂起）、被拒清单一项点名 `Write target.txt`：拒且不等，与 045 预判一致 | `docs/state/artifacts/B-258/raw/p01-haiku.json`@`cda03161` | **复核者判**：不构成原则间矛盾，把握中等。31 P5 由宿主侧的「拒且不等」满足；40 P1 的检查点是状态转换，落在 GitHub，本就不要求宿主在运行中途等人批准；代价是预批准集以外的动作会被拒、任务中断，属 045 写明的分工。保留一点：「检查点改由 GitHub 承担」这一侧本次未实测，判断只覆盖宿主一侧 |
 
@@ -173,16 +173,18 @@ NFBY 侧提交须过 python3 .std/tools/std/check_all.py . 退出码 0。
 7. **原始输出的文件布局。** §3 第 2 条要求落每次调用的完整命令行、退出码、耗时、结果 JSON 原文。起初命令行与 stderr 各落一个文件，相同的命令行与空 stderr 触发 NFBY `check_all` 的逐字节相同判据；改为并入每次调用的 `.meta`（JSON），内容不变。
 8. **本文提交。** 原文：§3 第 12 条、§6 启动口令写「在标准仓提交本文件」。改法：按调度方裁定，回填改动留在标准仓工作区未提交，由调度方安排独立复核后再提交。
 
+9. **2026-09-24 按 Alan 批准重跑 0.10。** 原文：§3 第 8 条让执行会话自写核对器，未规定比对口径；上次 v2 是看到结果后改的（第 4 条）、另有两次偷读只靠加强提示词处理（第 6 条）。与上次的差别：① 比对规则、篡改方式、「报／不报」与样本有效的判定标准、偷读与换 sonnet 的处置、预算上限全部先写进 NFBY `docs/state/artifacts/B-258/raw/p10v3-plan.md` 并提交（`e217f509`，08:28:20），首个探针 08:28:39 才启动；② 比对从「整行逐字（v2 只放宽空白与行尾句点）」改为「规范化后按关键 token 整词判存」，只依赖不变量本身的构造，不依赖任何一次摘要长什么样；③ 篡改从改基准文件改为改上下文里的一份，两组的核对器与基准逐字节相同；④ 钩子收到的压缩摘要原文落盘；⑤ 加 `PreToolUse` 守卫，只放行对填充文件的整文件 Read，偷读直接被拒并留痕（本次拒 0 次）。计划写死：若 haiku 仍未触发自动压缩则按 §3 第 7 条换 sonnet，但 sonnet 窗口为 100 万 token，撑满估算超出本次 3 美元上限时不跑、记未定；本次两组 haiku 都触发了，未走到这一步。本次运行未偏离计划。v3 的检出面窄：关键 token 在摘要别处出现时，丢失该条可能不报（复核用 A 组摘要构造：INV-1 目录被替换、INV-3 整行删除、INV-1 语义改反均报 OK；删除 INV-1 全部行报 DIFF）。本次篡改选的 INV-2 代号 token 最独特，所以能报。结论只覆盖『改专属标识符』这类篡改，不外推。这是本仓自写核对器的质量问题，不是宿主的：宿主提供的 PreCompact/PostCompact 钩子与压缩摘要可供核对，这一点成立。预算 3 美元按本次重跑计，本次 1.3948 美元；连同 v1、v2 各次，0.10 累计约 4.29 美元。`raw/p10v3-*.summary.txt` 被 NFBY 的 end-of-file-fixer 补了结尾换行，比探针目录原文多 1 字节，不影响判定。
+
 ## 8. §6 完成判据核对
 
 逐条对 §6 的四条（§6 原文未改）：
 
-1. §4 的 21 行都有结果与备注，没有空格；证据指针都指向已提交的 NFBY 路径（提交 `cda03161`；0.7 的 managed 一半为 NFBY 分支 `b258-p07m` 提交 `5d369411`，未合入 main）。**满足。**
+1. §4 的 21 行都有结果与备注，没有空格；证据指针都指向已提交的 NFBY 路径（提交 `cda03161`；0.7 的 managed 一半为 NFBY 分支 `b258-p07m` 提交 `5d369411`，未合入 main；0.10 重跑为 NFBY 分支 `b258-p10v3` 提交 `e217f509`（计划）与 `bce1a0c0`（读数），未合入 main）。**满足。**
 2. 0.1 有明确结论：通过（8.61 秒退出、未挂起、被拒清单点名目标）。**满足。**
-3. §5 三项检验每项都有可复算的数据：①探针拦截 4 条；真实工作中有 2 条拦截留痕，但都是过滤误中、拦住提交的真实记录为无（明写「无」及原因）；②冲刺自身未定 6 条、NFBY `check_all` 当期读数；③0.1 实测，复核者已判。**满足。**
-4. 花费合计 3.6412 美元、调用 26 次已填。**满足。**
+3. §5 三项检验每项都有可复算的数据：①探针拦截 4 条；真实工作中有 2 条拦截留痕，但都是过滤误中、拦住提交的真实记录为无（明写「无」及原因）；②冲刺自身未定 5 条、NFBY `check_all` 当期读数；③0.1 实测，复核者已判。**满足。**
+4. 花费合计 5.0360 美元、调用 28 次已填（含 2026-09-24 0.10 重跑 2 次 1.3948 美元）。**满足。**
 
-§4 结果计数：通过 11、失败 1、未定 6、不适用 3（2026-09-24 补跑后 0.7 由未定改通过）。
+§4 结果计数：通过 12、失败 1、未定 5、不适用 3（2026-09-24 补跑后 0.7 由未定改通过；同日重跑后 0.10 由未定改通过）。
 
 ## 9. 发现（待调度方跟进）
 
