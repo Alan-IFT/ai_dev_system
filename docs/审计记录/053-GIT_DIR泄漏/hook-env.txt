@@ -1,0 +1,9 @@
+GIT_AUTHOR_EMAIL=a@b
+GIT_EDITOR=:
+GIT_EXEC_PATH=/usr/lib/git-core
+GIT_DIR=/tmp/claude-1000/gitdir-leak/envprobe/.git/worktrees/envprobe-wt
+GIT_AUTHOR_DATE=@1790211219 +0800
+GIT_AUTHOR_NAME=a
+GIT_PREFIX=
+GIT_CONFIG_PARAMETERS='user.email'='a@b' 'user.name'='a'
+GIT_INDEX_FILE=/tmp/claude-1000/gitdir-leak/envprobe/.git/worktrees/envprobe-wt/index

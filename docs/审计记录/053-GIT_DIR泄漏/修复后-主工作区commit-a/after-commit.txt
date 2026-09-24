@@ -1,0 +1,17 @@
+== config
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+== HEAD
+ref: refs/heads/main
+== refs
+refs/heads/feature 37638da6e90ffe1517f23baf12772957b44a266f init
+refs/heads/main cf8a81e859d9b003d72d3c00418aca2359eec542 main change
+== all log
+37638da init
+cf8a81e main change
+== status
+?? .std/tools/std/__pycache__/
+?? .std/tools/std/checks/__pycache__/

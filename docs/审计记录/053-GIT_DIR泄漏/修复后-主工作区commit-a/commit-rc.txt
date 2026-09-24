@@ -1,0 +1,2 @@
+mode=main-a commit rc=0
+== commit stderr

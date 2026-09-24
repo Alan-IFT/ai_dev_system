@@ -1,0 +1,14 @@
+== config
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+== HEAD
+ref: refs/heads/main
+== refs
+refs/heads/feature 37638da6e90ffe1517f23baf12772957b44a266f init
+refs/heads/main 37638da6e90ffe1517f23baf12772957b44a266f init
+== all log
+37638da init
+== status

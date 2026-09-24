@@ -1,0 +1,30 @@
+== config
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = true
+	logallrefupdates = true
+== HEAD
+ref: refs/heads/main
+== refs
+refs/heads/feature 2e49cb0318825912bfbc7c16dc7b77d971a7c4fe s
+refs/heads/main 263a0633c05bee44431db23acae31a8ac4995b1c init
+== all log
+263a063 init
+2e49cb0 s
+70ba8b9 s
+403c6b9 s
+196b08f s
+f13f7f8 s
+5e35448 s
+3a16e4f add docs/b.html
+2320b2e add docs/a.html
+02d40f6 add docs/map.html
+6804706 add docs/map.html
+a6c19a0 add docs/map.html
+fda55a8 add docs/map.html
+9ac932d add src/map.json
+b3b6dde s
+f16d1b3 s
+== status
+fatal: 该操作必须在一个工作区中运行

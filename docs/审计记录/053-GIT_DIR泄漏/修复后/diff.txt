@@ -1,0 +1,7 @@
+10c10
+< refs/heads/feature d4a312c1005a58395ff25d82854ed4cf029297e0 init
+---
+> refs/heads/feature a43a135dbdafb7ada4ac05028ce2032542355066 wt change
+12a13
+> a43a135 wt change
+diff rc=1（唯一应有的差异：多出本次这一个正常提交（wt change 或 main change）；bare 变 true 或出现别的提交即为泄漏）

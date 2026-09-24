@@ -1,0 +1,17 @@
+== config
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+== HEAD
+ref: refs/heads/main
+== refs
+refs/heads/feature 4f35a6a05cab699789a439fdf5e76d1c6903caaa init
+refs/heads/main 4f35a6a05cab699789a439fdf5e76d1c6903caaa init
+== all log
+4f35a6a init
+== status
+ M docs/a.md
+?? .std/tools/std/__pycache__/
+?? .std/tools/std/checks/__pycache__/

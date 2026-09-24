@@ -1,0 +1,2 @@
+mode=wt commit rc=0
+== commit stderr

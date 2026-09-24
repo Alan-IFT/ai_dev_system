@@ -1,0 +1,4 @@
+mode=main-a commit rc=1
+== commit stderr
+error: invalid object 100644 e5261d6f7d50f8298f0b561e24a6bd395b65dd7b for 'notes/a.txt'
+error: 无法创建树对象

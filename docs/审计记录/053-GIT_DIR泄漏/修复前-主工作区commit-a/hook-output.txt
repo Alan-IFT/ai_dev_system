@@ -1,0 +1,84 @@
+标准检查 · /tmp/claude-1000/gitdir-leak/before-main-a/main
+检查器身份 · sha256:e282b88dba69e281（13 个文件，含 CONTRACT.md）· git 4f35a6a05cab · 工作区 dirty（哈希已含未提交改动）
+配置 · governance/project.yaml（在被扫描项目内）
+排除 · .std/（工具自身所在的内嵌目录，不扫描）
+登记 · 无
+  通过 3   失败 0   未定 7（已登记 0 · 未登记 7）   不适用 6
+
+未定（7）
+  · 检查器自检未通过，其对本仓库的结论作废
+      id：adoption/98bb85a1
+      原因：内嵌目录只读（经 run() 注入内嵌）：未暂存或已暂存改动 FAIL embedded-modified、干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定（干净 [('PASS', 'adoption/2312c11f')]；仅未跟踪 [('PASS', 'adoption/2312c11f')]；未暂存 [('FAIL', 'adoption/embedded-modified')]；已暂存 [('FAIL', 'adoption/embedded-modified')]；被忽略 [('PASS', 'adoption/2312c11f')]；非 git ('UNDETERMINED', 'adoption/embedded-readonly-unknown')）
+      依据：契约 §3 / 01 §5.6：检查器故障按未定处置，不按通过记
+  · 检查器自检未通过，其对本仓库的结论作废
+      id：derived-artifacts/98bb85a1
+      原因：反例二：派生物落后于源应判 FAIL（实得 ['UNDETERMINED', 'PASS']）; 正例：声明齐全且不落后应全判 PASS（实得 ['UNDETERMINED', 'PASS']）
+      依据：契约 §3 / 01 §5.6：检查器故障按未定处置，不按通过记
+  · 读 docs/architecture/a.md 时检查器自身出错
+      id：freshness/e6b84fda
+      原因：FileNotFoundError: [Errno 2] No such file or directory: './docs/architecture/a.md'
+      证据：检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。
+  · 未声明采用档次
+      id：layout/7bf6e449
+      原因：未声明采用档次，本工具不猜该项目该有哪些工件
+      依据：01 §3.1：文件存在的理由是它承载哪条职责；该有哪几件由采用的档位决定
+      证据：governance/project.yaml 缺 tier；分档定义见 templates/文件树与落地路径.md
+  · 读 docs/architecture/a.md 时检查器自身出错
+      id：links/e6b84fda
+      原因：FileNotFoundError: [Errno 2] No such file or directory: './docs/architecture/a.md'
+      证据：检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。
+  · 读 work/WI-0001-x.md 时检查器自身出错
+      id：links/1c44fb20
+      原因：FileNotFoundError: [Errno 2] No such file or directory: './work/WI-0001-x.md'
+      证据：检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。
+  · 没有可比对的文本文件
+      id：single-authority/8e554579
+      原因：git 跟踪的文件里没有一个通过文本过滤；空集上的『全部通过』判未定（01 §2 N1）
+      证据：排除 0 个（归档/派生），二进制 0 个
+
+不适用（6）
+  · 检查器身份 · sha256:e282b88dba69e281（13 个文件，含 CONTRACT.md）· git 4f35a6a05cab · 工作区 dirty（哈希已含未提交改动）  [tools/std/]
+      id：tool-identity/68e1a775
+      原因：这不是判定，是记录，故不计三态。依据契约 §8：符合性报告不钉检查器版本身份就不可复算——曾发生过扫描期间检查器被并行改写，同一项目旧版 30 条 FAIL、新版 9 条，两份报告都自称是『对该项目的结论』
+      证据：tool_identity_digest: e282b88dba69e281c65b960481533a8ab1cb1ceebc7e7d0f96c1d62c0afc47d1
+tool_identity_git_head: 4f35a6a05cab699789a439fdf5e76d1c6903caaa
+tool_identity_dirty: True
+tool_identity_files:
+  - check_all.py e3880c1687d09252226273e292e3d89ea350a7fb069f3d8b5ddbf08aba735a07
+  - stdlib.py 0cb64d7385798b30f41376c97f33cabad686efd60675408ad7697b7b99f44364
+  - CONTRACT.md f98cc78f2e9cb11ef84ca058ec3e3157a44ec9662991b35e79f8bd08d2da48de
+  - checks/check_adoption.py a7dde235f14794a9b4de0e32748200f688bbf048c08ed3d7b45cc4b7f923faee
+  - checks/check_cross_repo.py ac8721f1f8f8dc2dee9f2fbeb7c367a297f361955f0780203c6f0a4453472148
+  - checks/check_derived.py 74ff453f9d06e229a3db05d4b9f108591fee5a85aad0371a5ed92ccc6a11d940
+  - checks/check_drift.py f5e50b64d01bbab7a75f3f3e1fad51a83004a4667f92e8db7598faf3cf8ec553
+  - checks/check_entry_budget.py def9f39c9b21ef24a18050f162f7da5d6e63f26431fb02fdd4dff17d823cb4bf
+  - checks/check_evidence.py ac2cfb829435e683d5076c9a01500f9cb6ce9bdcc54f399c504e84405d67aef2
+  - checks/check_freshness.py c5697f9a6cf3599d469b642510fd3affb62564dce68add6619a8b19eb9edfcda
+  - checks/check_layout.py b5471f475852d12e765a732c7c957b12708227da99fb99e3298e6fb4564e7c3a
+  - checks/check_links.py 00321ad57f41adff4ddf73774504a3e0dff55b1683e9a1fe19109f828ddf3169
+  - checks/check_single_authority.py f5a18bfb31961df63fc597e41e8a9705fd6dd90196416b0be56eed2a1ec9ef61
+tool_identity_dirty_detail: ?? .std/tools/std/__pycache__/
+scan_excluded: .std/（工具自身所在的内嵌目录，不扫描）
+  · 单仓项目，§3.8 记不适用
+      id：cross-repo/65ba1081
+      原因：repos 未声明；01 §3.8 明写'单仓项目记不适用'
+      依据：01 §3.8 的适用条件是系统跨越两个以上代码仓
+  · 未定位到 ADR 目录，判据 2（就地修订）与判据 3（索引对账）本次未执行
+      id：drift/6dd5e267
+      原因：未声明 layout.artifacts.decisions，且 docs 下没有名为 decisions 的目录；本工具不猜 ADR 放在哪
+      依据：02 §8 以 decisions 目录为对象；契约 §1.1：目录名是约定，猜不到不记通过
+  · 没有状态文件，判据 4（STATUS 声明的工作项）本次未执行
+      id：drift/3e10a357
+      原因：未声明 layout.artifacts.status，候选 WORK.md / docs/state/STATUS.md 也都不存在；本工具不猜状态文件叫什么
+      依据：01 §4.1 以工作项为对象；契约 §1.1：候选路径是约定，猜不到不记通过
+  · 本检查只扫工作项目录，它不在：docs/state/work  [docs/state/work]
+      id：evidence/work-root-absent
+      原因：目录在不在由 layout 报：01 §3.1 的存在性判定归它（L1 起的「实时状态源」work_current 一项，未声明 layout.artifacts.work_current 时认的就是这个目录；L0 档的工作项按模板合在状态工件里，不要求这个目录）。本检查不再另记一条未定
+      证据：work_root 用的是默认 docs/state/work（未配 layout.work_root）；负责报告的检查器：layout
+  · 本检查只扫工作项目录，它不在：docs/state/work  [docs/state/work]
+      id：freshness/work-root-absent
+      原因：目录在不在由 layout 报：01 §3.1 的存在性判定归它（L1 起的「实时状态源」work_current 一项，未声明 layout.artifacts.work_current 时认的就是这个目录；L0 档的工作项按模板合在状态工件里，不要求这个目录）。本检查不再另记一条未定
+      证据：work_root 用的是默认 docs/state/work（未配 layout.work_root）；负责报告的检查器：layout
+
+结论：未定 —— 有 7 项没能判定且未登记。**未定不是通过**（01 §2 N1）。
+check_all rc=2

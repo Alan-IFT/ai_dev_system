@@ -1,0 +1,5 @@
+14a15,17
+>  M docs/a.md
+> ?? .std/tools/std/__pycache__/
+> ?? .std/tools/std/checks/__pycache__/
+diff rc=1（唯一应有的差异：多出本次这一个正常提交（wt change 或 main change）；bare 变 true 或出现别的提交即为泄漏）

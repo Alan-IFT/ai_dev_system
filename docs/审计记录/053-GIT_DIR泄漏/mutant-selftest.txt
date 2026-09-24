@@ -1,0 +1,36 @@
+标准检查 · /tmp
+检查器身份 · sha256:ab6bdff78c0307da（13 个文件，含 CONTRACT.md）· git fe06b4206647 · 工作区 dirty（哈希已含未提交改动）
+  通过 80   失败 1   未定 0（已登记 0 · 未登记 0）   不适用 1
+
+失败（1）
+  · 钩子注入的 GIT_DIR 等变量不得让夹具写进调用方的仓
+      id：shared-fact/b340a2ab
+      依据：从 worktree 提交时 pre-commit 钩子带着绝对 GIT_DIR 跑 check_all，曾把真实仓改成 bare
+      证据：牺牲仓被改：refs/heads/main
+
+不适用（1）
+  · 检查器身份 · sha256:ab6bdff78c0307da（13 个文件，含 CONTRACT.md）· git fe06b4206647 · 工作区 dirty（哈希已含未提交改动）  [tools/std/]
+      id：tool-identity/9cd38fdc
+      原因：这不是判定，是记录，故不计三态。依据契约 §8：符合性报告不钉检查器版本身份就不可复算——曾发生过扫描期间检查器被并行改写，同一项目旧版 30 条 FAIL、新版 9 条，两份报告都自称是『对该项目的结论』
+      证据：tool_identity_digest: ab6bdff78c0307da3de986ae93dd11a7a66a58e185d751f0c15814ee74cbc10c
+tool_identity_git_head: fe06b4206647e60625e96be46f43f39309e4f662
+tool_identity_dirty: True
+tool_identity_files:
+  - check_all.py 621f0ef9b01949178115f0555c245d14c7b05aae2eb8546a0700f20d67046c1b
+  - stdlib.py 6fa7da4f1d36e563c7a549c6fd41b1446bad4ac0c703f71f5db0de02b63bae7a
+  - CONTRACT.md f98cc78f2e9cb11ef84ca058ec3e3157a44ec9662991b35e79f8bd08d2da48de
+  - checks/check_adoption.py a7dde235f14794a9b4de0e32748200f688bbf048c08ed3d7b45cc4b7f923faee
+  - checks/check_cross_repo.py ac8721f1f8f8dc2dee9f2fbeb7c367a297f361955f0780203c6f0a4453472148
+  - checks/check_derived.py 74ff453f9d06e229a3db05d4b9f108591fee5a85aad0371a5ed92ccc6a11d940
+  - checks/check_drift.py f5e50b64d01bbab7a75f3f3e1fad51a83004a4667f92e8db7598faf3cf8ec553
+  - checks/check_entry_budget.py def9f39c9b21ef24a18050f162f7da5d6e63f26431fb02fdd4dff17d823cb4bf
+  - checks/check_evidence.py ac2cfb829435e683d5076c9a01500f9cb6ce9bdcc54f399c504e84405d67aef2
+  - checks/check_freshness.py c5697f9a6cf3599d469b642510fd3affb62564dce68add6619a8b19eb9edfcda
+  - checks/check_layout.py b5471f475852d12e765a732c7c957b12708227da99fb99e3298e6fb4564e7c3a
+  - checks/check_links.py 00321ad57f41adff4ddf73774504a3e0dff55b1683e9a1fe19109f828ddf3169
+  - checks/check_single_authority.py f5a18bfb31961df63fc597e41e8a9705fd6dd90196416b0be56eed2a1ec9ef61
+tool_identity_dirty_detail: M tools/std/README.md；M tools/std/check_all.py；M tools/std/stdlib.py
+
+结论：FAIL。
+变异（把 main 里的 scrub_git_env() 换成 pass）：--selftest 退出码 1
+恢复后：--selftest 退出码 0

@@ -12,6 +12,26 @@ import os
 import re
 import subprocess
 
+# git 跑钩子时给子进程注入的仓库定位变量，取自 `git rev-parse --local-env-vars`（git 自己
+# 进入另一个仓库前清掉的就是这张表）。显式的 GIT_DIR 压过 `-C`：从 worktree 提交时钩子里
+# 的 GIT_DIR 是绝对路径，检查器的夹具 `git -C <临时目录> init/add/commit` 会整批落进真实仓，
+# 写出垃圾提交、把 core.bare 改成 true。GIT_CEILING_DIRECTORIES 不在表里：它只挡
+# 上溯、不改定位，自检还要自己设它。
+GIT_LOCAL_ENV = (
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",
+    "GIT_OBJECT_DIRECTORY", "GIT_DIR", "GIT_WORK_TREE", "GIT_IMPLICIT_WORK_TREE", "GIT_GRAFT_FILE",
+    "GIT_INDEX_FILE", "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE", "GIT_PREFIX",
+    "GIT_SHALLOW_FILE", "GIT_COMMON_DIR",
+)
+
+
+def scrub_git_env():
+    """从本进程环境去掉 GIT_LOCAL_ENV。入口一次调用，此后所有 git 子进程（夹具与目标仓）
+    都靠 `-C`／cwd 定位，不再被调用方（钩子）的仓库劫持。"""
+    for key in GIT_LOCAL_ENV:
+        os.environ.pop(key, None)
+
+
 PASS = "PASS"
 FAIL = "FAIL"
 UNDETERMINED = "UNDETERMINED"

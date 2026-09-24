@@ -1,0 +1,5 @@
+$ git -C other ls-files   # 无注入
+only-in-other
+$ GIT_DIR=<worktree 钩子里的绝对 gitdir> GIT_INDEX_FILE=<同上/index> git -C other ls-files
+z
+# 查到的是钩子所在仓的 z，不是 other 的 only-in-other

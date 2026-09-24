@@ -27,8 +27,8 @@ sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    embedded_std_rel, finding, finding_id, load_config, load_exceptions, tracked_files,
-    undetermined_from_exception, work_root,
+    embedded_std_rel, finding, finding_id, load_config, load_exceptions, scrub_git_env,
+    tracked_files, undetermined_from_exception, work_root,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -732,6 +732,71 @@ def _embedded_readonly_selftest(mods):
                     evidence="adoption 实得 %s" % [(f["status"], f["id"]) for f in fs])]
 
 
+def _git_env_selftest():
+    """钩子注入的 GIT_DIR 不得把夹具写进别的仓。
+
+    真实事故：从 git worktree 提交，pre-commit 钩子里跑 check_all，git 注入的绝对路径
+    GIT_DIR/GIT_INDEX_FILE 压过了夹具的 `git -C <临时目录>`，真实分支被写进
+    垃圾提交、.git/config 被改成 core.bare=true。这里建一个牺牲仓，照 worktree 钩子实测的
+    注入形态（绝对 GIT_DIR 与 GIT_INDEX_FILE，不带 GIT_WORK_TREE——带上它反而掩盖泄漏）指向它，
+    以子进程走真实入口跑一遍会建夹具的扫描，断言牺牲仓的 config、HEAD、refs 一字未变。
+    """
+    import subprocess
+    import tempfile
+
+    title = "钩子注入的 GIT_DIR 等变量不得让夹具写进调用方的仓"
+    why = "从 worktree 提交时 pre-commit 钩子带着绝对 GIT_DIR 跑 check_all，曾把真实仓改成 bare"
+    git_id = ["-c", "init.defaultBranch=main", "-c", "user.email=std@example.invalid",
+              "-c", "user.name=std", "-c", "commit.gpgsign=false",
+              "-c", "core.hooksPath=/dev/null", "-c", "core.autocrlf=false"]
+
+    def snap(repo):
+        gd, got = os.path.join(repo, ".git"), {}
+        for dp, _dirs, files in os.walk(gd):
+            for f in files:
+                path = os.path.join(dp, f)
+                rel = os.path.relpath(path, gd).replace(os.sep, "/")
+                if rel in ("HEAD", "config", "packed-refs") or rel.startswith("refs/"):
+                    with open(path, "rb") as fh:
+                        got[rel] = fh.read()
+        return got
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            victim, proj = os.path.join(tmp, "victim"), os.path.join(tmp, "proj")
+            cfg_path = os.path.join(tmp, "project.yaml")
+            for path, body in ((os.path.join(victim, "a.md"), u"牺牲仓\n"),
+                               (os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY),
+                               (cfg_path, _SMOKE_CONFIG)):
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(body)
+            for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "s"]):
+                r = subprocess.run(["git", "-C", victim] + git_id + args,
+                                   capture_output=True, timeout=60)
+                if r.returncode != 0:
+                    raise RuntimeError("git %s 退出码 %d" % (args[0], r.returncode))
+            before = snap(victim)
+            env = dict(os.environ, GIT_DIR=os.path.join(victim, ".git"),
+                       GIT_INDEX_FILE=os.path.join(victim, ".git", "index"))
+            run = subprocess.run([sys.executable, os.path.join(HERE, "check_all.py"), proj,
+                                  "--config", cfg_path, "--json"],
+                                 capture_output=True, timeout=300, env=env)
+            ran = b'"check": "adoption"' in (run.stdout or b"")
+            after = snap(victim)
+    except Exception as exc:  # noqa: BLE001
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="跑不起来：%s: %s" % (type(exc).__name__, exc))]
+    changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    if changed or not ran:
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="牺牲仓被改：%s" % "、".join(changed) if changed
+                        else "子进程没跑到检查器（退出码 %s）" % run.returncode)]
+    return [finding("shared-fact", PASS, title, why=why,
+                    evidence="GIT_DIR/GIT_INDEX_FILE 指向牺牲仓跑完整扫描，"
+                             "其 config、HEAD、refs 共 %d 个文件未变" % len(after))]
+
+
 def run_all(root, selftest_only=False, config_path=None):
     """跑全部检查。返回 (findings, cfg)——配置只在这里加载一次，
     渲染覆盖边界时由调用方把 cfg 传回去，不再各自重新加载（重新加载会
@@ -754,6 +819,7 @@ def run_all(root, selftest_only=False, config_path=None):
         findings.extend(_entry_smoke_selftest())
         findings.extend(_shared_fact_selftest(mods))
         findings.extend(_embedded_readonly_selftest(mods))
+        findings.extend(_git_env_selftest())
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))
@@ -1046,6 +1112,7 @@ def render(findings, root, cfg=None, show_scope=True):
 
 
 def main(argv=None):
+    scrub_git_env()  # 先于任何 git 子进程，见 stdlib.GIT_LOCAL_ENV
     ap = argparse.ArgumentParser(description="按《项目管理标准》做机械检查")
     ap.add_argument("root", nargs="?", default=".", help="项目根目录")
     ap.add_argument("--selftest", action="store_true", help="只跑检查器自检")
