@@ -39,7 +39,7 @@
 
 ### 加载合同（唯一一份）
 
-合同 `<contract_id>` · 第 `<N>` 版 · updated_at `<ISO-8601>` · `<proposal|trial|accepted>` · 当前工作项 `<精确路径或 无>`
+合同 `<contract_id>` · 第 `<contract_revision>` 版 · updated_at `<ISO-8601>` · `<proposal|trial|accepted>` · 当前工作项 `<精确路径或 无>`
 
 <按 `templates/CONTEXT_MANIFEST.md` 写成本节：路由表与解析规则。上面一行是它的合同头，不另建文件。>
 

@@ -231,6 +231,9 @@ worktree 里接这个钩子会写坏仓库（垃圾提交、`core.bare=true`）�
   先读状态源与当前工作项、身份不一致先停）写进入口文件的加载合同**，不放钩子——照官方「CLAUDE.md
   for static context」。只注入不阻断（这个事件本来也不能阻断）；`git log` 失败不影响 `git status`，
   不在 git 仓里时 git 报错，提醒照样输出。
+- **入口里模型要看的字段写正文行，不放 YAML 头**：2026-09-24 在 claude 2.1.281 上实测，`CLAUDE.md`、
+  它 `@` 导入的文件、单独自动加载的 `AGENTS.md`，YAML 头都整段不进模型上下文，正文行照常可见。
+  所以加载合同的合同头（修订号、当前工作项）按 `templates/CONTEXT_MANIFEST.md` 写成标题下的一行正文。
 
 2026-09-23 在 Ubuntu、claude 2.1.280 上用 `claude -p`（`--allowedTools Bash` 放开整个 Bash）实测：
 Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`、`rm -rf .std` 全部被拒，读

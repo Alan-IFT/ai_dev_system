@@ -1,16 +1,10 @@
----
-contract_id: <项目-context-001>
-contract_revision: 1
-updated_at: <ISO-8601>
-status: proposal | trial | accepted
-current_work_item: <精确路径或 null>
----
-
 # Default Context Contract
+
+合同 `<contract_id>` · 第 `<contract_revision>` 版 · updated_at `<ISO-8601>` · `<proposal|trial|accepted>` · 当前工作项 `<精确路径或 无>`
 
 > 只有状态为 trial/accepted 且带批准记录的合同才产生项目执行效力。
 >
-> 落地为入口 `AGENTS.md` 中的加载合同一节（见[文件树与落地路径 §2](文件树与落地路径.md)）。落成一节时，上面的 YAML 头不搬到 `AGENTS.md` 文件头（那会读成整份入口的元信息），改写成该节标题下的一行：`合同 <contract_id> · 第 <contract_revision> 版 · updated_at <ISO-8601> · <status> · 当前工作项 <精确路径或 无>`。这几项是规范 03 §3.2 第 4、5 条核对冲突、切换工作项递增版本时要对的，03 不要求它们可机读，也没有检查器读。只有单列成一份文件时才保留 YAML 头。
+> 落地为入口 `AGENTS.md` 中的加载合同一节（见[文件树与落地路径 §2](文件树与落地路径.md)）。落成一节时，上面那行合同头原样搬到该节标题下。这几项是规范 03 §3.2 第 4、5 条核对冲突、切换工作项递增版本时要对的，03 不要求它们可机读，也没有检查器读。单列成一份文件时也写成正文行、不放 YAML 头：有的宿主在入口导入文件时会整段剥掉 YAML 头，模型就看不到修订号。
 
 **每个项目只有这一份默认加载清单**（D-015）。清单只做路由、不复制被路由文档的正文；可按运行类型等维度参数化出**视图**，但视图是同一份清单的投影，不是第二份清单。需要新视图时先证明它不是已有视图的子集。
 
