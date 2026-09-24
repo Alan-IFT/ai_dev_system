@@ -3,12 +3,15 @@
 
 四条判据都只回答"文档说的和仓库里的对不对得上"，不回答"内容对不对"：
 
-1. `future-date`   记录里写成既成事实的日期，晚于写下它的那次提交（基准取 `git blame` 行级提交时间）。
+1. `future-date`   记录里写成既成事实的日期，晚于写下它的那次提交（基准取 `git blame` 行级提交时刻
+   在最晚时区 UTC+14 下的日期：任何地方写下的「今天」都不会晚于它）。
 2. `adr-revision`  ADR 正文里出现就地修订的标记（02 §8「ADR 不就地修订」）；围栏代码块不看，
    英文标记只认标题/标签形态，「修订后」开头的指代句不算。
 3. `adr-index-*`   ADR 索引与目录里实物的双向对账（02 §8「decisions/README.md 是索引」）。
-4. `work-item-missing` STATUS 声明的工作项没有对应文件（01 §4.1 每个状态都要求工作项工件）；
+4. `work-item-missing` STATUS 声明的工作项没有载体（01 §4.1 每个状态都要求工作项工件）；
    状态源可以是一份文件，也可以是一个目录（一件一文件，ID 取其直接一层的 *.md）。
+   载体二选一：工作项目录**直接一层**里以该 ID 开头的 *.md（子目录里的留证与产物不算），
+   或状态源文件里行首的 `work_item_id：<ID>`（WORK_ITEM 模板首字段；L0/L1 允许工作项写在状态源里）。
 
 三态取向（01 §2 N1 与契约 §1.1）：前两条的召回靠两份**工具常量词表**，是猜测，**永不 FAIL**；
 第 4 条的 `WI-\\d{3,}` 同属工具约定，也永不 FAIL。只有第 3 条的反向对账（目录里有实物、
@@ -17,7 +20,6 @@
 """
 from __future__ import annotations
 
-import calendar
 import datetime
 import io
 import os
@@ -25,6 +27,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -75,6 +78,8 @@ _INDEX_NAMES = ("README.md", "INDEX.md")
 
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _WI_RE = re.compile(r"\bWI-\d{3,}\b")
+# WORK_ITEM 模板的首字段，照模板写法只认行首；正文里提到的 ID 不算载体。
+_WI_FIELD_RE = re.compile(r"^work_item_id[:：]\s*(WI-\d{3,})\b")
 _ADR_RE = re.compile(r"ADR-\d+")
 _ADR_FILE_RE = re.compile(r"^(ADR-\d+)")
 _BLAME_HEAD = re.compile(r"^([0-9a-f]{40})\s+(\d+)\s+(\d+)(?:\s+(\d+))?$")
@@ -109,18 +114,14 @@ def _git(root, args, timeout=120):
     return out.returncode, text, err
 
 
-def _blame_date(epoch, tz):
-    """把 blame 的 `committer-time` + `committer-tz` 折成**提交自己时区里的**日期。
+def _latest_day(epoch):
+    """该时刻在最晚时区（UTC+14）下的日期，作「写下时最晚可能是哪天」的基准。
 
-    纯函数，不读机器时区：`datetime.fromtimestamp()` 按运行机本地时区折算，
-    一次 `2026-09-22 00:30 +0800` 的提交在 UTC 机器上会折成 `2026-09-21`，
-    同一份文档里的 `2026-09-22 裁定` 就成了假阳。自检对固定输入两种 tz 各断言一次。
+    纯函数，不读机器时区，也不用提交自带的 committer-tz：写日期的人与提交者的时区未必相同，
+    `2026-09-13 21:46 -0700` 的提交在 +0800 已是 09-14，按 -0700 取日会把正确的『09-14』报成未来。
+    取 UTC+14 只会少报、不会漏掉真正的未来日期。
     """
-    off = 0
-    m = re.match(r"^([+-])(\d{2})(\d{2})$", str(tz or "").strip())
-    if m:
-        off = (int(m.group(2)) * 3600 + int(m.group(3)) * 60) * (-1 if m.group(1) == "-" else 1)
-    return (datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=int(epoch) + off)).date()
+    return (datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=int(epoch), hours=14)).date()
 
 
 # --------------------------------------------------------------------------
@@ -143,7 +144,7 @@ def _candidates(text):
 def _blame(root, rel):
     """`git blame -p` 的行级提交时间。返回 ({行号: (sha, 日期)}, 问题)。
 
-    porcelain 的 `committer-time`/`committer-tz` **只在一个 commit 首次出现时输出**，
+    porcelain 的 `committer-time` **只在一个 commit 首次出现时输出**，
     后续行头只有 sha。不先建 commit→时间缓存再按行头摊开，94% 的行会读成 None。
     """
     code, text, err = _git(root, ["blame", "-p", "--", rel])
@@ -163,20 +164,16 @@ def _blame(root, rel):
         if raw.startswith("\t"):
             cur = None
         elif raw.startswith("committer-time "):
-            e, z = times.get(cur, (None, None))
-            times[cur] = (raw.split(" ", 1)[1].strip(), z)
-        elif raw.startswith("committer-tz "):
-            e, z = times.get(cur, (None, None))
-            times[cur] = (e, raw.split(" ", 1)[1].strip())
+            times[cur] = raw.split(" ", 1)[1].strip()
     out = {}
     for lineno, sha in lines.items():
         if sha == _ZERO_SHA:
             out[lineno] = (sha, None)
             continue
-        epoch, tz = times.get(sha, (None, None))
+        epoch = times.get(sha)
         if epoch is None:
             return None, u"blame 输出里 %s 这个提交没有 committer-time" % sha[:7]
-        out[lineno] = (sha, _blame_date(epoch, tz))
+        out[lineno] = (sha, _latest_day(epoch))
     return out, None
 
 
@@ -204,7 +201,7 @@ def _check_dates(cfg, root, files, docs_root):
             why=u"01 §5.6：门跑过与没跑过要分得出；本条列出来是为了让静默失效看得见",
             evidence=u"扫描面 %s（git 跟踪、不在 layout.frozen 内的 *.md）；"
                      u"候选＝日期后 %d 字内带动作词且左侧 %d 字内不带计划词；"
-                     u"基准＝该行 git blame 的提交日（按提交自己的 committer-tz 折算）"
+                     u"基准＝该行 git blame 的提交时刻在 UTC+14 下的日期"
                      % (docs_root, _ACT_WINDOW, _PLAN_WINDOW))]
 
     if not hot:
@@ -228,7 +225,7 @@ def _check_dates(cfg, root, files, docs_root):
             evidence=u"git rev-parse --is-shallow-repository = true；"
                      u"%s 下有 %d 份文档含候选日期未判" % (docs_root, len(hot)))]
 
-    today = datetime.date.today()
+    today = _latest_day(time.time())
     out = []
     for rel, cand in hot:
         blamed, problem = _blame(root, rel)
@@ -248,9 +245,9 @@ def _check_dates(cfg, root, files, docs_root):
             if sha is None:
                 continue
             if sha == _ZERO_SHA:
-                base, note = today, u"该行未提交，基准取运行时刻 %s" % today.isoformat()
+                base, note = today, u"该行未提交，基准取运行时刻在 UTC+14 下的日期 %s" % today.isoformat()
             else:
-                note = u"比较基准：git blame 提交时间 %s（%s）" % (base.isoformat(), sha[:7])
+                note = u"比较基准：git blame 提交时刻在 UTC+14 下的日期 %s（%s）" % (base.isoformat(), sha[:7])
             if got > base:
                 groups.setdefault(day, []).append((lineno, note))
         for day in sorted(groups):
@@ -520,6 +517,7 @@ def _check_work_items(cfg, root, files):
     else:
         sources = [status_rel]
     seen = {}
+    inline = set()                     # 状态源文件里自带 work_item_id 字段的工作项
     for src in sources:
         try:
             text = read_text(os.path.join(root, src))
@@ -528,19 +526,28 @@ def _check_work_items(cfg, root, files):
         for n, line in enumerate(text.splitlines(), 1):
             for m in _WI_RE.finditer(line):
                 seen.setdefault(m.group(0), u"%s:%d" % (src, n))
+            m = _WI_FIELD_RE.match(line) if src == status_rel else None
+            if m:
+                inline.add(m.group(1))
     if not seen:                       # 一个 ID 都没有：无结论，不产条目
         return []
 
     wroot, note = work_root(cfg)
-    wroot = norm_rel(wroot)
+    wroot = norm_rel(wroot).rstrip("/")     # 与 dirname 比较：`work/` 须等于 `work`，`.` 即仓根 ""
+    if wroot == ".":
+        wroot = ""
     # 目录不在是 layout 报的那一件事（契约 §1）；逐 ID 再报一遍就是同一事实报 N 次。
     # L0 按模板把工作项写在 WORK.md 里、本就没有这个目录，更不该逐条报"没有文件"。
     absent = work_root_absent(NAME, cfg)
     if absent:
         return [absent]
 
-    have = set()
+    # 只认直接一层：work_root 下的子目录（如 L1 的 work/artifacts/）放的是留证与产物，
+    # 文件名以 ID 开头也不是工作项本身。
+    have = set(inline)
     for rel in _md_under(files, wroot):
+        if os.path.dirname(rel) != wroot:
+            continue
         base = os.path.basename(rel)
         for wid in seen:
             if base.startswith(wid):
@@ -549,10 +556,12 @@ def _check_work_items(cfg, root, files):
     out = []
     for wid in sorted(set(seen) - have):
         out.append(finding(
-            NAME, UNDETERMINED, u"%s 在 %s 里声明了，%s 下没有它的文件" % (wid, status_rel, wroot),
+            NAME, UNDETERMINED,
+            u"%s 在 %s 里声明了，%s 直接一层没有它的文件，状态源文件里也没有它的 work_item_id 行"
+            % (wid, status_rel, wroot),
             where=seen[wid],
             kind="work-item-missing", key=wid,
-            reason=u"%s 下没有文件名以 %s 开头的工件；是还没建、建在别处，还是这个 ID 只是"
+            reason=u"%s 直接一层没有文件名以 %s 开头的工件；是还没建、建在别处，还是这个 ID 只是"
                    u"正文里提了一句，本工具判不了。ID 形态 WI-<三位以上数字> 是工具约定"
                    u"（契约 §1.1），永不 FAIL" % (wroot, wid),
             why=u"01 §4.1：每个状态都写明**必需工件**，`planned` 起就要有工作项文件；"
@@ -562,7 +571,8 @@ def _check_work_items(cfg, root, files):
         return out
     return [finding(
         NAME, PASS,
-        u"work-item：状态文件列了 %d 个 ID，%s 下都有文件" % (len(seen), wroot),
+        u"work-item：状态文件列了 %d 个 ID，都有载体（%s 直接一层的文件或状态源里的 work_item_id 字段）"
+        % (len(seen), wroot),
         where=status_rel, kind="work-item",
         why=u"01 §5.6：门跑过与没跑过要分得出；本条列出来是为了让静默失效看得见",
         evidence=u"状态文件 %s；ID 形态 `WI-<三位以上数字>`；%s" % (status_rel, note))]
@@ -580,7 +590,7 @@ def scope(cfg):
     return {
         "covered": [
             u"layout.docs_root（当前 %r%s）下 git 跟踪、不在 frozen 内的 *.md：日期后 %d 字内带动作词"
-            u"且左侧 %d 字内不带计划词的那些日期，是否晚于该行 `git blame` 的提交日"
+            u"且左侧 %d 字内不带计划词的那些日期，是否晚于该行 `git blame` 提交时刻在最晚时区 UTC+14 下的日期（未提交行取运行时刻）"
             % (docs_root, u"，默认" if dnote else u"", _ACT_WINDOW, _PLAN_WINDOW),
             u"ADR 目录（layout.artifacts.decisions，当前 %r；未声明则在 docs_root 内找名为 "
             u"decisions 的目录）里除索引外、不在 frozen 内的 *.md：围栏代码块之外的行首是否以就地修订"
@@ -590,7 +600,9 @@ def scope(cfg):
             u"同一目录的索引（%s 的第一张表）与目录里 `ADR-<数字>` 实物的双向对账：索引有 ID 无实物、"
             u"实物不在索引 ID 列" % u" 或 ".join(_INDEX_NAMES),
             u"状态文件（layout.artifacts.status，当前 %r；声明为目录时取其直接一层、git 跟踪的 *.md，"
-            u"不递归）正文里的 `WI-<三位以上数字>`，在 %s 下有没有同名开头的文件"
+            u"不递归）正文里的 `WI-<三位以上数字>`，有没有载体：%s 直接一层（不含子目录里的留证与产物）"
+            u"以该 ID 开头的 *.md，或状态源文件里行首的 `work_item_id：<ID>`（WORK_ITEM 模板首字段，"
+            u"冒号全角半角皆可）"
             % (status or u"（未声明）", wroot),
         ],
         "not_covered": [
@@ -677,11 +689,11 @@ def run(cfg):
 _COMMIT_DATE = "2026-09-21T05:26:00+08:00"      # 基准日 2026-09-21，不随运行机日期漂
 
 
-def _git_commit(tmp):
+def _git_commit(tmp, date=_COMMIT_DATE):
     """自检样本要**真提交**：判据 1 的基准来自 blame，没有提交就没有基准。返回 None 或错误串。"""
     env = dict(os.environ)
-    env["GIT_COMMITTER_DATE"] = _COMMIT_DATE
-    env["GIT_AUTHOR_DATE"] = _COMMIT_DATE
+    env["GIT_COMMITTER_DATE"] = date
+    env["GIT_AUTHOR_DATE"] = date
     # 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行（同 check_derived 的 _GIT_ID）
     cmds = (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
             ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"],
@@ -712,15 +724,21 @@ def _assert(results, ok, title, evidence, why=u"契约 §3 静默失效探测"):
 def selftest():
     results = []
 
-    # ---- 1e：时区折算是纯函数，不读机器时区（同一 epoch 两种 tz 差一天）----
-    epoch = calendar.timegm((2026, 9, 21, 16, 30, 0, 0, 0, 0))   # = 2026-09-22 00:30 +0800
-    d8, d0 = _blame_date(epoch, "+0800"), _blame_date(epoch, "+0000")
-    _assert(results,
-            d8.isoformat() == "2026-09-22" and d0.isoformat() == "2026-09-21" and (d8 - d0).days == 1,
-            u"1e 反例：同一 epoch 按 +0800 与 +0000 折出的日期必须差一天（不读运行机时区）",
-            u"+0800 → %s；+0000 → %s" % (d8, d0),
-            why=u"D-2：按机器本地时区折算时，UTC 机器上会把 2026-09-22 00:30 +0800 的提交"
-                u"折成 2026-09-21，同一份文档里的『2026-09-22 裁定』就成了假阳")
+    # ---- 1e/1f：基准取提交时刻在 UTC+14 下的日期，不取提交自带时区 ----
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "docs", "a.md"),
+                   u"# 样本\n\n- 2026-09-14 裁定 X。\n- 2026-09-15 裁定 Y。\n")
+        err = _git_commit(tmp, "2026-09-13T21:46:00-07:00")   # +0800 下已是 09-14 12:46
+        res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
+        got = _ids(res, "future-date")
+        tail = u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u"")
+        _assert(results, (not err) and u"drift/future-date/docs/a.md｜2026-09-14" not in got,
+                u"1e 正例：-0700 时区 09-13 晚上的提交里写『2026-09-14 裁定』不得报——"
+                u"同一时刻在东边已是 09-14", tail,
+                why=u"写日期的人与提交者时区未必相同；按提交自带时区取日会把正确日期报成未来")
+        _assert(results, (not err) and u"drift/future-date/docs/a.md｜2026-09-15" in got,
+                u"1f 反例：同一提交里写『2026-09-15 裁定』须照报——UTC+14 下也还没到那天", tail,
+                why=u"放宽只许到最晚时区为止，再宽就漏掉真正的未来日期")
 
     # ---- 1a/1b/1d：真提交后比 blame 日；1c：未提交行取运行时刻 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -918,4 +936,36 @@ def selftest():
                 u"4f 正例：状态文件列了 ID 而工作项目录不在，只记一条 work-root-absent（SKIP），"
                 u"不逐 ID 报 work-item-missing——目录不在由 layout 报一次（契约 §1），L0 本不要求它",
                 u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""))
+
+    # ---- 4g/4h/4i：L1 形态——工作项写在状态源 work/current.md 的小节里 ----
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "current.md"),
+                   u"# 工作项：甲\n\nwork_item_id：WI-0001\n状态：IMPLEMENTING\n\n"
+                   u"# 工作项：乙\n\n状态：DEFINED（小节里没有 work_item_id 行）\n\n"
+                   u"- 依赖 WI-0002；留证见 WI-0003；WI-0004 有独立文件。\n")
+        write_text(os.path.join(tmp, "work", "artifacts", "WI-0003-回灌记录.md"), u"# 留证\n")
+        write_text(os.path.join(tmp, "work", "WI-0004-a.md"), u"# WI-0004\n")
+        err = _git_commit(tmp)
+        cfg = {"_root": tmp, "layout": {"docs_root": "docs", "work_root": "work",
+                                        "artifacts": {"status": "work/current.md"}}}
+        res = run(cfg) if not err else []
+        got = _ids(res, "work-item-missing")
+        tail = u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u"")
+        _assert(results, (not err) and u"drift/work-item-missing/WI-0001" not in got,
+                u"4g 正例：状态源文件里行首 `work_item_id：WI-0001` 的小节就是该工作项的载体，不得报 missing",
+                tail, why=u"L1 模板允许工作项写在状态源 work/current.md 里，不要求一件一文件")
+        _assert(results, (not err) and u"drift/work-item-missing/WI-0002" in got,
+                u"4h 反例：WI-0002 只在正文里被提到、没有 work_item_id 行，仍须报 missing",
+                tail, why=u"只认模板首字段，放宽到任意提及就等于不查")
+        _assert(results, (not err) and u"drift/work-item-missing/WI-0003" in got
+                and u"drift/work-item-missing/WI-0004" not in got,
+                u"4i 反例：work_root 子目录 artifacts/ 下以 WI-0003 开头的留证不是工作项文件，须报 missing；"
+                u"直接一层的 WI-0004-a.md 照旧算载体",
+                tail, why=u"子目录里是留证与产物，按文件名前缀递归匹配会把它们当成工作项，出假 PASS")
+        cfg["layout"]["work_root"] = "work/"
+        res = run(cfg) if not err else []
+        got = _ids(res, "work-item-missing")
+        _assert(results, (not err) and u"drift/work-item-missing/WI-0004" not in got,
+                u"4i 附带：`work_root: work/` 带尾斜杠时，直接一层的 WI-0004-a.md 照样算载体",
+                u"实得 %s" % got, why=u"直接一层按目录名相等比较，尾斜杠不归一就一件都认不出")
     return results

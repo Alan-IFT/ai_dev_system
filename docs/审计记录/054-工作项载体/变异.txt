@@ -1,0 +1,7 @@
+# 变异验证：各撤一处修改后跑 check_drift.selftest 的 1e/1f/4g/4h/4i（含 4i 附带：work_root 带尾斜杠）与 check_all --selftest 退出码（未变异时全部 PASS、退出 0）
+M1 撤载体(have 不含 inline): 1e 正例=PASS 1f 反例=PASS 4g 正例=FAIL 4h 反例=PASS 4i 反例=PASS 4i 附带=PASS | check_all --selftest exit=2
+M2 放宽正则到任意提及: 1e 正例=PASS 1f 反例=PASS 4g 正例=PASS 4h 反例=FAIL 4i 反例=PASS 4i 附带=PASS | check_all --selftest exit=2
+M3 撤直接一层过滤(恢复递归): 1e 正例=PASS 1f 反例=PASS 4g 正例=PASS 4h 反例=PASS 4i 反例=FAIL 4i 附带=PASS | check_all --selftest exit=2
+M4 基准改回提交自带时区（本夹具 -0700）: 1e 正例=FAIL 1f 反例=PASS 4g 正例=PASS 4h 反例=PASS 4i 反例=PASS 4i 附带=PASS | check_all --selftest exit=2
+M5 基准再放宽一天（UTC+38）: 1e 正例=PASS 1f 反例=FAIL 4g 正例=PASS 4h 反例=PASS 4i 反例=PASS 4i 附带=PASS | check_all --selftest exit=2
+M6 去掉 work_root 尾斜杠归一: 1e 正例=PASS 1f 反例=PASS 4g 正例=PASS 4h 反例=PASS 4i 反例=PASS 4i 附带=FAIL | check_all --selftest exit=2
