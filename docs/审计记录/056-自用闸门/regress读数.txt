@@ -1,0 +1,10 @@
+# regress.sh 读数（2026-09-24 第二版钩子：回执由 commit-msg 写，post-commit 比对 HEAD@{1}+树；core.hooksPath=.githooks）
+例0 正常提交：退出 0（应 0）；note：无（应 无）
+例1 断链提交：退出 1（应非 0）
+例2 坏提交信息：退出 1（应非 0）
+例3 --no-verify：退出 0（应 0）；note：有（应 有）
+例4 amend：退出 0（应 0）；note：无（应 无）
+例5a revert：退出 0（应 0）；首行 Revert "test: 改写；note：有
+例5b revert-of-revert：退出 0（应 0）；首行 Reapply "test: 改�；note：有
+例6 正常 merge：退出 0（应 0）；父提交数 2（应 2）
+T9 merge 后接 --no-verify 空提交：退出 0（应 0）；note：有（应 有）

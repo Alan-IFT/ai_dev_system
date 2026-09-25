@@ -1,0 +1,9 @@
+#!/bin/sh
+# 提交闸门（Gate 合同见仓库工作须知 §7）：三道任一非 0 即拒绝提交。安装（每个克隆一次）：git config core.hooksPath .githooks
+# 通过时只报一行、失败时才打全量输出：提交的输出会进 agent 上下文，成功路径不该占上下文。
+out=$(python3 tools/std/check_all.py . --no-scope 2>&1 &&
+      python3 docs/附录-载体实例/linkcheck.py 2>&1 &&
+      python3 docs/附录-载体实例/check_normative_force.py 2>&1)
+rc=$?
+if [ $rc -ne 0 ]; then printf '%s\n' "$out"; echo "提交闸门：未通过（退出 $rc）" >&2; exit $rc; fi
+echo "提交闸门：三道通过"

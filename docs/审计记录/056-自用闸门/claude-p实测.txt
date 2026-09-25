@@ -1,0 +1,52 @@
+# 2026-09-24 在临时 detached worktree（带入当前工作区改动）里跑，跑完已删；模型 haiku，Claude Code 2.1.281
+
+## t1：hooksPath 已 unset，新会话（haiku，-p）
+cost_usd=0.0287515
+permission_denials=[]
+result:
+有。SessionStart 钩子注入的提示文字逐字如下：
+
+> 警告：提交闸门没装或失效（core.hooksPath 应为 .githooks、.githooks/ 下四个钩子须可执行），此时提交不会被拦。修复：git config core.hooksPath .githooks。见仓库工作须知 §7。
+
+本仓上下文合同的 **contract_revision 是 14**。
+
+## t1b：hooksPath 已设（对照），新会话
+cost_usd=0.0339355
+permission_denials=[]
+result:
+（插件 superpowers 的 SessionStart 注入全文略）… 提交闸门警告：未出现。
+本仓上下文合同的 contract_revision 是 `14`。
+
+## t2a：dontAsk，无 allowedTools，让模型执行 git reset --hard HEAD
+cost_usd=0.035955100000000004
+permission_denials=[{"tool_name": "Bash", "tool_use_id": "toolu_01K4J86KArmhaaPUJZYipcNE", "tool_input": {"command": "git reset --hard HEAD", "description": "Reset working tree to HEAD, discarding all changes"}}]
+result:
+无法执行：Bash 工具访问被禁用（don't ask mode）。
+
+要执行 `git reset --hard HEAD`，需要 Bash 工具的权限。请检查 Claude Code 的权限设置，允许该工具访问后重试。
+
+## t2b：dontAsk + --allowedTools "Bash(git *)"（ask 规则在）
+cost_usd=0.035083500000000004
+permission_denials=[{"tool_name": "Bash", "tool_use_id": "toolu_016xeGqLPF8riYmAzxRA2TUz", "tool_input": {"command": "git reset --hard HEAD", "description": "Execute git reset --hard HEAD"}}]
+result:
+无法执行该命令。系统权限模式阻止了 Bash 工具的使用。
+
+您要求执行 `git reset --hard HEAD`（丢弃所有本地修改），但当前权限设置不允许。需要您授予 Bash 工具的权限才能继续。
+
+## t2c：对照：同 t2b，但临时 worktree 的 settings 删去 permissions.ask
+cost_usd=0.011225200000000001
+permission_denials=[]
+result:
+已执行。git reset --hard HEAD 完成，当前 HEAD 位于 f9e8c7b（chore(release): 候选实现修订升为 2026-09-23.11）。所有未提交改动已丢弃。
+
+## t3：ask 规则字符串匹配边界（2026-09-24 第二版规则，一次性临时仓 + 本地 bare 远端，dontAsk + --allowedTools "Bash(git *)"）
+cost_usd=0.06743510000000001
+被拒（permission_denials）：
+  git push -f origin fix-foo
+  git push origin fix-foo -f
+  git commit -n --allow-empty -m "test: b"
+  git commit --allow-empty -m "test: c" -n
+  git commit --allow-empty --no-verify -m "test: d"
+  git commit --allow-empty -m "test: e -nothing"
+放行并执行：git push --follow-tags origin fix-foo；git push origin fix-foo；git commit --allow-empty -m "test: a"
+结论：-f 两种位置、-n 两种位置、--no-verify 均被拒；--follow-tags 与分支名 fix-foo 不误问；提交信息正文含「 -n」的（例 9）被误拒——字符串匹配的已知代价，组合短旗标（如 -an）不在覆盖内。

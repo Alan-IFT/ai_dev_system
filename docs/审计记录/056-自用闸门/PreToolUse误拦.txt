@@ -1,0 +1,8 @@
+# 2026-09-24 PreToolUse 提交前钩子误拦一例（只记证据，不进失败 Case 清单）
+
+现象：执行席用一条 Bash heredoc 写 regress.sh，命令正文里含 "git ... commit" 字样，本身不是提交；
+当时仓库工作须知 §7 已引用尚未建出的 regress.sh，check_all 报 links FAIL（1 条），钩子退出 2，这条写文件命令被拦下。
+改用 Write 工具写入后，FAIL 随文件出现而消失。
+
+归属：这是 D-116 已写明的代价——「check_all 红时，文本含 git…commit 的命令（如 git log --grep=commit）仍被拦」。
+不是新缺陷，故只记在此，不进 Case 清单。

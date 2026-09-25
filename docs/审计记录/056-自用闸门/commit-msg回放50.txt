@@ -1,0 +1,52 @@
+# commit-msg 回放：本仓 f9e8c7b 往前 50 条提交的信息逐条喂 .githooks/commit-msg（2026-09-24）
+放行	f9e8c7b chore(release): 候选实现修订升为 2026-09-23.
+放行	90c5547 feat(tools/std): 用 Claude Code 原生能力补执�
+放行	c5d880b docs(审计记录): 052 冲刺读数回写 045 L3 �
+放行	f46d33c chore(release): 候选实现修订升为 2026-09-23.
+放行	d1570eb fix(tools/std): drift 认状态源里的 work_item_i
+放行	730a575 chore(release): 候选实现修订升为 2026-09-23.
+放行	7adb2bc fix(tools/std): check_all 入口剥离 git 注入的
+放行	fe06b42 docs(审计记录): 052 第 0.10 条按预先写定�
+放行	ac2854b docs(审计记录): 052 补记 managed settings 移�
+放行	438f37f docs(审计记录): 052 第 0.7 条补跑 managed �
+放行	3e5f32e chore(release): 候选实现修订升为 2026-09-23.
+放行	4cab12b fix(tools/std): 提交前钩子自读命令文本，
+放行	f79fbcc docs(审计记录): 回填 052 L3 验证冲刺读数
+放行	dc6c17b refactor(tools/std)!: 拦截层改用 Claude Code �
+放行	b90db96 chore(release): 候选实现修订升为 2026-09-23.
+放行	e1e915b docs: 入口与会话交接改指新的 Claude Code 
+放行	c3826b8 docs(审计记录): 052 冲刺不另设花费上限
+放行	5a8d242 docs(审计记录): 新增 052 NFBY L3 验证冲刺�
+放行	533ed10 docs(审计记录): 按 D-094 配方给五份审计�
+放行	dbcc2f4 docs(元治理): 落地 Alan 2026-09-23 八条裁决
+放行	2b9ec2b fix(check_normative_force): 试行到期后不再计
+拦	a4446b3 标准/README 第 3 行：候选实现修订升为 2
+放行	a300b49 refactor(tools/std): 工作项扫描的重复小函�
+拦	c327387 标准/README 第 3 行：候选实现修订升为 2
+放行	eecb5ac chore(governance): 本仓自检清零——声明落
+放行	d618312 docs: 来源数与部件数的散落副本改为指�
+放行	ac4cadb fix(示例项目): ADR-0001 门店数笔误改为并
+放行	67b30f8 fix(tools/std): 登记行匹配不到未定即报孤
+拦	a73cec8 标准/README 第 3 行：候选实现修订升为 2
+放行	d553fa0 chore(governance): 声明失败清单与方法落点
+放行	10ee30e docs: 删去抄写的计数，改为指针
+放行	2debde5 docs(templates): AGENTS 受控动作一节改为指�
+放行	67ef49e fix(tools/std): 序数不算数值声明、metadata_
+放行	004b446 docs(09): 「三条判据」改为「各条判据」
+放行	ec468a0 docs(元治理): 增设状态值「已执行」，19
+拦	49730d4 标准/README 第 3 行：候选实现修订升为 2
+放行	0b1f0ba docs(templates,示例项目): 补齐入口中的「�
+放行	9452dcd refactor(tools/std): 入口解析收进 stdlib，lay
+拦	115eae9 标准/README 第 3 行：候选实现修订升为 2
+放行	96054d0 docs: 清理 D-041 与其它决策的状态副本，
+放行	eba4e86 docs(标准,templates): 文件命名以 01 §3.1 为
+放行	ae757b3 refactor(tools/std): 配置键常量缺省收进 std
+放行	f6e6eb7 fix(tools/std): cross-repo 的 git grep 加 --no-col
+拦	777579c 标准/README 第 3 行：候选实现修订升为 2
+放行	61b1792 refactor(tools/std): 工件落点收进 stdlib 一�
+拦	846d876 标准/README 第 3 行：候选实现修订升为 2
+放行	eb2df7d chore(governance): 本仓采用记录跟上候选实
+放行	82ed2b5 test(tools/std): check_derived／check_drift 自检�
+放行	2e52d71 docs: 修正入口文档的过时说法
+放行	4efe713 fix(tools/std): 拦截层补提交期兜底，堵住
+合计 50 条，拦 7 条；被拦的全是旧写法「标准/README 第 3 行：…」的发版提交，自 2026-09-23.7 起已改为 chore(release)，不是误拦
