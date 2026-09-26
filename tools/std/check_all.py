@@ -1010,10 +1010,11 @@ def _stdlib_selftest():
                           and sl.item_status(u"`status`: in_progress\n") == "in_progress",
                           sl.item_status(u"# x\n\n**状态**：done\n")))
             # bug 12：关闭态只认整格等于或以关闭词开头
-            closed = [sl._ex_closed(x) for x in (u"关闭", u"已关闭（09-01）", u"**done**", u"没关闭",
+            closed = [sl._ex_closed(x) for x in (u"关闭", u"已关闭（09-01）", u"**done**",
+                                                 u"**已过期，已处理**（06-28 对账）", u"没关闭",
                                                  u"not yet closed", u"open (to be closed)", u"待关闭")]
-            cases.append(("例外登记的关闭态只认开头：没关闭/not yet closed/open (to be closed) 不算关闭",
-                          closed == [True, True, True, False, False, False, False], closed))
+            cases.append(("例外登记的关闭态只认段首：没关闭/not yet closed/open (to be closed) 不算关闭",
+                          closed == [True, True, True, True, False, False, False, False], closed))
             # 低：身份行在 git 不可用时不写成「git git 退出码」
             line = identity_line({"digest": "0" * 64, "files": [], "git_head": "git 退出码 128",
                                   "dirty": None, "dirty_detail": "git 退出码 128"})

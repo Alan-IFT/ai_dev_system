@@ -481,15 +481,19 @@ _EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
                (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
                (u"到期", "expires"), (u"状态", "status"))
 
-# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**整格等于或以关闭词开头**才算关闭——
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**某一段以关闭词开头**才算关闭——
 # 含词即关闭会把「没关闭」「not yet closed」「open (to be closed)」这类尚在生效的例外当成历史行放过；
 # 按否定前缀排除又列不全（D-123）。
 _EX_CLOSED = (u"关闭", u"已关闭", u"closed", u"done", u"已处理")
 
 
 def _ex_closed(status):
-    low = status.strip().strip(u"*`").strip().lower()
-    return low.startswith(_EX_CLOSED)
+    """按逗号、分号、顿号、斜杠切段，任一段（去首尾加粗与反引号）以关闭词开头即关闭：
+    「**已过期，已处理**（…）」是关闭行，「not yet closed」「open (to be closed)」不是。"""
+    for seg in re.split(u"[，,;；、/|]+", status.lower()):
+        if seg.strip().strip(u"*`").strip().startswith(_EX_CLOSED):
+            return True
+    return False
 
 _MD_SEP_RE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
 
