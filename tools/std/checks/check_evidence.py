@@ -17,8 +17,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status, markdown_under,
+    work_items, FAIL, PASS, SKIP, UNDETERMINED,
+    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status,
     read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
 )
 
@@ -288,7 +288,7 @@ def _run(cfg):
     if absent:
         return [absent]
 
-    files, problem = markdown_under(root, wroot)
+    files, problem = work_items(root, wroot)   # 只看直接一层
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
@@ -468,6 +468,22 @@ def selftest():
             why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
                 "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
         ))
+
+    # 只看工作项目录直接一层（D-123 裁定 3，同 drift 的 D-118）：子目录里没状态字段的留证不数；
+    # 直接一层里没状态字段的仍记未定
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "artifacts", "README.md"), "# 留证说明\n")
+        write_text(os.path.join(tmp, "work", "NOTES.md"), "# 随手记\n")
+        cfg, err = _sample(tmp, _SIX)
+        got = sorted((f["status"], f["id"], f.get("evidence") or "") for f in run(cfg)) if not err else err
+    ok = (not err) and [(st, i) for st, i, _e in got] == [(PASS, got[0][1]), (UNDETERMINED, NAME + "/no-status")] \
+        and got[1][2] == "work/NOTES.md"
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "只看工作项目录直接一层：子目录里的无状态文件不数，直接一层的无状态文件记未定",
+        evidence="实得 %s" % (got,),
+        why="D-123 裁定 3：子目录是留证与产物，不是工作项（与 drift D-118 同一条规则）",
+    ))
 
     # 证据段标题是工具约定（契约 §1.1，D-123）：英文 `## Evidence` 照认；一个都认不出只记未定
     got = {}

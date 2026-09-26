@@ -311,7 +311,10 @@ def _adr_dir(cfg, root, files, docs_root):
                 found.add("/".join(parts[:i + 1]))
     if len(found) == 1:
         return sorted(found)[0], False, None
-    # 适用性先判（契约 §1）：决策登记是 L2 起的工件（check_layout 的分档），L0/L1 没有 ADR 目录不适用；
+    # 适用性先判（契约 §1）：决策登记是 L2 起的工件。出处：标准正文 01 §3.1 文档树只把 `decisions/`
+    # 列在「大型项目的完整形态」里、不分档；分档在 templates/文件树与落地路径.md §4「L2 · 团队」——
+    # L2 增 `DECISIONS.md`（落地为 `docs/decisions/`，每份 ADR-*.md，README 是索引），L0/L1 两节都没有它。
+    # check_layout 的 _TIER_ITEMS 把 decisions 放在 L2，同一阈值。L0/L1 没有 ADR 目录不适用；
     # L2 起、档位不明，或有多个候选目录时，目录名是约定（§1.1），没定位到只记未定
     tier = str(cfg_get(cfg, "tier") or "")
     status = SKIP if (not found and tier in ("L0", "L1")) else UNDETERMINED

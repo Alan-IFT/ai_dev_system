@@ -260,6 +260,19 @@ def _strip_comment(line):
 _MAP_LINE = re.compile(r"""^(?:"([^"]*)"|'([^']*)'|([^\s"'#:][^:]*?))\s*:(?:\s+(.*)|)$""")
 
 
+def _not_kv(body, lineno):
+    """不是 `键: 值` 行时的拒收信息：带行号，指明是哪种写法不支持（不回显内容）。"""
+    if body.startswith(("---", "...")):
+        what = "YAML 文档分隔符（--- / ...）"
+    elif body[:1] in "[{":
+        what = "流式写法（[...] / {...}）"
+    elif ":" in body:
+        what = "冒号后没有空格（须写成 `键: 值`），或键里带引号、冒号"
+    else:
+        what = "没有 `键: 值` 的冒号"
+    return ConfigError("第 %d 行不是 `键: 值`：本解析器不支持%s" % (lineno, what))
+
+
 def _split_kv(body, lineno):
     """`键: 值` → (键, 值文本)；不是映射行返回 None。键两侧的引号剥掉。"""
     m = _MAP_LINE.match(body)
@@ -303,7 +316,7 @@ def parse_yaml_subset(text):
                             raise ConfigError("第 %d 行缩进不一致" % n2)
                         kv2 = _split_kv(b2, n2)
                         if kv2 is None:
-                            raise ConfigError("第 %d 行不是 key: value" % n2)
+                            raise _not_kv(b2, n2)
                         k2, v2 = kv2
                         if k2 in item:
                             raise ConfigError("第 %d 行的键 %r 在同一列表项里重复；重复键的取值有歧义" % (n2, k2))
@@ -333,7 +346,7 @@ def parse_yaml_subset(text):
                 break
             kv = _split_kv(body, n)
             if kv is None:
-                raise ConfigError("第 %d 行不是 key: value" % n)
+                raise _not_kv(body, n)
             k, v = kv
             if k in mapping:
                 raise ConfigError("第 %d 行的键 %r 重复；重复键的取值有歧义" % (n, k))
@@ -368,14 +381,22 @@ class OutsideRoot(OSError):
     `except OSError` 照常把它转成未定。"""
 
 
+def _under(p, r):
+    return p == r or p.startswith(r.rstrip(os.sep) + os.sep)
+
+
 def inside(root, path):
-    """path 跟随符号链接后是否仍在 root 之内（含 root 本身）。判不了按"不在"算。"""
+    """path 跟随符号链接后是否仍在 root 之内（含 root 本身）。判不了按"不在"算。
+
+    先按字面（abspath）判：字面就在 root 之外的路径直接返回 False，**不碰文件系统**——
+    realpath 会逐段 lstat，那本身就是对项目之外路径的探测。字面在内的再按真实位置判（符号链接出仓）。
+    """
     try:
-        r = os.path.realpath(str(root or "."))
-        p = os.path.realpath(str(path))
+        if not _under(os.path.abspath(str(path)), os.path.abspath(str(root or "."))):
+            return False
+        return _under(os.path.realpath(str(path)), os.path.realpath(str(root or ".")))
     except (OSError, ValueError):
         return False
-    return p == r or p.startswith(r.rstrip(os.sep) + os.sep)
 
 
 def guard(root, path):
@@ -415,11 +436,32 @@ def _escaping_paths(cfg):
     return bad
 
 
+# 值必须是整数的阈值键与下限。写错不许静默换成默认值（与「不许静默误读」同一条规则），整份配置拒收。
+_DUP_BUDGETS = (("duplicate_min_lines", 2), ("duplicate_min_chars", 1))
+
+
+def _bad_dup_budgets(cfg, text):
+    budgets = cfg.get("budgets")
+    if not isinstance(budgets, dict):
+        return None
+    for key, low in _DUP_BUDGETS:
+        if key not in budgets:
+            continue
+        v = budgets[key]
+        if isinstance(v, int) and not isinstance(v, bool) and v >= low:
+            continue
+        line = next((i for i, ln in enumerate(text.splitlines(), 1)
+                     if re.match(r"\s*%s\s*:" % key, ln)), 0)
+        return "第 %d 行 budgets.%s 须是 ≥%d 的整数；写错不取默认值" % (line, key, low)
+    return None
+
+
 def _read_config(root, p, shown):
     """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
     try:
         with io.open(p, encoding="utf-8-sig") as fh:   # 带 BOM 的首键不许读成 \ufeffcompatibility
-            cfg = parse_yaml_subset(fh.read())
+            text = fh.read()
+        cfg = parse_yaml_subset(text)
     except ConfigError as exc:
         return {}, "%s 无法无歧义解析：%s" % (shown, exc)
     except UnicodeDecodeError as exc:
@@ -428,6 +470,9 @@ def _read_config(root, p, shown):
         return {}, "%s 读不了：%s" % (shown, type(exc).__name__)
     if not isinstance(cfg, dict):
         return {}, "%s 的顶层不是映射" % shown
+    bad_budget = _bad_dup_budgets(cfg, text)
+    if bad_budget:
+        return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
     bad = _escaping_paths(cfg)
     if bad:
         return {}, ("%s 里 %s 的路径含 .. 段或是绝对路径，指向项目之外；本工具只读被扫项目之内的文件"
@@ -884,6 +929,19 @@ def markdown_under(root, sub):
     if problem:
         return None, problem
     return sorted(r for r in map(norm_rel, files) if r.lower().endswith(".md") and under(r, sub)), None
+
+
+def work_items(root, wroot):
+    """工作项目录**直接一层**里 git 跟踪的 markdown。返回 (相对路径列表, 问题)。
+
+    子目录（L1 的 work/artifacts/ 之类）放的是留证与产物，不是工作项——与 drift 的
+    D-118 裁定同一条规则，evidence 与 freshness 共用这一处。
+    """
+    files, problem = markdown_under(root, wroot)
+    if problem:
+        return None, problem
+    base = norm_rel(wroot).rstrip("/")
+    return [r for r in files if os.path.dirname(r) == base or (base in ("", ".") and "/" not in r)], None
 
 
 def clean(value):

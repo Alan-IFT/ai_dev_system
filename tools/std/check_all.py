@@ -1004,6 +1004,36 @@ def _stdlib_selftest():
                 except sl.ConfigError as exc:
                     got, ok = str(exc), u"第 " in str(exc)
                 cases.append(("YAML 子集对歧义写法拒收并给行号 %r" % text[:24], ok, got))
+            # 裁定 6：拒收信息带行号并指明不支持的写法
+            msgs = []
+            for text, want in ((u"---\ntier: L1\n", u"文档分隔符"), (u"tier:L1\n", u"冒号后没有空格"),
+                               (u"a:\n  - key:\n", u"后面没有值")):
+                try:
+                    ys(text)
+                    msgs.append((text, None))
+                except sl.ConfigError as exc:
+                    msgs.append((text, str(exc)))
+                    if not (u"第 " in str(exc) and want in str(exc)):
+                        msgs[-1] = (text, "缺行号或写法：" + str(exc))
+            cases.append(("YAML 子集拒收信息带行号并指明写法",
+                          all(m and not m.startswith("缺") for _t, m in msgs), msgs))
+            # 新增：duplicate_* 阈值写错是配置错误（带行号、整份拒收），不静默用默认
+            for tag, body in (("p11", u"tier: L1\nbudgets:\n  duplicate_min_lines: 1\n"),
+                              ("p12", u"tier: L1\nbudgets:\n  duplicate_min_chars: yes\n")):
+                cfg, prob = load(fresh(tag), body)
+                cases.append(("duplicate_* 阈值写错整份拒收并给行号（%s）" % tag,
+                              not cfg and bool(prob) and u"第 3 行" in prob, prob))
+            cfg, prob = load(fresh("p13"), u"tier: L1\nbudgets:\n  duplicate_min_lines: 4\n")
+            cases.append(("duplicate_* 阈值合法照常读", not prob, prob))
+            # 裁定 2：字面就在项目之外的路径不碰文件系统（realpath 本身就是探测）
+            seen = []
+            real = sl.os.path.realpath
+            sl.os.path.realpath = lambda p, *a, **k: (seen.append(p), real(p, *a, **k))[1]
+            try:
+                r_out = sl.inside(base, os.path.join(base, "..", "elsewhere", "x.md"))
+            finally:
+                sl.os.path.realpath = real
+            cases.append(("字面在项目之外的路径不做 realpath 探测", r_out is False and not seen, seen))
             # bug 4：字段名两侧的加粗与反引号
             cases.append(("**状态**：done 读得出状态",
                           sl.item_status(u"# x\n\n**状态**：done\n") == "done"

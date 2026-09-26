@@ -22,7 +22,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
+    work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
@@ -429,7 +429,7 @@ def _check_work_items(cfg, root, today, base):
     if absent:
         return [absent]
 
-    files, problem = markdown_under(root, wroot)
+    files, problem = work_items(root, wroot)   # 只看直接一层
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
@@ -751,6 +751,18 @@ def selftest():
         "反例五之二：超龄天数与聚合份数变了，FAIL 与未定的 id 都不变",
         evidence="100 天 2 份：%s；300 天 3 份：%s" % (ids_a, ids_b),
         why="契约 §4/§9：id 随天数或份数漂，登记行就成孤儿",
+    ))
+
+    # 只看工作项目录直接一层（D-123 裁定 3）：work/artifacts/ 下的无状态文件不许出 no-status
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "artifacts", "README.md"), "# 留证说明\n")
+        cfg, err = _sample(tmp, "updated_at: %s\n" % fresh, work_fresh)
+        got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS] if not err else err
+    results.append(finding(
+        NAME, PASS if (not err and got == []) else FAIL,
+        "只看工作项目录直接一层：work/artifacts/ 下的无状态文件不数",
+        evidence="非通过项 %s" % (got,),
+        why="D-123 裁定 3：子目录是留证与产物，不是工作项",
     ))
 
     a, err_a = _stale_one(100)
