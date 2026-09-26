@@ -224,25 +224,28 @@ def _collect(cfg):
     if listed is None:
         return None, None, problem
     derived = _declared_derived_artifacts(cfg)
-    files, notes = [], {"skipped_binary": 0, "skipped_big": 0, "excluded": 0, "unreadable": 0}
+    files, notes = [], {"skipped_binary": 0, "skipped_big": 0, "excluded": 0, "unreadable": 0,
+                        "absent": 0, "big_paths": [], "unreadable_paths": []}
     for entry in listed:
         rel = unquote_git_path(entry)
         if _excluded(cfg, rel, derived):
             notes["excluded"] += 1
             continue
         path = os.path.join(root, rel)
-        if not os.path.isfile(path):
-            notes["unreadable"] += 1
+        if not os.path.isfile(path):      # 子模块、已删未提交：不是可读的文本对象
+            notes["absent"] += 1
             continue
         try:
             size = os.path.getsize(path)
             if size > _MAX_FILE_BYTES:
                 notes["skipped_big"] += 1
+                notes["big_paths"].append(rel)
                 continue
             with io.open(guard(root, path), "rb") as fh:
                 data = fh.read()
-        except OSError:
+        except OSError as exc:
             notes["unreadable"] += 1
+            notes["unreadable_paths"].append("%s（%s）" % (rel, type(exc).__name__))
             continue
         if b"\x00" in data:
             notes["skipped_binary"] += 1
@@ -427,6 +430,16 @@ def _run(cfg):
         else u"阈值取自 project.yaml：连续 %d 行 / 有效字符 %d" % (min_lines, min_chars)
     scanned = u"扫了 %d 个文本文件；排除归档与派生 %d 个，跳过二进制 %d 个、超大 %d 个、读不了 %d 个" % (
         len(files), notes["excluded"], notes["skipped_binary"], notes["skipped_big"], notes["unreadable"])
+    # 没读的文件不是"没有重复"：读不了、超大的各汇一条未定（契约 §1：依赖不可用记未定）
+    for key, kind, what in (("unreadable_paths", u"unreadable", u"读不了"),
+                            ("big_paths", u"too-big", u"超过 %d 字节未读" % _MAX_FILE_BYTES)):
+        paths = notes[key]
+        if paths:
+            out.append(finding(
+                NAME, UNDETERMINED, u"%d 个被跟踪文件%s，其中的重复判不了" % (len(paths), what),
+                kind=kind, reason=u"没读到内容的文件不参与三条判据；它们里有没有副本，本次没看",
+                why=u"01 §2 N1：检查未覆盖的对象记未定，不记通过",
+                evidence=u"；".join(paths[:10]) + (u"；另有 %d 个未列出" % (len(paths) - 10) if len(paths) > 10 else u"")))
     doc_count = sum(1 for rel, _t, _d in files if is_doc(rel))
     doc_note = u"其中算文档的 %d 个（后缀 %s）" % (doc_count, u" ".join(_DOC_SUFFIXES))
     no_doc_reason = (
@@ -688,6 +701,25 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例一自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例一之二（D-123 bug 3）：读不了的副本不许让「没有逐字节相同」照常 PASS——须各出一条未定
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {"a.md": _UNIQ_A, "copy/a.md": _UNIQ_A, "b.md": _UNIQ_B})
+            locked = os.path.join(tmp, "copy", "a.md")
+            os.chmod(locked, 0)
+            try:
+                got = [(f["status"], f["id"]) for f in run(cfg)]
+            finally:
+                os.chmod(locked, 0o644)
+        ok = (UNDETERMINED, NAME + "/unreadable") in got
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例一之二：读不了的被跟踪文件须记一条未定（single-authority/unreadable）",
+            evidence=u"实得 %s" % got, why=u"契约 §1：依赖不可用记未定，不得吞掉记 PASS",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 反例二：跨文件重复的实质文本块（两文件本身不相同）
     try:

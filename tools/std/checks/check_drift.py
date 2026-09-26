@@ -303,13 +303,20 @@ def _adr_dir(cfg, root, files, docs_root):
                 found.add("/".join(parts[:i + 1]))
     if len(found) == 1:
         return sorted(found)[0], False, None
+    # 适用性先判（契约 §1）：决策登记是 L2 起的工件（check_layout 的分档），L0/L1 没有 ADR 目录不适用；
+    # L2 起、档位不明，或有多个候选目录时，目录名是约定（§1.1），没定位到只记未定
+    tier = str(cfg_get(cfg, "tier") or "")
+    status = SKIP if (not found and tier in ("L0", "L1")) else UNDETERMINED
     return None, False, finding(
-        NAME, SKIP,
+        NAME, status,
         u"未定位到 ADR 目录，判据 2（就地修订）与判据 3（索引对账）本次未执行",
-        reason=(u"未声明 layout.artifacts.decisions，且 %s 下%s；本工具不猜 ADR 放在哪"
+        kind="adr-dir-unlocated",
+        reason=(u"未声明 layout.artifacts.decisions，且 %s 下%s；本工具不猜 ADR 放在哪%s"
                 % (docs_root,
                    u"没有名为 decisions 的目录" if not found
-                   else u"有 %d 个名为 decisions 的目录（%s）" % (len(found), _cap(sorted(found))))),
+                   else u"有 %d 个名为 decisions 的目录（%s）" % (len(found), _cap(sorted(found))),
+                   u"。tier %s 不要求决策登记（L2 起），故不适用" % tier if status == SKIP
+                   else u"。ADR 在别处就在 layout.artifacts.decisions 声明")),
         why=u"02 §8 以 decisions 目录为对象；契约 §1.1：目录名是约定，猜不到不记通过")
 
 
@@ -968,4 +975,13 @@ def selftest():
         _assert(results, (not err) and u"drift/work-item-missing/WI-0004" not in got,
                 u"4i 附带：`work_root: work/` 带尾斜杠时，直接一层的 WI-0004-a.md 照样算载体",
                 u"实得 %s" % got, why=u"直接一层按目录名相等比较，尾斜杠不归一就一件都认不出")
+
+    # 5（D-123）：没定位到 ADR 目录——L0/L1 不要求决策登记记不适用；L2 起或档位不明记未定（契约 §1.1）
+    got5 = {}
+    for tier in ("L1", "L2", None):
+        _d, _decl, f5 = _adr_dir({"tier": tier} if tier else {}, ".", ["docs/a.md"], "docs")
+        got5[tier] = f5["status"] if f5 else None
+    _assert(results, got5 == {"L1": SKIP, "L2": UNDETERMINED, None: UNDETERMINED},
+            u"5 ADR 目录没定位到：L1 记不适用，L2 与档位不明记未定",
+            u"实得 %s" % got5, why=u"契约 §1 先判适用；§1.1 目录名是约定，落空不记不适用")
     return results

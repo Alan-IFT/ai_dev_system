@@ -120,7 +120,8 @@ def finding_id(check, title, kind=None, key=None):
         if key is not None and str(key).strip():
             out += u"/" + normalize_key(key)
         return out
-    return u"%s/%s" % (check, hashlib.sha1(title.encode("utf-8")).hexdigest()[:8])
+    # surrogateescape：非 UTF-8 文件名经 git ls-files 解码后带代理字符，严格编码会让整个检查器崩掉
+    return u"%s/%s" % (check, hashlib.sha1(title.encode("utf-8", "surrogateescape")).hexdigest()[:8])
 
 
 def finding(check, status, title, where=None, why="", reason="", evidence="",
@@ -394,6 +395,8 @@ def _read_config(root, p, shown):
             cfg = parse_yaml_subset(fh.read())
     except ConfigError as exc:
         return {}, "%s 无法无歧义解析：%s" % (shown, exc)
+    except UnicodeDecodeError as exc:
+        return {}, "%s 不是 UTF-8 编码（第 %d 字节起解不开）；本工具只读 UTF-8" % (shown, exc.start)
     except OSError as exc:
         return {}, "%s 读不了：%s" % (shown, type(exc).__name__)
     if not isinstance(cfg, dict):
@@ -679,6 +682,23 @@ def tracked_files(root, patterns=None, tool_root=None):
     return files, None
 
 
+def shallow_problem(root):
+    """浅克隆下「最后一次提交」取的是边界提交、时间等于克隆那一刻，按它判新旧会把 FAIL 翻成 PASS。
+
+    返回 None（不是浅克隆，可以用提交时间）或原因串（浅克隆、或探测不了）——调用方据此记未定。
+    """
+    try:
+        out = subprocess.run(["git", "-C", root, "rev-parse", "--is-shallow-repository"],
+                             capture_output=True, text=True, encoding="utf-8", timeout=60)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return "跑不了 git rev-parse：%s" % exc
+    if out.returncode != 0:
+        return "git rev-parse --is-shallow-repository 退出码 %d" % out.returncode
+    if out.stdout.strip().lower() == "true":
+        return "浅克隆：git log 取到的是边界提交，时间等于克隆时刻，不是该文件真实的最后提交"
+    return None
+
+
 def read_text(path, root=None):
     """读文本。给了 root 就先判真实位置在不在 root 之内（`guard`），不在抛 OutsideRoot。"""
     with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
@@ -873,10 +893,10 @@ def state_list(cfg, path, default):
     return [str(s).strip().lower() for s in states if str(s).strip()]
 
 
-def agg(check, status, title, paths, reason, why=""):
+def agg(check, status, title, paths, reason, why="", kind=None):
     """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。"""
     more = "" if len(paths) <= LIST_CAP else "；另有 %d 份未列出" % (len(paths) - LIST_CAP)
-    return finding(check, status, "%s（%d 份）" % (title, len(paths)),
+    return finding(check, status, "%s（%d 份）" % (title, len(paths)), kind=kind,
                    reason=reason, why=why, evidence="；".join(paths[:LIST_CAP]) + more)
 
 

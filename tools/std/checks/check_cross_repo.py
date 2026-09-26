@@ -76,7 +76,10 @@ _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 # 小工具（stdlib 里没有的一律在本模块实现，不改公共库）
 # --------------------------------------------------------------------------
 
-def _read(path, root, limit_bytes=2 * 1024 * 1024):
+_MAX_READ_BYTES = 2 * 1024 * 1024
+
+
+def _read(path, root, limit_bytes=_MAX_READ_BYTES):
     with io.open(guard(root, path), "rb") as fh:
         raw = fh.read(limit_bytes)
     return raw.decode("utf-8", "replace")
@@ -767,11 +770,15 @@ def _check_links(repos):
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "枚举 %s 的 md 文件" % r["name"]))
             continue
-        broken, host_abs, total = [], [], 0
+        broken, host_abs, total, unread = [], [], 0, []
         for f in mds:
             try:
+                if os.path.getsize(f) > _MAX_READ_BYTES:
+                    unread.append("%s（超过 %d 字节）" % (os.path.relpath(f, r["_real"]), _MAX_READ_BYTES))
+                    continue
                 text = _read(f, r["_real"])
-            except OSError:
+            except OSError as exc:
+                unread.append("%s（%s）" % (os.path.relpath(f, r["_real"]), type(exc).__name__))
                 continue
             rel_f = os.path.relpath(f, r["_real"]).replace("\\", "/")
             for t in _link_targets(text):
@@ -810,6 +817,14 @@ def _check_links(repos):
                 evidence="共 %d 处，列前 %d：%s" % (len(host_abs), min(len(host_abs), _MAX_LISTED),
                                                  "；".join(host_abs[:_MAX_LISTED])),
             ))
+        if unread:
+            out.append(finding(
+                NAME, UNDETERMINED, "仓 %s 有 %d 份 *.md 没读，其中的跨仓引用未判" % (r["name"], len(unread)),
+                where=where, kind="unreadable", key=r["name"],
+                reason="读不了或超过读取上限；没读的文件不是没有断链（契约 §1）",
+                why="01 §3.8'跨仓引用按契约处理'",
+                evidence="；".join(unread[:_MAX_LISTED]),
+            ))
         if broken:
             out.append(finding(
                 NAME, FAIL, "仓 %s 有 %d 处跨仓引用解析后不存在" % (r["name"], len(broken)),
@@ -820,6 +835,13 @@ def _check_links(repos):
                 evidence="共 %d 处，列前 %d：%s（扫描范围：本仓 %d 份 *.md 的 markdown 链接）"
                          % (len(broken), min(len(broken), _MAX_LISTED),
                             "；".join(broken[:_MAX_LISTED]), len(mds)),
+            ))
+        elif total == 0:
+            out.append(finding(
+                NAME, SKIP, "仓 %s 的 *.md 里没有指向其他仓的链接" % r["name"],
+                where=where, kind="no-refs", key=r["name"],
+                reason="0 处跨仓引用上说不出『全部可达』（01 §2 N1 空集不记通过）；没有对象即本条不适用",
+                evidence="扫了 %d 份 *.md" % len(mds),
             ))
         else:
             out.append(finding(
@@ -1030,8 +1052,11 @@ def selftest():
             good_dir = os.path.join(tmp, "good")
             os.makedirs(good_dir)
             got = run(_sample(good_dir, bad=False))
-            other = [f for f in got if f["status"] != PASS]
-            ok = bool(got) and not other
+            # 没有跨仓链接的仓记不适用（0 处引用说不出「全部可达」，D-123）
+            norefs = sorted(f["id"] for f in got if f["id"].startswith(NAME + "/no-refs/"))
+            other = [f for f in got if f["status"] != PASS and not f["id"].startswith(NAME + "/no-refs/")]
+            ok = bool(got) and not other and norefs == [NAME + "/no-refs/old", NAME + "/no-refs/sys"] \
+                and all(f["status"] == SKIP for f in got if f["id"] in norefs)
             results.append(finding(
                 NAME, PASS if ok else FAIL,
                 "正例：承载仓唯一、各仓有入口、投影可达、状态已登记、退役仓已标失效，应判 PASS",
@@ -1103,6 +1128,27 @@ def selftest():
                 evidence="实得 %d 条：%s" % (len(got), "、".join(ids) or "无"),
                 why="契约 §9：id 是例外登记的地址，两个仓共用一个地址就会被一行登记一起静音",
             ))
+        # 读不了的 *.md 须出一条未定（D-123 bug 3）：旧实现 `except OSError: continue` 静默跳过，
+        # 那份文件里的断链因此永远报不出来
+        with tempfile.TemporaryDirectory() as tmp:
+            d = os.path.join(tmp, "ur")
+            os.makedirs(d)
+            cfg = _sample(d, bad=False)
+            locked = os.path.join(d, "app", "docs", "locked.md")
+            _mk(locked, "# 锁\n\n见 [没有](../../sys/nope.md)。\n")
+            os.chmod(locked, 0)
+            try:
+                got = run(cfg)
+            finally:
+                os.chmod(locked, 0o644)
+            hit = [f for f in got if f["id"] == NAME + "/unreadable/app"]
+            ok = len(hit) == 1 and hit[0]["status"] == UNDETERMINED
+            results.append(finding(
+                NAME, PASS if ok else FAIL, "读不了的 *.md 须记一条未定，不得静默跳过",
+                evidence="实得 %s" % [(f["status"], f["id"]) for f in got if f["status"] != PASS][:8],
+                why="契约 §1：依赖不可用记未定，不得吞掉异常记 PASS",
+            ))
+
         # 线性（D-123 安全 3）：`](` 连写 8000 次曾要跑几分钟，一个文件拖死整次检查与提交闸门
         t0 = time.time()
         _link_targets("](" * 2000)   # 旧正则下约 4 秒

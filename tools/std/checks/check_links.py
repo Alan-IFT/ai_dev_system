@@ -30,10 +30,11 @@ STANDARD_REFS = ["01 §3.4 引用", "01 §3.2 docs/INDEX.md", "01 §3.8 跨仓�
 _NL = chr(10)
 _BQ = chr(96)
 
-# [文字](路径) / [文字](路径#锚点) / ![alt](图片)；容许 <> 包裹与行尾 "title"
+# [文字](路径) / [文字](路径#锚点) / ![alt](图片)；容许行尾 "title"。
+# <> 包裹的目标可以含空格与圆括号（CommonMark），单独一支：第 1 组是它，第 2 组是裸写法
 _LINK_RE = re.compile(
     r'\[(?:[^\[\]]|\[[^\[\]]*\])*\]'
-    r'\(\s*<?([^()<>\s]+)>?(?:\s+"[^"]*"|\s+\'[^\']*\')?\s*\)'
+    r'\(\s*(?:<([^<>\n]+)>|([^()<>\s]+))(?:\s+"[^"]*"|\s+\'[^\']*\')?\s*\)'
 )
 
 # 跳过的协议：契约要求跳过 http/https/mailto，另加几个同样不是本地路径的
@@ -64,16 +65,22 @@ def _mask_code(text):
     return text
 
 
-def _slug(heading):
+def _slug(heading, keep_inner_underscore=False):
     """GitHub 风格锚点：去内联标记与标点、小写、空格转连字符。
 
     非 ASCII 字符按 GitHub 的做法保留（\\w 在 Python3 的 re 里含中日韩字符），
     但各平台对中文标题的处理并不一致——所以中文锚点匹配不上时判未定，不判断链。
+    `keep_inner_underscore`：词中的下划线（`my_func`）GitHub 会保留，只有贴着词边界的才是强调标记；
+    两种都算作可用锚点（`_anchors_of`），宁可少报不误报。
     """
     h = heading.strip()
     h = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", h)   # 链接取其文字
     h = re.sub(r"<[^>]+>", "", h)                    # 去内联 HTML
-    h = re.sub(r"[" + _BQ + r"*_~]", "", h)          # 去强调标记
+    if keep_inner_underscore:
+        h = re.sub(r"(?<!\w)_+|_+(?!\w)", "", h)
+        h = re.sub(r"[" + _BQ + r"*~]", "", h)
+    else:
+        h = re.sub(r"[" + _BQ + r"*_~]", "", h)          # 去强调标记
     h = h.lower()
     h = re.sub(r"[^\w\s-]", "", h, flags=re.U)       # 去标点（含全角）
     h = re.sub(r"\s+", "-", h.strip())
@@ -89,17 +96,36 @@ def _atx_title(raw):
     return t.strip()
 
 
+_SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
+
+
+def _titles(text):
+    """按出现顺序给出标题文字：ATX（`# x`）与 setext（下一行是 `===` / `---`）两种。"""
+    prev = ""
+    for line in _mask_code(text).split(_NL):
+        m = _HEADING_RE.match(line)
+        if m:
+            yield _atx_title(m.group(2))
+            prev = ""
+            continue
+        if prev.strip() and _SETEXT_RE.match(line) and not prev.startswith((" " * 4, "\t")):
+            yield prev.strip()
+            prev = ""
+            continue
+        prev = line
+
+
 def _anchors_of(text):
     """一份 markdown 里可用的锚点集合。"""
     found = set(_EXPLICIT_ANCHOR_RE.findall(text))
     seen = {}
-    for _, title in _HEADING_RE.findall(_mask_code(text)):
-        s = _slug(_atx_title(title))
-        if not s:
-            continue
-        n = seen.get(s, 0)
-        found.add(s if n == 0 else "%s-%d" % (s, n))
-        seen[s] = n + 1
+    for title in _titles(text):
+        for s in {_slug(title), _slug(title, keep_inner_underscore=True)}:
+            if not s:
+                continue
+            n = seen.get(s, 0)
+            found.add(s if n == 0 else "%s-%d" % (s, n))
+            seen[s] = n + 1
     return found
 
 
@@ -209,7 +235,7 @@ def scope(cfg):
             "不检查 HTML 里的链接（<a href=…>、<img src=…>）",
             "围栏代码块与行内代码里的链接被涂白，不算数",
             "不解析引用式链接 [文字][标签] 与裸 URL",
-            "路径里带圆括号的链接、跨行书写的链接匹配不到，因而不计入",
+            "不带 <> 包裹而路径里有圆括号的链接、跨行书写的链接匹配不到，因而不计入",
             "不检查未被 git 跟踪的 markdown（未提交或被 .gitignore 排除的看不见）",
             "不判断锚点指的片段外延到哪（该问题见 templates/文件树与落地路径.md §7 第 5 条）",
         ],
@@ -266,8 +292,8 @@ def _run(cfg):
         for lineno, line in enumerate(masked.split(_NL), 1):
             if "](" not in line:
                 continue
-            for raw in _LINK_RE.findall(line):
-                target = raw.strip()
+            for wrapped, bare in _LINK_RE.findall(line):
+                target = (wrapped or bare).strip()
                 if not target or _SKIP_SCHEME_RE.match(target) or target.startswith("//"):
                     continue
                 n_links += 1
@@ -299,8 +325,24 @@ def _run(cfg):
                                       _anchor_miss(rel, where, target, anchor, rel, frozen_note))
                     continue
 
-                abs_tgt = os.path.normpath(
-                    os.path.join(os.path.dirname(abs_src), path_part.replace("/", os.sep)))
+                if path_part.startswith("/"):
+                    # 仓库根路径：GitHub 按仓根解析，别的渲染器按站点根或主机根——本工具按仓根核，
+                    # 核不到只记未定（契约 §1.1：解析方式是约定）
+                    abs_tgt = os.path.normpath(os.path.join(root, path_part.lstrip("/").replace("/", os.sep)))
+                    if not os.path.exists(abs_tgt):
+                        n_bad += 1
+                        _merge(out, merged, lineno, finding(
+                            NAME, UNDETERMINED, "%s 的仓根路径链接按仓根找不到：%s" % (rel, target),
+                            where=where, kind="root-abs", key=rel + "|" + target,
+                            reason="以 / 开头的链接各平台解析不一（GitHub 按仓根、静态站按站点根、"
+                                   "本地按主机根），按仓根没找到推不出断链",
+                            why="01 §3.4 引用：B 链接 A 且可机械核对",
+                            evidence=frozen_note,
+                        ))
+                        continue
+                else:
+                    abs_tgt = os.path.normpath(
+                        os.path.join(os.path.dirname(abs_src), path_part.replace("/", os.sep)))
                 if not inside(root, abs_tgt):
                     n_bad += 1
                     _merge(out, merged, lineno, finding(
@@ -464,6 +506,24 @@ def selftest():
                             (cjk[0].get("evidence") or "")[:120] if cjk else "（无）"),
                 why="契约 §9：登记行写的是 id，同一件事出成多条会逼着登记也写多行",
             ))
+            # 反例四（约定，D-123）：词中下划线锚点、setext 标题锚点、仓根 / 路径、<> 包裹含空格的路径
+            # 都按实际渲染认；仓根路径找不到只记未定（解析方式是约定），<> 里的缺文件照判 FAIL
+            os.makedirs(os.path.join(tmp, "sub"), exist_ok=True)
+            w("b.md", "# my_func\n\nSetext 标题行\nSetext Title\n===\n")
+            w("my file.md", "# x\n")
+            w("sub/a.md", "[1](../b.md#my_func) [2](../b.md#setext-title) [3](/b.md) "
+                          "[4](</my file.md>) [5](<../my file.md>) [6](/nope.md) [7](<../no such.md>)\n")
+            res = run({"_root": tmp, "_links_files": ["sub/a.md", "b.md", "my file.md"]})
+            bad = sorted((f["status"], f["title"].split("：", 1)[-1]) for f in res if f["status"] != PASS)
+            want = [(FAIL, "<../no such.md>"), (UNDETERMINED, "/nope.md")]
+            results.append(finding(
+                NAME, PASS if [(st, t.strip("<>").replace("../", "")) for st, t in bad] ==
+                [(st, t.strip("<>").replace("../", "")) for st, t in want] else FAIL,
+                "反例四：下划线锚点、setext 锚点、仓根路径、<> 包裹路径按实际渲染认；仓根找不到记未定",
+                evidence="非通过项 %s；应得 %s" % (bad, want),
+                why="契约 §1.1：约定落空只记未定；01 §3.4 引用核对不得误报",
+            ))
+
             # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；
             # 标题行里一长串空白不许把锚点计算拖成平方级
             with tempfile.TemporaryDirectory() as outside:
