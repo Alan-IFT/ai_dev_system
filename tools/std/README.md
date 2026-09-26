@@ -285,7 +285,7 @@ fork 未实测。现行 `resume|compact` 片段的实测见本节末。std-revie
 照常输出。compact 未对现行片段实测。
 
 **免审批清单**：`check_adoption` 读本文件的 `permissions.allow`，放行任意代码或任意委托的整类规则
-（`Bash`、`Bash(*)`、解释器或运行器后只剩通配、`PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`）判
+（`Bash`、`Bash(*)`、解释器或运行器后只剩通配——含 `*` 紧贴名字前缀如 `Bash(py*)`、经 `sudo`/`env`/`timeout` 等包装或变量赋值之后——、`PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`）判
 FAIL（[01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）。auto 模式下 Claude Code 自己就会
 丢弃这类规则，本检查的增量在 manual、acceptEdits 这些会照单放行的模式下。`defaultMode:
 bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生效（官方 settings 文档），不判，交给宿主。
