@@ -698,7 +698,7 @@ def tracked_files(root, patterns=None, tool_root=None):
     files = [p for p in raw.split("\0") if p.strip()]
     rel = embedded_std_rel(root, tool_root)
     if rel:
-        files = [p for p in files if not p.lstrip('"').startswith(rel + "/")]
+        files = [p for p in files if not p.startswith(rel + "/")]
     return files, None
 
 

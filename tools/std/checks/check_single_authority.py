@@ -53,41 +53,12 @@ _PUNCT = set(" \t\r\n") | set(u"·—–-_=*#>|`~^!@$%&()[]{}<>/\\+:;,.?\"'"
 # 本模块自备的小工具（不改 stdlib，见任务纪律）
 # --------------------------------------------------------------------------
 
-def unquote_git_path(p):
-    """还原 git ls-files 对非 ASCII 路径的 C 风格转义。
-
-    stdlib.tracked_files 直接返回 git 原样输出；仓库里有中文路径时那是带引号
-    的八进制转义串，拼出来的路径不存在。这里就地还原，不动 stdlib。
-    """
-    if not (len(p) >= 2 and p[0] == '"' and p[-1] == '"'):
-        return p
-    body = p[1:-1]
-    out = bytearray()
-    simple = {"n": 10, "t": 9, "r": 13, "\\": 92, '"': 34, "a": 7, "b": 8, "f": 12, "v": 11}
-    i = 0
-    while i < len(body):
-        ch = body[i]
-        if ch == "\\" and i + 1 < len(body):
-            nxt = body[i + 1]
-            if nxt in "01234567" and i + 3 < len(body) + 1:
-                try:
-                    out.append(int(body[i + 1:i + 4], 8))
-                    i += 4
-                    continue
-                except ValueError:
-                    pass
-            if nxt in simple:
-                out.append(simple[nxt])
-                i += 2
-                continue
-        out.extend(ch.encode("utf-8"))
-        i += 1
-    return out.decode("utf-8", "replace")
+_RE_NOT_EFFECTIVE = re.compile(u"[%s\\s]+" % u"".join(re.escape(c) for c in sorted(_PUNCT)))
 
 
 def effective_chars(s):
-    """去掉空白与纯标点后的有效字符。"""
-    return u"".join(ch for ch in s if ch not in _PUNCT and not ch.isspace())
+    """去掉空白与纯标点后的有效字符。（一次正则替换：逐字符生成式曾占本检查器大半耗时。）"""
+    return _RE_NOT_EFFECTIVE.sub(u"", s)
 
 
 def is_doc(rel):
@@ -227,7 +198,7 @@ def _collect(cfg):
     files, notes = [], {"skipped_binary": 0, "skipped_big": 0, "excluded": 0, "unreadable": 0,
                         "absent": 0, "big_paths": [], "unreadable_paths": []}
     for entry in listed:
-        rel = unquote_git_path(entry)
+        rel = entry          # tracked_files 走 -z，路径原样，不需要还原转义
         if _excluded(cfg, rel, derived):
             notes["excluded"] += 1
             continue
@@ -266,12 +237,10 @@ def _collect(cfg):
 def _identical_files(files):
     groups = {}
     for rel, text, data in files:
-        if len(effective_chars(text)) < _MIN_FILE_EFFECTIVE:
-            continue
-        h = hashlib.sha256(data).hexdigest()
-        groups.setdefault(h, []).append(rel)
-    dupes = {h: sorted(v) for h, v in groups.items() if len(v) > 1}
-    return dupes
+        groups.setdefault(hashlib.sha256(data).hexdigest(), []).append((rel, text))
+    # 同一组内容相同，有效字符只需在成组的那一份上算一次
+    return {h: sorted(r for r, _t in v) for h, v in groups.items()
+            if len(v) > 1 and len(effective_chars(v[0][1])) >= _MIN_FILE_EFFECTIVE}
 
 
 # --------------------------------------------------------------------------
@@ -291,11 +260,16 @@ def _duplicate_blocks(files, min_lines, min_chars, skip_rels):
         sig = significant_lines(text)
         if len(sig) < min_lines:
             continue
+        # 窗口的有效字符数 = 各行之和（行间的 \n 本就不计），滑动累加，不再每个窗口重算
+        eff = [len(effective_chars(x[1])) for x in sig]
+        width = sum(eff[:min_lines])
         for i in range(len(sig) - min_lines + 1):
+            if i:
+                width += eff[i + min_lines - 1] - eff[i - 1]
+            if width < min_chars:
+                continue
             chunk = sig[i:i + min_lines]
             joined = u"\n".join(x[1] for x in chunk)
-            if len(effective_chars(joined)) < min_chars:
-                continue
             h = hashlib.sha1(joined.encode("utf-8")).hexdigest()
             idx_hash[(rel, i)] = h
             if h not in by_hash:

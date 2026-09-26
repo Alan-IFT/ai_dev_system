@@ -161,45 +161,6 @@ class _Cache(object):
         return self.anchors[key], None
 
 
-_C_ESCAPES = {"a": 7, "b": 8, "f": 12, "n": 10, "r": 13, "t": 9, "v": 11,
-              "\\": 92, '"': 34}
-
-
-def _unquote_git_path(p):
-    """还原 git ls-files 的 C 风格转义路径。
-
-    core.quotepath 默认开启，含非 ASCII 的路径会被输出成 "docs/\\345\\275\\222/x.md"。
-    不还原就会把本仓库全部中文路径当成不存在的文件——那是假 FAIL。
-    stdlib.tracked_files 不做这层还原，本模块自己做（不改 stdlib）。
-    """
-    if len(p) < 2 or p[0] != '"' or p[-1] != '"':
-        return p
-    body = p[1:-1]
-    out = bytearray()
-    i = 0
-    while i < len(body):
-        ch = body[i]
-        if ch == "\\" and i + 1 < len(body):
-            nxt = body[i + 1]
-            if nxt in _C_ESCAPES:
-                out.append(_C_ESCAPES[nxt])
-                i += 2
-                continue
-            if nxt.isdigit() and i + 4 <= len(body):
-                try:
-                    out.append(int(body[i + 1:i + 4], 8))
-                    i += 4
-                    continue
-                except ValueError:
-                    pass
-            out.extend(nxt.encode("utf-8"))
-            i += 2
-            continue
-        out.extend(ch.encode("utf-8"))
-        i += 1
-    return out.decode("utf-8", "replace")
-
-
 def _markdown_files(cfg):
     """git 跟踪的 markdown。返回 (相对路径列表, 问题)。
 
@@ -213,7 +174,6 @@ def _markdown_files(cfg):
     files, problem = tracked_files(root, ["*.md", "*.markdown"])
     if problem:
         return None, problem
-    files = [_unquote_git_path(f) for f in files]
     return [f for f in files if f.lower().endswith(_MD_EXT)], None
 
 
