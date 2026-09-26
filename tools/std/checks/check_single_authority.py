@@ -420,10 +420,10 @@ def _run(cfg):
     min_lines = cfg_get(cfg, "budgets.duplicate_min_lines")
     min_chars = cfg_get(cfg, "budgets.duplicate_min_chars")
     used_default = []
-    if not isinstance(min_lines, int) or min_lines < 2:
+    if not isinstance(min_lines, int) or isinstance(min_lines, bool) or min_lines < 2:
         used_default.append(u"duplicate_min_lines=%d" % _DEFAULT_MIN_LINES)
         min_lines = _DEFAULT_MIN_LINES
-    if not isinstance(min_chars, int) or min_chars < 1:
+    if not isinstance(min_chars, int) or isinstance(min_chars, bool) or min_chars < 1:
         used_default.append(u"duplicate_min_chars=%d" % _DEFAULT_MIN_CHARS)
         min_chars = _DEFAULT_MIN_CHARS
     thresh_note = (u"用的是默认值（%s），项目未校准" % u"、".join(used_default)) if used_default \

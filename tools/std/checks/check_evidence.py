@@ -312,8 +312,11 @@ def _run(cfg):
         out.extend(_check_one(rel, text, status, note))
 
     if nostatus:
-        out.append(agg(NAME, SKIP, "工作项目录下没有状态字段的文件", nostatus,
-                       reason="读不到状态字段，不当作工作项（README、索引之类）"))
+        out.append(agg(NAME, UNDETERMINED, "工作项目录下读不到状态字段的文件", nostatus,
+                       kind="no-status",
+                       reason="状态字段名是本工具的词表（stdlib.STATUS_FIELDS），读不到推不出它不是工作项"
+                              "（契约 §1.1）：若是已完成的工作项，它的完成证据本次没查。"
+                              "README、索引之类放在工作项目录之外，或补上状态字段"))
     if other:
         out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other,
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))

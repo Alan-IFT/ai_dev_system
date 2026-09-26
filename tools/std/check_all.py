@@ -960,6 +960,38 @@ def _stdlib_selftest():
             cases.append(("非 UTF-8 文件名时各检查器不崩、--json 不崩且输出可解析",
                           parsed and r.returncode in (0, 1, 2),
                           "退出码 %d；%s" % (r.returncode, (r.stderr or b"").decode("utf-8", "replace")[-160:])))
+            # bug 7：BOM 不进首键
+            cfg, prob = load(fresh("p10"), None, raw=u"\ufefftier: L1\n".encode("utf-8"))
+            cases.append(("带 BOM 的配置首键读作 tier", cfg.get("tier") == "L1" and not prob, cfg or prob))
+            # bug 8：YAML 子集不静默误读——能对的读对，读不对的拒收并给行号
+            ys = sl.parse_yaml_subset
+            good = [(u"a:\n  - \"a: b\"\n  - https://x\n", {"a": ["a: b", "https://x"]}),
+                    (u"\"tier\": L1\n", {"tier": "L1"}),
+                    (u"reason: don't do it # 注释\n", {"reason": "don't do it"}),
+                    (u"x: \"a # b\" # c\n", {"x": "a # b"})]
+            for text, want in good:
+                try:
+                    got = ys(text)
+                except sl.ConfigError as exc:
+                    got = "拒收：%s" % exc
+                cases.append(("YAML 子集读对 %r" % text[:24], got == want, got))
+            for text in (u"a:\n  - name: x\n    path: .\n    path: y\n", u"---\ntier: L1\n"):
+                try:
+                    got = ys(text)
+                    ok = False
+                except sl.ConfigError as exc:
+                    got, ok = str(exc), u"第 " in str(exc)
+                cases.append(("YAML 子集对歧义写法拒收并给行号 %r" % text[:24], ok, got))
+            # bug 4：字段名两侧的加粗与反引号
+            cases.append(("**状态**：done 读得出状态",
+                          sl.item_status(u"# x\n\n**状态**：done\n") == "done"
+                          and sl.item_status(u"`status`: in_progress\n") == "in_progress",
+                          sl.item_status(u"# x\n\n**状态**：done\n")))
+            # bug 12：关闭态只认整格等于或以关闭词开头
+            closed = [sl._ex_closed(x) for x in (u"关闭", u"已关闭（09-01）", u"**done**", u"没关闭",
+                                                 u"not yet closed", u"open (to be closed)", u"待关闭")]
+            cases.append(("例外登记的关闭态只认开头：没关闭/not yet closed/open (to be closed) 不算关闭",
+                          closed == [True, True, True, False, False, False, False], closed))
             # 低：身份行在 git 不可用时不写成「git git 退出码」
             line = identity_line({"digest": "0" * 64, "files": [], "git_head": "git 退出码 128",
                                   "dirty": None, "dirty_detail": "git 退出码 128"})

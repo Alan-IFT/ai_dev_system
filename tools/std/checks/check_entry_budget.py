@@ -85,7 +85,7 @@ def _entry(cfg):
     used_default = budget is None
     if used_default:
         budget = _DEFAULT_ENTRY_LINES
-    if not isinstance(budget, int) or budget <= 0:
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
         return [finding(
             NAME, UNDETERMINED, "行数预算不是正整数",
             reason="budgets.entry_lines = %r" % (budget,),

@@ -82,11 +82,11 @@ _WI_RE = re.compile(r"\bWI-\d{3,}\b")
 _WI_FIELD_RE = re.compile(r"^work_item_id[:：]\s*(WI-\d{3,})\b")
 _ADR_RE = re.compile(r"ADR-\d+")
 _ADR_FILE_RE = re.compile(r"^(ADR-\d+)")
-_BLAME_HEAD = re.compile(r"^([0-9a-f]{40})\s+(\d+)\s+(\d+)(?:\s+(\d+))?$")
+# SHA-1 仓行头 40 位、SHA-256 仓 64 位
+_BLAME_HEAD = re.compile(r"^([0-9a-f]{40}(?:[0-9a-f]{24})?)\s+(\d+)\s+(\d+)(?:\s+(\d+))?$")
 # CommonMark 围栏：同一字符连续 3 个以上；闭合须同字符、不短于开围栏、其后只有空白。
 _FENCE_RE = re.compile(u"^(`{3,}|~{3,})(.*)$")
 _MD_LINK_RE = re.compile(r"\]\(([^)]+)\)")
-_ZERO_SHA = "0" * 40
 
 
 # --------------------------------------------------------------------------
@@ -131,7 +131,7 @@ def _latest_day(epoch):
 def _candidates(text):
     """返回 [(行号, 日期字面量)]。左窗口排除计划位，右窗口要求动作词。"""
     out = []
-    for n, line in enumerate(text.splitlines(), 1):
+    for n, line in enumerate(text.split("\n"), 1):   # 只按 \n 切：git 的行号不认 U+2028、\x0c
         for m in _DATE_RE.finditer(line):
             left = line[max(0, m.start() - _PLAN_WINDOW):m.start()]
             if any(w in left for w in _PLAN_WORDS):
@@ -153,7 +153,7 @@ def _blame(root, rel):
     if code != 0:
         return None, u"git blame 退出码 %d：%s" % (code, err)
     times, lines, cur = {}, {}, None
-    for raw in text.splitlines():
+    for raw in text.split("\n"):
         m = _BLAME_HEAD.match(raw)
         if m:
             cur = m.group(1)
@@ -167,7 +167,7 @@ def _blame(root, rel):
             times[cur] = raw.split(" ", 1)[1].strip()
     out = {}
     for lineno, sha in lines.items():
-        if sha == _ZERO_SHA:
+        if not sha.strip("0"):          # 未提交行：全零 sha（SHA-1 40 位 / SHA-256 64 位）
             out[lineno] = (sha, None)
             continue
         epoch = times.get(sha)
@@ -236,20 +236,28 @@ def _check_dates(cfg, root, files, docs_root):
                 why=u"01 §2 N1：依赖不可用记未定，不记通过",
                 evidence=u"该文件有 %d 处候选日期未判" % len(cand)))
             continue
-        groups = {}
+        groups, lost = {}, []
         for lineno, day in cand:
             got, err2 = _parse_day(day)
             if got is None:
                 continue
             sha, base = blamed.get(lineno, (None, None))
             if sha is None:
+                lost.append(lineno)
                 continue
-            if sha == _ZERO_SHA:
+            if not sha.strip("0"):
                 base, note = today, u"该行未提交，基准取运行时刻在 UTC+14 下的日期 %s" % today.isoformat()
             else:
                 note = u"比较基准：git blame 提交时刻在 UTC+14 下的日期 %s（%s）" % (base.isoformat(), sha[:7])
             if got > base:
                 groups.setdefault(day, []).append((lineno, note))
+        if lost:
+            out.append(finding(
+                NAME, UNDETERMINED, u"%s 有 %d 个候选行在 blame 结果里找不到" % (rel, len(lost)), where=rel,
+                kind="blame-line-missing", key=rel,
+                reason=u"行号与 git blame 对不上，这些行写下的时间取不到，判不了",
+                why=u"01 §2 N1：依赖不可用记未定，不记通过",
+                evidence=u"第 %s 行" % u"、".join(str(n) for n in lost[:LIST_CAP])))
         for day in sorted(groups):
             hits = groups[day]
             out.append(finding(
@@ -557,7 +565,7 @@ def _check_work_items(cfg, root, files):
             continue
         base = os.path.basename(rel)
         for wid in seen:
-            if base.startswith(wid):
+            if re.match(re.escape(wid) + r"(?!\d)", base):   # WI-001 不许被 WI-0010-x.md 冒充
                 have.add(wid)
 
     out = []
@@ -975,6 +983,39 @@ def selftest():
         _assert(results, (not err) and u"drift/work-item-missing/WI-0004" not in got,
                 u"4i 附带：`work_root: work/` 带尾斜杠时，直接一层的 WI-0004-a.md 照样算载体",
                 u"实得 %s" % got, why=u"直接一层按目录名相等比较，尾斜杠不归一就一件都认不出")
+
+    # 1g/1h（D-123 bug 5）：行号只按 \n 切（\x0c、U+2028 不许让行号与 blame 错位后静默跳过）；
+    # SHA-256 仓的 64 位行头照样解析
+    for tag, fmt in (("1g", None), ("1h", "sha256")):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            write_text(os.path.join(tmp, "docs", "a.md"), u"# 样本\x0c分页\u2028续\n- 2026-09-22 裁定 X。\n")
+            err = None
+            if fmt:
+                r = subprocess.run(["git", "init", "-q", "--object-format=" + fmt, tmp],
+                                   capture_output=True, timeout=60)
+                err = None if r.returncode == 0 else "git init --object-format 退出码 %d" % r.returncode
+            err = err or _git_commit(tmp)
+            res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
+            got = [(f["id"], f.get("where")) for f in res
+                   if f["id"].startswith((u"drift/future-date", u"drift/blame"))]
+            _assert(results, (not err) and got == [(u"drift/future-date/docs/a.md｜2026-09-22", u"docs/a.md:2")],
+                    u"%s 反例：%s里写于 09-21 的『2026-09-22 裁定』须报出，行号按 \\n 计为第 2 行"
+                    % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c 与 U+2028 的行"),
+                    u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
+                    why=u"行号或行头对不上时旧实现静默跳过该行，把未来日期漏成通过")
+
+    # 4j（D-123 bug 5）：WI-001 不许被 WI-0010-x.md 冒充成已有文件
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "current.md"), u"# 状态\n\n- WI-001 在做。\n")
+        write_text(os.path.join(tmp, "work", "WI-0010-x.md"), u"# WI-0010\n")
+        err = _git_commit(tmp)
+        res = run({"_root": tmp, "layout": {"docs_root": "docs", "work_root": "work",
+                                            "artifacts": {"status": "work/current.md"}}}) if not err else []
+        got = _ids(res, "work-item-missing")
+        _assert(results, (not err) and u"drift/work-item-missing/WI-001" in got,
+                u"4j 反例：只有 WI-0010-x.md 时 WI-001 仍须报 missing",
+                u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
+                why=u"按前缀比会让编号更长的文件冒充")
 
     # 5（D-123）：没定位到 ADR 目录——L0/L1 不要求决策登记记不适用；L2 起或档位不明记未定（契约 §1.1）
     got5 = {}

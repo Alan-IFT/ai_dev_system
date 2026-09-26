@@ -232,7 +232,11 @@ def _scalar(raw, lineno):
 
 
 def _strip_comment(line):
-    """去行尾注释。只在 # 前有空白或位于行首时才算注释，避免吃掉值里的 #。"""
+    """去行尾注释。只在 # 前有空白或位于行首时才算注释，避免吃掉值里的 #。
+
+    引号只在值的开头（行首、`:` 或 `- ` 之后）才开启引用：`don't # 注释` 里的撇号是正文，
+    不许把后面的注释吞进值里。
+    """
     out, in_q, q = [], False, ""
     for i, ch in enumerate(line):
         if in_q:
@@ -241,7 +245,9 @@ def _strip_comment(line):
                 in_q = False
             continue
         if ch in "\"'":
-            in_q, q = True, ch
+            before = "".join(out).rstrip()
+            if not before or before.endswith((":", "-")):
+                in_q, q = True, ch
             out.append(ch)
             continue
         if ch == "#" and (i == 0 or line[i - 1] in " \t"):
@@ -250,8 +256,23 @@ def _strip_comment(line):
     return "".join(out).rstrip()
 
 
+# 映射行：键（裸词或整体加引号）后跟冒号，冒号后是空白或行尾——YAML 的写法；`https://x` 不是映射
+_MAP_LINE = re.compile(r"""^(?:"([^"]*)"|'([^']*)'|([^\s"'#:][^:]*?))\s*:(?:\s+(.*)|)$""")
+
+
+def _split_kv(body, lineno):
+    """`键: 值` → (键, 值文本)；不是映射行返回 None。键两侧的引号剥掉。"""
+    m = _MAP_LINE.match(body)
+    if not m:
+        return None
+    key = next(g for g in m.groups()[:3] if g is not None).strip()
+    if not key:
+        raise ConfigError("第 %d 行的键为空" % lineno)
+    return key, (m.group(4) or "")
+
+
 def parse_yaml_subset(text):
-    """解析 CONTRACT.md §5 所述结构。不支持的语法一律抛 ConfigError。"""
+    """解析 CONTRACT.md §5 所述结构。不支持的语法一律抛 ConfigError，不静默误读。"""
     lines = []
     for n, raw in enumerate(text.splitlines(), 1):
         if "\t" in raw.split("#")[0]:
@@ -269,26 +290,32 @@ def parse_yaml_subset(text):
             while idx < len(lines) and lines[idx][1] == indent and lines[idx][2].startswith("- "):
                 n, _, body = lines[idx]
                 rest = body[2:].strip()
-                if ":" in rest and not rest.endswith(":"):
+                kv = _split_kv(rest, n)
+                if kv and kv[1].strip():
                     # 列表项是行内起始的映射：- name: x
-                    k, v = rest.split(":", 1)
-                    item = {k.strip(): _scalar(v, n)}
+                    k, v = kv
+                    item = {k: _scalar(v, n)}
                     idx += 1
                     child_indent = indent + 2
                     while idx < len(lines) and lines[idx][1] >= child_indent and not lines[idx][2].startswith("- "):
                         n2, ind2, b2 = lines[idx]
                         if ind2 != child_indent:
                             raise ConfigError("第 %d 行缩进不一致" % n2)
-                        if ":" not in b2:
+                        kv2 = _split_kv(b2, n2)
+                        if kv2 is None:
                             raise ConfigError("第 %d 行不是 key: value" % n2)
-                        k2, v2 = b2.split(":", 1)
+                        k2, v2 = kv2
+                        if k2 in item:
+                            raise ConfigError("第 %d 行的键 %r 在同一列表项里重复；重复键的取值有歧义" % (n2, k2))
                         if not v2.strip():
                             sub, idx = block(idx + 1, child_indent + 2)
-                            item[k2.strip()] = sub
+                            item[k2] = sub
                             continue
-                        item[k2.strip()] = _scalar(v2, n2)
+                        item[k2] = _scalar(v2, n2)
                         idx += 1
                     items.append(item)
+                elif kv and rest.endswith(":"):
+                    raise ConfigError("第 %d 行的列表项 %s 后面没有值；本解析器不支持这种嵌套写法" % (n, "- key:"))
                 elif rest == "[]":
                     # 空列表只作键的值才有意义（区分"声明没有"与"没声明"）；
                     # 作列表项是嵌套空列表，没有哪个键收这个形状
@@ -304,10 +331,10 @@ def parse_yaml_subset(text):
             n, _, body = lines[idx]
             if body.startswith("- "):
                 break
-            if ":" not in body:
+            kv = _split_kv(body, n)
+            if kv is None:
                 raise ConfigError("第 %d 行不是 key: value" % n)
-            k, v = body.split(":", 1)
-            k = k.strip()
+            k, v = kv
             if k in mapping:
                 raise ConfigError("第 %d 行的键 %r 重复；重复键的取值有歧义" % (n, k))
             if v.strip():
@@ -391,7 +418,7 @@ def _escaping_paths(cfg):
 def _read_config(root, p, shown):
     """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
     try:
-        with io.open(p, encoding="utf-8") as fh:
+        with io.open(p, encoding="utf-8-sig") as fh:   # 带 BOM 的首键不许读成 \ufeffcompatibility
             cfg = parse_yaml_subset(fh.read())
     except ConfigError as exc:
         return {}, "%s 无法无歧义解析：%s" % (shown, exc)
@@ -454,22 +481,15 @@ _EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
                (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
                (u"到期", "expires"), (u"状态", "status"))
 
-# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。词前带否定或未完成前缀（「待关闭」
-# 「未处理」「非 done」「not closed」）不算关闭——含词即关闭会把尚在生效的例外当成历史行放过。
-_EX_CLOSED = (u"关闭", u"closed", u"done", u"已处理")
-_EX_NOT_PREFIX = (u"未", u"待", u"非", u"不", u"not")
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**整格等于或以关闭词开头**才算关闭——
+# 含词即关闭会把「没关闭」「not yet closed」「open (to be closed)」这类尚在生效的例外当成历史行放过；
+# 按否定前缀排除又列不全（D-123）。
+_EX_CLOSED = (u"关闭", u"已关闭", u"closed", u"done", u"已处理")
 
 
 def _ex_closed(status):
-    low = status.lower()
-    for tok in _EX_CLOSED:
-        start = low.find(tok)
-        while start >= 0:
-            head = low[:start]
-            if not (head.endswith(u"un") or head.rstrip(u" -*`").endswith(_EX_NOT_PREFIX)):
-                return True
-            start = low.find(tok, start + 1)
-    return False
+    low = status.strip().strip(u"*`").strip().lower()
+    return low.startswith(_EX_CLOSED)
 
 _MD_SEP_RE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
 
@@ -540,9 +560,9 @@ def load_exceptions(config_dir):
     if not os.path.isfile(path):
         return [], [], None, []
     try:
-        with io.open(path, encoding="utf-8") as fh:
+        with io.open(path, encoding="utf-8-sig") as fh:
             text = fh.read()
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path, []
     table = _first_md_table(text)
     if table is None:
@@ -701,7 +721,7 @@ def shallow_problem(root):
 
 def read_text(path, root=None):
     """读文本。给了 root 就先判真实位置在不在 root 之内（`guard`），不在抛 OutsideRoot。"""
-    with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
+    with io.open(guard(root, path) if root is not None else path, encoding="utf-8-sig", errors="replace") as fh:
         return fh.read()
 
 
@@ -870,9 +890,10 @@ def find_field(text, names):
     """在文本里找 `名字: 值` 或 `名字：值`。返回 (值, 命中的名字)，找不到返回 (None, None)。
 
     值以换行、表格竖线或全角空格为界——示例项目把三个字段写在同一行，用全角空格分隔。
+    字段名两侧可带加粗、斜体或反引号（`**状态**：done`、`` `status`: done ``）。
     """
     for name in names:
-        pat = r"(?:^|[\s　|*>-])" + re.escape(str(name)) + r"\s*[:：]\s*([^\n　|]*)"
+        pat = r"(?:^|[\s　|*>-])[*_`]*" + re.escape(str(name)) + r"[*_`]*\s*[:：]\s*([^\n　|]*)"
         m = re.search(pat, text, re.M | re.I)
         if m:
             return m.group(1).strip(), str(name)

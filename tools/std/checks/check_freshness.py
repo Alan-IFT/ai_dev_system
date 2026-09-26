@@ -503,8 +503,10 @@ def _check_work_items(cfg, root, today, base):
         out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen,
                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if nostatus:
-        out.append(agg(NAME, SKIP, "工作项目录下没有状态字段的文件", nostatus,
-                       reason="读不到状态字段，不当作工作项（README、索引之类）；本检查只巡检有状态的工作项"))
+        out.append(agg(NAME, UNDETERMINED, "工作项目录下读不到状态字段的文件", nostatus,
+                       kind="no-status",
+                       reason="状态字段名是本工具的词表（stdlib.STATUS_FIELDS），读不到推不出它不是工作项"
+                              "（契约 §1.1）：若是进行中的工作项，它的活性本次没查"))
     if other:
         out.append(agg(NAME, SKIP, "非进行中状态的工作项", other,
                        reason="01 §4.1 对 planned / blocked / in_validation 也要求巡检，"
