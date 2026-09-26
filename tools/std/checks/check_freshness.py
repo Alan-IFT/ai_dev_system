@@ -377,11 +377,11 @@ def _check_docs(cfg, root, today, base):
             ))
 
     if frozen:
-        out.append(agg(NAME, SKIP, "归档区文档不参与新鲜度", frozen,
+        out.append(agg(NAME, SKIP, "归档区文档不参与新鲜度", frozen, kind="frozen-docs",
                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if declared_none:
         out.append(agg(
-            NAME, SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none,
+            NAME, SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none, kind="undated-declared-none",
             reason="project.yaml 把 metadata_required 显式写成空列表：项目声明自己没有 "
                    "01 §3.5 那六类文档（验收、架构、模块、契约、ADR、runbook）。这是项目自己的声明，"
                    "故记不适用；声明错了由写下它的人负责，本工具不复核。"
@@ -401,6 +401,7 @@ def _check_docs(cfg, root, today, base):
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
         out.append(agg(
             NAME, UNDETERMINED, "缺日期字段，且判不了它们属不属于 01 §3.5 的六类", unclassified,
+            kind="undated-unclassified",
             reason="项目未配 metadata_required，且这些路径里没有出现 acceptance / architecture / "
                    "modules / contracts / decisions / runbooks 任一目录名。"
                    "『这份文档算不算验收/架构/模块/契约/ADR/runbook』要看内容，"
@@ -486,6 +487,7 @@ def _check_work_items(cfg, root, today, base):
         elif age > days:
             out.append(finding(
                 NAME, FAIL, "进行中工作项 %d 天无状态转换，需核实：%s" % (age, rel), where=rel,
+                kind="work-item-stale", key=rel,   # 标题带天数，id 不许每天变（契约 §4）
                 why="01 §4.1 要求活性巡检：长期无转换的进行中工作项要么在做要么被忘了，"
                     "二者都要有人处置——补进度与下次检查时间、转 blocked、或拆分。"
                     "01 §4.1 明确超龄需核实原因，不强造阻塞，也不许空转状态清零年龄",
@@ -500,7 +502,7 @@ def _check_work_items(cfg, root, today, base):
             ))
 
     if frozen:
-        out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen,
+        out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen, kind="frozen-work-items",
                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if nostatus:
         out.append(agg(NAME, UNDETERMINED, "工作项目录下读不到状态字段的文件", nostatus,
@@ -508,7 +510,7 @@ def _check_work_items(cfg, root, today, base):
                        reason="状态字段名是本工具的词表（stdlib.STATUS_FIELDS），读不到推不出它不是工作项"
                               "（契约 §1.1）：若是进行中的工作项，它的活性本次没查"))
     if other:
-        out.append(agg(NAME, SKIP, "非进行中状态的工作项", other,
+        out.append(agg(NAME, SKIP, "非进行中状态的工作项", other, kind="not-in-progress",
                        reason="01 §4.1 对 planned / blocked / in_validation 也要求巡检，"
                               "但复查时间是每项自己约定的值，工具读不到，故不判"))
     if not out:
@@ -729,6 +731,27 @@ def selftest():
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §2 N1：浅克隆的提交时间是克隆时刻，据它判活性会把 FAIL 翻成 PASS",
         ))
+
+    # 反例五之二（D-123 bug 10）：超龄工作项的 FAIL 标题带天数，id 须不随天数变；
+    # 聚合未定的标题带份数，id 须不随份数变
+    def _ids_of(days_ago, extra_unclassified):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            day = (today - datetime.timedelta(days=days_ago)).isoformat()
+            for i in range(extra_unclassified):
+                write_text(os.path.join(tmp, "docs", "杂项", "n%d.md" % i), "# 无日期\n")
+            cfg, err = _sample(tmp, "updated_at: %s\n" % fresh,
+                               "# WI-0001\n\n状态：**in_progress**\n\n## 状态转换记录\n\n"
+                               "| from → to | 时间 |\n|---|---|\n| planned → in_progress | %s |\n" % day,
+                               declared=False)
+            return sorted(f["id"] for f in run(cfg) if f["status"] in (FAIL, UNDETERMINED)) if not err else err
+    ids_a, ids_b = _ids_of(100, 2), _ids_of(300, 3)
+    ok = ids_a == ids_b == sorted([NAME + "/undated-unclassified", NAME + "/work-item-stale/work/WI-0001-x.md"])
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "反例五之二：超龄天数与聚合份数变了，FAIL 与未定的 id 都不变",
+        evidence="100 天 2 份：%s；300 天 3 份：%s" % (ids_a, ids_b),
+        why="契约 §4/§9：id 随天数或份数漂，登记行就成孤儿",
+    ))
 
     a, err_a = _stale_one(100)
     b, err_b = _stale_one(300)

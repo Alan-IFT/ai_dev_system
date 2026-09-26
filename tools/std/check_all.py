@@ -197,6 +197,14 @@ def _gated_by_selftest(name, mod):
         results = mod.selftest()
     except (Exception, SystemExit) as exc:   # 检查器里的 sys.exit 也是崩溃，不许带走整个进程
         return False, [undetermined_from_exception(name, exc, "跑自检")], []
+    # 契约 §3：反例与正例至少各一条。空自检（或只有一条）照样放行，等于没有自检（D-123）
+    if not isinstance(results, list) or len(results) < 2 or not all(isinstance(r, dict) for r in results):
+        return False, [finding(
+            name, UNDETERMINED, "检查器自检不足反例与正例各一条，其对本仓库的结论作废",
+            reason="selftest() 返回 %s；契约 §3 要求至少一条反例、一条正例" % (
+                "%d 条" % len(results) if isinstance(results, list) else type(results).__name__),
+            why="契约 §3 / 01 §5.6：守卫存在不等于守卫在执行",
+        )], results if isinstance(results, list) else []
     bad = [r for r in results if r.get("status") != PASS]
     if bad:
         return False, [finding(
@@ -922,7 +930,7 @@ def _stdlib_selftest():
                 def selftest(self):
                     if self.where == "selftest":
                         sys.exit(0)
-                    return [finding("exits", PASS, "ok")]
+                    return [finding("exits", PASS, "反例"), finding("exits", PASS, "正例")]
 
                 def run(self, cfg):
                     sys.exit(0)
@@ -933,6 +941,20 @@ def _stdlib_selftest():
                     got.append([f["status"] for f in res])
                 except BaseException as exc:  # noqa: BLE001
                     got.append(type(exc).__name__)
+            class _Empty(object):
+                NAME = "empty"
+
+                def __init__(self, n):
+                    self.n = n
+
+                def selftest(self):
+                    return [finding("empty", PASS, "ok")] * self.n
+
+                def run(self, cfg):
+                    return [finding("empty", PASS, "跑了")]
+            gate = [[f["status"] for f in _run_one("empty", _Empty(n), {})] for n in (0, 1, 2)]
+            cases.append(("自检闸门：返回 0 条或 1 条的自检不放行，2 条全过才放行",
+                          gate == [[UNDETERMINED], [UNDETERMINED], [PASS]], gate))
             cases.append(("检查器 sys.exit(0) 在自检与运行两处都应转未定",
                           got == [[UNDETERMINED], [UNDETERMINED]], got))
             # bug 6：非 UTF-8 文件名进了发现时，--json 写到严格 UTF-8 的输出不崩

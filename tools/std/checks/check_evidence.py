@@ -318,7 +318,7 @@ def _run(cfg):
                               "（契约 §1.1）：若是已完成的工作项，它的完成证据本次没查。"
                               "README、索引之类放在工作项目录之外，或补上状态字段"))
     if other:
-        out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other,
+        out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
     if not out:
         out.append(finding(

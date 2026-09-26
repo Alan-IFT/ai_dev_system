@@ -914,8 +914,11 @@ def state_list(cfg, path, default):
     return [str(s).strip().lower() for s in states if str(s).strip()]
 
 
-def agg(check, status, title, paths, reason, why="", kind=None):
-    """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。"""
+def agg(check, status, title, paths, reason, why="", *, kind):
+    """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。
+
+    `kind` 必填：标题带份数，不给 kind 时兜底 id 随份数变，登记行就成孤儿（契约 §4、§9；D-123）。
+    """
     more = "" if len(paths) <= LIST_CAP else "；另有 %d 份未列出" % (len(paths) - LIST_CAP)
     return finding(check, status, "%s（%d 份）" % (title, len(paths)), kind=kind,
                    reason=reason, why=why, evidence="；".join(paths[:LIST_CAP]) + more)

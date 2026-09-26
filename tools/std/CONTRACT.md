@@ -58,7 +58,7 @@
 1. 造一个**应该被判 FAIL** 的最小样本，跑检查器，必须得到 FAIL；
 2. 造一个**应该被判 PASS** 的最小样本，必须得到 PASS。
 
-任一条不成立即判该检查器故障，其对目标仓库的结论作废、记 `UNDETERMINED`。`check_all --selftest` 单独跑这一层。`--selftest` 另跑一组跨检查器反例（`shared-fact`：§1「同一事实只报一次」与共用候选），单个检查器的自检看不见别的检查器，这一层只能在汇总处断言。
+任一条不成立即判该检查器故障，其对目标仓库的结论作废、记 `UNDETERMINED`；`selftest()` 返回不足两条（空自检）同样按故障处置。`check_all --selftest` 单独跑这一层。`--selftest` 另跑一组跨检查器反例（`shared-fact`：§1「同一事实只报一次」与共用候选），单个检查器的自检看不见别的检查器，这一层只能在汇总处断言。
 
 ---
 
@@ -118,7 +118,7 @@ def selftest() -> list[dict]:
 | 给了 `kind` | `check/kind`，再给 `key` 则接 `/` 与归一化后的 key（首尾空白去掉、内部空白折成 `_`、竖线换成 `｜`） | **判据不变它就不变**：标题怎么改、命中几个文件、超期几天，都不影响它。跨工具版本升级时仍须按 §8 的身份重跑核对 |
 | 没给 `kind` | `check/` + `sha1(title)[:8]` | **只在同一工具身份内稳定**：标题改一个字就换一个 id，对应的登记行随之失效。这是兜底，不是承诺 |
 
-给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
+给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
 
 ---
 
