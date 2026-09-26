@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, docs_root_of, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
+    cfg_get, docs_root_of, filter_overrides, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
     rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
 )
@@ -147,7 +147,7 @@ def _blame(root, rel):
     porcelain 的 `committer-time` **只在一个 commit 首次出现时输出**，
     后续行头只有 sha。不先建 commit→时间缓存再按行头摊开，94% 的行会读成 None。
     """
-    code, text, err = _git(root, ["blame", "-p", "--", rel])
+    code, text, err = _git(root, filter_overrides(root) + ["blame", "-p", "--no-textconv", "--", rel])
     if code is None:
         return None, err
     if code != 0:
@@ -184,7 +184,7 @@ def _check_dates(cfg, root, files, docs_root):
             continue
         scanned += 1
         try:
-            cand = _candidates(read_text(os.path.join(root, rel)))
+            cand = _candidates(read_text(os.path.join(root, rel), root))
         except OSError as exc:
             return [undetermined_from_exception(NAME, exc, u"读 %s" % rel)]
         if cand:
@@ -350,7 +350,7 @@ def _check_revision(root, adr_dir, adr_files):
     out = []
     for rel in adr_files:
         try:
-            hits = _revision_hits(read_text(os.path.join(root, rel)))
+            hits = _revision_hits(read_text(os.path.join(root, rel), root))
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, u"读 %s" % rel))
             continue
@@ -411,7 +411,7 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
             evidence=u"目录里的 ADR：%s" % _cap(sorted(dir_ids)))]
 
     try:
-        table = _first_md_table(read_text(os.path.join(root, index_rel)))
+        table = _first_md_table(read_text(os.path.join(root, index_rel), root))
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, u"读 %s" % index_rel)]
     id_col = file_col = None
@@ -520,7 +520,7 @@ def _check_work_items(cfg, root, files):
     inline = set()                     # 状态源文件里自带 work_item_id 字段的工作项
     for src in sources:
         try:
-            text = read_text(os.path.join(root, src))
+            text = read_text(os.path.join(root, src), root)
         except OSError as exc:
             return [undetermined_from_exception(NAME, exc, u"读 %s" % src)]
         for n, line in enumerate(text.splitlines(), 1):

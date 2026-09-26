@@ -25,11 +25,59 @@ GIT_LOCAL_ENV = (
 )
 
 
+# 被扫仓的 .git/config 是被扫方写的：压缩包、共享目录带进来的仓，配置里可以写任何命令，
+# 本工具的每个 `git -C <被扫仓>` 都会照它执行（实测 core.fsmonitor、blame 的 textconv、
+# clean 过滤器都会跑）。经 GIT_CONFIG_COUNT 注入的是命令行级配置（git ≥ 2.31），优先级高于
+# 任何配置文件，一处设好全部子进程生效。过滤器的驱动名是被扫方起的，这里列不全，
+# 会读工作区的调用（blame、status）另经 `filter_overrides` 按仓逐个置空。
+GIT_HARDEN_CONFIG = (
+    ("core.fsmonitor", "false"), ("core.hooksPath", "/dev/null"), ("core.sshCommand", ""),
+    ("core.gitProxy", ""), ("core.askPass", ""), ("diff.external", ""), ("core.pager", "cat"),
+)
+# GIT_OPTIONAL_LOCKS=0：扫描不刷新、不回写被扫仓的 index（只读扫描不该有写入）。
+GIT_HARDEN_ENV = (("GIT_PAGER", "cat"), ("GIT_TERMINAL_PROMPT", "0"), ("GIT_OPTIONAL_LOCKS", "0"))
+
+
 def scrub_git_env():
-    """从本进程环境去掉 GIT_LOCAL_ENV。入口一次调用，此后所有 git 子进程（夹具与目标仓）
-    都靠 `-C`／cwd 定位，不再被调用方（钩子）的仓库劫持。"""
+    """从本进程环境去掉 GIT_LOCAL_ENV，再注入 GIT_HARDEN_CONFIG／GIT_HARDEN_ENV。
+
+    入口一次调用（重复调用无害），此后所有 git 子进程（夹具与目标仓）都靠 `-C`／cwd 定位，
+    不再被调用方（钩子）的仓库劫持，也不执行被扫仓配置里的外部程序。"""
     for key in GIT_LOCAL_ENV:
         os.environ.pop(key, None)
+    for i in range(64):
+        if os.environ.pop("GIT_CONFIG_KEY_%d" % i, None) is None:
+            break
+        os.environ.pop("GIT_CONFIG_VALUE_%d" % i, None)
+    os.environ["GIT_CONFIG_COUNT"] = str(len(GIT_HARDEN_CONFIG))
+    for i, (key, value) in enumerate(GIT_HARDEN_CONFIG):
+        os.environ["GIT_CONFIG_KEY_%d" % i] = key
+        os.environ["GIT_CONFIG_VALUE_%d" % i] = value
+    os.environ.update(GIT_HARDEN_ENV)
+
+
+def filter_overrides(root):
+    """把被扫仓配置里声明的过滤器驱动逐个置空的 `-c` 参数（会读工作区的 git 调用前置它）。
+
+    过滤器由 .gitattributes 与配置合起来触发，驱动名由被扫方起，无法事先列全；读配置本身不执行
+    任何东西，所以先列出名字再逐个置空。列不出（不是仓、git 不在）返回空列表——那时后续的
+    git 调用自己会失败并记未定。
+    """
+    try:
+        out = subprocess.run(["git", "-C", root, "config", "-z", "--name-only", "--get-regexp",
+                              r"^filter\."], capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    names = set()
+    for key in (out.stdout or b"").decode("utf-8", "surrogateescape").split("\0"):
+        head, _dot, _tail = key.strip().rpartition(".")
+        if head.startswith("filter."):
+            names.add(head)
+    args = []
+    for head in sorted(names):
+        args += ["-c", head + ".clean=", "-c", head + ".smudge=", "-c", head + ".process=",
+                 "-c", head + ".required=false"]
+    return args
 
 
 PASS = "PASS"
@@ -256,7 +304,7 @@ def parse_yaml_subset(text):
             if body.startswith("- "):
                 break
             if ":" not in body:
-                raise ConfigError("第 %d 行不是 key: value：%r" % (n, body))
+                raise ConfigError("第 %d 行不是 key: value" % n)
             k, v = body.split(":", 1)
             k = k.strip()
             if k in mapping:
@@ -275,13 +323,86 @@ def parse_yaml_subset(text):
 
     if not lines:
         return {}
-    value, end = block(0, lines[0][1])
+    try:
+        value, end = block(0, lines[0][1])
+    except RecursionError:
+        raise ConfigError("嵌套层数超出本解析器的递归上限；本工具的配置只需两三层")
     if end != len(lines):
         raise ConfigError("第 %d 行缩进层级无法归属" % lines[end][0])
     return value
 
 
 CONFIG_CANDIDATES = ("governance/project.yaml", "governance/project.yml")
+
+
+class OutsideRoot(OSError):
+    """路径的真实位置（跟随符号链接后）不在被扫项目之内。继承 OSError：各读点已有的
+    `except OSError` 照常把它转成未定。"""
+
+
+def inside(root, path):
+    """path 跟随符号链接后是否仍在 root 之内（含 root 本身）。判不了按"不在"算。"""
+    try:
+        r = os.path.realpath(str(root or "."))
+        p = os.path.realpath(str(path))
+    except (OSError, ValueError):
+        return False
+    return p == r or p.startswith(r.rstrip(os.sep) + os.sep)
+
+
+def guard(root, path):
+    """读被扫项目里的文件之前调用：真实位置在 root 之外即抛 OutsideRoot，不读、不回显内容。
+
+    被扫项目里的符号链接可以指向仓外任意文件；跟随它读，就是把仓外内容（与其存在性）带进报告。
+    """
+    if not inside(root, path):
+        raise OutsideRoot("%s 的真实位置在被扫项目之外（符号链接或 ..），未读" % path)
+    return path
+
+
+# 值是项目内路径的配置键。写 `..` 段或绝对路径就是让检查器去读项目之外的文件，拒收整份配置。
+# `repos[].path` 不在此列：多仓系统的兄弟仓本来就在项目之外（01 §3.8），由 cross-repo 按仓读。
+_PATH_KEYS = ("layout.entry", "layout.docs_root", "layout.work_root", "layout.frozen",
+              "layout.rule_files", "metadata_required")
+
+
+def _escaping_paths(cfg):
+    vals = []
+    for key in _PATH_KEYS:
+        v = cfg_get(cfg, key)
+        vals += [(key, x) for x in (v if isinstance(v, list) else [v])]
+    arts = cfg_get(cfg, "layout.artifacts")
+    if isinstance(arts, dict):
+        vals += [("layout.artifacts." + str(k), v) for k, v in arts.items()]
+    for i, item in enumerate(cfg_get(cfg, "derived") or []):
+        if isinstance(item, dict):
+            vals += [("derived[%d].%s" % (i, k), item.get(k)) for k in ("artifact", "source")]
+    bad = []
+    for key, v in vals:
+        if not isinstance(v, str) or not v.strip():
+            continue
+        p = v.strip().replace("\\", "/")
+        if os.path.isabs(p) or re.match(r"^[A-Za-z]:/", p) or ".." in p.split("/"):
+            bad.append(key)
+    return bad
+
+
+def _read_config(root, p, shown):
+    """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            cfg = parse_yaml_subset(fh.read())
+    except ConfigError as exc:
+        return {}, "%s 无法无歧义解析：%s" % (shown, exc)
+    except OSError as exc:
+        return {}, "%s 读不了：%s" % (shown, type(exc).__name__)
+    if not isinstance(cfg, dict):
+        return {}, "%s 的顶层不是映射" % shown
+    bad = _escaping_paths(cfg)
+    if bad:
+        return {}, ("%s 里 %s 的路径含 .. 段或是绝对路径，指向项目之外；本工具只读被扫项目之内的文件"
+                    % (shown, "、".join(bad)))
+    return cfg, None
 
 
 def load_config(root, config_path=None):
@@ -298,15 +419,9 @@ def load_config(root, config_path=None):
         p = os.path.abspath(config_path)
         if not os.path.isfile(p):
             return {}, "指定的外部配置 %s 不存在（--config）；本工具不回退去猜项目布局" % p
-        try:
-            with io.open(p, encoding="utf-8") as fh:
-                cfg = parse_yaml_subset(fh.read())
-        except ConfigError as exc:
-            return {}, "指定的外部配置 %s 无法无歧义解析：%s" % (p, exc)
-        except OSError as exc:
-            return {}, "指定的外部配置 %s 读不了：%s" % (p, exc)
-        if not isinstance(cfg, dict):
-            return {}, "指定的外部配置 %s 的顶层不是映射" % p
+        cfg, problem = _read_config(root, p, "指定的外部配置 %s" % p)
+        if problem:
+            return {}, problem
         cfg["_path"] = p
         cfg["_root"] = root
         return cfg, None
@@ -314,15 +429,11 @@ def load_config(root, config_path=None):
     for rel in CONFIG_CANDIDATES:
         p = os.path.join(root, rel)
         if os.path.isfile(p):
-            try:
-                with io.open(p, encoding="utf-8") as fh:
-                    cfg = parse_yaml_subset(fh.read())
-            except ConfigError as exc:
-                return {}, "%s 无法无歧义解析：%s" % (rel, exc)
-            except OSError as exc:
-                return {}, "%s 读不了：%s" % (rel, exc)
-            if not isinstance(cfg, dict):
-                return {}, "%s 的顶层不是映射" % rel
+            if not inside(root, p):
+                return {}, "%s 的真实位置在被扫项目之外（符号链接），未读" % rel
+            cfg, problem = _read_config(root, p, rel)
+            if problem:
+                return {}, problem
             cfg["_path"] = rel
             cfg["_root"] = root
             return cfg, None
@@ -568,13 +679,14 @@ def tracked_files(root, patterns=None, tool_root=None):
     return files, None
 
 
-def read_text(path):
-    with io.open(path, encoding="utf-8", errors="replace") as fh:
+def read_text(path, root=None):
+    """读文本。给了 root 就先判真实位置在不在 root 之内（`guard`），不在抛 OutsideRoot。"""
+    with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
         return fh.read()
 
 
-def count_lines(path):
-    with io.open(path, encoding="utf-8", errors="replace") as fh:
+def count_lines(path, root=None):
+    with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
         return sum(1 for _ in fh)
 
 

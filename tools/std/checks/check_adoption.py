@@ -35,8 +35,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, embedded_std_rel, finding, is_tailored_out, undetermined_from_exception,
+    guard, FAIL, PASS, SKIP, UNDETERMINED,
+    cfg_get, embedded_std_rel, filter_overrides, finding, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "adoption"
@@ -96,7 +96,7 @@ def _embedded_revision(root, embedded_rel, version):
     """内嵌运行时的一条比对：STANDARD_VERSION 的版本值 vs 内嵌标准 README 的修订号。"""
     readme_rel = "%s/标准/README.md" % embedded_rel
     try:
-        with io.open(os.path.join(root, readme_rel), encoding="utf-8", errors="replace") as fh:
+        with io.open(guard(root, os.path.join(root, readme_rel)), encoding="utf-8", errors="replace") as fh:
             m = _EMBED_REV_RE.search(fh.read())
     except OSError as exc:
         return undetermined_from_exception(NAME, exc, "读 %s" % readme_rel)
@@ -159,7 +159,7 @@ def _embedded_readonly(root, embedded_rel):
                        "本仓的 git status 看不见里面的改动；按「接入一个项目」用 subtree 取用"
                        % embedded_rel,
                 why=why)
-        out = _git(root, "status", "--porcelain", "--untracked-files=no", "--", embedded_rel)
+        out = _git(root, *(filter_overrides(root) + ["status", "--porcelain", "--untracked-files=no", "--", embedded_rel]))
     except (OSError, subprocess.SubprocessError) as exc:
         return undetermined_from_exception(NAME, exc, "查 %s 有无改动（git）" % where)
     if out.returncode != 0:
@@ -265,7 +265,7 @@ def _version(cfg, root, tool_root):
         return out + _readonly_findings(root, embedded)
 
     try:
-        with io.open(path, encoding="utf-8", errors="replace") as fh:
+        with io.open(guard(root, path), encoding="utf-8", errors="replace") as fh:
             text = fh.read()
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)] + _readonly_findings(root, embedded)
@@ -386,7 +386,7 @@ def _settings_allow(root):
             reason="本检查只读 Claude Code 的项目级共享设置；项目不用它或把清单放在别的宿主里时，"
                    "那份清单本工具不读（见覆盖边界）", why=why)]
     try:
-        with io.open(path, encoding="utf-8") as fh:
+        with io.open(guard(root, path), encoding="utf-8") as fh:
             data = json.load(fh)
         perms = data.get("permissions") or {}
         allow = perms.get("allow") or []

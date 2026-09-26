@@ -818,10 +818,122 @@ def _git_env_selftest():
                              "其 config、HEAD、refs 共 %d 个文件未变" % len(after))]
 
 
+def _stdlib_selftest():
+    """stdlib 的配置读取与路径护栏：每条样本都来自一次实测的误读或越界（D-123）。
+
+    逐条断言，失败时证据写明哪一条；样本写在临时目录里，不碰真实仓库。
+    """
+    import tempfile
+    import stdlib as sl
+
+    def load(tmp, body, name="project.yaml", raw=None):
+        gov = os.path.join(tmp, "governance")
+        os.makedirs(gov, exist_ok=True)
+        with io.open(os.path.join(gov, name), "wb") as fh:
+            fh.write(raw if raw is not None else body.encode("utf-8"))
+        return sl.load_config(tmp)
+
+    cases = []
+    try:
+        with tempfile.TemporaryDirectory() as base:
+            def fresh(tag):
+                d = os.path.join(base, tag)
+                os.makedirs(d)
+                return d
+            # 安全 2：配置是指向项目之外的符号链接 → 不读、不回显内容
+            out_dir, proj = fresh("outside"), fresh("p1")
+            secret = os.path.join(out_dir, "secret.txt")
+            with io.open(secret, "w", encoding="utf-8") as fh:
+                fh.write(u"tier: TOPSECRET\n")   # 合法配置：护栏失效时会被当成项目配置读进来
+            os.makedirs(os.path.join(proj, "governance"))
+            os.symlink(secret, os.path.join(proj, "governance", "project.yaml"))
+            cfg, prob = sl.load_config(proj)
+            cases.append(("配置经符号链接指向项目之外应拒读且不回显内容",
+                          bool(prob) and "TOPSECRET" not in prob and not cfg, prob))
+            # 安全 2：配置里的路径带 .. 或绝对路径 → 整份拒收
+            for tag, body in (("p2", u"tier: L1\nlayout:\n  entry:\n    - ../outside/secret.md\n"),
+                              ("p3", u"tier: L1\nlayout:\n  artifacts:\n    status: /etc/passwd\n"),
+                              ("p4", u"tier: L1\nmetadata_required:\n  - docs/../../x\n")):
+                cfg, prob = load(fresh(tag), body)
+                cases.append(("配置路径含 .. 或绝对路径应拒收（%s）" % tag, bool(prob) and not cfg, prob))
+            # 安全 2：不回显解析失败行的内容
+            cfg, prob = load(fresh("p5"), u"tier: L1\nTOPSECRET-LINE\n")
+            cases.append(("解析失败的报错不回显行内容", bool(prob) and "TOPSECRET" not in prob, prob))
+            # 安全 4：深嵌套不崩，记未定
+            deep = u"".join(u"%sk%d:\n" % (u"  " * i, i) for i in range(1200)) + u"  " * 1200 + u"v: 1\n"
+            try:
+                cfg, prob = load(fresh("p6"), deep)
+                cases.append(("1200 层嵌套应报解析失败（未定），不抛 RecursionError", bool(prob), prob))
+            except RecursionError as exc:
+                cases.append(("1200 层嵌套应报解析失败（未定），不抛 RecursionError", False, repr(exc)))
+            # 安全 2：read_text 给了 root 就不跟随指向项目之外的符号链接
+            proj = fresh("p7")
+            os.symlink(secret, os.path.join(proj, "a.md"))
+            try:
+                sl.read_text(os.path.join(proj, "a.md"), proj)
+                cases.append(("read_text 不跟随指向项目之外的符号链接", False, "读到了"))
+            except sl.OutsideRoot as exc:
+                cases.append(("read_text 不跟随指向项目之外的符号链接", "TOPSECRET" not in str(exc), str(exc)))
+    except Exception as exc:  # noqa: BLE001
+        return [undetermined_from_exception("stdlib", exc, "跑 stdlib 自检")]
+    return [finding("stdlib", PASS if ok else FAIL, "stdlib：" + title,
+                    why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
+            for title, ok, ev in cases]
+
+
+def _hostile_git_config_selftest():
+    """被扫仓 .git/config 里的外部程序不得被本工具执行（stdlib.GIT_HARDEN_CONFIG）。
+
+    夹具仓的配置写上 core.fsmonitor、blame 会走的 textconv、clean 过滤器与 diff.external，
+    每个都 touch 一个标记文件；工作区文件带一行会被 drift 拿去 blame 的日期，保证读工作区的
+    git 调用真的发生。跑一遍完整扫描后标记文件一个都不许出现。
+    """
+    import subprocess
+    import tempfile
+
+    title = "被扫仓配置里的外部程序不得被执行"
+    why = "扫描不可信目录时，其 .git/config 可让 git 执行任意命令（fsmonitor、textconv、过滤器）"
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            proj, cfg_path = os.path.join(tmp, "proj"), os.path.join(tmp, "project.yaml")
+            for path, body in ((os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY),
+                               (os.path.join(proj, "docs", "a.md"), u"# a\n\n2099-01-01 已完成 某事\n"),
+                               (os.path.join(proj, ".gitattributes"), u"*.md diff=evil filter=evil\n"),
+                               (cfg_path, _SMOKE_CONFIG)):
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(body)
+            mark = os.path.join(tmp, "PWNED_")
+            git_id = ["-c", "init.defaultBranch=main", "-c", "user.email=std@example.invalid",
+                      "-c", "user.name=std", "-c", "commit.gpgsign=false"]
+            for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "s"],
+                         ["config", "core.fsmonitor", "touch %sfsmonitor; false" % mark],
+                         ["config", "diff.evil.textconv", "sh -c 'touch %stextconv; cat \"$1\"' -" % mark],
+                         ["config", "filter.evil.clean", "sh -c 'touch %sclean; cat'" % mark],
+                         ["config", "diff.external", "touch %sexternal" % mark]):
+                r = subprocess.run(["git", "-C", proj] + git_id + args, capture_output=True, timeout=60)
+                if r.returncode != 0:
+                    raise RuntimeError("git %s 退出码 %d" % (args[0], r.returncode))
+            os.utime(os.path.join(proj, "docs", "a.md"))   # stat 失效，逼 git 重读工作区
+            findings, _cfg = run_all(proj, selftest_only=False, config_path=cfg_path)
+            blamed = any(f.get("id") == "drift/future-date/docs/a.md｜2099-01-01" for f in findings)
+            hits = sorted(f[len("PWNED_"):] for f in os.listdir(tmp) if f.startswith("PWNED_"))
+    except Exception as exc:  # noqa: BLE001
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="跑不起来：%s: %s" % (type(exc).__name__, exc))]
+    if hits or not blamed:
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="被执行：%s" % "、".join(hits) if hits
+                        else "夹具没走到 git blame（drift 未报 future-date），断言不成立")]
+    return [finding("shared-fact", PASS, title, why=why,
+                    evidence="fsmonitor、textconv、clean 过滤器、diff.external 均未执行；drift 的 blame 已跑")]
+
+
 def run_all(root, selftest_only=False, config_path=None):
     """跑全部检查。返回 (findings, cfg)——配置只在这里加载一次，
     渲染覆盖边界时由调用方把 cfg 传回去，不再各自重新加载（重新加载会
     在配置读不到时打出一整屏"未配置"的假边界）。"""
+    scrub_git_env()  # 幂等；供不经 main 直接调 run_all 的调用方（见 stdlib.GIT_HARDEN_CONFIG）
     findings = []
     # 契约 §8：扫描前后各取一次身份，期间检查器自己被改过就作废重跑。
     ident_before = tool_identity()
@@ -841,6 +953,8 @@ def run_all(root, selftest_only=False, config_path=None):
         findings.extend(_shared_fact_selftest(mods))
         findings.extend(_embedded_readonly_selftest(mods))
         findings.extend(_git_env_selftest())
+        findings.extend(_hostile_git_config_selftest())
+        findings.extend(_stdlib_selftest())
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))

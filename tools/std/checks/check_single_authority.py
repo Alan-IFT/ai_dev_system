@@ -17,7 +17,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    guard, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, tracked_files,
     undetermined_from_exception,
 )
@@ -239,7 +239,7 @@ def _collect(cfg):
             if size > _MAX_FILE_BYTES:
                 notes["skipped_big"] += 1
                 continue
-            with io.open(path, "rb") as fh:
+            with io.open(guard(root, path), "rb") as fh:
                 data = fh.read()
         except OSError:
             notes["unreadable"] += 1

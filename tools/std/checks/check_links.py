@@ -13,13 +13,14 @@ import os
 import re
 import sys
 import tempfile
+import time
 from urllib.parse import unquote
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, read_text, tracked_files,
+    cfg_get, finding, in_frozen, inside, is_tailored_out, read_text, tracked_files,
     undetermined_from_exception,
 )
 
@@ -41,7 +42,8 @@ _WIN_ABS_RE = re.compile(r'^[A-Za-z]:[\\/]')
 
 _MD_EXT = (".md", ".markdown")
 
-_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$", re.M)
+# 线性：不在正则里剥收尾的 `#`（原写法 `(.+?)[ \t]*#*[ \t]*$` 遇长空白行是平方级），交给 _atx_title
+_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.*)$", re.M)
 _EXPLICIT_ANCHOR_RE = re.compile(r'<a\s+(?:id|name)\s*=\s*["\']([^"\']+)["\']', re.I)
 
 _CJK_RE = re.compile(r'[^\x00-\x7f]')
@@ -78,12 +80,21 @@ def _slug(heading):
     return h
 
 
+def _atx_title(raw):
+    """ATX 标题去掉可选的收尾 `#` 串（前面须有空白，或整行只有 `#`）与首尾空白。"""
+    t = raw.rstrip(" \t")
+    body = t.rstrip("#")
+    if body != t and (not body or body[-1] in " \t"):
+        t = body.rstrip(" \t")
+    return t.strip()
+
+
 def _anchors_of(text):
     """一份 markdown 里可用的锚点集合。"""
     found = set(_EXPLICIT_ANCHOR_RE.findall(text))
     seen = {}
     for _, title in _HEADING_RE.findall(_mask_code(text)):
-        s = _slug(title)
+        s = _slug(_atx_title(title))
         if not s:
             continue
         n = seen.get(s, 0)
@@ -95,7 +106,8 @@ def _anchors_of(text):
 class _Cache(object):
     """目标文件读一次就够：几千份 markdown 上不能对每条链接重读一次文件。"""
 
-    def __init__(self):
+    def __init__(self, root):
+        self.root = root
         self.exists = {}
         self.isdir = {}
         self.anchors = {}
@@ -114,7 +126,7 @@ class _Cache(object):
         if key in self.anchors:
             return self.anchors[key], self.errors.get(key)
         try:
-            text = read_text(abspath)
+            text = read_text(abspath, self.root)
         except OSError as exc:
             self.anchors[key] = None
             self.errors[key] = "%s: %s" % (type(exc).__name__, exc)
@@ -231,7 +243,7 @@ def _run(cfg):
             why="契约 §1：适用却没执行的检查记未定，不记通过",
         )]
 
-    cache = _Cache()
+    cache = _Cache(root)
     out = []
     merged = {}          # Finding id -> [finding, [行号…], 原始 evidence]
     n_links = 0
@@ -240,7 +252,7 @@ def _run(cfg):
     for rel in files:
         abs_src = os.path.join(root, rel.replace("/", os.sep))
         try:
-            text = read_text(abs_src)
+            text = read_text(abs_src, root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -289,6 +301,17 @@ def _run(cfg):
 
                 abs_tgt = os.path.normpath(
                     os.path.join(os.path.dirname(abs_src), path_part.replace("/", os.sep)))
+                if not inside(root, abs_tgt):
+                    n_bad += 1
+                    _merge(out, merged, lineno, finding(
+                        NAME, UNDETERMINED, "%s 的链接指向被扫项目之外：%s" % (rel, target),
+                        where=where, kind="outside-root", key=rel + "|" + target,
+                        reason="目标的真实位置不在被扫项目之内；本工具不读、不探测项目之外的路径，"
+                               "它在另一台机器上是否存在也不由本仓决定",
+                        why="01 §3.4 引用：B 链接 A 且可机械核对；项目之外的目标不在本次核对范围",
+                        evidence=frozen_note,
+                    ))
+                    continue
                 exists, isdir = cache.path_kind(abs_tgt)
                 if not exists:
                     n_bad += 1
@@ -440,6 +463,29 @@ def selftest():
                             cjk[0].get("where") if cjk else "（无）",
                             (cjk[0].get("evidence") or "")[:120] if cjk else "（无）"),
                 why="契约 §9：登记行写的是 id，同一件事出成多条会逼着登记也写多行",
+            ))
+            # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；
+            # 标题行里一长串空白不许把锚点计算拖成平方级
+            with tempfile.TemporaryDirectory() as outside:
+                secret = os.path.join(outside, "secret.md")
+                with io.open(secret, "w", encoding="utf-8") as fh:
+                    fh.write("# TOPSECRET\n")
+                os.symlink(secret, os.path.join(tmp, "c.md"))
+                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x)\n")
+                w("b.md", "# a" + " " * 3000 + "x\n")   # 旧正则下这一行约 12 秒
+                cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md"]}
+                t0 = time.time()
+                res = run(cfg3)
+                took = time.time() - t0
+            kinds = sorted(set(f["id"].split("/")[1] for f in res if f["status"] != PASS))
+            leaked = any("TOPSECRET" in (f.get("evidence") or "") + (f.get("title") or "") for f in res)
+            ok = (FAIL not in [f["status"] for f in res] and "outside-root" in kinds
+                  and not leaked and took < 5)
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白标题线性",
+                evidence="非通过项 kind=%s；泄露内容=%s；耗时 %.2fs" % (kinds, leaked, took),
+                why="D-123 安全 2／3：不读项目之外的文件；一个文件不许拖死整次检查",
             ))
     except Exception as exc:  # noqa: BLE001
         results.append(undetermined_from_exception(NAME, exc, "跑自检"))

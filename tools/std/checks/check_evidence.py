@@ -295,7 +295,7 @@ def _run(cfg):
     out, nostatus, other = [], [], []
     for rel in files:
         try:
-            text = read_text(os.path.join(root, rel))
+            text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue

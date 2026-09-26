@@ -118,7 +118,7 @@ def selftest() -> list[dict]:
 | 给了 `kind` | `check/kind`，再给 `key` 则接 `/` 与归一化后的 key（首尾空白去掉、内部空白折成 `_`、竖线换成 `｜`） | **判据不变它就不变**：标题怎么改、命中几个文件、超期几天，都不影响它。跨工具版本升级时仍须按 §8 的身份重跑核对 |
 | 没给 `kind` | `check/` + `sha1(title)[:8]` | **只在同一工具身份内稳定**：标题改一个字就换一个 id，对应的登记行随之失效。这是兜底，不是承诺 |
 
-给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的三条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
+给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的四条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
 
 ---
 
@@ -230,6 +230,8 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 **二、不配它的后果，是"未定"而不是"不适用"。** `freshness` 判一份文档属不属于 01 §3.5 的六类（验收、架构、模块、契约、ADR、runbook），靠的是路径里有没有出现那几个目录名。这是**约定，不是判定**，两头都会错：RCMS 的 runbook 放在 `docs/ops/`，9 份全部落空；本仓是中文文档树（`docs/架构图`、`docs/审计记录`），35 份 100% 落空。反过来，叫 `architecture` 的目录里也可能放着别的东西。
 
 所以未配 `metadata_required` 且目录名约定未命中时，那些缺日期字段的文档**不逐份记 `SKIP`**——`SKIP`（不适用）是确定结论，而"这份文档算不算重要文档"要看内容，按 §7 机械判不了。它们汇总成**整轮一条 `UNDETERMINED`**，证据里列出路径。代价是这类项目的退出码从 0/1 变 2；收益是"这里没看"从报告末尾的不适用堆里挪到了未定区。配了 `metadata_required` 之后，命中记 `FAIL`、未命中记 `SKIP`，两边都是确定结论。写成空列表 `[]` 是"一类都不要求"的声明，无日期文档整轮汇成一条 `SKIP`——**它与不写这个键不是一回事**：空列表是项目的声明，可给确定结论；键缺失或值为空是没声明，只能记未定。声明错了由写下它的人负责，工具不复核。
+
+**只读被扫项目之内的文件。** 读任何文件前按真实位置（跟随符号链接后）判它在不在项目根之下，不在的不读、记 `UNDETERMINED`（`links` 的链接目标同理，`links/outside-root`）；配置里值为项目内路径的键（`layout.entry`、`layout.docs_root`、`layout.work_root`、`layout.artifacts.*`、`layout.frozen`、`layout.rule_files`、`metadata_required`、`derived[].artifact/source`）写了 `..` 段或绝对路径，整份配置按解析失败记未定；`repos[].path` 除外（兄弟仓本来就在项目之外，01 §3.8）。配置解析失败的报错只给路径与行号，不回显文件内容。被扫仓 `.git/config` 里会执行外部程序的配置（`core.fsmonitor`、钩子、textconv、过滤器等）由 `stdlib.scrub_git_env` 与 `filter_overrides` 一律压掉。
 
 配置也可由 `check_all --config PATH` 从被扫描项目之外给出，此时 `_root` 仍是被扫描项目、`_path` 记配置的实际路径；这是扫描只读/第三方项目而不往其中写入任何文件的唯一受支持方式；外部配置缺失或解析失败一律记 `UNDETERMINED`，不回退到 `<root>/governance/`。
 

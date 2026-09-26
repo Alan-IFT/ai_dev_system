@@ -15,7 +15,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    guard, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, is_tailored_out, undetermined_from_exception,
 )
 
@@ -74,10 +74,10 @@ def git_last_commit_epoch(root, relpath):
     return int(txt[0].strip()), None
 
 
-def read_header(path):
+def read_header(path, root):
     """读文件头部若干行。二进制或读不了时返回 (None, 原因)。"""
     try:
-        with io.open(path, "rb") as fh:
+        with io.open(guard(root, path), "rb") as fh:
             data = fh.read(_HEADER_MAX_BYTES)
     except OSError as exc:
         return None, u"读不了：%s" % exc
@@ -258,7 +258,7 @@ def _check_one(root, idx, item):
         ))
 
     # 自我声明：改它是白改，得让接手者看得见
-    header, hwhy = read_header(apath)
+    header, hwhy = read_header(apath, root)
     if header is None:
         out.append(finding(
             NAME, UNDETERMINED, u"%s 的头部读不了，自我声明未定" % label,

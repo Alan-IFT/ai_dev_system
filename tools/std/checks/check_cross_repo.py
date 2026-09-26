@@ -15,11 +15,12 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    guard, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
@@ -64,7 +65,9 @@ _SKIP_DIRS = {
     "dist", "build", ".next", ".mypy_cache", ".pytest_cache", ".idea",
 }
 
-_INLINE_LINK = re.compile(r"\]\(\s*<?([^)\s>]+)>?[^)]*\)")
+# 目标与标题都不含 `(`：原写法 `<?([^)\s>]+)>?[^)]*\)` 两段量词重叠，`](` 连写 8000 次要跑几分钟；
+# 排除 `(` 之后每个起点只扫到下一个 `(`，整体线性（路径里带圆括号的链接因此认不出，与 check_links 同）
+_INLINE_LINK = re.compile(r"\]\(\s*<?([^()\s>]+)>?(?:\s[^()]*)?\)")
 _REF_LINK = re.compile(r"^\s*\[[^\]]+\]:\s*<?([^\s>]+)", re.M)
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 
@@ -73,15 +76,15 @@ _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 # 小工具（stdlib 里没有的一律在本模块实现，不改公共库）
 # --------------------------------------------------------------------------
 
-def _read(path, limit_bytes=2 * 1024 * 1024):
-    with io.open(path, "rb") as fh:
+def _read(path, root, limit_bytes=2 * 1024 * 1024):
+    with io.open(guard(root, path), "rb") as fh:
         raw = fh.read(limit_bytes)
     return raw.decode("utf-8", "replace")
 
 
-def _head_lines(path, n=_MARKER_HEAD_LINES):
+def _head_lines(path, root, n=_MARKER_HEAD_LINES):
     out = []
-    with io.open(path, "rb") as fh:
+    with io.open(guard(root, path), "rb") as fh:
         for i, raw in enumerate(fh):
             if i >= n:
                 break
@@ -529,7 +532,7 @@ def _check_projection(repos, entries):
         if not entry_path:
             continue  # 入口缺失已在判据三报过，不重复
         try:
-            text = _read(entry_path)
+            text = _read(entry_path, r["_real"])
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s 的入口" % r["name"]))
             continue
@@ -553,7 +556,7 @@ def _check_projection(repos, entries):
                 continue
             followed += 1
             try:
-                hop2 = _mentions_system(_read(nxt), sysrepo, nxt)
+                hop2 = _mentions_system(_read(nxt, r["_real"]), sysrepo, nxt)
             except OSError:
                 continue
             if hop2:
@@ -599,7 +602,7 @@ def _check_registration(repos, entries):
         ))
         return out
     try:
-        text = _read(entry_path)
+        text = _read(entry_path, sysrepo["_real"])
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, "读系统仓入口")]
 
@@ -691,7 +694,7 @@ def _check_retired(cfg, repos, entry_names):
         live, unreadable = [], []
         for p in files:
             try:
-                head = _head_lines(p)
+                head = _head_lines(p, r["_real"])
             except OSError as exc:
                 unreadable.append("%s（%s）" % (os.path.relpath(p, r["_real"]), exc))
                 continue
@@ -767,7 +770,7 @@ def _check_links(repos):
         broken, host_abs, total = [], [], 0
         for f in mds:
             try:
-                text = _read(f)
+                text = _read(f, r["_real"])
             except OSError:
                 continue
             rel_f = os.path.relpath(f, r["_real"]).replace("\\", "/")
@@ -1100,6 +1103,17 @@ def selftest():
                 evidence="实得 %d 条：%s" % (len(got), "、".join(ids) or "无"),
                 why="契约 §9：id 是例外登记的地址，两个仓共用一个地址就会被一行登记一起静音",
             ))
+        # 线性（D-123 安全 3）：`](` 连写 8000 次曾要跑几分钟，一个文件拖死整次检查与提交闸门
+        t0 = time.time()
+        _link_targets("](" * 2000)   # 旧正则下约 4 秒
+        took = time.time() - t0
+        got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)")
+        results.append(finding(
+            NAME, PASS if took < 1 and got == ["x.md", "y.md", "../z.md"] else FAIL,
+            "链接抽取对 `](` 连写 2000 次须线性，且照常认出带标题与尖括号的链接",
+            evidence="耗时 %.3fs；抽出 %s" % (took, str(got)[:200]),
+            why="D-123 安全 3：检查器没有整体超时，一个平方级正则就能拖死提交闸门",
+        ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, "自检自身出错", evidence="%s: %s" % (type(exc).__name__, exc),

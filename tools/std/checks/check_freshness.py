@@ -305,7 +305,7 @@ def _check_docs(cfg, root, today, base):
             frozen.append(rel)
             continue
         try:
-            text = read_text(os.path.join(root, rel))
+            text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -421,7 +421,7 @@ def _check_work_items(cfg, root, today, base):
             frozen.append(rel)
             continue
         try:
-            text = read_text(os.path.join(root, rel))
+            text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
