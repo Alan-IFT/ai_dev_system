@@ -357,10 +357,23 @@ _WHOLE_TOOLS = frozenset(("PowerShell", "PowerShell(*)", "PowerShell(:*)", "Moni
 # 前置包装：执行其后参数的命令。Claude Code 匹配前会剥掉其中一部分（timeout/time/nice/nohup/stdbuf/
 # command/builtin/noglob/无选项的 xargs 与已知安全的变量赋值），sudo/env 不剥但同样执行后面整条命令。
 # 判「后面是什么」时一律剥掉，连同它们的选项与选项值。
-_WRAPPERS = frozenset(("sudo", "doas", "env", "command", "builtin", "time", "nice", "nohup", "timeout",
-                       "stdbuf", "noglob", "xargs", "ionice", "setsid", "flock", "chrt", "taskset"))
-_OPT_WITH_ARG = frozenset(("-u", "-g", "-n", "-s", "-k", "-C", "-U", "-h", "-p", "-c", "-D", "-E",
-                           "-i", "-o", "-e", "-S", "-L", "-P"))
+# 包装命令 → 它带参数值的选项（其余以 - 开头的选项不带值）。按命令分开：`env -i` 不带值，
+# `sudo -i` 也不带值，混成一张表会把 `Bash(env -i ls *)` 里的 ls 当成 -i 的值吞掉。
+_WRAPPERS = {
+    "sudo": ("-u", "-g", "-C", "-h", "-p", "-U", "-r", "-t", "-D", "-R", "-T"),
+    "doas": ("-u", "-C"),
+    "env": ("-u", "-C", "-S", "--unset", "--chdir", "--split-string"),
+    "command": (), "builtin": (), "noglob": (), "nohup": (),
+    "time": ("-f", "-o", "--format", "--output"),
+    "nice": ("-n", "--adjustment"),
+    "timeout": ("-s", "-k", "--signal", "--kill-after"),
+    "stdbuf": ("-i", "-o", "-e", "--input", "--output", "--error"),
+    "xargs": ("-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s", "--arg-file", "--delimiter",
+              "--max-args", "--max-procs", "--max-chars", "--replace"),
+}
+# 官方权限文档（2026-09-27 核实）：这些执行包装「不能被前缀规则自动放行」，`Bash(watch *)` 之类在
+# manual 模式下始终询问——规则本身不生效，不算通配放行，整条跳过
+_PROMPT_ALWAYS = frozenset(("watch", "setsid", "ionice", "flock"))
 _ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _DURATION = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")
 
@@ -377,11 +390,13 @@ def _strip_wrappers(words):
             break
         wrappers.append(head)
         words.pop(0)
+        with_arg = _WRAPPERS[head]
         while words:
             w = words[0]
-            if w in _OPT_WITH_ARG and head != "timeout":
+            if w in with_arg:
                 del words[:2]
-            elif w.startswith("-") or _ASSIGN.match(w) or (head == "timeout" and _DURATION.match(w)):
+            elif w.startswith("-") or (head == "env" and _ASSIGN.match(w)) \
+                    or (head == "timeout" and _DURATION.match(w)):
                 words.pop(0)
             else:
                 break
@@ -418,6 +433,8 @@ def _wildcard_allow(rule):
     words = [w for w in words if w]
     if not words:
         return "通配号前没有命令，放行一切命令"
+    if os.path.basename(words[0]) in _PROMPT_ALWAYS:
+        return None                  # 前缀规则对它们本来无效（始终询问），不当通配放行
     words, wrappers = _strip_wrappers(words)
     if not words:
         return "包装命令 %s 后面是通配，放行其后任意命令" % "、".join(wrappers) if wrappers \
@@ -676,11 +693,13 @@ def _declarations_selftest(tmp):
             "Bash(npm run *)", "Bash(npm *)", "Bash(uv run:*)", "Bash(npx *)", "Bash(make *)", "Bash(sudo *)",
             # D-123：`*` 紧贴按名字前缀、引号剥掉、包装命令与变量赋值剥掉再看（官方语义，见 _wildcard_allow）
             "Bash(py*)", "Bash(p*)", "Bash(ba*)", 'Bash(sh -c "*")', "Bash(bash -c '*')", "Bash(env X=1 *)",
-            "Bash(sudo -u root *)", "Bash(command bash *)", "Bash(npm r*)", "Bash(timeout 30 python3 *)"]
+            "Bash(sudo -u root *)", "Bash(command bash *)", "Bash(npm r*)", "Bash(timeout 30 python3 *)",
+            "Bash(env -i *)", "Bash(env -u X python3 *)", "Bash(nice -n 5 bash *)"]
     narrow = ["Read", "Edit", "Bash(git status)", "Bash(npm run test)", "Bash(npm run test:*)",
               "Bash(python3 tools/std/check_all.py *)", "Bash(bash scripts/verify_all.sh:*)", "Bash(git add:*)",
               "mcp__x__y", "Bash(python3)", "Agent(std-reviewer)", "PowerShell(Get-ChildItem *)",
-              "Bash(ls*)", "Bash(git log *)", "Bash(npm test *)", "Bash(command -v python3)"]
+              "Bash(ls*)", "Bash(git log *)", "Bash(npm test *)", "Bash(command -v python3)",
+            "Bash(env -i ls *)", "Bash(sudo -i ls *)", "Bash(setsid *)", "Bash(watch *)", "Bash(flock x *)"]
     missed = [r for r in wild if not _wildcard_allow(r)]
     false_hit = [r for r in narrow if _wildcard_allow(r)]
     sdir = os.path.join(tmp, ".claude")

@@ -394,12 +394,7 @@ def _run(cfg):
     min_lines = cfg_get(cfg, "budgets.duplicate_min_lines")
     min_chars = cfg_get(cfg, "budgets.duplicate_min_chars")
     used_default = []
-    # 缺失才取默认；写了却不合法不许静默换成默认（load_config 已整份拒收，这里是直接调用时的兜底）
-    for key, val, low in ((u"duplicate_min_lines", min_lines, 2), (u"duplicate_min_chars", min_chars, 1)):
-        if val is not None and (not isinstance(val, int) or isinstance(val, bool) or val < low):
-            return [finding(NAME, UNDETERMINED, u"budgets.%s 不是 ≥%d 的整数，本检查未执行" % (key, low),
-                            kind=u"budget-invalid", key=key, reason=u"写错的阈值不取默认值（契约 §5）",
-                            why=u"01 §2 N1：配置歧义记未定，不猜")]
+    # 写了却不合法的值 load_config 已整份拒收（stdlib._bad_dup_budgets），走到这里只剩缺失与合法两种
     if min_lines is None:
         used_default.append(u"duplicate_min_lines=%d" % _DEFAULT_MIN_LINES)
         min_lines = _DEFAULT_MIN_LINES

@@ -1022,6 +1022,7 @@ def _stdlib_selftest():
             # 裁定 6：拒收信息带行号并指明不支持的写法
             msgs = []
             for text, want in ((u"---\ntier: L1\n", u"文档分隔符"), (u"tier:L1\n", u"冒号后没有空格"),
+                               (u"a:\n- x\n", u"列表项与它的键同列"),
                                (u"a:\n  - key:\n", u"后面没有值")):
                 try:
                     ys(text)

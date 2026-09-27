@@ -384,6 +384,9 @@ def parse_yaml_subset(text):
     except RecursionError:
         raise ConfigError("嵌套层数超出本解析器的递归上限；本工具的配置只需两三层")
     if end != len(lines):
+        if lines[end][2].startswith("- "):
+            raise ConfigError("第 %d 行的列表项与它的键同列：本解析器要求列表项比键多缩进"
+                              "（`键:` 下一行写 `  - 值`）" % lines[end][0])
         raise ConfigError("第 %d 行缩进层级无法归属" % lines[end][0])
     return value
 
