@@ -17,7 +17,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    guard, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, tracked_files,
     undetermined_from_exception,
 )
@@ -53,41 +53,12 @@ _PUNCT = set(" \t\r\n") | set(u"·—–-_=*#>|`~^!@$%&()[]{}<>/\\+:;,.?\"'"
 # 本模块自备的小工具（不改 stdlib，见任务纪律）
 # --------------------------------------------------------------------------
 
-def unquote_git_path(p):
-    """还原 git ls-files 对非 ASCII 路径的 C 风格转义。
-
-    stdlib.tracked_files 直接返回 git 原样输出；仓库里有中文路径时那是带引号
-    的八进制转义串，拼出来的路径不存在。这里就地还原，不动 stdlib。
-    """
-    if not (len(p) >= 2 and p[0] == '"' and p[-1] == '"'):
-        return p
-    body = p[1:-1]
-    out = bytearray()
-    simple = {"n": 10, "t": 9, "r": 13, "\\": 92, '"': 34, "a": 7, "b": 8, "f": 12, "v": 11}
-    i = 0
-    while i < len(body):
-        ch = body[i]
-        if ch == "\\" and i + 1 < len(body):
-            nxt = body[i + 1]
-            if nxt in "01234567" and i + 3 < len(body) + 1:
-                try:
-                    out.append(int(body[i + 1:i + 4], 8))
-                    i += 4
-                    continue
-                except ValueError:
-                    pass
-            if nxt in simple:
-                out.append(simple[nxt])
-                i += 2
-                continue
-        out.extend(ch.encode("utf-8"))
-        i += 1
-    return out.decode("utf-8", "replace")
+_RE_NOT_EFFECTIVE = re.compile(u"[%s\\s]+" % u"".join(re.escape(c) for c in sorted(_PUNCT)))
 
 
 def effective_chars(s):
-    """去掉空白与纯标点后的有效字符。"""
-    return u"".join(ch for ch in s if ch not in _PUNCT and not ch.isspace())
+    """去掉空白与纯标点后的有效字符。（一次正则替换：逐字符生成式曾占本检查器大半耗时。）"""
+    return _RE_NOT_EFFECTIVE.sub(u"", s)
 
 
 def is_doc(rel):
@@ -224,25 +195,28 @@ def _collect(cfg):
     if listed is None:
         return None, None, problem
     derived = _declared_derived_artifacts(cfg)
-    files, notes = [], {"skipped_binary": 0, "skipped_big": 0, "excluded": 0, "unreadable": 0}
+    files, notes = [], {"skipped_binary": 0, "skipped_big": 0, "excluded": 0, "unreadable": 0,
+                        "absent": 0, "big_paths": [], "unreadable_paths": []}
     for entry in listed:
-        rel = unquote_git_path(entry)
+        rel = entry          # tracked_files 走 -z，路径原样，不需要还原转义
         if _excluded(cfg, rel, derived):
             notes["excluded"] += 1
             continue
         path = os.path.join(root, rel)
-        if not os.path.isfile(path):
-            notes["unreadable"] += 1
+        if not os.path.isfile(path):      # 子模块、已删未提交：不是可读的文本对象
+            notes["absent"] += 1
             continue
         try:
             size = os.path.getsize(path)
             if size > _MAX_FILE_BYTES:
                 notes["skipped_big"] += 1
+                notes["big_paths"].append(rel)
                 continue
-            with io.open(path, "rb") as fh:
+            with io.open(guard(root, path), "rb") as fh:
                 data = fh.read()
-        except OSError:
+        except OSError as exc:
             notes["unreadable"] += 1
+            notes["unreadable_paths"].append("%s（%s）" % (rel, type(exc).__name__))
             continue
         if b"\x00" in data:
             notes["skipped_binary"] += 1
@@ -263,12 +237,10 @@ def _collect(cfg):
 def _identical_files(files):
     groups = {}
     for rel, text, data in files:
-        if len(effective_chars(text)) < _MIN_FILE_EFFECTIVE:
-            continue
-        h = hashlib.sha256(data).hexdigest()
-        groups.setdefault(h, []).append(rel)
-    dupes = {h: sorted(v) for h, v in groups.items() if len(v) > 1}
-    return dupes
+        groups.setdefault(hashlib.sha256(data).hexdigest(), []).append((rel, text))
+    # 同一组内容相同，有效字符只需在成组的那一份上算一次
+    return {h: sorted(r for r, _t in v) for h, v in groups.items()
+            if len(v) > 1 and len(effective_chars(v[0][1])) >= _MIN_FILE_EFFECTIVE}
 
 
 # --------------------------------------------------------------------------
@@ -288,11 +260,16 @@ def _duplicate_blocks(files, min_lines, min_chars, skip_rels):
         sig = significant_lines(text)
         if len(sig) < min_lines:
             continue
+        # 窗口的有效字符数 = 各行之和（行间的 \n 本就不计），滑动累加，不再每个窗口重算
+        eff = [len(effective_chars(x[1])) for x in sig]
+        width = sum(eff[:min_lines])
         for i in range(len(sig) - min_lines + 1):
+            if i:
+                width += eff[i + min_lines - 1] - eff[i - 1]
+            if width < min_chars:
+                continue
             chunk = sig[i:i + min_lines]
             joined = u"\n".join(x[1] for x in chunk)
-            if len(effective_chars(joined)) < min_chars:
-                continue
             h = hashlib.sha1(joined.encode("utf-8")).hexdigest()
             idx_hash[(rel, i)] = h
             if h not in by_hash:
@@ -417,16 +394,27 @@ def _run(cfg):
     min_lines = cfg_get(cfg, "budgets.duplicate_min_lines")
     min_chars = cfg_get(cfg, "budgets.duplicate_min_chars")
     used_default = []
-    if not isinstance(min_lines, int) or min_lines < 2:
+    # 写了却不合法的值 load_config 已整份拒收（stdlib._bad_dup_budgets），走到这里只剩缺失与合法两种
+    if min_lines is None:
         used_default.append(u"duplicate_min_lines=%d" % _DEFAULT_MIN_LINES)
         min_lines = _DEFAULT_MIN_LINES
-    if not isinstance(min_chars, int) or min_chars < 1:
+    if min_chars is None:
         used_default.append(u"duplicate_min_chars=%d" % _DEFAULT_MIN_CHARS)
         min_chars = _DEFAULT_MIN_CHARS
     thresh_note = (u"用的是默认值（%s），项目未校准" % u"、".join(used_default)) if used_default \
         else u"阈值取自 project.yaml：连续 %d 行 / 有效字符 %d" % (min_lines, min_chars)
     scanned = u"扫了 %d 个文本文件；排除归档与派生 %d 个，跳过二进制 %d 个、超大 %d 个、读不了 %d 个" % (
         len(files), notes["excluded"], notes["skipped_binary"], notes["skipped_big"], notes["unreadable"])
+    # 没读的文件不是"没有重复"：读不了、超大的各汇一条未定（契约 §1：依赖不可用记未定）
+    for key, kind, what in (("unreadable_paths", u"unreadable", u"读不了"),
+                            ("big_paths", u"too-big", u"超过 %d 字节未读" % _MAX_FILE_BYTES)):
+        paths = notes[key]
+        if paths:
+            out.append(finding(
+                NAME, UNDETERMINED, u"%d 个被跟踪文件%s，其中的重复判不了" % (len(paths), what),
+                kind=kind, reason=u"没读到内容的文件不参与三条判据；它们里有没有副本，本次没看",
+                why=u"01 §2 N1：检查未覆盖的对象记未定，不记通过",
+                evidence=u"；".join(paths[:10]) + (u"；另有 %d 个未列出" % (len(paths) - 10) if len(paths) > 10 else u"")))
     doc_count = sum(1 for rel, _t, _d in files if is_doc(rel))
     doc_note = u"其中算文档的 %d 个（后缀 %s）" % (doc_count, u" ".join(_DOC_SUFFIXES))
     no_doc_reason = (
@@ -688,6 +676,26 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例一自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例一之二（D-123 bug 3）：读不了的副本不许让「没有逐字节相同」照常 PASS——须各出一条未定
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {"a.md": _UNIQ_A, "copy/a.md": _UNIQ_A, "b.md": _UNIQ_B})
+            locked = os.path.join(tmp, "copy", "a.md")
+            os.chmod(locked, 0)
+            try:
+                # 以 root 跑时 chmod 000 挡不住读，样本不成立，跳过这一条（不算失败）
+                got = None if os.access(locked, os.R_OK) else [(f["status"], f["id"]) for f in run(cfg)]
+            finally:
+                os.chmod(locked, 0o644)
+        if got is not None:
+            results.append(finding(
+                NAME, PASS if (UNDETERMINED, NAME + "/unreadable") in got else FAIL,
+                u"反例一之二：读不了的被跟踪文件须记一条未定（single-authority/unreadable）",
+                evidence=u"实得 %s" % got, why=u"契约 §1：依赖不可用记未定，不得吞掉记 PASS",
+            ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 反例二：跨文件重复的实质文本块（两文件本身不相同）
     try:

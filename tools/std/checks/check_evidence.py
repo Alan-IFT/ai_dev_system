@@ -17,8 +17,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status, markdown_under,
+    work_items, FAIL, PASS, SKIP, UNDETERMINED,
+    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status,
     read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
 )
 
@@ -27,7 +27,8 @@ STANDARD_REFS = ["01 §1 G4", "01 §2 N1", "01 §3.1", "01 §4.1", "01 §4.2"]
 
 _DEFAULT_DONE_STATES = ("done", "完成", "delivered")
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
-_EVIDENCE_HEADINGS = ("证据",)
+# 证据段的标题词（大小写不敏感）。这是工具约定（契约 §1.1）：认不出证据段只记未定，不判 FAIL。
+_EVIDENCE_HEADINGS = ("证据", "evidence")
 
 # 六字段。顺序即匹配优先级：同一行命中多个时取靠前的那个。
 FIELDS = (
@@ -96,7 +97,7 @@ def _evidence_sections(text):
             if cur is not None:
                 out.append(cur)
                 cur = None
-            if any(k in title for k in _EVIDENCE_HEADINGS):
+            if any(k in title.lower() for k in _EVIDENCE_HEADINGS):
                 cur = (title, i + 2, [])
             continue
         if cur is not None:
@@ -287,22 +288,23 @@ def _run(cfg):
     if absent:
         return [absent]
 
-    files, problem = markdown_under(root, wroot)
+    files, problem = work_items(root, wroot)   # 只看直接一层
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
 
-    out, nostatus, other = [], [], []
+    out, other = [], []
     for rel in files:
         try:
-            text = read_text(os.path.join(root, rel))
+            text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
         status = item_status(text)
         if status is None:
-            nostatus.append(rel)
+            # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
+            # 这里静默跳过
             continue
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
@@ -310,11 +312,8 @@ def _run(cfg):
 
         out.extend(_check_one(rel, text, status, note))
 
-    if nostatus:
-        out.append(agg(NAME, SKIP, "工作项目录下没有状态字段的文件", nostatus,
-                       reason="读不到状态字段，不当作工作项（README、索引之类）"))
     if other:
-        out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other,
+        out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
     if not out:
         out.append(finding(
@@ -329,10 +328,12 @@ def _check_one(rel, text, status, note):
     sections = _evidence_sections(text)
     if not sections:
         return [finding(
-            NAME, FAIL, "已完成但没有证据段：%s" % rel, where="%s:1" % rel,
-            why="01 §1 G4 完成需要证据；01 §4.2 收工前要求每个完成声明后面跟一段六字段，"
-                "缺一即声明无效——整段都没有，声明不成立",
-            evidence="状态 %s；全文没有标题含'证据'的小节。%s" % (status, note),
+            NAME, UNDETERMINED, "已完成但认不出证据段：%s" % rel, where="%s:1" % rel,
+            kind="no-evidence-section", key=rel,
+            reason="全文没有标题含 %s 的小节。标题词是本工具的约定，不是项目的声明（契约 §1.1）："
+                   "没找到只说明证据不在工具猜的地方，推不出没有证据" % " / ".join(_EVIDENCE_HEADINGS),
+            why="01 §1 G4 完成需要证据；01 §4.2 收工前要求每个完成声明后面跟一段六字段",
+            evidence="状态 %s。%s" % (status, note),
         )]
 
     blocks = []
@@ -410,9 +411,9 @@ _FIVE = """**E-01**（INV-014，staging）
 """
 
 
-def _sample(tmp, body, frozen=None):
+def _sample(tmp, body, frozen=None, heading="## 验收证据"):
     write_text(os.path.join(tmp, "work", "WI-0001-x.md"),
-               "# WI-0001\n\n状态：**done**\n\n## 验收证据\n\n" + body)
+               "# WI-0001\n\n状态：**done**\n\n%s\n\n" % heading + body)
     err = git_track(tmp)
     layout = {"work_root": "work"}
     if frozen is not None:
@@ -462,4 +463,34 @@ def selftest():
             why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
                 "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
         ))
+
+    # 只看工作项目录直接一层（D-123 裁定 3）；读不到状态的文件一律静默跳过——是不是工作项、
+    # 要不要报 no-status 由 freshness 报一次（审查 B5）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "artifacts", "WI-0009-留证.md"), "# 留证\n\n状态：done\n")
+        write_text(os.path.join(tmp, "work", "current.md"), "# 当前\n")
+        write_text(os.path.join(tmp, "work", "WI-0002-y.md"), "# 没写状态\n")
+        cfg, err = _sample(tmp, _SIX)
+        got = sorted((f["status"], f.get("where") or "") for f in run(cfg)) if not err else err
+    ok = (not err) and [st for st, _w in got] == [PASS] and got[0][1].startswith("work/WI-0001-x.md")
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "只看直接一层、读不到状态的静默跳过：子目录里的完成态留证不查，current.md 与无状态 WI 不报",
+        evidence="实得 %s" % (got,),
+        why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
+    ))
+
+    # 证据段标题是工具约定（契约 §1.1，D-123）：英文 `## Evidence` 照认；一个都认不出只记未定
+    got = {}
+    for tag, heading in (("en", "## Evidence"), ("none", "## 附注")):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, _SIX, heading=heading)
+            got[tag] = [f["status"] for f in run(cfg)] if not err else err
+    ok = got == {"en": [PASS], "none": [UNDETERMINED]}
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "约定：## Evidence 下六字段齐全判 PASS；认不出证据段只记未定，不判 FAIL",
+        evidence="实得 %s" % got,
+        why="契约 §1.1：标记词落空推不出没有证据",
+    ))
     return results

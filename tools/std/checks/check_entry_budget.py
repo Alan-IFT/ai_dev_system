@@ -85,7 +85,7 @@ def _entry(cfg):
     used_default = budget is None
     if used_default:
         budget = _DEFAULT_ENTRY_LINES
-    if not isinstance(budget, int) or budget <= 0:
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
         return [finding(
             NAME, UNDETERMINED, "行数预算不是正整数",
             reason="budgets.entry_lines = %r" % (budget,),
@@ -100,7 +100,7 @@ def _entry(cfg):
             out.append(_absent("来自项目声明（layout.entry／layout.artifacts.entry），文件不在", rel))
             continue
         try:
-            n = count_lines(path)
+            n = count_lines(path, root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -161,7 +161,7 @@ def _locate(cfg, role):
         if not os.path.isdir(os.path.join(root, rel)):
             return [], declared, note + "，目录不在", None
         files = [f for f in _md_children(root, rel)
-                 if item_status(read_text(os.path.join(root, f))) is not None]
+                 if item_status(read_text(os.path.join(root, f), root)) is not None]
         return files, declared, note, None
 
     key = {"status": "status", "handoff": "handoff", "module": "modules"}[role]
@@ -231,7 +231,7 @@ def _docs(cfg):
     for rel in sorted(per_file):
         roles = per_file[rel]
         try:
-            n = count_lines(os.path.join(root, rel))
+            n = count_lines(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue

@@ -22,7 +22,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
+    is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
@@ -47,7 +47,9 @@ def _metadata_requirement(cfg, rel):
 
     返回三值，**不再返回硬布尔**：
 
-    - `"required"`   —— 项目配置命中，或路径里出现约定的目录名；
+    - `"required"`   —— 项目配置 `metadata_required` 命中（项目声明，缺日期可判 FAIL）；
+    - `"convention"` —— 项目没配，路径里出现约定的目录名。约定命中只说明"像"，不是项目声明，
+      缺日期按契约 §1.1 只记未定；
     - `"not_required"` —— 项目配了 `metadata_required` 而本文件不在清单内。
       这是**项目自己的声明**，是确定结论，可以记 SKIP；
     - `"declared_none"` —— 项目把 `metadata_required` 显式写成空列表 `[]`：声明
@@ -73,7 +75,7 @@ def _metadata_requirement(cfg, rel):
                 return "required"
         return "not_required"
     if any(seg in _IMPORTANT_DIRS for seg in parts[:-1]):
-        return "required"
+        return "convention"
     return "unknown"
 
 
@@ -116,6 +118,9 @@ def _section_body(text, keywords):
 
 def _git_commit_date(root, rel):
     """该文件最后一次提交的时间。返回 (date, None) 或 (None, 原因)。"""
+    shallow = shallow_problem(root)
+    if shallow:
+        return None, shallow
     cmd = ["git", "-C", root, "log", "-1", "--format=%cI", "--", rel]
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
@@ -199,7 +204,8 @@ def _classify_stats(cfg):
             stats["frozen"] += 1
             continue
         need = _metadata_requirement(cfg, rel)
-        stats["not_required" if need == "declared_none" else need] += 1   # 同是项目声明不需要
+        # 同是项目声明不需要；约定命中计入"需要"（统计只为说准覆盖边界）
+        stats[{"declared_none": "not_required", "convention": "required"}.get(need, need)] += 1
     stats["scanned"] = stats["required"] + stats["not_required"] + stats["unknown"]
     return stats
 
@@ -299,13 +305,13 @@ def _check_docs(cfg, root, today, base):
             reason="空集上说不出'全部文档都新鲜'（01 §2 N1：X 为空集时'全部 X 通过'判未定）",
         )]
 
-    out, frozen, unclassified, declared_none = [], [], [], []
+    out, frozen, unclassified, declared_none, by_convention = [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
             continue
         try:
-            text = read_text(os.path.join(root, rel))
+            text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -326,6 +332,9 @@ def _check_docs(cfg, root, today, base):
                 continue
             if need == "declared_none":
                 declared_none.append(rel)
+                continue
+            if need == "convention":
+                by_convention.append(rel)
                 continue
             out.append(finding(
                 NAME, FAIL, "缺日期字段：%s" % rel, where="%s:1" % rel,
@@ -368,21 +377,31 @@ def _check_docs(cfg, root, today, base):
             ))
 
     if frozen:
-        out.append(agg(NAME, SKIP, "归档区文档不参与新鲜度", frozen,
+        out.append(agg(NAME, SKIP, "归档区文档不参与新鲜度", frozen, kind="frozen-docs",
                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if declared_none:
         out.append(agg(
-            NAME, SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none,
+            NAME, SKIP, "缺日期字段，项目声明没有需要日期元数据的文档类", declared_none, kind="undated-declared-none",
             reason="project.yaml 把 metadata_required 显式写成空列表：项目声明自己没有 "
                    "01 §3.5 那六类文档（验收、架构、模块、契约、ADR、runbook）。这是项目自己的声明，"
                    "故记不适用；声明错了由写下它的人负责，本工具不复核。"
                    "键缺失不是这个意思——那种情况记未定",
             why="契约 §5：metadata_required 给了就只认它；空列表即『一类都不要求』"))
+    if by_convention:
+        out.append(agg(
+            NAME, UNDETERMINED, "缺日期字段，按目录名约定像是 01 §3.5 的六类", by_convention,
+            kind="undated-by-convention",
+            reason="项目未配 metadata_required，这些路径里出现了 %s 之一。目录名是工具的约定，"
+                   "不是项目的声明（契约 §1.1）：命中只说明『像』，推不出『这份必须带日期』，"
+                   "故记未定不判 FAIL。要给出定论，在 project.yaml 写 metadata_required"
+                   % " / ".join(sorted(_IMPORTANT_DIRS)),
+            why="01 §3.5 元信息要求覆盖六类重要文档；契约 §1.1 约定落空或命中都不产出 FAIL"))
     if unclassified:
         # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
         out.append(agg(
             NAME, UNDETERMINED, "缺日期字段，且判不了它们属不属于 01 §3.5 的六类", unclassified,
+            kind="undated-unclassified",
             reason="项目未配 metadata_required，且这些路径里没有出现 acceptance / architecture / "
                    "modules / contracts / decisions / runbooks 任一目录名。"
                    "『这份文档算不算验收/架构/模块/契约/ADR/runbook』要看内容，"
@@ -410,25 +429,27 @@ def _check_work_items(cfg, root, today, base):
     if absent:
         return [absent]
 
-    files, problem = markdown_under(root, wroot)
+    files, problem = work_items(root, wroot)   # 只看直接一层
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
 
-    out, frozen, nostatus, other = [], [], [], []
+    out, frozen, nostatus, other, not_items = [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
             continue
         try:
-            text = read_text(os.path.join(root, rel))
+            text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
 
         status = item_status(text)
         if status is None:
-            nostatus.append(rel)
+            # 工作项按 01 §3.2 的 `WI-*` 命名认；不带这个名字又读不到状态的（样板 L1 的 current.md、
+            # handoff.md、README 之类）不是工作项。带状态字段的照样算工作项（它自己声明了状态）
+            (nostatus if is_work_item_name(rel) else not_items).append(rel)
             continue
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
@@ -468,6 +489,7 @@ def _check_work_items(cfg, root, today, base):
         elif age > days:
             out.append(finding(
                 NAME, FAIL, "进行中工作项 %d 天无状态转换，需核实：%s" % (age, rel), where=rel,
+                kind="work-item-stale", key=rel,   # 标题带天数，id 不许每天变（契约 §4）
                 why="01 §4.1 要求活性巡检：长期无转换的进行中工作项要么在做要么被忘了，"
                     "二者都要有人处置——补进度与下次检查时间、转 blocked、或拆分。"
                     "01 §4.1 明确超龄需核实原因，不强造阻塞，也不许空转状态清零年龄",
@@ -482,13 +504,20 @@ def _check_work_items(cfg, root, today, base):
             ))
 
     if frozen:
-        out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen,
+        out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen, kind="frozen-work-items",
                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if nostatus:
-        out.append(agg(NAME, SKIP, "工作项目录下没有状态字段的文件", nostatus,
-                       reason="读不到状态字段，不当作工作项（README、索引之类）；本检查只巡检有状态的工作项"))
+        out.append(agg(NAME, UNDETERMINED, "WI-* 工作项读不到状态字段", nostatus,
+                       kind="no-status",
+                       reason="文件按 01 §3.2 的 WI-* 命名是工作项，但状态字段名是本工具的词表"
+                              "（stdlib.STATUS_FIELDS），读不到推不出它没写（契约 §1.1）：它的活性与完成证据本次都没查"))
+    if not_items:
+        out.append(agg(NAME, SKIP, "工作项目录下既不按 WI-* 命名、也没有状态字段的文件", not_items,
+                       kind="not-work-item",
+                       reason="01 §3.2 的工作项是 state/work/WI-*；这些文件不按该名、自己也没写状态，"
+                              "不当工作项（样板 L1 的 current.md、handoff.md、README 之类）"))
     if other:
-        out.append(agg(NAME, SKIP, "非进行中状态的工作项", other,
+        out.append(agg(NAME, SKIP, "非进行中状态的工作项", other, kind="not-in-progress",
                        reason="01 §4.1 对 planned / blocked / in_validation 也要求巡检，"
                               "但复查时间是每项自己约定的值，工具读不到，故不判"))
     if not out:
@@ -512,14 +541,14 @@ def _cfg(tmp, extra=None):
     return cfg
 
 
-def _sample(tmp, doc_text, work_text):
+def _sample(tmp, doc_text, work_text, declared=True):
     # 放在 architecture/ 下：这份样本是**照着被测约定造的**，所以它只能证明
     # "约定命中时判得对"，结构上永远抓不到"约定与标准不匹配"那一类缺陷。
     # 那一类由下面的 _sample_unconventional 覆盖。
     write_text(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
     write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
     err = git_track(tmp)
-    return _cfg(tmp), err
+    return _cfg(tmp, {"metadata_required": ["docs/architecture"]} if declared else None), err
 
 
 def _sample_unconventional(tmp, work_text, metadata_required=None):
@@ -663,6 +692,93 @@ def selftest():
                 return None, err
             hits = [f for f in run(cfg) if f["id"].startswith(NAME + "/stale/")]
         return (hits[0] if len(hits) == 1 else None), None
+
+    # 反例六（契约 §1.1，D-123）：未配 metadata_required，目录名约定命中的无日期文档只记未定
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, "# 一份没有日期的文档\n\n正文。\n", work_fresh, declared=False)
+        res = run(cfg) if not err else []
+        conv = [f for f in res if f["id"] == NAME + "/undated-by-convention"]
+        ok = (not err) and len(conv) == 1 and conv[0]["status"] == UNDETERMINED \
+            and FAIL not in [f["status"] for f in res]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "反例六：未配 metadata_required 时目录名约定命中的无日期文档只记未定，不判 FAIL",
+            evidence="实得 %s%s" % ([(f["status"], f["id"]) for f in res], ("；git 准备失败：%s" % err) if err else ""),
+            why="契约 §1.1：目录名是工具约定，约定命中或落空都不产出 FAIL",
+        ))
+
+    # 反例七（D-123 bug 1）：浅克隆下退到提交时间的工作项须记未定。非浅克隆同一样本判 FAIL，
+    # 浅克隆取到的是克隆时刻，旧实现会把它翻成 PASS。
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        src, dst = os.path.join(tmp, "src"), os.path.join(tmp, "dst")
+        write_text(os.path.join(src, "work", "WI-0001-x.md"), "# WI-0001\n\n状态：in_progress\n")
+        write_text(os.path.join(src, "docs", "architecture", "a.md"), "updated_at: %s\n" % fresh)
+        env = dict(os.environ, GIT_COMMITTER_DATE="%s 12:00:00 +0000" % old,
+                   GIT_AUTHOR_DATE="%s 12:00:00 +0000" % old)
+        gid = ["-c", "user.name=a", "-c", "user.email=a@b", "-c", "commit.gpgsign=false"]
+        steps = [["git", "-c", "init.defaultBranch=main", "init", "-q", src],
+                 ["git", "-C", src] + gid + ["add", "-A"],
+                 ["git", "-C", src] + gid + ["commit", "-q", "-m", "s"],
+                 ["git", "-C", src] + gid + ["commit", "-q", "--allow-empty", "-m", "t"],
+                 ["git", "clone", "-q", "--depth", "1", "file://" + src, dst]]
+        err = None
+        for i, cmd in enumerate(steps):
+            r = subprocess.run(cmd, capture_output=True, timeout=60, env=env if i < 4 else None)
+            if r.returncode != 0:
+                err = "%s 退出码 %d" % (" ".join(cmd[:4]), r.returncode)
+                break
+        got = {}
+        if not err:
+            for tag, d in (("full", src), ("shallow", dst)):
+                got[tag] = [f["status"] for f in run(_cfg(d)) if (f.get("where") or "") == "work/WI-0001-x.md"]
+        ok = (not err) and got.get("full") == [FAIL] and got.get("shallow") == [UNDETERMINED]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "反例七：退到提交时间的超龄工作项，完整仓判 FAIL、浅克隆记未定",
+            evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
+            why="01 §2 N1：浅克隆的提交时间是克隆时刻，据它判活性会把 FAIL 翻成 PASS",
+        ))
+
+    # 反例五之二（D-123 bug 10）：超龄工作项的 FAIL 标题带天数，id 须不随天数变；
+    # 聚合未定的标题带份数，id 须不随份数变
+    def _ids_of(days_ago, extra_unclassified):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            day = (today - datetime.timedelta(days=days_ago)).isoformat()
+            for i in range(extra_unclassified):
+                write_text(os.path.join(tmp, "docs", "杂项", "n%d.md" % i), "# 无日期\n")
+            cfg, err = _sample(tmp, "updated_at: %s\n" % fresh,
+                               "# WI-0001\n\n状态：**in_progress**\n\n## 状态转换记录\n\n"
+                               "| from → to | 时间 |\n|---|---|\n| planned → in_progress | %s |\n" % day,
+                               declared=False)
+            return sorted(f["id"] for f in run(cfg) if f["status"] in (FAIL, UNDETERMINED)) if not err else err
+    ids_a, ids_b = _ids_of(100, 2), _ids_of(300, 3)
+    ok = ids_a == ids_b == sorted([NAME + "/undated-unclassified", NAME + "/work-item-stale/work/WI-0001-x.md"])
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "反例五之二：超龄天数与聚合份数变了，FAIL 与未定的 id 都不变",
+        evidence="100 天 2 份：%s；300 天 3 份：%s" % (ids_a, ids_b),
+        why="契约 §4/§9：id 随天数或份数漂，登记行就成孤儿",
+    ))
+
+    # 只看工作项目录直接一层（D-123 裁定 3）；工作项按 01 §3.2 的 WI-* 命名认（审查 B5）：
+    # 样板 L1 的 current.md / handoff.md 与子目录留证不报 no-status，无状态的 WI-* 才报
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "artifacts", "README.md"), "# 留证说明\n")
+        write_text(os.path.join(tmp, "work", "current.md"), "# 当前\n")
+        write_text(os.path.join(tmp, "work", "handoff.md"), "# 交接\n")
+        write_text(os.path.join(tmp, "work", "WI-0002-y.md"), "# 没写状态\n")
+        cfg, err = _sample(tmp, "updated_at: %s\n" % fresh, work_fresh)
+        got = [(f["status"], f["id"], f.get("evidence") or "") for f in run(cfg) if f["status"] != PASS] \
+            if not err else err
+    ok = (not err) and [(st, i) for st, i, _e in got] == [(UNDETERMINED, NAME + "/no-status"),
+                                                           (SKIP, NAME + "/not-work-item")] \
+        and got[0][2] == "work/WI-0002-y.md" and got[1][2] == "work/current.md；work/handoff.md"
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "工作项按 WI-* 命名认：current.md/handoff.md 不报 no-status、子目录不数，无状态的 WI-* 记未定",
+        evidence="非通过项 %s" % (got,),
+        why="01 §3.2 state/work/WI-*；样板 L1（templates/文件树与落地路径.md §3）不许恒退 2",
+    ))
 
     a, err_a = _stale_one(100)
     b, err_b = _stale_one(300)

@@ -285,7 +285,7 @@ fork 未实测。现行 `resume|compact` 片段的实测见本节末。std-revie
 照常输出。compact 未对现行片段实测。
 
 **免审批清单**：`check_adoption` 读本文件的 `permissions.allow`，放行任意代码或任意委托的整类规则
-（`Bash`、`Bash(*)`、解释器或运行器后只剩通配、`PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`）判
+（`Bash`、`Bash(*)`、解释器或运行器后只剩通配——含 `*` 紧贴名字前缀如 `Bash(py*)`、经 `sudo`/`env`/`timeout` 等包装或变量赋值之后——、`PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`）判
 FAIL（[01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）。auto 模式下 Claude Code 自己就会
 丢弃这类规则，本检查的增量在 manual、acceptEdits 这些会照单放行的模式下。`defaultMode:
 bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生效（官方 settings 文档），不判，交给宿主。
@@ -334,7 +334,7 @@ bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生�
   以「修订后」开头的指代句不算。这三刀都来自采用项目的实测误报。同样只产未定。
 - **`drift` 的日期判据以提交时刻在最晚时区 UTC+14 下的日期为基准**，不用提交自带的时区：写日期的人
   与提交者时区未必相同。代价是作者当地时间到 UTC+14 之间那几个小时里写下的提前日期不会被报。
-- **`drift` 的工作项载体只认两处**：work_root 直接一层里以该 ID 开头的 *.md，或状态源文件里行首的
+- **`drift` 的工作项载体只认两处**：work_root 直接一层里以该 ID 开头（其后不接数字）的 *.md，或状态源文件里行首的
   `work_item_id：<ID>`。放在 work_root 子目录里的工作项文件不算载体，会报 missing（未定）。
 
 ## 已知缺口

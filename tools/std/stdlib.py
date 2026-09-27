@@ -25,11 +25,74 @@ GIT_LOCAL_ENV = (
 )
 
 
+# 被扫仓的 .git/config 是被扫方写的：压缩包、共享目录带进来的仓，配置里可以写任何命令，
+# 本工具的每个 `git -C <被扫仓>` 都会照它执行（实测 core.fsmonitor、blame 的 textconv、
+# clean 过滤器都会跑）。经 GIT_CONFIG_COUNT 注入的是命令行级配置（git ≥ 2.31），优先级高于
+# 任何配置文件，一处设好全部子进程生效。过滤器的驱动名是被扫方起的，这里列不全，
+# 会读工作区的调用（blame、status）另经 `filter_env` 按仓逐个置空。
+GIT_HARDEN_CONFIG = (
+    ("core.fsmonitor", "false"), ("core.hooksPath", "/dev/null"), ("core.sshCommand", ""),
+    ("core.gitProxy", ""), ("core.askPass", ""), ("diff.external", ""), ("core.pager", "cat"),
+    # log.showSignature=true 时 `git log` 会对签名提交调 gpg.program（被扫方可指定任意程序）
+    ("log.showSignature", "false"),
+)
+# GIT_OPTIONAL_LOCKS=0：扫描不刷新、不回写被扫仓的 index（只读扫描不该有写入）。
+GIT_HARDEN_ENV = (("GIT_PAGER", "cat"), ("GIT_TERMINAL_PROMPT", "0"), ("GIT_OPTIONAL_LOCKS", "0"))
+
+
 def scrub_git_env():
-    """从本进程环境去掉 GIT_LOCAL_ENV。入口一次调用，此后所有 git 子进程（夹具与目标仓）
-    都靠 `-C`／cwd 定位，不再被调用方（钩子）的仓库劫持。"""
+    """从本进程环境去掉 GIT_LOCAL_ENV，再注入 GIT_HARDEN_CONFIG／GIT_HARDEN_ENV。
+
+    入口一次调用（重复调用无害），此后所有 git 子进程（夹具与目标仓）都靠 `-C`／cwd 定位，
+    不再被调用方（钩子）的仓库劫持，也不执行被扫仓配置里的外部程序。"""
     for key in GIT_LOCAL_ENV:
         os.environ.pop(key, None)
+    for i in range(64):
+        if os.environ.pop("GIT_CONFIG_KEY_%d" % i, None) is None:
+            break
+        os.environ.pop("GIT_CONFIG_VALUE_%d" % i, None)
+    os.environ["GIT_CONFIG_COUNT"] = str(len(GIT_HARDEN_CONFIG))
+    for i, (key, value) in enumerate(GIT_HARDEN_CONFIG):
+        os.environ["GIT_CONFIG_KEY_%d" % i] = key
+        os.environ["GIT_CONFIG_VALUE_%d" % i] = value
+    os.environ.update(GIT_HARDEN_ENV)
+
+
+_FILTER_ENV = {}   # 按仓（真实路径）缓存：一次扫描里 blame 要对每份文档跑一遍，不必每次都起子进程读配置
+
+
+def filter_env(root):
+    """把被扫仓配置里声明的过滤器驱动逐个置空的子进程环境（会读工作区的 git 调用传它）。
+
+    过滤器由 .gitattributes 与配置合起来触发，驱动名由被扫方起，无法事先列全；读配置本身不执行
+    任何东西，所以先列出名字再逐个置空。经 GIT_CONFIG_KEY_n/VALUE_n 传，键值分开——名字里带
+    `=` 也不会像 `-c k=v` 那样被切错。列不出（git 失败、超时）返回 None，调用方记未定，不照常执行。
+    """
+    key = os.path.realpath(str(root))
+    if key in _FILTER_ENV:
+        return _FILTER_ENV[key]
+    try:
+        out = subprocess.run(["git", "-C", root, "config", "-z", "--name-only", "--get-regexp",
+                              r"^filter\."], capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode not in (0, 1):      # 1 = 一个过滤器都没配，是正常出口
+        return None
+    names = set()
+    for k in (out.stdout or b"").decode("utf-8", "surrogateescape").split("\0"):
+        head, _dot, _tail = k.rpartition(".")
+        if head.startswith("filter."):
+            names.add(head)
+    env = dict(os.environ)
+    n = int(env.get("GIT_CONFIG_COUNT") or 0)
+    for head in sorted(names):
+        for sub, val in (("clean", ""), ("smudge", ""), ("process", ""), ("required", "false")):
+            env["GIT_CONFIG_KEY_%d" % n] = "%s.%s" % (head, sub)
+            env["GIT_CONFIG_VALUE_%d" % n] = val
+            n += 1
+    env["GIT_CONFIG_COUNT"] = str(n)
+    _FILTER_ENV[key] = env
+    return env
 
 
 PASS = "PASS"
@@ -72,7 +135,8 @@ def finding_id(check, title, kind=None, key=None):
         if key is not None and str(key).strip():
             out += u"/" + normalize_key(key)
         return out
-    return u"%s/%s" % (check, hashlib.sha1(title.encode("utf-8")).hexdigest()[:8])
+    # surrogateescape：非 UTF-8 文件名经 git ls-files 解码后带代理字符，严格编码会让整个检查器崩掉
+    return u"%s/%s" % (check, hashlib.sha1(title.encode("utf-8", "surrogateescape")).hexdigest()[:8])
 
 
 def finding(check, status, title, where=None, why="", reason="", evidence="",
@@ -183,7 +247,11 @@ def _scalar(raw, lineno):
 
 
 def _strip_comment(line):
-    """去行尾注释。只在 # 前有空白或位于行首时才算注释，避免吃掉值里的 #。"""
+    """去行尾注释。只在 # 前有空白或位于行首时才算注释，避免吃掉值里的 #。
+
+    引号只在值的开头（行首、`:` 或 `- ` 之后）才开启引用：`don't # 注释` 里的撇号是正文，
+    不许把后面的注释吞进值里。
+    """
     out, in_q, q = [], False, ""
     for i, ch in enumerate(line):
         if in_q:
@@ -192,7 +260,9 @@ def _strip_comment(line):
                 in_q = False
             continue
         if ch in "\"'":
-            in_q, q = True, ch
+            before = "".join(out).rstrip()
+            if not before or before.endswith((":", "-")):
+                in_q, q = True, ch
             out.append(ch)
             continue
         if ch == "#" and (i == 0 or line[i - 1] in " \t"):
@@ -201,8 +271,36 @@ def _strip_comment(line):
     return "".join(out).rstrip()
 
 
+# 映射行：键（裸词或整体加引号）后跟冒号，冒号后是空白或行尾——YAML 的写法；`https://x` 不是映射
+_MAP_LINE = re.compile(r"""^(?:"([^"]*)"|'([^']*)'|([^\s"'#:][^:]*?))\s*:(?:\s+(.*)|)$""")
+
+
+def _not_kv(body, lineno):
+    """不是 `键: 值` 行时的拒收信息：带行号，指明是哪种写法不支持（不回显内容）。"""
+    if body.startswith(("---", "...")):
+        what = "YAML 文档分隔符（--- / ...）"
+    elif body[:1] in "[{":
+        what = "流式写法（[...] / {...}）"
+    elif ":" in body:
+        what = "冒号后没有空格（须写成 `键: 值`），或键里带引号、冒号"
+    else:
+        what = "没有 `键: 值` 的冒号"
+    return ConfigError("第 %d 行不是 `键: 值`：本解析器不支持%s" % (lineno, what))
+
+
+def _split_kv(body, lineno):
+    """`键: 值` → (键, 值文本)；不是映射行返回 None。键两侧的引号剥掉。"""
+    m = _MAP_LINE.match(body)
+    if not m:
+        return None
+    key = next(g for g in m.groups()[:3] if g is not None).strip()
+    if not key:
+        raise ConfigError("第 %d 行的键为空" % lineno)
+    return key, (m.group(4) or "")
+
+
 def parse_yaml_subset(text):
-    """解析 CONTRACT.md §5 所述结构。不支持的语法一律抛 ConfigError。"""
+    """解析 CONTRACT.md §5 所述结构。不支持的语法一律抛 ConfigError，不静默误读。"""
     lines = []
     for n, raw in enumerate(text.splitlines(), 1):
         if "\t" in raw.split("#")[0]:
@@ -220,26 +318,32 @@ def parse_yaml_subset(text):
             while idx < len(lines) and lines[idx][1] == indent and lines[idx][2].startswith("- "):
                 n, _, body = lines[idx]
                 rest = body[2:].strip()
-                if ":" in rest and not rest.endswith(":"):
+                kv = _split_kv(rest, n)
+                if kv and kv[1].strip():
                     # 列表项是行内起始的映射：- name: x
-                    k, v = rest.split(":", 1)
-                    item = {k.strip(): _scalar(v, n)}
+                    k, v = kv
+                    item = {k: _scalar(v, n)}
                     idx += 1
                     child_indent = indent + 2
                     while idx < len(lines) and lines[idx][1] >= child_indent and not lines[idx][2].startswith("- "):
                         n2, ind2, b2 = lines[idx]
                         if ind2 != child_indent:
                             raise ConfigError("第 %d 行缩进不一致" % n2)
-                        if ":" not in b2:
-                            raise ConfigError("第 %d 行不是 key: value" % n2)
-                        k2, v2 = b2.split(":", 1)
+                        kv2 = _split_kv(b2, n2)
+                        if kv2 is None:
+                            raise _not_kv(b2, n2)
+                        k2, v2 = kv2
+                        if k2 in item:
+                            raise ConfigError("第 %d 行的键 %r 在同一列表项里重复；重复键的取值有歧义" % (n2, k2))
                         if not v2.strip():
                             sub, idx = block(idx + 1, child_indent + 2)
-                            item[k2.strip()] = sub
+                            item[k2] = sub
                             continue
-                        item[k2.strip()] = _scalar(v2, n2)
+                        item[k2] = _scalar(v2, n2)
                         idx += 1
                     items.append(item)
+                elif kv and rest.endswith(":"):
+                    raise ConfigError("第 %d 行的列表项 %s 后面没有值；本解析器不支持这种嵌套写法" % (n, "- key:"))
                 elif rest == "[]":
                     # 空列表只作键的值才有意义（区分"声明没有"与"没声明"）；
                     # 作列表项是嵌套空列表，没有哪个键收这个形状
@@ -255,10 +359,10 @@ def parse_yaml_subset(text):
             n, _, body = lines[idx]
             if body.startswith("- "):
                 break
-            if ":" not in body:
-                raise ConfigError("第 %d 行不是 key: value：%r" % (n, body))
-            k, v = body.split(":", 1)
-            k = k.strip()
+            kv = _split_kv(body, n)
+            if kv is None:
+                raise _not_kv(body, n)
+            k, v = kv
             if k in mapping:
                 raise ConfigError("第 %d 行的键 %r 重复；重复键的取值有歧义" % (n, k))
             if v.strip():
@@ -275,13 +379,123 @@ def parse_yaml_subset(text):
 
     if not lines:
         return {}
-    value, end = block(0, lines[0][1])
+    try:
+        value, end = block(0, lines[0][1])
+    except RecursionError:
+        raise ConfigError("嵌套层数超出本解析器的递归上限；本工具的配置只需两三层")
     if end != len(lines):
+        if lines[end][2].startswith("- "):
+            raise ConfigError("第 %d 行的列表项与它的键同列：本解析器要求列表项比键多缩进"
+                              "（`键:` 下一行写 `  - 值`）" % lines[end][0])
         raise ConfigError("第 %d 行缩进层级无法归属" % lines[end][0])
     return value
 
 
 CONFIG_CANDIDATES = ("governance/project.yaml", "governance/project.yml")
+
+
+class OutsideRoot(OSError):
+    """路径的真实位置（跟随符号链接后）不在被扫项目之内。继承 OSError：各读点已有的
+    `except OSError` 照常把它转成未定。"""
+
+
+def _under(p, r):
+    return p == r or p.startswith(r.rstrip(os.sep) + os.sep)
+
+
+def inside(root, path):
+    """path 跟随符号链接后是否仍在 root 之内（含 root 本身）。判不了按"不在"算。
+
+    先按字面（abspath）判：字面就在 root 之外的路径直接返回 False，**不碰文件系统**——
+    realpath 会逐段 lstat，那本身就是对项目之外路径的探测。字面在内的再按真实位置判（符号链接出仓）。
+    """
+    try:
+        if not _under(os.path.abspath(str(path)), os.path.abspath(str(root or "."))):
+            return False
+        return _under(os.path.realpath(str(path)), os.path.realpath(str(root or ".")))
+    except (OSError, ValueError):
+        return False
+
+
+def guard(root, path):
+    """读被扫项目里的文件之前调用：真实位置在 root 之外即抛 OutsideRoot，不读、不回显内容。
+
+    被扫项目里的符号链接可以指向仓外任意文件；跟随它读，就是把仓外内容（与其存在性）带进报告。
+    """
+    if not inside(root, path):
+        raise OutsideRoot("%s 的真实位置在被扫项目之外（符号链接或 ..），未读" % path)
+    return path
+
+
+# 值是项目内路径的配置键。写 `..` 段或绝对路径就是让检查器去读项目之外的文件，拒收整份配置。
+# `repos[].path` 不在此列：多仓系统的兄弟仓本来就在项目之外（01 §3.8），由 cross-repo 按仓读。
+_PATH_KEYS = ("layout.entry", "layout.docs_root", "layout.work_root", "layout.frozen",
+              "layout.rule_files", "metadata_required")
+
+
+def _escaping_paths(cfg):
+    vals = []
+    for key in _PATH_KEYS:
+        v = cfg_get(cfg, key)
+        vals += [(key, x) for x in (v if isinstance(v, list) else [v])]
+    arts = cfg_get(cfg, "layout.artifacts")
+    if isinstance(arts, dict):
+        vals += [("layout.artifacts." + str(k), v) for k, v in arts.items()]
+    for i, item in enumerate(cfg_get(cfg, "derived") or []):
+        if isinstance(item, dict):
+            vals += [("derived[%d].%s" % (i, k), item.get(k)) for k in ("artifact", "source")]
+    bad = []
+    for key, v in vals:
+        if not isinstance(v, str) or not v.strip():
+            continue
+        p = v.strip().replace("\\", "/")
+        if os.path.isabs(p) or re.match(r"^[A-Za-z]:/", p) or ".." in p.split("/"):
+            bad.append(key)
+    return bad
+
+
+# 值必须是整数的阈值键与下限。写错不许静默换成默认值（与「不许静默误读」同一条规则），整份配置拒收。
+_DUP_BUDGETS = (("duplicate_min_lines", 2), ("duplicate_min_chars", 1))
+
+
+def _bad_dup_budgets(cfg, text):
+    budgets = cfg.get("budgets")
+    if not isinstance(budgets, dict):
+        return None
+    for key, low in _DUP_BUDGETS:
+        if key not in budgets:
+            continue
+        v = budgets[key]
+        if isinstance(v, int) and not isinstance(v, bool) and v >= low:
+            continue
+        line = next((i for i, ln in enumerate(text.splitlines(), 1)
+                     if re.match(r"\s*%s\s*:" % key, ln)), 0)
+        return "第 %d 行 budgets.%s 须是 ≥%d 的整数；写错不取默认值" % (line, key, low)
+    return None
+
+
+def _read_config(root, p, shown):
+    """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
+    try:
+        with io.open(p, encoding="utf-8-sig") as fh:   # 带 BOM 的首键不许读成 \ufeffcompatibility
+            text = fh.read()
+        cfg = parse_yaml_subset(text)
+    except ConfigError as exc:
+        return {}, "%s 无法无歧义解析：%s" % (shown, exc)
+    except UnicodeDecodeError as exc:
+        return {}, "%s 不是 UTF-8 编码（第 %d 字节起解不开）；本工具只读 UTF-8" % (shown, exc.start)
+    except OSError as exc:
+        return {}, "%s 读不了：%s" % (shown, type(exc).__name__)
+    if not isinstance(cfg, dict):
+        return {}, "%s 的顶层不是映射" % shown
+    bad_budget = _bad_dup_budgets(cfg, text)
+    if bad_budget:
+        return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
+    bad = _escaping_paths(cfg)
+    if bad:
+        return {}, ("%s 里 %s 的路径含 .. 段或是绝对路径，指向项目之外；本工具只读被扫项目之内的文件"
+                    % (shown, "、".join(bad)))
+    return cfg, None
 
 
 def load_config(root, config_path=None):
@@ -298,31 +512,23 @@ def load_config(root, config_path=None):
         p = os.path.abspath(config_path)
         if not os.path.isfile(p):
             return {}, "指定的外部配置 %s 不存在（--config）；本工具不回退去猜项目布局" % p
-        try:
-            with io.open(p, encoding="utf-8") as fh:
-                cfg = parse_yaml_subset(fh.read())
-        except ConfigError as exc:
-            return {}, "指定的外部配置 %s 无法无歧义解析：%s" % (p, exc)
-        except OSError as exc:
-            return {}, "指定的外部配置 %s 读不了：%s" % (p, exc)
-        if not isinstance(cfg, dict):
-            return {}, "指定的外部配置 %s 的顶层不是映射" % p
+        cfg, problem = _read_config(root, p, "指定的外部配置 %s" % p)
+        if problem:
+            return {}, problem
         cfg["_path"] = p
         cfg["_root"] = root
         return cfg, None
 
     for rel in CONFIG_CANDIDATES:
         p = os.path.join(root, rel)
-        if os.path.isfile(p):
-            try:
-                with io.open(p, encoding="utf-8") as fh:
-                    cfg = parse_yaml_subset(fh.read())
-            except ConfigError as exc:
-                return {}, "%s 无法无歧义解析：%s" % (rel, exc)
-            except OSError as exc:
-                return {}, "%s 读不了：%s" % (rel, exc)
-            if not isinstance(cfg, dict):
-                return {}, "%s 的顶层不是映射" % rel
+        if os.path.lexists(p):               # lstat，不跟随：先判真实位置再探测目标
+            if not inside(root, p):
+                return {}, "%s 的真实位置在被扫项目之外（符号链接），未读" % rel
+            if not os.path.isfile(p):
+                continue
+            cfg, problem = _read_config(root, p, rel)
+            if problem:
+                return {}, problem
             cfg["_path"] = rel
             cfg["_root"] = root
             return cfg, None
@@ -340,21 +546,18 @@ _EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
                (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
                (u"到期", "expires"), (u"状态", "status"))
 
-# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。词前带否定或未完成前缀（「待关闭」
-# 「未处理」「非 done」「not closed」）不算关闭——含词即关闭会把尚在生效的例外当成历史行放过。
-_EX_CLOSED = (u"关闭", u"closed", u"done", u"已处理")
-_EX_NOT_PREFIX = (u"未", u"待", u"非", u"不", u"not")
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**某一段以关闭词开头**才算关闭——
+# 含词即关闭会把「没关闭」「not yet closed」「open (to be closed)」这类尚在生效的例外当成历史行放过；
+# 按否定前缀排除又列不全（D-123）。
+_EX_CLOSED = (u"关闭", u"已关闭", u"closed", u"done", u"已处理")
 
 
 def _ex_closed(status):
-    low = status.lower()
-    for tok in _EX_CLOSED:
-        start = low.find(tok)
-        while start >= 0:
-            head = low[:start]
-            if not (head.endswith(u"un") or head.rstrip(u" -*`").endswith(_EX_NOT_PREFIX)):
-                return True
-            start = low.find(tok, start + 1)
+    """按逗号、分号、顿号、斜杠切段，任一段（去首尾加粗与反引号）以关闭词开头即关闭：
+    「**已过期，已处理**（…）」是关闭行，「not yet closed」「open (to be closed)」不是。"""
+    for seg in re.split(u"[，,;；、/|]+", status.lower()):
+        if seg.strip().strip(u"*`").strip().startswith(_EX_CLOSED):
+            return True
     return False
 
 _MD_SEP_RE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
@@ -408,7 +611,7 @@ def _ex_field(header_cell):
     return None
 
 
-def load_exceptions(config_dir):
+def load_exceptions(config_dir, root=None):
     """读例外登记册：配置文件**同目录**的 `exceptions.md`（契约 §9）。
 
     不带 `--config` 时就是 `<项目根>/governance/exceptions.md`。
@@ -423,12 +626,17 @@ def load_exceptions(config_dir):
       02 §4「到期未清理 CI 转红」对它们同样成立，到期由调用方按运行日判。
     """
     path = os.path.join(config_dir, EXCEPTIONS_FILE)
-    if not os.path.isfile(path):
+    if not os.path.lexists(path):            # 只 lstat 这一处，先不跟随链接
         return [], [], None, []
+    # 护栏：配置在项目内时登记册须在项目内，外部配置（--config）时须在配置目录内；越界不读、不回显
+    base = root if (root and inside(root, config_dir)) else config_dir
     try:
-        with io.open(path, encoding="utf-8") as fh:
+        guard(base, path)
+        if not os.path.isfile(path):
+            return [], [], None, []
+        with io.open(path, encoding="utf-8-sig") as fh:
             text = fh.read()
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path, []
     table = _first_md_table(text)
     if table is None:
@@ -564,17 +772,35 @@ def tracked_files(root, patterns=None, tool_root=None):
     files = [p for p in raw.split("\0") if p.strip()]
     rel = embedded_std_rel(root, tool_root)
     if rel:
-        files = [p for p in files if not p.lstrip('"').startswith(rel + "/")]
+        files = [p for p in files if not p.startswith(rel + "/")]
     return files, None
 
 
-def read_text(path):
-    with io.open(path, encoding="utf-8", errors="replace") as fh:
+def shallow_problem(root):
+    """浅克隆下「最后一次提交」取的是边界提交、时间等于克隆那一刻，按它判新旧会把 FAIL 翻成 PASS。
+
+    返回 None（不是浅克隆，可以用提交时间）或原因串（浅克隆、或探测不了）——调用方据此记未定。
+    """
+    try:
+        out = subprocess.run(["git", "-C", root, "rev-parse", "--is-shallow-repository"],
+                             capture_output=True, text=True, encoding="utf-8", timeout=60)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return "跑不了 git rev-parse：%s" % exc
+    if out.returncode != 0:
+        return "git rev-parse --is-shallow-repository 退出码 %d" % out.returncode
+    if out.stdout.strip().lower() == "true":
+        return "浅克隆：git log 取到的是边界提交，时间等于克隆时刻，不是该文件真实的最后提交"
+    return None
+
+
+def read_text(path, root=None):
+    """读文本。给了 root 就先判真实位置在不在 root 之内（`guard`），不在抛 OutsideRoot。"""
+    with io.open(guard(root, path) if root is not None else path, encoding="utf-8-sig", errors="replace") as fh:
         return fh.read()
 
 
-def count_lines(path):
-    with io.open(path, encoding="utf-8", errors="replace") as fh:
+def count_lines(path, root=None):
+    with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
         return sum(1 for _ in fh)
 
 
@@ -730,6 +956,28 @@ def markdown_under(root, sub):
     return sorted(r for r in map(norm_rel, files) if r.lower().endswith(".md") and under(r, sub)), None
 
 
+# 工作项文件的命名：01 §3.2 职责卡与 §3.3 阅读路径写作 `state/work/WI-*`（01 §3.1 树里是
+# 「工作项，一件一文件」）；与 drift 认 ID 的 `WI-<三位以上数字>` 同一形式。
+WORK_ITEM_NAME = re.compile(r"^WI-\d{3,}")
+
+
+def is_work_item_name(rel):
+    return WORK_ITEM_NAME.match(os.path.basename(str(rel))) is not None
+
+
+def work_items(root, wroot):
+    """工作项目录**直接一层**里 git 跟踪的 markdown。返回 (相对路径列表, 问题)。
+
+    子目录（L1 的 work/artifacts/ 之类）放的是留证与产物，不是工作项——与 drift 的
+    D-118 裁定同一条规则，evidence 与 freshness 共用这一处。
+    """
+    files, problem = markdown_under(root, wroot)
+    if problem:
+        return None, problem
+    base = norm_rel(wroot).rstrip("/")
+    return [r for r in files if os.path.dirname(r) == base or (base in ("", ".") and "/" not in r)], None
+
+
 def clean(value):
     return str(value).replace("*", "").replace("`", "").strip()
 
@@ -738,9 +986,10 @@ def find_field(text, names):
     """在文本里找 `名字: 值` 或 `名字：值`。返回 (值, 命中的名字)，找不到返回 (None, None)。
 
     值以换行、表格竖线或全角空格为界——示例项目把三个字段写在同一行，用全角空格分隔。
+    字段名两侧可带加粗、斜体或反引号（`**状态**：done`、`` `status`: done ``）。
     """
     for name in names:
-        pat = r"(?:^|[\s　|*>-])" + re.escape(str(name)) + r"\s*[:：]\s*([^\n　|]*)"
+        pat = r"(?:^|[\s　|*>-])[*_`]*" + re.escape(str(name)) + r"[*_`]*\s*[:：]\s*([^\n　|]*)"
         m = re.search(pat, text, re.M | re.I)
         if m:
             return m.group(1).strip(), str(name)
@@ -761,10 +1010,13 @@ def state_list(cfg, path, default):
     return [str(s).strip().lower() for s in states if str(s).strip()]
 
 
-def agg(check, status, title, paths, reason, why=""):
-    """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。"""
+def agg(check, status, title, paths, reason, why="", *, kind):
+    """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。
+
+    `kind` 必填：标题带份数，不给 kind 时兜底 id 随份数变，登记行就成孤儿（契约 §4、§9；D-123）。
+    """
     more = "" if len(paths) <= LIST_CAP else "；另有 %d 份未列出" % (len(paths) - LIST_CAP)
-    return finding(check, status, "%s（%d 份）" % (title, len(paths)),
+    return finding(check, status, "%s（%d 份）" % (title, len(paths)), kind=kind,
                    reason=reason, why=why, evidence="；".join(paths[:LIST_CAP]) + more)
 
 

@@ -15,11 +15,12 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    inside, guard, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
@@ -64,7 +65,9 @@ _SKIP_DIRS = {
     "dist", "build", ".next", ".mypy_cache", ".pytest_cache", ".idea",
 }
 
-_INLINE_LINK = re.compile(r"\]\(\s*<?([^)\s>]+)>?[^)]*\)")
+# 目标与标题都不含 `(`：原写法 `<?([^)\s>]+)>?[^)]*\)` 两段量词重叠，`](` 连写 8000 次要跑几分钟；
+# 排除 `(` 之后每个起点只扫到下一个 `(`，整体线性（路径里带圆括号的链接因此认不出，与 check_links 同）
+_INLINE_LINK = re.compile(r"\]\(\s*<?([^()\s>]+)>?(?:\s[^()]*)?\)")
 _REF_LINK = re.compile(r"^\s*\[[^\]]+\]:\s*<?([^\s>]+)", re.M)
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 
@@ -73,15 +76,18 @@ _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 # 小工具（stdlib 里没有的一律在本模块实现，不改公共库）
 # --------------------------------------------------------------------------
 
-def _read(path, limit_bytes=2 * 1024 * 1024):
-    with io.open(path, "rb") as fh:
+_MAX_READ_BYTES = 2 * 1024 * 1024
+
+
+def _read(path, root, limit_bytes=_MAX_READ_BYTES):
+    with io.open(guard(root, path), "rb") as fh:
         raw = fh.read(limit_bytes)
     return raw.decode("utf-8", "replace")
 
 
-def _head_lines(path, n=_MARKER_HEAD_LINES):
+def _head_lines(path, root, n=_MARKER_HEAD_LINES):
     out = []
-    with io.open(path, "rb") as fh:
+    with io.open(guard(root, path), "rb") as fh:
         for i, raw in enumerate(fh):
             if i >= n:
                 break
@@ -529,7 +535,7 @@ def _check_projection(repos, entries):
         if not entry_path:
             continue  # 入口缺失已在判据三报过，不重复
         try:
-            text = _read(entry_path)
+            text = _read(entry_path, r["_real"])
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s 的入口" % r["name"]))
             continue
@@ -553,7 +559,7 @@ def _check_projection(repos, entries):
                 continue
             followed += 1
             try:
-                hop2 = _mentions_system(_read(nxt), sysrepo, nxt)
+                hop2 = _mentions_system(_read(nxt, r["_real"]), sysrepo, nxt)
             except OSError:
                 continue
             if hop2:
@@ -599,7 +605,7 @@ def _check_registration(repos, entries):
         ))
         return out
     try:
-        text = _read(entry_path)
+        text = _read(entry_path, sysrepo["_real"])
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, "读系统仓入口")]
 
@@ -691,7 +697,7 @@ def _check_retired(cfg, repos, entry_names):
         live, unreadable = [], []
         for p in files:
             try:
-                head = _head_lines(p)
+                head = _head_lines(p, r["_real"])
             except OSError as exc:
                 unreadable.append("%s（%s）" % (os.path.relpath(p, r["_real"]), exc))
                 continue
@@ -764,11 +770,15 @@ def _check_links(repos):
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "枚举 %s 的 md 文件" % r["name"]))
             continue
-        broken, host_abs, total = [], [], 0
+        broken, host_abs, total, unread, outside = [], [], 0, [], []
         for f in mds:
             try:
-                text = _read(f)
-            except OSError:
+                if os.path.getsize(guard(r["_real"], f)) > _MAX_READ_BYTES:   # 先过护栏再取大小
+                    unread.append("%s（超过 %d 字节）" % (os.path.relpath(f, r["_real"]), _MAX_READ_BYTES))
+                    continue
+                text = _read(f, r["_real"])
+            except OSError as exc:
+                unread.append("%s（%s）" % (os.path.relpath(f, r["_real"]), type(exc).__name__))
                 continue
             rel_f = os.path.relpath(f, r["_real"]).replace("\\", "/")
             for t in _link_targets(text):
@@ -780,12 +790,15 @@ def _check_links(repos):
                     continue
                 resolved = os.path.normpath(os.path.join(os.path.dirname(f), t))
                 owner = _owner_repo(resolved, known)
-                if owner is None:
-                    # 解析到所有声明仓之外：也算跨出本仓的引用
-                    if _norm(resolved).startswith(r["_abs"].rstrip("/") + "/"):
-                        continue
-                elif owner["_abs"] == r["_abs"]:
+                if owner is not None and owner["_abs"] == r["_abs"]:
                     continue  # 仍在本仓内，不归本检查器
+                if owner is None and _norm(resolved).startswith(r["_abs"].rstrip("/") + "/"):
+                    continue
+                # 只探测落在某个声明仓真实位置之内的目标：声明仓之外、或经符号链接越出所属仓的，
+                # 不查存在性（那是对项目之外路径的探测），记未定
+                if owner is None or not inside(owner["_real"], resolved):
+                    outside.append("%s -> %s" % (rel_f, t))
+                    continue
                 total += 1
                 if not os.path.exists(resolved):
                     broken.append("%s -> %s" % (rel_f, t))
@@ -807,6 +820,23 @@ def _check_links(repos):
                 evidence="共 %d 处，列前 %d：%s" % (len(host_abs), min(len(host_abs), _MAX_LISTED),
                                                  "；".join(host_abs[:_MAX_LISTED])),
             ))
+        if outside:
+            out.append(finding(
+                NAME, UNDETERMINED, "仓 %s 有 %d 处引用指向所有声明仓之外" % (r["name"], len(outside)),
+                where=where, kind="outside-repos", key=r["name"],
+                reason="目标不在 repos 声明的任何仓的真实位置之内（未声明的仓，或经符号链接越出）；"
+                       "本工具不探测声明仓之外的路径，连存在性也不查",
+                why="01 §3.8'跨仓引用按契约处理'：契约的另一侧要在 repos 里声明才可机械核对",
+                evidence="；".join(outside[:_MAX_LISTED]),
+            ))
+        if unread:
+            out.append(finding(
+                NAME, UNDETERMINED, "仓 %s 有 %d 份 *.md 没读，其中的跨仓引用未判" % (r["name"], len(unread)),
+                where=where, kind="unreadable", key=r["name"],
+                reason="读不了或超过读取上限；没读的文件不是没有断链（契约 §1）",
+                why="01 §3.8'跨仓引用按契约处理'",
+                evidence="；".join(unread[:_MAX_LISTED]),
+            ))
         if broken:
             out.append(finding(
                 NAME, FAIL, "仓 %s 有 %d 处跨仓引用解析后不存在" % (r["name"], len(broken)),
@@ -818,10 +848,17 @@ def _check_links(repos):
                          % (len(broken), min(len(broken), _MAX_LISTED),
                             "；".join(broken[:_MAX_LISTED]), len(mds)),
             ))
-        else:
+        elif total:
             out.append(finding(
                 NAME, PASS, "仓 %s 的 %d 处跨仓引用全部可达" % (r["name"], total),
                 where=where,
+                evidence="扫了 %d 份 *.md" % len(mds),
+            ))
+        elif not outside:
+            out.append(finding(
+                NAME, SKIP, "仓 %s 的 *.md 里没有指向其他仓的链接" % r["name"],
+                where=where, kind="no-refs", key=r["name"],
+                reason="0 处跨仓引用上说不出『全部可达』（01 §2 N1 空集不记通过）；没有对象即本条不适用",
                 evidence="扫了 %d 份 *.md" % len(mds),
             ))
     return out
@@ -1027,8 +1064,11 @@ def selftest():
             good_dir = os.path.join(tmp, "good")
             os.makedirs(good_dir)
             got = run(_sample(good_dir, bad=False))
-            other = [f for f in got if f["status"] != PASS]
-            ok = bool(got) and not other
+            # 没有跨仓链接的仓记不适用（0 处引用说不出「全部可达」，D-123）
+            norefs = sorted(f["id"] for f in got if f["id"].startswith(NAME + "/no-refs/"))
+            other = [f for f in got if f["status"] != PASS and not f["id"].startswith(NAME + "/no-refs/")]
+            ok = bool(got) and not other and norefs == [NAME + "/no-refs/old", NAME + "/no-refs/sys"] \
+                and all(f["status"] == SKIP for f in got if f["id"] in norefs)
             results.append(finding(
                 NAME, PASS if ok else FAIL,
                 "正例：承载仓唯一、各仓有入口、投影可达、状态已登记、退役仓已标失效，应判 PASS",
@@ -1100,6 +1140,75 @@ def selftest():
                 evidence="实得 %d 条：%s" % (len(got), "、".join(ids) or "无"),
                 why="契约 §9：id 是例外登记的地址，两个仓共用一个地址就会被一行登记一起静音",
             ))
+        # 读不了的 *.md 须出一条未定（D-123 bug 3）：旧实现 `except OSError: continue` 静默跳过，
+        # 那份文件里的断链因此永远报不出来
+        with tempfile.TemporaryDirectory() as tmp:
+            d = os.path.join(tmp, "ur")
+            os.makedirs(d)
+            cfg = _sample(d, bad=False)
+            locked = os.path.join(d, "app", "docs", "locked.md")
+            _mk(locked, "# 锁\n\n见 [没有](../../sys/nope.md)。\n")
+            os.chmod(locked, 0)
+            try:
+                # 以 root 跑时 chmod 000 挡不住读，样本不成立，跳过这一条（不算失败）
+                got = None if os.access(locked, os.R_OK) else run(cfg)
+            finally:
+                os.chmod(locked, 0o644)
+            if got is not None:
+                hit = [f for f in got if f["id"] == NAME + "/unreadable/app"]
+                ok = len(hit) == 1 and hit[0]["status"] == UNDETERMINED
+                results.append(finding(
+                    NAME, PASS if ok else FAIL, "读不了的 *.md 须记一条未定，不得静默跳过",
+                    evidence="实得 %s" % [(f["status"], f["id"]) for f in got if f["status"] != PASS][:8],
+                    why="契约 §1：依赖不可用记未定，不得吞掉异常记 PASS",
+                ))
+
+        # 兄弟仓经 repos[].path 声明、天然在项目之外，但经它读到的文件须落在该仓自己的真实位置之内
+        # （D-123 裁定 1）：入口是指向仓外的符号链接不读；指向所有声明仓之外的引用不探测存在性
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            d = os.path.join(tmp, "sib")
+            os.makedirs(d)
+            cfg = _sample(d, bad=False)
+            secret = os.path.join(outside_dir, "CLAUDE.md")
+            _mk(secret, u"# TOPSECRET\n\n系统仓 sys\n")
+            app_entry = os.path.join(d, "app", "CLAUDE.md")
+            os.remove(app_entry)
+            os.symlink(secret, app_entry)
+            _mk(os.path.join(d, "sys", "docs", "far.md"), u"见 [外](../../../../nowhere/x.md)。\n")
+            ext = os.path.join(d, "app", "docs", "ext.md")
+            os.makedirs(os.path.dirname(ext), exist_ok=True)
+            os.symlink(secret, ext)
+            sized, real_size = [], os.path.getsize
+            os.path.getsize = lambda p: (sized.append(p), real_size(p))[1]
+            try:
+                got = run(cfg)
+            finally:
+                os.path.getsize = real_size
+            if ext in sized:      # 出仓的软链接先过护栏，不许先取大小（那是探测仓外文件）
+                got.append(finding(NAME, FAIL, "出仓软链接被 getsize 探测", evidence=ext))
+            leaked = any("TOPSECRET" in (f.get("evidence") or "") + (f.get("title") or "") for f in got)
+            bad = sorted((f["status"], f["id"]) for f in got if f["status"] in (FAIL, UNDETERMINED))
+            ok = (not leaked and (UNDETERMINED, NAME + "/outside-repos/sys") in bad
+                  and any(st == UNDETERMINED and "app" in (f_id + "") for st, f_id in bad)
+                  and not any(st == FAIL for st, _i in bad))
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "兄弟仓读到的文件须在该仓真实位置之内：入口符号链接出仓记未定不读；声明仓之外的引用记未定不探测",
+                evidence="非通过项 %s；泄露=%s" % (bad[:8], leaked),
+                why="D-123 裁定 1/2：repos[].path 豁免只豁免仓本身，不豁免从仓里经符号链接出去",
+            ))
+
+        # 线性（D-123 安全 3）：`](` 连写 8000 次曾要跑几分钟，一个文件拖死整次检查与提交闸门
+        t0 = time.time()
+        _link_targets("](" * 2000)   # 旧正则下约 4 秒
+        took = time.time() - t0
+        got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)")
+        results.append(finding(
+            NAME, PASS if took < 1 and got == ["x.md", "y.md", "../z.md"] else FAIL,
+            "链接抽取对 `](` 连写 2000 次须线性，且照常认出带标题与尖括号的链接",
+            evidence="耗时 %.3fs；抽出 %s" % (took, str(got)[:200]),
+            why="D-123 安全 3：检查器没有整体超时，一个平方级正则就能拖死提交闸门",
+        ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, "自检自身出错", evidence="%s: %s" % (type(exc).__name__, exc),

@@ -15,7 +15,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
+    shallow_problem, guard, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, is_tailored_out, undetermined_from_exception,
 )
 
@@ -60,6 +60,9 @@ _GENERATOR_HINTS = (
 
 def git_last_commit_epoch(root, relpath):
     """该路径最后一次提交的时间戳。返回 (epoch, 原因)；取不到时 epoch 为 None。"""
+    shallow = shallow_problem(root)
+    if shallow:
+        return None, shallow
     cmd = ["git", "-C", root, "log", "-1", "--format=%ct", "--", relpath]
     try:
         out = subprocess.run(cmd, capture_output=True, text=True,
@@ -74,10 +77,10 @@ def git_last_commit_epoch(root, relpath):
     return int(txt[0].strip()), None
 
 
-def read_header(path):
+def read_header(path, root):
     """读文件头部若干行。二进制或读不了时返回 (None, 原因)。"""
     try:
-        with io.open(path, "rb") as fh:
+        with io.open(guard(root, path), "rb") as fh:
             data = fh.read(_HEADER_MAX_BYTES)
     except OSError as exc:
         return None, u"读不了：%s" % exc
@@ -258,7 +261,7 @@ def _check_one(root, idx, item):
         ))
 
     # 自我声明：改它是白改，得让接手者看得见
-    header, hwhy = read_header(apath)
+    header, hwhy = read_header(apath, root)
     if header is None:
         out.append(finding(
             NAME, UNDETERMINED, u"%s 的头部读不了，自我声明未定" % label,
@@ -378,6 +381,30 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例（D-123 bug 1）：同一份陈旧样本的浅克隆须记未定——浅克隆里两者的提交时间都是边界提交，
+    # 旧实现据此判「不落后」，把 FAIL 翻成 PASS
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = os.path.join(tmp, "src"), os.path.join(tmp, "dst")
+            os.makedirs(src)
+            _repo(src)
+            _commit(src, "docs/map.html", _GOOD, "2026-01-01T00:00:00 +0000")
+            _commit(src, "src/map.json", _SRC, "2026-02-01T00:00:00 +0000")
+            subprocess.run(["git", "clone", "-q", "--depth", "1", "file://" + src, dst],
+                           capture_output=True, timeout=_GIT_TIMEOUT)
+            got = [(f["status"], f["id"]) for f in run({
+                "_root": dst, "derived": [{"artifact": "docs/map.html", "source": "src/map.json",
+                                            "regen": "python3 tools/build_map.py"}]})]
+        ok = (UNDETERMINED, NAME + "/no-commit-time/docs/map.html") in got and \
+            not any(st == PASS and "不落后" in i for st, i in got)
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例：浅克隆下取不到真实提交先后，陈旧与否记未定",
+            evidence=u"实得 %s" % got, why=u"01 §2 N1：浅克隆的提交时间是克隆时刻，判不了先后",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"浅克隆反例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 反例二：派生物提交早于源（陈旧）
     try:

@@ -13,13 +13,14 @@ import os
 import re
 import sys
 import tempfile
+import time
 from urllib.parse import unquote
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, read_text, tracked_files,
+    cfg_get, finding, in_frozen, inside, is_tailored_out, read_text, tracked_files,
     undetermined_from_exception,
 )
 
@@ -29,10 +30,11 @@ STANDARD_REFS = ["01 §3.4 引用", "01 §3.2 docs/INDEX.md", "01 §3.8 跨仓�
 _NL = chr(10)
 _BQ = chr(96)
 
-# [文字](路径) / [文字](路径#锚点) / ![alt](图片)；容许 <> 包裹与行尾 "title"
+# [文字](路径) / [文字](路径#锚点) / ![alt](图片)；容许行尾 "title"。
+# <> 包裹的目标可以含空格与圆括号（CommonMark），单独一支：第 1 组是它，第 2 组是裸写法
 _LINK_RE = re.compile(
     r'\[(?:[^\[\]]|\[[^\[\]]*\])*\]'
-    r'\(\s*<?([^()<>\s]+)>?(?:\s+"[^"]*"|\s+\'[^\']*\')?\s*\)'
+    r'\(\s*(?:<([^<>\n]+)>|([^()<>\s]+))(?:\s+"[^"]*"|\s+\'[^\']*\')?\s*\)'
 )
 
 # 跳过的协议：契约要求跳过 http/https/mailto，另加几个同样不是本地路径的
@@ -41,7 +43,8 @@ _WIN_ABS_RE = re.compile(r'^[A-Za-z]:[\\/]')
 
 _MD_EXT = (".md", ".markdown")
 
-_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$", re.M)
+# 线性：不在正则里剥收尾的 `#`（原写法 `(.+?)[ \t]*#*[ \t]*$` 遇长空白行是平方级），交给 _atx_title
+_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.*)$", re.M)
 _EXPLICIT_ANCHOR_RE = re.compile(r'<a\s+(?:id|name)\s*=\s*["\']([^"\']+)["\']', re.I)
 
 _CJK_RE = re.compile(r'[^\x00-\x7f]')
@@ -62,40 +65,75 @@ def _mask_code(text):
     return text
 
 
-def _slug(heading):
+def _slug(heading, keep_inner_underscore=False):
     """GitHub 风格锚点：去内联标记与标点、小写、空格转连字符。
 
     非 ASCII 字符按 GitHub 的做法保留（\\w 在 Python3 的 re 里含中日韩字符），
     但各平台对中文标题的处理并不一致——所以中文锚点匹配不上时判未定，不判断链。
+    `keep_inner_underscore`：词中的下划线（`my_func`）GitHub 会保留，只有贴着词边界的才是强调标记；
+    两种都算作可用锚点（`_anchors_of`），宁可少报不误报。
     """
     h = heading.strip()
     h = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", h)   # 链接取其文字
     h = re.sub(r"<[^>]+>", "", h)                    # 去内联 HTML
-    h = re.sub(r"[" + _BQ + r"*_~]", "", h)          # 去强调标记
+    if keep_inner_underscore:
+        h = re.sub(r"(?<!\w)_+|_+(?!\w)", "", h)
+        h = re.sub(r"[" + _BQ + r"*~]", "", h)
+    else:
+        h = re.sub(r"[" + _BQ + r"*_~]", "", h)          # 去强调标记
     h = h.lower()
     h = re.sub(r"[^\w\s-]", "", h, flags=re.U)       # 去标点（含全角）
     h = re.sub(r"\s+", "-", h.strip())
     return h
 
 
+def _atx_title(raw):
+    """ATX 标题去掉可选的收尾 `#` 串（前面须有空白，或整行只有 `#`）与首尾空白。"""
+    t = raw.rstrip(" \t")
+    body = t.rstrip("#")
+    if body != t and (not body or body[-1] in " \t"):
+        t = body.rstrip(" \t")
+    return t.strip()
+
+
+_SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
+
+
+def _titles(text):
+    """按出现顺序给出标题文字：ATX（`# x`）与 setext（下一行是 `===` / `---`）两种。"""
+    prev = ""
+    for line in _mask_code(text).split(_NL):
+        m = _HEADING_RE.match(line)
+        if m:
+            yield _atx_title(m.group(2))
+            prev = ""
+            continue
+        if prev.strip() and _SETEXT_RE.match(line) and not prev.startswith((" " * 4, "\t")):
+            yield prev.strip()
+            prev = ""
+            continue
+        prev = line
+
+
 def _anchors_of(text):
     """一份 markdown 里可用的锚点集合。"""
     found = set(_EXPLICIT_ANCHOR_RE.findall(text))
     seen = {}
-    for _, title in _HEADING_RE.findall(_mask_code(text)):
-        s = _slug(title)
-        if not s:
-            continue
-        n = seen.get(s, 0)
-        found.add(s if n == 0 else "%s-%d" % (s, n))
-        seen[s] = n + 1
+    for title in _titles(text):
+        for s in {_slug(title), _slug(title, keep_inner_underscore=True)}:
+            if not s:
+                continue
+            n = seen.get(s, 0)
+            found.add(s if n == 0 else "%s-%d" % (s, n))
+            seen[s] = n + 1
     return found
 
 
 class _Cache(object):
     """目标文件读一次就够：几千份 markdown 上不能对每条链接重读一次文件。"""
 
-    def __init__(self):
+    def __init__(self, root):
+        self.root = root
         self.exists = {}
         self.isdir = {}
         self.anchors = {}
@@ -114,52 +152,13 @@ class _Cache(object):
         if key in self.anchors:
             return self.anchors[key], self.errors.get(key)
         try:
-            text = read_text(abspath)
+            text = read_text(abspath, self.root)
         except OSError as exc:
             self.anchors[key] = None
             self.errors[key] = "%s: %s" % (type(exc).__name__, exc)
             return None, self.errors[key]
         self.anchors[key] = _anchors_of(text)
         return self.anchors[key], None
-
-
-_C_ESCAPES = {"a": 7, "b": 8, "f": 12, "n": 10, "r": 13, "t": 9, "v": 11,
-              "\\": 92, '"': 34}
-
-
-def _unquote_git_path(p):
-    """还原 git ls-files 的 C 风格转义路径。
-
-    core.quotepath 默认开启，含非 ASCII 的路径会被输出成 "docs/\\345\\275\\222/x.md"。
-    不还原就会把本仓库全部中文路径当成不存在的文件——那是假 FAIL。
-    stdlib.tracked_files 不做这层还原，本模块自己做（不改 stdlib）。
-    """
-    if len(p) < 2 or p[0] != '"' or p[-1] != '"':
-        return p
-    body = p[1:-1]
-    out = bytearray()
-    i = 0
-    while i < len(body):
-        ch = body[i]
-        if ch == "\\" and i + 1 < len(body):
-            nxt = body[i + 1]
-            if nxt in _C_ESCAPES:
-                out.append(_C_ESCAPES[nxt])
-                i += 2
-                continue
-            if nxt.isdigit() and i + 4 <= len(body):
-                try:
-                    out.append(int(body[i + 1:i + 4], 8))
-                    i += 4
-                    continue
-                except ValueError:
-                    pass
-            out.extend(nxt.encode("utf-8"))
-            i += 2
-            continue
-        out.extend(ch.encode("utf-8"))
-        i += 1
-    return out.decode("utf-8", "replace")
 
 
 def _markdown_files(cfg):
@@ -175,7 +174,6 @@ def _markdown_files(cfg):
     files, problem = tracked_files(root, ["*.md", "*.markdown"])
     if problem:
         return None, problem
-    files = [_unquote_git_path(f) for f in files]
     return [f for f in files if f.lower().endswith(_MD_EXT)], None
 
 
@@ -197,7 +195,7 @@ def scope(cfg):
             "不检查 HTML 里的链接（<a href=…>、<img src=…>）",
             "围栏代码块与行内代码里的链接被涂白，不算数",
             "不解析引用式链接 [文字][标签] 与裸 URL",
-            "路径里带圆括号的链接、跨行书写的链接匹配不到，因而不计入",
+            "不带 <> 包裹而路径里有圆括号的链接、跨行书写的链接匹配不到，因而不计入",
             "不检查未被 git 跟踪的 markdown（未提交或被 .gitignore 排除的看不见）",
             "不判断锚点指的片段外延到哪（该问题见 templates/文件树与落地路径.md §7 第 5 条）",
         ],
@@ -231,7 +229,7 @@ def _run(cfg):
             why="契约 §1：适用却没执行的检查记未定，不记通过",
         )]
 
-    cache = _Cache()
+    cache = _Cache(root)
     out = []
     merged = {}          # Finding id -> [finding, [行号…], 原始 evidence]
     n_links = 0
@@ -240,7 +238,7 @@ def _run(cfg):
     for rel in files:
         abs_src = os.path.join(root, rel.replace("/", os.sep))
         try:
-            text = read_text(abs_src)
+            text = read_text(abs_src, root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -254,8 +252,8 @@ def _run(cfg):
         for lineno, line in enumerate(masked.split(_NL), 1):
             if "](" not in line:
                 continue
-            for raw in _LINK_RE.findall(line):
-                target = raw.strip()
+            for wrapped, bare in _LINK_RE.findall(line):
+                target = (wrapped or bare).strip()
                 if not target or _SKIP_SCHEME_RE.match(target) or target.startswith("//"):
                     continue
                 n_links += 1
@@ -287,8 +285,37 @@ def _run(cfg):
                                       _anchor_miss(rel, where, target, anchor, rel, frozen_note))
                     continue
 
-                abs_tgt = os.path.normpath(
-                    os.path.join(os.path.dirname(abs_src), path_part.replace("/", os.sep)))
+                root_abs = False
+                if path_part.startswith("/"):
+                    # 仓库根路径：GitHub 按仓根解析，别的渲染器按站点根或主机根——本工具按仓根核，
+                    # 核不到只记未定（契约 §1.1：解析方式是约定）
+                    abs_tgt = os.path.normpath(os.path.join(root, path_part.lstrip("/").replace("/", os.sep)))
+                    root_abs = True
+                else:
+                    abs_tgt = os.path.normpath(
+                        os.path.join(os.path.dirname(abs_src), path_part.replace("/", os.sep)))
+                if not inside(root, abs_tgt):
+                    n_bad += 1
+                    _merge(out, merged, lineno, finding(
+                        NAME, UNDETERMINED, "%s 的链接指向被扫项目之外：%s" % (rel, target),
+                        where=where, kind="outside-root", key=rel + "|" + target,
+                        reason="目标的真实位置不在被扫项目之内；本工具不读、不探测项目之外的路径，"
+                               "它在另一台机器上是否存在也不由本仓决定",
+                        why="01 §3.4 引用：B 链接 A 且可机械核对；项目之外的目标不在本次核对范围",
+                        evidence=frozen_note,
+                    ))
+                    continue
+                if root_abs and not cache.path_kind(abs_tgt)[0]:   # 先过 inside，再探测存在性
+                    n_bad += 1
+                    _merge(out, merged, lineno, finding(
+                        NAME, UNDETERMINED, "%s 的仓根路径链接按仓根找不到：%s" % (rel, target),
+                        where=where, kind="root-abs", key=rel + "|" + target,
+                        reason="以 / 开头的链接各平台解析不一（GitHub 按仓根、静态站按站点根、"
+                               "本地按主机根），按仓根没找到推不出断链",
+                        why="01 §3.4 引用：B 链接 A 且可机械核对",
+                        evidence=frozen_note,
+                    ))
+                    continue
                 exists, isdir = cache.path_kind(abs_tgt)
                 if not exists:
                     n_bad += 1
@@ -440,6 +467,56 @@ def selftest():
                             cjk[0].get("where") if cjk else "（无）",
                             (cjk[0].get("evidence") or "")[:120] if cjk else "（无）"),
                 why="契约 §9：登记行写的是 id，同一件事出成多条会逼着登记也写多行",
+            ))
+            # 反例四（约定，D-123）：词中下划线锚点、setext 标题锚点、仓根 / 路径、<> 包裹含空格的路径
+            # 都按实际渲染认；仓根路径找不到只记未定（解析方式是约定），<> 里的缺文件照判 FAIL
+            os.makedirs(os.path.join(tmp, "sub"), exist_ok=True)
+            w("b.md", "# my_func\n\nSetext 标题行\nSetext Title\n===\n")
+            w("my file.md", "# x\n")
+            w("sub/a.md", "[1](../b.md#my_func) [2](../b.md#setext-title) [3](/b.md) "
+                          "[4](</my file.md>) [5](<../my file.md>) [6](/nope.md) [7](<../no such.md>)\n")
+            res = run({"_root": tmp, "_links_files": ["sub/a.md", "b.md", "my file.md"]})
+            bad = sorted((f["status"], f["title"].split("：", 1)[-1]) for f in res if f["status"] != PASS)
+            want = [(FAIL, "<../no such.md>"), (UNDETERMINED, "/nope.md")]
+            results.append(finding(
+                NAME, PASS if [(st, t.strip("<>").replace("../", "")) for st, t in bad] ==
+                [(st, t.strip("<>").replace("../", "")) for st, t in want] else FAIL,
+                "反例四：下划线锚点、setext 锚点、仓根路径、<> 包裹路径按实际渲染认；仓根找不到记未定",
+                evidence="非通过项 %s；应得 %s" % (bad, want),
+                why="契约 §1.1：约定落空只记未定；01 §3.4 引用核对不得误报",
+            ))
+
+            # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；
+            # 标题行里一长串空白不许把锚点计算拖成平方级
+            with tempfile.TemporaryDirectory() as outside:
+                secret = os.path.join(outside, "secret.md")
+                with io.open(secret, "w", encoding="utf-8") as fh:
+                    fh.write("# TOPSECRET\n")
+                os.symlink(secret, os.path.join(tmp, "c.md"))
+                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x)\n")
+                w("b.md", "# a" + " " * 3000 + "x\n")   # 旧正则下这一行约 12 秒
+                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x) [根](/../x/y.md)\n")
+                cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md"]}
+                probed, real_exists = [], os.path.exists
+                os.path.exists = lambda p: (probed.append(p), real_exists(p))[1]
+                t0 = time.time()
+                try:
+                    res = run(cfg3)
+                finally:
+                    os.path.exists = real_exists
+                took = time.time() - t0
+                # 仓根路径 `/../x` 字面就出了项目：先判越界，不探测存在性（B4）
+                took += 100 * any(not os.path.abspath(p).startswith(os.path.abspath(tmp) + os.sep)
+                                  for p in probed)
+            kinds = sorted(set(f["id"].split("/")[1] for f in res if f["status"] != PASS))
+            leaked = any("TOPSECRET" in (f.get("evidence") or "") + (f.get("title") or "") for f in res)
+            ok = (FAIL not in [f["status"] for f in res] and "outside-root" in kinds
+                  and not leaked and took < 5)
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白标题线性",
+                evidence="非通过项 kind=%s；泄露内容=%s；耗时 %.2fs" % (kinds, leaked, took),
+                why="D-123 安全 2／3：不读项目之外的文件；一个文件不许拖死整次检查",
             ))
     except Exception as exc:  # noqa: BLE001
         results.append(undetermined_from_exception(NAME, exc, "跑自检"))

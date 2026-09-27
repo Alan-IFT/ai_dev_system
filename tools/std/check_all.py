@@ -20,6 +20,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -109,9 +110,10 @@ def identity_line(ident):
         flag = "工作区干净"
     else:
         flag = "工作区状态未知：%s" % ident.get("dirty_detail")
+    head = str(ident.get("git_head") or "")
+    head = head[:12] if re.fullmatch(r"[0-9a-f]{7,64}", head) else "提交不可知（%s）" % (head or "未知")
     return ("检查器身份 · sha256:%s（%d 个文件，含 CONTRACT.md）· git %s · %s"
-            % (ident["digest"][:16], len(ident["files"]),
-               (ident.get("git_head") or "未知")[:12], flag))
+            % (ident["digest"][:16], len(ident["files"]), head, flag))
 
 
 def identity_block(ident):
@@ -162,7 +164,7 @@ def discover():
         mod = importlib.util.module_from_spec(spec)
         try:
             spec.loader.exec_module(mod)
-        except Exception as exc:  # 加载失败也是未定，不是没有这项检查
+        except (Exception, SystemExit) as exc:  # 加载失败也是未定，不是没有这项检查
             mods.append((fn[:-3], None, exc))
             continue
         mods.append((getattr(mod, "NAME", fn[:-3]), mod, None))
@@ -193,8 +195,16 @@ def _gated_by_selftest(name, mod):
         )], []
     try:
         results = mod.selftest()
-    except Exception as exc:
+    except (Exception, SystemExit) as exc:   # 检查器里的 sys.exit 也是崩溃，不许带走整个进程
         return False, [undetermined_from_exception(name, exc, "跑自检")], []
+    # 契约 §3：反例与正例至少各一条。空自检（或只有一条）照样放行，等于没有自检（D-123）
+    if not isinstance(results, list) or len(results) < 2 or not all(isinstance(r, dict) for r in results):
+        return False, [finding(
+            name, UNDETERMINED, "检查器自检不足反例与正例各一条，其对本仓库的结论作废",
+            reason="selftest() 返回 %s；契约 §3 要求至少一条反例、一条正例" % (
+                "%d 条" % len(results) if isinstance(results, list) else type(results).__name__),
+            why="契约 §3 / 01 §5.6：守卫存在不等于守卫在执行",
+        )], results if isinstance(results, list) else []
     bad = [r for r in results if r.get("status") != PASS]
     if bad:
         return False, [finding(
@@ -203,6 +213,38 @@ def _gated_by_selftest(name, mod):
             why="契约 §3 / 01 §5.6：检查器故障按未定处置，不按通过记",
         )], results
     return True, [], results
+
+
+def _tailoring_unknown(cfg, mods):
+    """`tailoring[].check` 写了不存在的名字（如 `derived`，实名 `derived-artifacts`）时裁剪不生效，
+    检查照跑——项目以为关掉了，其实没有。每个认不出的名字记一条未定并列出可写的名字。"""
+    valid = set(n for n, m, _e in mods if m is not None)
+    for n, m, _e in mods:
+        for items in (getattr(m, "_TIER_ITEMS", None) or {}).values():
+            for item in items:
+                valid.update((item[0], "%s:%s" % (n, item[0])))
+    out = []
+    for item in cfg.get("tailoring") or []:
+        name = str(item.get("check") or "").strip() if isinstance(item, dict) else ""
+        if name and name not in valid:
+            out.append(finding(
+                "tailoring", UNDETERMINED, "裁剪项 check: %s 不对应任何检查器或工件，裁剪没有生效" % name,
+                kind="unknown-check", key=name,
+                reason="可写的名字：检查器短名 %s，或 layout:<role>／<role>" % "、".join(
+                    sorted(n for n, m, _e in mods if m is not None)),
+                why="契约 §5 tailoring：写错名字的裁剪静默失效，项目以为不适用的检查仍在跑、结论仍在计"))
+    return out
+
+
+def _run_one(name, mod, cfg):
+    """过自检闸门再跑一个检查器。检查器里的异常与 sys.exit 一律转未定（契约 §1），不带走整个进程。"""
+    ok, gate, _results = _gated_by_selftest(name, mod)
+    if not ok:
+        return gate
+    try:
+        return list(mod.run(cfg) or [])
+    except (Exception, SystemExit) as exc:
+        return [undetermined_from_exception(name, exc, "跑 %s" % name)]
 
 
 def _contract_examples_selftest():
@@ -232,7 +274,7 @@ def _contract_examples_selftest():
     for i, block in enumerate(blocks, 1):
         try:
             parse_yaml_subset(block)
-        except Exception as exc:
+        except (Exception, SystemExit) as exc:
             out.append(finding(
                 "contract-examples", FAIL,
                 "CONTRACT.md 第 %d 段 yaml 示例本工具自己解析不了" % i,
@@ -650,14 +692,15 @@ def _shared_fact_selftest(mods):
             evidence="实得 (路径, layout 命中, drift 命中) %r；应得 %r" % (got_b, want)))
 
         # C：未配 layout.docs_root。四个检查器按同一个缺省（stdlib.DEFAULT_DOCS_ROOT）读，
-        #    不再有的兜底、有的记「未配置文档根目录」；freshness 照判 docs/ 下的文档并注明用了默认。
+        #    不再有的兜底、有的记「未配置文档根目录」；freshness 照扫 docs/ 下的文档并注明用了默认。
         with tempfile.TemporaryDirectory() as tmp:
             _repo(tmp, {"CLAUDE.md": u"# 入口\n", "docs/architecture/a.md": u"# 架构\n"})
             cfg = {"_root": tmp, "tier": "L1", "layout": {"entry": ["CLAUDE.md"]}}
             fs = [f for n in need for f in by[n].run(cfg)]
             unset = [f["id"] for f in fs if u"未配置文档根目录" in f["title"]]
-            judged = [f["id"] for f in fs if f["check"] == "freshness" and f["status"] == FAIL
-                      and f["where"].startswith("docs/architecture/a.md")
+            # 未配 metadata_required：目录名约定命中只记未定（契约 §1.1），汇在 undated-by-convention
+            judged = [f["id"] for f in fs if f["id"] == "freshness/undated-by-convention"
+                      and u"docs/architecture/a.md" in (f["evidence"] or "")
                       and u"未配 layout.docs_root" in (f["evidence"] or "")]
         out.append(finding(
             "shared-fact", PASS if not unset and len(judged) == 1 else FAIL,
@@ -818,10 +861,342 @@ def _git_env_selftest():
                              "其 config、HEAD、refs 共 %d 个文件未变" % len(after))]
 
 
+def _stdlib_selftest():
+    """stdlib 的配置读取与路径护栏：每条样本都来自一次实测的误读或越界（D-123）。
+
+    逐条断言，失败时证据写明哪一条；样本写在临时目录里，不碰真实仓库。
+    """
+    import tempfile
+    import stdlib as sl
+
+    def load(tmp, body, name="project.yaml", raw=None):
+        gov = os.path.join(tmp, "governance")
+        os.makedirs(gov, exist_ok=True)
+        with io.open(os.path.join(gov, name), "wb") as fh:
+            fh.write(raw if raw is not None else body.encode("utf-8"))
+        return sl.load_config(tmp)
+
+    cases = []
+    try:
+        with tempfile.TemporaryDirectory() as base:
+            def fresh(tag):
+                d = os.path.join(base, tag)
+                os.makedirs(d)
+                return d
+            # 安全 2：配置是指向项目之外的符号链接 → 不读、不回显内容
+            out_dir, proj = fresh("outside"), fresh("p1")
+            secret = os.path.join(out_dir, "secret.txt")
+            with io.open(secret, "w", encoding="utf-8") as fh:
+                fh.write(u"tier: TOPSECRET\n")   # 合法配置：护栏失效时会被当成项目配置读进来
+            os.makedirs(os.path.join(proj, "governance"))
+            os.symlink(secret, os.path.join(proj, "governance", "project.yaml"))
+            cfg, prob = sl.load_config(proj)
+            cases.append(("配置经符号链接指向项目之外应拒读且不回显内容",
+                          bool(prob) and "TOPSECRET" not in prob and not cfg, prob))
+            # 安全 2：配置里的路径带 .. 或绝对路径 → 整份拒收
+            for tag, body in (("p2", u"tier: L1\nlayout:\n  entry:\n    - ../outside/secret.md\n"),
+                              ("p3", u"tier: L1\nlayout:\n  artifacts:\n    status: /etc/passwd\n"),
+                              ("p4", u"tier: L1\nmetadata_required:\n  - docs/../../x\n")):
+                cfg, prob = load(fresh(tag), body)
+                cases.append(("配置路径含 .. 或绝对路径应拒收（%s）" % tag, bool(prob) and not cfg, prob))
+            # 安全 2：不回显解析失败行的内容
+            cfg, prob = load(fresh("p5"), u"tier: L1\nTOPSECRET-LINE\n")
+            cases.append(("解析失败的报错不回显行内容", bool(prob) and "TOPSECRET" not in prob, prob))
+            # 安全 4：深嵌套不崩，记未定
+            deep = u"".join(u"%sk%d:\n" % (u"  " * i, i) for i in range(1200)) + u"  " * 1200 + u"v: 1\n"
+            try:
+                cfg, prob = load(fresh("p6"), deep)
+                cases.append(("1200 层嵌套应报解析失败（未定），不抛 RecursionError", bool(prob), prob))
+            except RecursionError as exc:
+                cases.append(("1200 层嵌套应报解析失败（未定），不抛 RecursionError", False, repr(exc)))
+            # 安全 2：read_text 给了 root 就不跟随指向项目之外的符号链接
+            proj = fresh("p7")
+            os.symlink(secret, os.path.join(proj, "a.md"))
+            try:
+                sl.read_text(os.path.join(proj, "a.md"), proj)
+                cases.append(("read_text 不跟随指向项目之外的符号链接", False, "读到了"))
+            except sl.OutsideRoot as exc:
+                cases.append(("read_text 不跟随指向项目之外的符号链接", "TOPSECRET" not in str(exc), str(exc)))
+            # bug 6：GBK 编码的配置不崩，记未定
+            cfg, prob = load(fresh("p8"), None, raw=u"tier: L1\nlayout:\n  docs_root: 文档\n".encode("gbk"))
+            cases.append(("非 UTF-8 编码的配置应报未定，不抛 UnicodeDecodeError", bool(prob), prob))
+            # bug 6：检查器里的 sys.exit 不带走进程、不静默退 0：闸门与运行两处都转未定
+            class _Exits(object):
+                NAME = "exits"
+
+                def __init__(self, where):
+                    self.where = where
+
+                def selftest(self):
+                    if self.where == "selftest":
+                        sys.exit(0)
+                    return [finding("exits", PASS, "反例"), finding("exits", PASS, "正例")]
+
+                def run(self, cfg):
+                    sys.exit(0)
+            got = []
+            for where in ("selftest", "run"):
+                try:
+                    res = _run_one("exits", _Exits(where), {})
+                    got.append([f["status"] for f in res])
+                except BaseException as exc:  # noqa: BLE001
+                    got.append(type(exc).__name__)
+            class _Empty(object):
+                NAME = "empty"
+
+                def __init__(self, n):
+                    self.n = n
+
+                def selftest(self):
+                    return [finding("empty", PASS, "ok")] * self.n
+
+                def run(self, cfg):
+                    return [finding("empty", PASS, "跑了")]
+            gate = [[f["status"] for f in _run_one("empty", _Empty(n), {})] for n in (0, 1, 2)]
+            cases.append(("自检闸门：返回 0 条或 1 条的自检不放行，2 条全过才放行",
+                          gate == [[UNDETERMINED], [UNDETERMINED], [PASS]], gate))
+            cases.append(("检查器 sys.exit(0) 在自检与运行两处都应转未定",
+                          got == [[UNDETERMINED], [UNDETERMINED]], got))
+            # bug 6：非 UTF-8 文件名进了发现时，--json 写到严格 UTF-8 的输出不崩
+            import subprocess
+            proj = fresh("p9")
+            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+                fh.write(_SMOKE_ENTRY)
+            with open(os.path.join(os.fsencode(proj), b"\xff\xfe.md"), "wb") as fh:
+                fh.write(b"# x\n\n[a](nope.md)\n")
+            subprocess.run(["git", "-C", proj, "-c", "init.defaultBranch=main", "init", "-q"],
+                           capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            cfg_p = os.path.join(base, "p9.yaml")
+            with io.open(cfg_p, "w", encoding="utf-8") as fh:
+                fh.write(_SMOKE_CONFIG)
+            r = subprocess.run([sys.executable, os.path.join(HERE, "check_all.py"), proj, "--config", cfg_p,
+                                "--json"], capture_output=True, timeout=300,
+                               env=dict(os.environ, PYTHONIOENCODING="utf-8:strict"))
+            try:
+                got = json.loads(r.stdout.decode("utf-8", "replace"))
+                parsed = isinstance(got, list) and not any(
+                    u"检查器自身出错" in (f.get("title") or "") for f in got)
+            except ValueError:
+                parsed = False
+            cases.append(("非 UTF-8 文件名时各检查器不崩、--json 不崩且输出可解析",
+                          parsed and r.returncode in (0, 1, 2),
+                          "退出码 %d；%s" % (r.returncode, (r.stderr or b"").decode("utf-8", "replace")[-160:])))
+            # bug 7：BOM 不进首键
+            cfg, prob = load(fresh("p10"), None, raw=u"\ufefftier: L1\n".encode("utf-8"))
+            cases.append(("带 BOM 的配置首键读作 tier", cfg.get("tier") == "L1" and not prob, cfg or prob))
+            # bug 8：YAML 子集不静默误读——能对的读对，读不对的拒收并给行号
+            ys = sl.parse_yaml_subset
+            good = [(u"a:\n  - \"a: b\"\n  - https://x\n", {"a": ["a: b", "https://x"]}),
+                    (u"\"tier\": L1\n", {"tier": "L1"}),
+                    (u"reason: don't do it # 注释\n", {"reason": "don't do it"}),
+                    (u"x: \"a # b\" # c\n", {"x": "a # b"})]
+            for text, want in good:
+                try:
+                    got = ys(text)
+                except sl.ConfigError as exc:
+                    got = "拒收：%s" % exc
+                cases.append(("YAML 子集读对 %r" % text[:24], got == want, got))
+            for text in (u"a:\n  - name: x\n    path: .\n    path: y\n", u"---\ntier: L1\n"):
+                try:
+                    got = ys(text)
+                    ok = False
+                except sl.ConfigError as exc:
+                    got, ok = str(exc), u"第 " in str(exc)
+                cases.append(("YAML 子集对歧义写法拒收并给行号 %r" % text[:24], ok, got))
+            # B4：配置是指向项目之外（且不存在）的软链接 → 先判真实位置，不去探测目标在不在
+            proj = fresh("p14")
+            os.makedirs(os.path.join(proj, "governance"))
+            os.symlink(os.path.join(out_dir, "nope.yaml"), os.path.join(proj, "governance", "project.yaml"))
+            cfg, prob = sl.load_config(proj)
+            cases.append(("配置软链到项目之外且目标不存在：报越界，不报「未找到」（没探测目标）",
+                          bool(prob) and u"之外" in prob, prob))
+            # B4：例外登记册是指向项目之外的软链接 → 不读、不回显，记一条问题
+            proj = fresh("p15")
+            os.makedirs(os.path.join(proj, "governance"))
+            os.symlink(secret, os.path.join(proj, "governance", "exceptions.md"))
+            rows, probs, _src, _own = sl.load_exceptions(os.path.join(proj, "governance"), proj)
+            cases.append(("例外登记册软链到项目之外：不读、不回显内容",
+                          not rows and probs and not any("TOPSECRET" in x for x in probs)
+                          and any(u"之外" in x for x in probs), probs))
+            # 裁定 6：拒收信息带行号并指明不支持的写法
+            msgs = []
+            for text, want in ((u"---\ntier: L1\n", u"文档分隔符"), (u"tier:L1\n", u"冒号后没有空格"),
+                               (u"a:\n- x\n", u"列表项与它的键同列"),
+                               (u"a:\n  - key:\n", u"后面没有值")):
+                try:
+                    ys(text)
+                    msgs.append((text, None))
+                except sl.ConfigError as exc:
+                    msgs.append((text, str(exc)))
+                    if not (u"第 " in str(exc) and want in str(exc)):
+                        msgs[-1] = (text, "缺行号或写法：" + str(exc))
+            cases.append(("YAML 子集拒收信息带行号并指明写法",
+                          all(m and not m.startswith("缺") for _t, m in msgs), msgs))
+            # 新增：duplicate_* 阈值写错是配置错误（带行号、整份拒收），不静默用默认
+            for tag, body in (("p11", u"tier: L1\nbudgets:\n  duplicate_min_lines: 1\n"),
+                              ("p12", u"tier: L1\nbudgets:\n  duplicate_min_chars: yes\n")):
+                cfg, prob = load(fresh(tag), body)
+                cases.append(("duplicate_* 阈值写错整份拒收并给行号（%s）" % tag,
+                              not cfg and bool(prob) and u"第 3 行" in prob, prob))
+            cfg, prob = load(fresh("p13"), u"tier: L1\nbudgets:\n  duplicate_min_lines: 4\n")
+            cases.append(("duplicate_* 阈值合法照常读", not prob, prob))
+            # 裁定 2：字面就在项目之外的路径不碰文件系统（realpath 本身就是探测）
+            seen = []
+            real = sl.os.path.realpath
+            sl.os.path.realpath = lambda p, *a, **k: (seen.append(p), real(p, *a, **k))[1]
+            try:
+                r_out = sl.inside(base, os.path.join(base, "..", "elsewhere", "x.md"))
+            finally:
+                sl.os.path.realpath = real
+            cases.append(("字面在项目之外的路径不做 realpath 探测", r_out is False and not seen, seen))
+            # bug 4：字段名两侧的加粗与反引号
+            cases.append(("**状态**：done 读得出状态",
+                          sl.item_status(u"# x\n\n**状态**：done\n") == "done"
+                          and sl.item_status(u"`status`: in_progress\n") == "in_progress",
+                          sl.item_status(u"# x\n\n**状态**：done\n")))
+            # bug 12：关闭态只认整格等于或以关闭词开头
+            closed = [sl._ex_closed(x) for x in (u"关闭", u"已关闭（09-01）", u"**done**",
+                                                 u"**已过期，已处理**（06-28 对账）", u"没关闭",
+                                                 u"not yet closed", u"open (to be closed)", u"待关闭")]
+            cases.append(("例外登记的关闭态只认段首：没关闭/not yet closed/open (to be closed) 不算关闭",
+                          closed == [True, True, True, True, False, False, False, False], closed))
+            # 低：身份行在 git 不可用时不写成「git git 退出码」
+            line = identity_line({"digest": "0" * 64, "files": [], "git_head": "git 退出码 128",
+                                  "dirty": None, "dirty_detail": "git 退出码 128"})
+            cases.append(("身份行 git 不可用时措辞不重复", "git git" not in line, line))
+            # 低：裁剪写成不存在的检查器名要报出来
+            mods = discover()
+            unk = _tailoring_unknown({"tailoring": [{"check": "derived", "applicable": False},
+                                                    {"check": "derived-artifacts", "applicable": False},
+                                                    {"check": "layout:playbook", "applicable": False}]}, mods)
+            cases.append(("裁剪写成不存在的名字（derived）记未定，写对的不报",
+                          [f["id"] for f in unk] == ["tailoring/unknown-check/derived"], [f["id"] for f in unk]))
+    except Exception as exc:  # noqa: BLE001
+        return [undetermined_from_exception("stdlib", exc, "跑 stdlib 自检")]
+    return [finding("stdlib", PASS if ok else FAIL, "stdlib：" + title,
+                    why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
+            for title, ok, ev in cases]
+
+
+def _hostile_git_config_selftest():
+    """被扫仓 .git/config 里的外部程序不得被本工具执行（stdlib.GIT_HARDEN_CONFIG、filter_env）。
+
+    夹具仓的配置写上 core.fsmonitor、blame 会走的 textconv、两个 clean 过滤器（其一名字带 `=`，
+    `-c k=v` 会把它切错）、diff.external，以及 log.showSignature + gpg.program + 一个签名提交
+    （freshness 退到提交时间时的 `git log` 会验签）；每个都 touch 一个标记文件。工作区文件带会被
+    drift 拿去 blame 的日期、带一件没有转换时间戳的进行中工作项，保证这些 git 调用真的发生。
+    另两件：内嵌目录是子模块时 `git status` 不递归进去跑子模块自己的过滤器；读不出过滤器名
+    （配置坏了）时 filter_env 返回 None、blame 记未定而不是照常执行。
+    """
+    import subprocess
+    import tempfile
+    import stdlib as sl
+
+    title = "被扫仓配置里的外部程序不得被执行"
+    why = "扫描不可信目录时，其 .git/config 可让 git 执行任意命令（fsmonitor、textconv、过滤器、gpg）"
+    git_id = ["-c", "init.defaultBranch=main", "-c", "user.email=std@example.invalid",
+              "-c", "user.name=std", "-c", "commit.gpgsign=false", "-c", "protocol.file.allow=always"]
+
+    def git(repo, *args, **kw):
+        r = subprocess.run(["git", "-C", repo] + git_id + list(args), capture_output=True, timeout=60, **kw)
+        if r.returncode != 0:
+            raise RuntimeError("git %s 退出码 %d：%s" % (args[0], r.returncode, r.stderr[-200:]))
+        return r.stdout.decode("utf-8", "replace").strip()
+
+    def put(path, body):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(body)
+
+    mods = {n: m for n, m, _e in discover() if m is not None}
+    notes = []
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            mark = os.path.join(tmp, "PWNED_")
+            proj, cfg_path = os.path.join(tmp, "proj"), os.path.join(tmp, "project.yaml")
+            wi = os.path.join(proj, "docs", "state", "work", "WI-001-x.md")
+            for path, body in ((os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY),
+                               (os.path.join(proj, "docs", "a.md"), u"# a\n\n2099-01-01 已完成 某事\n"),
+                               (os.path.join(proj, "docs", "b.md"), u"# b\n\n2099-01-02 已完成 某事\n"),
+                               (wi, u"# WI-001\n\n状态：in_progress\n"),
+                               (os.path.join(proj, ".gitattributes"),
+                                u"*.md diff=evil filter=evil\ndocs/b.md filter=a=b\n"),
+                               (cfg_path, _SMOKE_CONFIG)):
+                put(path, body)
+            git(proj, "init", "-q")
+            git(proj, "add", "-A")
+            git(proj, "commit", "-q", "-m", "s")
+            # 签名提交：不依赖 gpg，直接写一个带 gpgsig 头的提交对象，再把分支指过去
+            put(wi, u"# WI-001\n\n状态：in_progress\n\n补一句。\n")
+            git(proj, "add", "-A")
+            raw = (u"tree %s\nparent %s\nauthor a <a@b> 1700000000 +0000\ncommitter a <a@b> 1700000000 +0000\n"
+                   u"gpgsig -----BEGIN PGP SIGNATURE-----\n \n abc\n -----END PGP SIGNATURE-----\n\nsigned\n"
+                   % (git(proj, "write-tree"), git(proj, "rev-parse", "HEAD")))
+            sha = git(proj, "hash-object", "-t", "commit", "-w", "--stdin", input=raw.encode("utf-8"))
+            with io.open(os.path.join(proj, ".git", "refs", "heads", "main"), "w") as fh:
+                fh.write(sha + "\n")
+            gpg = os.path.join(tmp, "gpg.sh")
+            put(gpg, u"#!/bin/sh\ntouch %sgpg\nexit 1\n" % mark)
+            os.chmod(gpg, 0o755)
+            for k, v in (("core.fsmonitor", "touch %sfsmonitor; false" % mark),
+                         ("diff.evil.textconv", "sh -c 'touch %stextconv; cat \"$1\"' -" % mark),
+                         ("filter.evil.clean", "sh -c 'touch %sclean; cat'" % mark),
+                         ("filter.a=b.clean", "sh -c 'touch %sclean_eq; cat'" % mark),
+                         ("diff.external", "touch %sexternal" % mark),
+                         ("log.showSignature", "true"), ("gpg.program", gpg)):
+                git(proj, "config", k, v)
+            for rel in ("docs/a.md", "docs/b.md"):
+                os.utime(os.path.join(proj, rel))   # stat 失效，逼 git 重读工作区
+            findings, _cfg = run_all(proj, selftest_only=False, config_path=cfg_path)
+            ids = set(f.get("id") for f in findings)
+            if not {"drift/future-date/docs/a.md｜2099-01-01", "drift/future-date/docs/b.md｜2099-01-02"} <= ids:
+                notes.append("夹具没走到 git blame")
+            if not any(f.get("where") == "docs/state/work/WI-001-x.md" and f["check"] == "freshness"
+                       and f["status"] in (PASS, FAIL) for f in findings):
+                notes.append("夹具没走到 freshness 的 git log")
+
+            # 子模块：内嵌目录 .std 是子模块，子模块自己配了过滤器
+            sub, par = os.path.join(tmp, "sub"), os.path.join(tmp, "par")
+            put(os.path.join(sub, "x.md"), u"x\n")
+            put(os.path.join(sub, ".gitattributes"), u"*.md filter=subf\n")
+            put(os.path.join(par, "a.md"), u"a\n")
+            for repo in (sub, par):
+                git(repo, "init", "-q")
+                git(repo, "add", "-A")
+                git(repo, "commit", "-q", "-m", "s")
+            git(par, "submodule", "add", "-q", sub, ".std")
+            git(par, "commit", "-q", "-m", "sub")
+            git(os.path.join(par, ".std"), "config", "filter.subf.clean", "sh -c 'touch %ssubmodule; cat'" % mark)
+            os.utime(os.path.join(par, ".std", "x.md"))
+            mods["adoption"]._embedded_readonly(par, ".std")
+
+            # 配置坏了：列不出过滤器名 → None，blame 记未定，不照常执行
+            bad = os.path.join(tmp, "bad")
+            git(bad if os.path.isdir(bad) else tmp, "init", "-q", bad)
+            with io.open(os.path.join(bad, ".git", "config"), "a") as fh:
+                fh.write(u"[broken\n")
+            env_bad = sl.filter_env(bad)
+            blamed = mods["drift"]._blame(bad, "a.md")
+            if env_bad is not None or blamed[0] is not None:
+                notes.append("配置坏了时 filter_env=%r、blame=%r，应为 None 与未定" % (type(env_bad).__name__, blamed[1]))
+            hits = sorted(f[len("PWNED_"):] for f in os.listdir(tmp) if f.startswith("PWNED_"))
+    except Exception as exc:  # noqa: BLE001
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="跑不起来：%s: %s" % (type(exc).__name__, exc))]
+    if hits or notes:
+        return [finding("shared-fact", FAIL, title, why=why,
+                        evidence="被执行：%s；%s" % ("、".join(hits) or "无", "；".join(notes) or "断言全过"))]
+    return [finding("shared-fact", PASS, title, why=why,
+                    evidence="fsmonitor、textconv、两个 clean 过滤器（含名字带 = 的）、diff.external、gpg、"
+                             "子模块过滤器均未执行；配置坏了时 blame 记未定")]
+
+
 def run_all(root, selftest_only=False, config_path=None):
     """跑全部检查。返回 (findings, cfg)——配置只在这里加载一次，
     渲染覆盖边界时由调用方把 cfg 传回去，不再各自重新加载（重新加载会
     在配置读不到时打出一整屏"未配置"的假边界）。"""
+    scrub_git_env()  # 幂等；供不经 main 直接调 run_all 的调用方（见 stdlib.GIT_HARDEN_CONFIG）
     findings = []
     # 契约 §8：扫描前后各取一次身份，期间检查器自己被改过就作废重跑。
     ident_before = tool_identity()
@@ -841,6 +1216,8 @@ def run_all(root, selftest_only=False, config_path=None):
         findings.extend(_shared_fact_selftest(mods))
         findings.extend(_embedded_readonly_selftest(mods))
         findings.extend(_git_env_selftest())
+        findings.extend(_hostile_git_config_selftest())
+        findings.extend(_stdlib_selftest())
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))
@@ -859,20 +1236,12 @@ def run_all(root, selftest_only=False, config_path=None):
         ))
         return _sealed(findings, ident_before), None
 
+    findings.extend(_tailoring_unknown(cfg, mods))
     for name, mod, err in mods:
         if err is not None:
             findings.append(undetermined_from_exception(name, err, "加载检查器"))
             continue
-        ok, gate, _results = _gated_by_selftest(name, mod)
-        if not ok:
-            findings.extend(gate)
-            continue
-        try:
-            res = mod.run(cfg)
-        except Exception as exc:
-            findings.append(undetermined_from_exception(name, exc, "跑 %s" % name))
-            continue
-        findings.extend(res or [])
+        findings.extend(_run_one(name, mod, cfg))
     _join_exceptions(findings, cfg)
     return _sealed(findings, ident_before), cfg
 
@@ -911,7 +1280,7 @@ def _join_exceptions(findings, cfg):
         cdir = _config_dir(cfg)
         if cdir is None:
             return info
-        rows, problems, src, own = load_exceptions(cdir)
+        rows, problems, src, own = load_exceptions(cdir, cfg.get("_root"))
     except Exception as exc:  # noqa: BLE001 —— 读登记册出错也是未定，不静默当成没有登记
         findings.append(undetermined_from_exception(EXCEPTION_CHECK, exc, "读例外登记"))
         return info
@@ -1039,7 +1408,7 @@ def scopes(cfg):
             continue
         try:
             out[name] = mod.scope(cfg)
-        except Exception as exc:
+        except (Exception, SystemExit) as exc:
             out[name] = {"covered": [], "not_covered": ["scope() 出错：%s" % exc]}
     return out
 
@@ -1164,6 +1533,15 @@ def render(findings, root, cfg=None, show_scope=True):
     return "\n".join(buf)
 
 
+def _emit(text):
+    """写到 stdout。非 UTF-8 文件名会带进代理字符，终端或管道编码不收时按 UTF-8 替换写出，不崩。"""
+    try:
+        sys.stdout.write(text + "\n")
+    except UnicodeEncodeError:
+        sys.stdout.flush()
+        sys.stdout.buffer.write((text + "\n").encode("utf-8", "replace"))
+
+
 def main(argv=None):
     scrub_git_env()  # 先于任何 git 子进程，见 stdlib.GIT_LOCAL_ENV
     ap = argparse.ArgumentParser(description="按《项目管理标准》做机械检查")
@@ -1178,19 +1556,16 @@ def main(argv=None):
     )
     args = ap.parse_args(argv)
 
-    findings, cfg = run_all(args.root, selftest_only=args.selftest,
-                            config_path=args.config)
-
-    if args.json:
-        sys.stdout.write(json.dumps(findings, ensure_ascii=False, indent=2))
-        sys.stdout.write("\n")
-    else:
-        text = render(findings, args.root, cfg,
-                      show_scope=not args.no_scope and not args.selftest)
-        try:
-            sys.stdout.write(text + "\n")
-        except UnicodeEncodeError:
-            sys.stdout.buffer.write((text + "\n").encode("utf-8", "replace"))
+    try:
+        findings, cfg = run_all(args.root, selftest_only=args.selftest,
+                                config_path=args.config)
+        text = (json.dumps(findings, ensure_ascii=False, indent=2) if args.json
+                else render(findings, args.root, cfg,
+                            show_scope=not args.no_scope and not args.selftest))
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 —— 契约 §1：崩溃记未定，退出 2，且给报告
+        _emit("check_all 自身崩溃，本次没有结论（记未定，退出码 2）：%s: %s" % (type(exc).__name__, exc))
+        return 2
+    _emit(text)
 
     if any(f["status"] == FAIL for f in findings):
         return 1

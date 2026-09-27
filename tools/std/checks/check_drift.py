@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, docs_root_of, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
+    cfg_get, docs_root_of, filter_env, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
     rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
 )
@@ -82,11 +82,11 @@ _WI_RE = re.compile(r"\bWI-\d{3,}\b")
 _WI_FIELD_RE = re.compile(r"^work_item_id[:：]\s*(WI-\d{3,})\b")
 _ADR_RE = re.compile(r"ADR-\d+")
 _ADR_FILE_RE = re.compile(r"^(ADR-\d+)")
-_BLAME_HEAD = re.compile(r"^([0-9a-f]{40})\s+(\d+)\s+(\d+)(?:\s+(\d+))?$")
+# SHA-1 仓行头 40 位、SHA-256 仓 64 位
+_BLAME_HEAD = re.compile(r"^([0-9a-f]{40}(?:[0-9a-f]{24})?)\s+(\d+)\s+(\d+)(?:\s+(\d+))?$")
 # CommonMark 围栏：同一字符连续 3 个以上；闭合须同字符、不短于开围栏、其后只有空白。
 _FENCE_RE = re.compile(u"^(`{3,}|~{3,})(.*)$")
 _MD_LINK_RE = re.compile(r"\]\(([^)]+)\)")
-_ZERO_SHA = "0" * 40
 
 
 # --------------------------------------------------------------------------
@@ -103,10 +103,10 @@ def _cap(items):
     return u"、".join(shown) + more
 
 
-def _git(root, args, timeout=120):
+def _git(root, args, timeout=120, env=None):
     """返回 (退出码, stdout 文本, 错误串)。跑不起来时退出码为 None。"""
     try:
-        out = subprocess.run(["git", "-C", root] + list(args), capture_output=True, timeout=timeout)
+        out = subprocess.run(["git", "-C", root] + list(args), capture_output=True, timeout=timeout, env=env)
     except (OSError, subprocess.SubprocessError) as exc:
         return None, "", "跑不了 git %s：%s" % (args[0], exc)
     text = (out.stdout or b"").decode("utf-8", "replace")
@@ -131,7 +131,7 @@ def _latest_day(epoch):
 def _candidates(text):
     """返回 [(行号, 日期字面量)]。左窗口排除计划位，右窗口要求动作词。"""
     out = []
-    for n, line in enumerate(text.splitlines(), 1):
+    for n, line in enumerate(text.split("\n"), 1):   # 只按 \n 切：git 的行号不认 U+2028、\x0c
         for m in _DATE_RE.finditer(line):
             left = line[max(0, m.start() - _PLAN_WINDOW):m.start()]
             if any(w in left for w in _PLAN_WORDS):
@@ -147,13 +147,16 @@ def _blame(root, rel):
     porcelain 的 `committer-time` **只在一个 commit 首次出现时输出**，
     后续行头只有 sha。不先建 commit→时间缓存再按行头摊开，94% 的行会读成 None。
     """
-    code, text, err = _git(root, ["blame", "-p", "--", rel])
+    env = filter_env(root)
+    if env is None:
+        return None, u"列不出被扫仓配置的过滤器（git config 失败或超时），不在未压住过滤器时读工作区"
+    code, text, err = _git(root, ["blame", "-p", "--no-textconv", "--", rel], env=env)
     if code is None:
         return None, err
     if code != 0:
         return None, u"git blame 退出码 %d：%s" % (code, err)
     times, lines, cur = {}, {}, None
-    for raw in text.splitlines():
+    for raw in text.split("\n"):
         m = _BLAME_HEAD.match(raw)
         if m:
             cur = m.group(1)
@@ -167,7 +170,7 @@ def _blame(root, rel):
             times[cur] = raw.split(" ", 1)[1].strip()
     out = {}
     for lineno, sha in lines.items():
-        if sha == _ZERO_SHA:
+        if not sha.strip("0"):          # 未提交行：全零 sha（SHA-1 40 位 / SHA-256 64 位）
             out[lineno] = (sha, None)
             continue
         epoch = times.get(sha)
@@ -184,7 +187,7 @@ def _check_dates(cfg, root, files, docs_root):
             continue
         scanned += 1
         try:
-            cand = _candidates(read_text(os.path.join(root, rel)))
+            cand = _candidates(read_text(os.path.join(root, rel), root))
         except OSError as exc:
             return [undetermined_from_exception(NAME, exc, u"读 %s" % rel)]
         if cand:
@@ -236,20 +239,28 @@ def _check_dates(cfg, root, files, docs_root):
                 why=u"01 §2 N1：依赖不可用记未定，不记通过",
                 evidence=u"该文件有 %d 处候选日期未判" % len(cand)))
             continue
-        groups = {}
+        groups, lost = {}, []
         for lineno, day in cand:
             got, err2 = _parse_day(day)
             if got is None:
                 continue
             sha, base = blamed.get(lineno, (None, None))
             if sha is None:
+                lost.append(lineno)
                 continue
-            if sha == _ZERO_SHA:
+            if not sha.strip("0"):
                 base, note = today, u"该行未提交，基准取运行时刻在 UTC+14 下的日期 %s" % today.isoformat()
             else:
                 note = u"比较基准：git blame 提交时刻在 UTC+14 下的日期 %s（%s）" % (base.isoformat(), sha[:7])
             if got > base:
                 groups.setdefault(day, []).append((lineno, note))
+        if lost:
+            out.append(finding(
+                NAME, UNDETERMINED, u"%s 有 %d 个候选行在 blame 结果里找不到" % (rel, len(lost)), where=rel,
+                kind="blame-line-missing", key=rel,
+                reason=u"行号与 git blame 对不上，这些行写下的时间取不到，判不了",
+                why=u"01 §2 N1：依赖不可用记未定，不记通过",
+                evidence=u"第 %s 行" % u"、".join(str(n) for n in lost[:LIST_CAP])))
         for day in sorted(groups):
             hits = groups[day]
             out.append(finding(
@@ -303,13 +314,23 @@ def _adr_dir(cfg, root, files, docs_root):
                 found.add("/".join(parts[:i + 1]))
     if len(found) == 1:
         return sorted(found)[0], False, None
+    # 适用性先判（契约 §1）：决策登记是 L2 起的工件。出处：标准正文 01 §3.1 文档树只把 `decisions/`
+    # 列在「大型项目的完整形态」里、不分档；分档在 templates/文件树与落地路径.md §4「L2 · 团队」——
+    # L2 增 `DECISIONS.md`（落地为 `docs/decisions/`，每份 ADR-*.md，README 是索引），L0/L1 两节都没有它。
+    # check_layout 的 _TIER_ITEMS 把 decisions 放在 L2，同一阈值。L0/L1 没有 ADR 目录不适用；
+    # L2 起、档位不明，或有多个候选目录时，目录名是约定（§1.1），没定位到只记未定
+    tier = str(cfg_get(cfg, "tier") or "")
+    status = SKIP if (not found and tier in ("L0", "L1")) else UNDETERMINED
     return None, False, finding(
-        NAME, SKIP,
+        NAME, status,
         u"未定位到 ADR 目录，判据 2（就地修订）与判据 3（索引对账）本次未执行",
-        reason=(u"未声明 layout.artifacts.decisions，且 %s 下%s；本工具不猜 ADR 放在哪"
+        kind="adr-dir-unlocated",
+        reason=(u"未声明 layout.artifacts.decisions，且 %s 下%s；本工具不猜 ADR 放在哪%s"
                 % (docs_root,
                    u"没有名为 decisions 的目录" if not found
-                   else u"有 %d 个名为 decisions 的目录（%s）" % (len(found), _cap(sorted(found))))),
+                   else u"有 %d 个名为 decisions 的目录（%s）" % (len(found), _cap(sorted(found))),
+                   u"。tier %s 不要求决策登记（L2 起），故不适用" % tier if status == SKIP
+                   else u"。ADR 在别处就在 layout.artifacts.decisions 声明")),
         why=u"02 §8 以 decisions 目录为对象；契约 §1.1：目录名是约定，猜不到不记通过")
 
 
@@ -350,7 +371,7 @@ def _check_revision(root, adr_dir, adr_files):
     out = []
     for rel in adr_files:
         try:
-            hits = _revision_hits(read_text(os.path.join(root, rel)))
+            hits = _revision_hits(read_text(os.path.join(root, rel), root))
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, u"读 %s" % rel))
             continue
@@ -411,7 +432,7 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
             evidence=u"目录里的 ADR：%s" % _cap(sorted(dir_ids)))]
 
     try:
-        table = _first_md_table(read_text(os.path.join(root, index_rel)))
+        table = _first_md_table(read_text(os.path.join(root, index_rel), root))
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, u"读 %s" % index_rel)]
     id_col = file_col = None
@@ -520,7 +541,7 @@ def _check_work_items(cfg, root, files):
     inline = set()                     # 状态源文件里自带 work_item_id 字段的工作项
     for src in sources:
         try:
-            text = read_text(os.path.join(root, src))
+            text = read_text(os.path.join(root, src), root)
         except OSError as exc:
             return [undetermined_from_exception(NAME, exc, u"读 %s" % src)]
         for n, line in enumerate(text.splitlines(), 1):
@@ -550,7 +571,7 @@ def _check_work_items(cfg, root, files):
             continue
         base = os.path.basename(rel)
         for wid in seen:
-            if base.startswith(wid):
+            if re.match(re.escape(wid) + r"(?!\d)", base):   # WI-001 不许被 WI-0010-x.md 冒充
                 have.add(wid)
 
     out = []
@@ -968,4 +989,46 @@ def selftest():
         _assert(results, (not err) and u"drift/work-item-missing/WI-0004" not in got,
                 u"4i 附带：`work_root: work/` 带尾斜杠时，直接一层的 WI-0004-a.md 照样算载体",
                 u"实得 %s" % got, why=u"直接一层按目录名相等比较，尾斜杠不归一就一件都认不出")
+
+    # 1g/1h（D-123 bug 5）：行号只按 \n 切（\x0c、U+2028 不许让行号与 blame 错位后静默跳过）；
+    # SHA-256 仓的 64 位行头照样解析
+    for tag, fmt in (("1g", None), ("1h", "sha256")):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            write_text(os.path.join(tmp, "docs", "a.md"), u"# 样本\x0c分页\u2028续\n- 2026-09-22 裁定 X。\n")
+            err = None
+            if fmt:
+                r = subprocess.run(["git", "init", "-q", "--object-format=" + fmt, tmp],
+                                   capture_output=True, timeout=60)
+                err = None if r.returncode == 0 else "git init --object-format 退出码 %d" % r.returncode
+            err = err or _git_commit(tmp)
+            res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
+            got = [(f["id"], f.get("where")) for f in res
+                   if f["id"].startswith((u"drift/future-date", u"drift/blame"))]
+            _assert(results, (not err) and got == [(u"drift/future-date/docs/a.md｜2026-09-22", u"docs/a.md:2")],
+                    u"%s 反例：%s里写于 09-21 的『2026-09-22 裁定』须报出，行号按 \\n 计为第 2 行"
+                    % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c 与 U+2028 的行"),
+                    u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
+                    why=u"行号或行头对不上时旧实现静默跳过该行，把未来日期漏成通过")
+
+    # 4j（D-123 bug 5）：WI-001 不许被 WI-0010-x.md 冒充成已有文件
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "current.md"), u"# 状态\n\n- WI-001 在做。\n")
+        write_text(os.path.join(tmp, "work", "WI-0010-x.md"), u"# WI-0010\n")
+        err = _git_commit(tmp)
+        res = run({"_root": tmp, "layout": {"docs_root": "docs", "work_root": "work",
+                                            "artifacts": {"status": "work/current.md"}}}) if not err else []
+        got = _ids(res, "work-item-missing")
+        _assert(results, (not err) and u"drift/work-item-missing/WI-001" in got,
+                u"4j 反例：只有 WI-0010-x.md 时 WI-001 仍须报 missing",
+                u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
+                why=u"按前缀比会让编号更长的文件冒充")
+
+    # 5（D-123）：没定位到 ADR 目录——L0/L1 不要求决策登记记不适用；L2 起或档位不明记未定（契约 §1.1）
+    got5 = {}
+    for tier in ("L1", "L2", None):
+        _d, _decl, f5 = _adr_dir({"tier": tier} if tier else {}, ".", ["docs/a.md"], "docs")
+        got5[tier] = f5["status"] if f5 else None
+    _assert(results, got5 == {"L1": SKIP, "L2": UNDETERMINED, None: UNDETERMINED},
+            u"5 ADR 目录没定位到：L1 记不适用，L2 与档位不明记未定",
+            u"实得 %s" % got5, why=u"契约 §1 先判适用；§1.1 目录名是约定，落空不记不适用")
     return results

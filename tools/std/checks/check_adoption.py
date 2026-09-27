@@ -35,8 +35,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, embedded_std_rel, finding, is_tailored_out, undetermined_from_exception,
+    guard, FAIL, PASS, SKIP, UNDETERMINED,
+    cfg_get, embedded_std_rel, filter_env, finding, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "adoption"
@@ -96,7 +96,7 @@ def _embedded_revision(root, embedded_rel, version):
     """内嵌运行时的一条比对：STANDARD_VERSION 的版本值 vs 内嵌标准 README 的修订号。"""
     readme_rel = "%s/标准/README.md" % embedded_rel
     try:
-        with io.open(os.path.join(root, readme_rel), encoding="utf-8", errors="replace") as fh:
+        with io.open(guard(root, os.path.join(root, readme_rel)), encoding="utf-8-sig", errors="replace") as fh:
             m = _EMBED_REV_RE.search(fh.read())
     except OSError as exc:
         return undetermined_from_exception(NAME, exc, "读 %s" % readme_rel)
@@ -121,10 +121,10 @@ def _embedded_revision(root, embedded_rel, version):
         evidence="%s：%s；%s：%s" % (_REL, version, readme_rel, got))
 
 
-def _git(root, *args):
+def _git(root, *args, env=None):
     """只读 git 调用：不抢可选锁（与并行的 git 操作不互相干扰），路径原样输出。"""
     cmd = ["git", "--no-optional-locks", "-C", root, "-c", "core.quotepath=false"] + list(args)
-    return subprocess.run(cmd, capture_output=True, timeout=60)
+    return subprocess.run(cmd, capture_output=True, timeout=60, env=env)
 
 
 def _embedded_readonly(root, embedded_rel):
@@ -159,7 +159,15 @@ def _embedded_readonly(root, embedded_rel):
                        "本仓的 git status 看不见里面的改动；按「接入一个项目」用 subtree 取用"
                        % embedded_rel,
                 why=why)
-        out = _git(root, "status", "--porcelain", "--untracked-files=no", "--", embedded_rel)
+        env = filter_env(root)
+        if env is None:
+            return finding(
+                NAME, UNDETERMINED, "查不了 %s 有无改动" % where, where=where, kind="embedded-readonly-unknown",
+                reason="列不出本仓配置的过滤器（git config 失败或超时）；不在未压住过滤器时跑 git status",
+                why=why)
+        # --ignore-submodules=dirty：内嵌目录是子模块时不递归进去（那会跑子模块自己配置的过滤器）
+        out = _git(root, "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=dirty",
+                   "--", embedded_rel, env=env)
     except (OSError, subprocess.SubprocessError) as exc:
         return undetermined_from_exception(NAME, exc, "查 %s 有无改动（git）" % where)
     if out.returncode != 0:
@@ -265,7 +273,7 @@ def _version(cfg, root, tool_root):
         return out + _readonly_findings(root, embedded)
 
     try:
-        with io.open(path, encoding="utf-8", errors="replace") as fh:
+        with io.open(guard(root, path), encoding="utf-8-sig", errors="replace") as fh:
             text = fh.read()
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)] + _readonly_findings(root, embedded)
@@ -346,12 +354,65 @@ _RUNNERS = (
 _WHOLE_TOOLS = frozenset(("PowerShell", "PowerShell(*)", "PowerShell(:*)", "Monitor", "Agent"))
 
 
+# 前置包装：执行其后参数的命令。Claude Code 匹配前会剥掉其中一部分（timeout/time/nice/nohup/stdbuf/
+# command/builtin/noglob/无选项的 xargs 与已知安全的变量赋值），sudo/env 不剥但同样执行后面整条命令。
+# 判「后面是什么」时一律剥掉，连同它们的选项与选项值。
+# 包装命令 → 它带参数值的选项（其余以 - 开头的选项不带值）。按命令分开：`env -i` 不带值，
+# `sudo -i` 也不带值，混成一张表会把 `Bash(env -i ls *)` 里的 ls 当成 -i 的值吞掉。
+_WRAPPERS = {
+    "sudo": ("-u", "-g", "-C", "-h", "-p", "-U", "-r", "-t", "-D", "-R", "-T"),
+    "doas": ("-u", "-C"),
+    "env": ("-u", "-C", "-S", "--unset", "--chdir", "--split-string"),
+    "command": (), "builtin": (), "noglob": (), "nohup": (),
+    "time": ("-f", "-o", "--format", "--output"),
+    "nice": ("-n", "--adjustment"),
+    "timeout": ("-s", "-k", "--signal", "--kill-after"),
+    "stdbuf": ("-i", "-o", "-e", "--input", "--output", "--error"),
+    "xargs": ("-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s", "--arg-file", "--delimiter",
+              "--max-args", "--max-procs", "--max-chars", "--replace"),
+}
+# 官方权限文档（2026-09-27 核实）：这些执行包装「不能被前缀规则自动放行」，`Bash(watch *)` 之类在
+# manual 模式下始终询问——规则本身不生效，不算通配放行，整条跳过
+_PROMPT_ALWAYS = frozenset(("watch", "setsid", "ionice", "flock"))
+_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_DURATION = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")
+
+
+def _strip_wrappers(words):
+    """剥掉行首的变量赋值与包装命令（含其选项、选项值）。返回 (剩下的词, 剥掉的包装名列表)。"""
+    words, wrappers = list(words), []
+    while words:
+        if _ASSIGN.match(words[0]):
+            words.pop(0)
+            continue
+        head = os.path.basename(words[0])
+        if head not in _WRAPPERS or (head == "command" and words[1:2] == ["-v"]):
+            break
+        wrappers.append(head)
+        words.pop(0)
+        with_arg = _WRAPPERS[head]
+        while words:
+            w = words[0]
+            if w in with_arg:
+                del words[:2]
+            elif w.startswith("-") or (head == "env" and _ASSIGN.match(w)) \
+                    or (head == "timeout" and _DURATION.match(w)):
+                words.pop(0)
+            else:
+                break
+    return words, wrappers
+
+
 def _wildcard_allow(rule):
     """一条 permissions.allow 是否放行任意代码。返回命中说明或 None。
 
-    写法取 Claude Code 的规则语法：`Bash` / `Bash(命令前缀 *)`，旧写法 `Bash(前缀:*)` 同义。
-    只判 Bash 一类：取通配号之前的前缀拆成词，词为空（放行一切）、或是解释器后面只剩选项、
-    或是某个运行器命令（含其前缀，如 `npm *` 覆盖 `npm run`）的，即通配放行。
+    语义按 Claude Code 官方权限文档（https://code.claude.com/docs/en/permissions，2026-09-27 核实）：
+    `*` 匹配任意文本（含空格）；第一个 `*` 之前的文字按原样匹配；`*` 前的空格是规则的一部分——
+    `Bash(ls *)` 不匹配 `lsof`，`Bash(ls*)` 匹配 `lsof`；`:*` 只在规则末尾才等同于 ` *`；
+    匹配前剥掉 timeout/time/nice/nohup/stdbuf/command/builtin/noglob、无选项的 xargs 与已知安全的
+    变量赋值；sudo、env 不剥。所以：`*` 紧贴时（前缀末尾无空格）末词是名字的**前缀**，按前缀对照
+    解释器与运行器清单（`Bash(py*)` 覆盖 python）；引号只是字面，剥掉再看（`sh -c "*"`）；
+    包装命令与变量赋值剥掉再看后面，包装命令后面只剩通配即放行任意命令（`Bash(sudo -u root *)`）。
     """
     rule = str(rule).strip()
     if rule == "Bash":
@@ -360,6 +421,42 @@ def _wildcard_allow(rule):
         return "%s 整类放行" % rule
     if not (rule.startswith("Bash(") and rule.endswith(")")):
         return None
+    inner = rule[5:-1].strip()
+    if inner.endswith(":*"):
+        inner = inner[:-2] + " *"
+    if "*" not in inner:
+        return None
+    prefix = inner.split("*", 1)[0]
+    # `py*`：`*` 紧贴一个名字，末词只是名字的前缀；紧贴引号（`sh -c "*"`）不算
+    partial = bool(prefix) and not prefix[-1].isspace() and prefix[-1] not in "\"'"
+    words = [w.strip("\"'") for w in prefix.split()]
+    words = [w for w in words if w]
+    if not words:
+        return "通配号前没有命令，放行一切命令"
+    if os.path.basename(words[0]) in _PROMPT_ALWAYS:
+        return None                  # 前缀规则对它们本来无效（始终询问），不当通配放行
+    words, wrappers = _strip_wrappers(words)
+    if not words:
+        return "包装命令 %s 后面是通配，放行其后任意命令" % "、".join(wrappers) if wrappers \
+            else "通配号前只有变量赋值，放行一切命令"
+
+    def name_hits(word, names, partial):
+        return [n for n in names if (n.startswith(word) if partial else n == word)]
+
+    head = os.path.basename(words[0])
+    if len(words) == 1:
+        interp = name_hits(head, _INTERPRETERS, partial)
+    else:
+        interp = [head] if head in _INTERPRETERS else []
+    if interp and all(w.startswith("-") for w in words[1:]):
+        return "命令解释器 %s 后面是通配" % "/".join(sorted(interp)[:4])
+    for runner in _RUNNERS:
+        if len(runner) < len(words):
+            continue
+        names = [head] + words[1:]
+        if runner[:len(names) - 1] == tuple(names[:-1]) and name_hits(names[-1], [runner[len(names) - 1]], partial):
+            return "运行器 %s 后面是通配" % " ".join(runner[:max(len(words), 1)])
+    return None
     inner = rule[5:-1].replace(":*", " *").strip()
     if "*" not in inner:
         return None
@@ -386,7 +483,7 @@ def _settings_allow(root):
             reason="本检查只读 Claude Code 的项目级共享设置；项目不用它或把清单放在别的宿主里时，"
                    "那份清单本工具不读（见覆盖边界）", why=why)]
     try:
-        with io.open(path, encoding="utf-8") as fh:
+        with io.open(guard(root, path), encoding="utf-8-sig") as fh:
             data = json.load(fh)
         perms = data.get("permissions") or {}
         allow = perms.get("allow") or []
@@ -444,7 +541,7 @@ def run(cfg, tool_root=None):  # noqa: F811
     out = _pristine_run(cfg, tool_root)
     path = os.path.join(cfg.get("_root") or ".", _REL)
     try:
-        with io.open(path, encoding="utf-8", errors="replace") as fh:
+        with io.open(path, encoding="utf-8-sig", errors="replace") as fh:
             ver = _parse(fh.read())[0]
     except OSError:
         return out
@@ -593,10 +690,16 @@ def _declarations_selftest(tmp):
         {}, {"compatibility": {}}, {"compatibility": {"policy": ""}}, {"compatibility": {"policy": u"x"}},
         {"compatibility": {"policy": {"data": u"两个版本"}}})]
     wild = ["PowerShell", "PowerShell(*)", "Monitor", "Agent", "Bash", "Bash(*)", "Bash(:*)", "Bash(python3 *)", "Bash(python3 -c *)", "Bash(/usr/bin/node:*)",
-            "Bash(npm run *)", "Bash(npm *)", "Bash(uv run:*)", "Bash(npx *)", "Bash(make *)", "Bash(sudo *)"]
+            "Bash(npm run *)", "Bash(npm *)", "Bash(uv run:*)", "Bash(npx *)", "Bash(make *)", "Bash(sudo *)",
+            # D-123：`*` 紧贴按名字前缀、引号剥掉、包装命令与变量赋值剥掉再看（官方语义，见 _wildcard_allow）
+            "Bash(py*)", "Bash(p*)", "Bash(ba*)", 'Bash(sh -c "*")', "Bash(bash -c '*')", "Bash(env X=1 *)",
+            "Bash(sudo -u root *)", "Bash(command bash *)", "Bash(npm r*)", "Bash(timeout 30 python3 *)",
+            "Bash(env -i *)", "Bash(env -u X python3 *)", "Bash(nice -n 5 bash *)"]
     narrow = ["Read", "Edit", "Bash(git status)", "Bash(npm run test)", "Bash(npm run test:*)",
               "Bash(python3 tools/std/check_all.py *)", "Bash(bash scripts/verify_all.sh:*)", "Bash(git add:*)",
-              "mcp__x__y", "Bash(python3)", "Agent(std-reviewer)", "PowerShell(Get-ChildItem *)"]
+              "mcp__x__y", "Bash(python3)", "Agent(std-reviewer)", "PowerShell(Get-ChildItem *)",
+              "Bash(ls*)", "Bash(git log *)", "Bash(npm test *)", "Bash(command -v python3)",
+            "Bash(env -i ls *)", "Bash(sudo -i ls *)", "Bash(setsid *)", "Bash(watch *)", "Bash(flock x *)"]
     missed = [r for r in wild if not _wildcard_allow(r)]
     false_hit = [r for r in narrow if _wildcard_allow(r)]
     sdir = os.path.join(tmp, ".claude")

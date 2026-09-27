@@ -18,8 +18,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
-    STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, finding,
+    guard, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
+    STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
     is_tailored_out, rebase_docs, undetermined_from_exception,
 )
 
@@ -134,8 +134,8 @@ def _artifact_tailored(cfg, role):
     return False, None
 
 
-def _head(path):
-    with io.open(path, encoding="utf-8", errors="replace") as fh:
+def _head(path, root):
+    with io.open(guard(root, path), encoding="utf-8", errors="replace") as fh:
         out = []
         for i, line in enumerate(fh):
             if i >= _META_HEAD_LINES:
@@ -145,9 +145,10 @@ def _head(path):
 
 
 def _has_field(head, field):
-    """头部有没有 `field:`。允许 YAML front matter、列表项、加粗写法。"""
-    pat = r"^[ \t]*(?:[-*+][ \t]*)?\*{0,2}%s\*{0,2}[ \t]*[:：]" % re.escape(str(field))
-    return re.search(pat, head, re.M) is not None
+    """头部有没有 `field:`。解析与 freshness 同一套（stdlib.find_field）：行首、列表项、加粗、
+    同一行用全角空格或竖线并排的写法都认——此前这里只认行首，示例项目同行写法被 layout 判缺、
+    freshness 却读得出，同一份头部两种读法。"""
+    return find_field(head, [field])[0] is not None
 
 
 # --------------------------------------------------------------------------
@@ -338,16 +339,28 @@ def _run(cfg):
             continue
         path = os.path.join(root, rel.replace("/", os.sep))
         try:
-            head = _head(path)
+            head = _head(path, root)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s 的头部" % rel))
             continue
-        missing = []
+        # 字段名只有项目在 metadata_fields 里声明过的才算「确定没有」；工具词表（状态字段、
+        # 默认日期字段名）没找到只说明不在工具猜的写法里，按契约 §1.1 记未定
+        missing, guessed = [], []
         if not any(_has_field(head, f) for f in date_fields):
-            missing.append("日期字段（%s）" % "/".join(date_fields))
+            (guessed if used_default_fields else missing).append("日期字段（%s）" % "/".join(date_fields))
         if not any(_has_field(head, f) for f in STATUS_FIELDS):
-            missing.append("状态字段（%s）" % "/".join(STATUS_FIELDS))
-        if missing:
+            guessed.append("状态字段（%s）" % "/".join(STATUS_FIELDS))
+        if guessed and not missing:
+            out.append(finding(
+                NAME, UNDETERMINED, "%s 头部没认出元信息：%s" % (rel, "、".join(guessed)),
+                where="%s:1" % rel, kind="meta-unrecognized", key=rel,
+                reason="字段名是本工具的词表（状态字段）或未校准的默认（日期字段），不是项目的声明；"
+                       "没认出推不出没写（契约 §1.1）。日期字段名在 metadata_fields 里声明之后仍缺才判 FAIL",
+                why="01 §3.5 要求重要文档头部带 status 与 updated_at",
+                evidence="只看前 %d 行。%s" % (_META_HEAD_LINES, note),
+            ))
+        elif missing:
+            missing += guessed
             out.append(finding(
                 NAME, FAIL, "%s 头部缺元信息：%s" % (rel, "、".join(missing)),
                 where="%s:1" % rel,
@@ -399,11 +412,24 @@ def selftest():
             # 反例二：声明了状态工件在 WORK.md，文件在但头部元信息被抽掉 → 必须有 FAIL。
             # 元信息判定只对 acceptance / status 两角色执行，不声明这两角色的项目上它一条都不跑，
             # 这条反例是它还活着的唯一证据（契约 §3）。
+            # 日期字段名须经 metadata_fields 声明，缺了才是确定违规（契约 §1.1）
             w("WORK.md", "# 标题\n")
-            res_nometa = run(cfg)
+            res_nometa = run(dict(cfg, metadata_fields=["updated_at"]))
             got_nometa = [f["status"] for f in res_nometa]
             nometa_fail = [f["title"] for f in res_nometa
                            if f["status"] == FAIL and "头部缺元信息" in f["title"]]
+            # 同一样本不声明 metadata_fields：两个字段名都是工具词表，没认出只记未定
+            res_guess = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS]
+            # 同一行用全角空格并排的写法（示例项目的形态）与 freshness 同一套解析，须认得出
+            w("WORK.md", "# 标题\n\n状态：进行中　updated_at：2026-09-10\n")
+            res_inline = [(f["status"], f["title"]) for f in run(cfg) if f["status"] != PASS]
+            results.append(finding(
+                NAME, PASS if (res_guess == [(UNDETERMINED, "layout/meta-unrecognized/WORK.md")]
+                               and not res_inline) else FAIL,
+                "约定：未声明 metadata_fields 时缺元信息只记未定；同行并排的字段须认得出",
+                evidence="未声明时非通过项 %s；同行写法非通过项 %s" % (res_guess, res_inline),
+                why="契约 §1.1：字段名词表落空推不出没写；layout 与 freshness 共用 stdlib.find_field",
+            ))
 
             # 反例一：声明了状态工件在 WORK.md，删掉它 → 必须有 FAIL
             os.remove(os.path.join(tmp, "WORK.md"))
