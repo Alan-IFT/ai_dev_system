@@ -293,7 +293,7 @@ def _run(cfg):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
 
-    out, nostatus, other = [], [], []
+    out, other = [], []
     for rel in files:
         try:
             text = read_text(os.path.join(root, rel), root)
@@ -303,7 +303,8 @@ def _run(cfg):
 
         status = item_status(text)
         if status is None:
-            nostatus.append(rel)
+            # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
+            # 这里静默跳过
             continue
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
@@ -311,12 +312,6 @@ def _run(cfg):
 
         out.extend(_check_one(rel, text, status, note))
 
-    if nostatus:
-        out.append(agg(NAME, UNDETERMINED, "工作项目录下读不到状态字段的文件", nostatus,
-                       kind="no-status",
-                       reason="状态字段名是本工具的词表（stdlib.STATUS_FIELDS），读不到推不出它不是工作项"
-                              "（契约 §1.1）：若是已完成的工作项，它的完成证据本次没查。"
-                              "README、索引之类放在工作项目录之外，或补上状态字段"))
     if other:
         out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
@@ -469,20 +464,20 @@ def selftest():
                 "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
         ))
 
-    # 只看工作项目录直接一层（D-123 裁定 3，同 drift 的 D-118）：子目录里没状态字段的留证不数；
-    # 直接一层里没状态字段的仍记未定
+    # 只看工作项目录直接一层（D-123 裁定 3）；读不到状态的文件一律静默跳过——是不是工作项、
+    # 要不要报 no-status 由 freshness 报一次（审查 B5）
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        write_text(os.path.join(tmp, "work", "artifacts", "README.md"), "# 留证说明\n")
-        write_text(os.path.join(tmp, "work", "NOTES.md"), "# 随手记\n")
+        write_text(os.path.join(tmp, "work", "artifacts", "WI-0009-留证.md"), "# 留证\n\n状态：done\n")
+        write_text(os.path.join(tmp, "work", "current.md"), "# 当前\n")
+        write_text(os.path.join(tmp, "work", "WI-0002-y.md"), "# 没写状态\n")
         cfg, err = _sample(tmp, _SIX)
-        got = sorted((f["status"], f["id"], f.get("evidence") or "") for f in run(cfg)) if not err else err
-    ok = (not err) and [(st, i) for st, i, _e in got] == [(PASS, got[0][1]), (UNDETERMINED, NAME + "/no-status")] \
-        and got[1][2] == "work/NOTES.md"
+        got = sorted((f["status"], f.get("where") or "") for f in run(cfg)) if not err else err
+    ok = (not err) and [st for st, _w in got] == [PASS] and got[0][1].startswith("work/WI-0001-x.md")
     results.append(finding(
         NAME, PASS if ok else FAIL,
-        "只看工作项目录直接一层：子目录里的无状态文件不数，直接一层的无状态文件记未定",
+        "只看直接一层、读不到状态的静默跳过：子目录里的完成态留证不查，current.md 与无状态 WI 不报",
         evidence="实得 %s" % (got,),
-        why="D-123 裁定 3：子目录是留证与产物，不是工作项（与 drift D-118 同一条规则）",
+        why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
     ))
 
     # 证据段标题是工具约定（契约 §1.1，D-123）：英文 `## Evidence` 照认；一个都认不出只记未定

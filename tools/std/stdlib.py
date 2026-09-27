@@ -953,6 +953,15 @@ def markdown_under(root, sub):
     return sorted(r for r in map(norm_rel, files) if r.lower().endswith(".md") and under(r, sub)), None
 
 
+# 工作项文件的命名：01 §3.2 职责卡与 §3.3 阅读路径写作 `state/work/WI-*`（01 §3.1 树里是
+# 「工作项，一件一文件」）；与 drift 认 ID 的 `WI-<三位以上数字>` 同一形式。
+WORK_ITEM_NAME = re.compile(r"^WI-\d{3,}")
+
+
+def is_work_item_name(rel):
+    return WORK_ITEM_NAME.match(os.path.basename(str(rel))) is not None
+
+
 def work_items(root, wroot):
     """工作项目录**直接一层**里 git 跟踪的 markdown。返回 (相对路径列表, 问题)。
 

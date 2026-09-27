@@ -22,7 +22,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
+    is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
@@ -434,7 +434,7 @@ def _check_work_items(cfg, root, today, base):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
 
-    out, frozen, nostatus, other = [], [], [], []
+    out, frozen, nostatus, other, not_items = [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -447,7 +447,9 @@ def _check_work_items(cfg, root, today, base):
 
         status = item_status(text)
         if status is None:
-            nostatus.append(rel)
+            # 工作项按 01 §3.2 的 `WI-*` 命名认；不带这个名字又读不到状态的（样板 L1 的 current.md、
+            # handoff.md、README 之类）不是工作项。带状态字段的照样算工作项（它自己声明了状态）
+            (nostatus if is_work_item_name(rel) else not_items).append(rel)
             continue
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
@@ -505,10 +507,15 @@ def _check_work_items(cfg, root, today, base):
         out.append(agg(NAME, SKIP, "归档区工作项不参与活性巡检", frozen, kind="frozen-work-items",
                        reason="落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务"))
     if nostatus:
-        out.append(agg(NAME, UNDETERMINED, "工作项目录下读不到状态字段的文件", nostatus,
+        out.append(agg(NAME, UNDETERMINED, "WI-* 工作项读不到状态字段", nostatus,
                        kind="no-status",
-                       reason="状态字段名是本工具的词表（stdlib.STATUS_FIELDS），读不到推不出它不是工作项"
-                              "（契约 §1.1）：若是进行中的工作项，它的活性本次没查"))
+                       reason="文件按 01 §3.2 的 WI-* 命名是工作项，但状态字段名是本工具的词表"
+                              "（stdlib.STATUS_FIELDS），读不到推不出它没写（契约 §1.1）：它的活性与完成证据本次都没查"))
+    if not_items:
+        out.append(agg(NAME, SKIP, "工作项目录下既不按 WI-* 命名、也没有状态字段的文件", not_items,
+                       kind="not-work-item",
+                       reason="01 §3.2 的工作项是 state/work/WI-*；这些文件不按该名、自己也没写状态，"
+                              "不当工作项（样板 L1 的 current.md、handoff.md、README 之类）"))
     if other:
         out.append(agg(NAME, SKIP, "非进行中状态的工作项", other, kind="not-in-progress",
                        reason="01 §4.1 对 planned / blocked / in_validation 也要求巡检，"
@@ -753,16 +760,24 @@ def selftest():
         why="契约 §4/§9：id 随天数或份数漂，登记行就成孤儿",
     ))
 
-    # 只看工作项目录直接一层（D-123 裁定 3）：work/artifacts/ 下的无状态文件不许出 no-status
+    # 只看工作项目录直接一层（D-123 裁定 3）；工作项按 01 §3.2 的 WI-* 命名认（审查 B5）：
+    # 样板 L1 的 current.md / handoff.md 与子目录留证不报 no-status，无状态的 WI-* 才报
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "work", "artifacts", "README.md"), "# 留证说明\n")
+        write_text(os.path.join(tmp, "work", "current.md"), "# 当前\n")
+        write_text(os.path.join(tmp, "work", "handoff.md"), "# 交接\n")
+        write_text(os.path.join(tmp, "work", "WI-0002-y.md"), "# 没写状态\n")
         cfg, err = _sample(tmp, "updated_at: %s\n" % fresh, work_fresh)
-        got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS] if not err else err
+        got = [(f["status"], f["id"], f.get("evidence") or "") for f in run(cfg) if f["status"] != PASS] \
+            if not err else err
+    ok = (not err) and [(st, i) for st, i, _e in got] == [(UNDETERMINED, NAME + "/no-status"),
+                                                           (SKIP, NAME + "/not-work-item")] \
+        and got[0][2] == "work/WI-0002-y.md" and got[1][2] == "work/current.md；work/handoff.md"
     results.append(finding(
-        NAME, PASS if (not err and got == []) else FAIL,
-        "只看工作项目录直接一层：work/artifacts/ 下的无状态文件不数",
+        NAME, PASS if ok else FAIL,
+        "工作项按 WI-* 命名认：current.md/handoff.md 不报 no-status、子目录不数，无状态的 WI-* 记未定",
         evidence="非通过项 %s" % (got,),
-        why="D-123 裁定 3：子目录是留证与产物，不是工作项",
+        why="01 §3.2 state/work/WI-*；样板 L1（templates/文件树与落地路径.md §3）不许恒退 2",
     ))
 
     a, err_a = _stale_one(100)
