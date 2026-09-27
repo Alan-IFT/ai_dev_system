@@ -5,7 +5,7 @@ description: Conventional Commits、SemVer、分支纪律。写提交信息、�
 
 # 变更与提交
 
-- **Conventional Commits**：`type(scope): subject`，type ∈ `feat|fix|docs|refactor|test|chore|perf|build|ci|revert`
+- **Conventional Commits**：`type[(scope)]: subject`，scope 可省，type ∈ `feat|fix|docs|refactor|test|chore|perf|build|ci|revert`
 - **一个提交一件事**。重构与功能改动**不许**混在同一提交——混了就没法单独回滚
 - **SemVer**：破坏性变更进 MAJOR，提交体写 `BREAKING CHANGE:`
 - **分支短命**：从主干切出，**不超过两天**合回。长期分支本身是缺陷

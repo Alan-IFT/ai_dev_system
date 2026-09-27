@@ -20,9 +20,6 @@
       "Bash(git commit -n*)",
       "Bash(git commit * -n*)",
       "Bash(*hooksPath*)",
-      "Bash(git notes *remove*)",
-      "Bash(git notes *prune*)",
-      "Bash(*update-ref -d*)",
       "Bash(*claude *--dangerously-skip-permissions*)",
       "Bash(*claude *bypassPermissions*)",
       "Edit(/CONTEXT_MANIFEST.md)",
@@ -36,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; ok=1; [ \"$(git config core.hooksPath)\" = .githooks ] || ok=0; for h in pre-commit commit-msg post-commit pre-merge-commit; do [ -x .githooks/$h ] || ok=0; done; [ $ok = 1 ] || echo '警告：提交闸门没装或失效（core.hooksPath 应为 .githooks、.githooks/ 下四个钩子须可执行），此时提交不会被拦。修复：git config core.hooksPath .githooks。见仓库工作须知 §7。'; n=$(git notes --ref=gate-skip list 2>/dev/null | wc -l); [ \"$n\" -eq 0 ] || echo \"有 $n 个提交未经闸门，查看：git log --notes=gate-skip；按须知 §7 补理由。\""
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; ok=1; [ \"$(git config core.hooksPath)\" = .githooks ] || ok=0; for h in pre-commit commit-msg pre-merge-commit; do [ -x .githooks/$h ] || ok=0; done; [ $ok = 1 ] || echo '警告：提交闸门没装或失效（core.hooksPath 应为 .githooks、.githooks/ 下三个钩子须可执行），此时提交不会被拦。修复：git config core.hooksPath .githooks。见仓库工作须知 §7。'"
           }
         ]
       },

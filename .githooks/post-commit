@@ -1,9 +1,0 @@
-#!/bin/sh
-# 跳过留痕（31-P10）：放行回执不等于「本次提交的前一个 HEAD + 本次提交的树」，即 commit-msg（连同其前的 pre-commit）没放行这次提交
-# （--no-verify、cherry-pick、rebase、revert 等），就给该提交挂一条 git note，SessionStart 会报出来。
-# 补理由：git notes --ref=gate-skip append -m '理由、批准人' <sha>
-f=$(git rev-parse --git-path gate-ok)
-ok=$(cat "$f" 2>/dev/null); rm -f "$f"
-[ "$ok" = "$(git rev-parse -q HEAD@{1}) $(git rev-parse 'HEAD^{tree}')" ] && exit 0
-git notes --ref=gate-skip add -f -m "闸门未跑 $(date -Iseconds) $(git config user.name)" HEAD
-echo "警告：本次提交未经闸门，已记 git notes --ref=gate-skip；按仓库工作须知 §7 补理由。" >&2

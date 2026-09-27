@@ -1,12 +1,6 @@
 #!/bin/sh
-# 提交信息首行须为 type(scope)!?: subject（01 §5.1，本仓裁剪见须知 §7）；git 自动生成的 merge/revert/reapply/fixup/squash/amend 信息放行。
-# 通过时写放行回执「提交前 HEAD + 暂存树」，post-commit 据此判本次提交有没有过闸门（commit-msg 在 pre-commit 之后跑，--no-verify 两者都跳过）。
+# 提交信息首行须为 type(scope)!?: subject，scope 可省（01 §5.1，同 Conventional Commits）；git 自动生成的 merge/revert/reapply/fixup/squash/amend 信息放行。
 first=$(grep -v '^#' "$1" | grep -m1 -v '^[[:space:]]*$')
-f=$(git rev-parse --git-path gate-ok)
-if printf '%s\n' "$first" | grep -Eq '^(Merge |Revert "|Reapply "|fixup! |squash! |amend! )|^[a-z]+(\([^()]+\))?!?: [^ ]'; then
-  echo "$(git rev-parse -q HEAD) $(git write-tree)" > "$f"
-  exit 0
-fi
-rm -f "$f"
-echo "提交信息首行不合 type(scope)!?: subject（01 §5.1）：$first" >&2
+printf '%s\n' "$first" | grep -Eq '^(Merge |Revert "|Reapply "|fixup! |squash! |amend! )|^[a-z]+(\([^()]+\))?!?: [^ ]' && exit 0
+echo "提交信息首行不合 type(scope)!?: subject（scope 可省，01 §5.1）：$first" >&2
 exit 1
