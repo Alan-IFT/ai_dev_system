@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; ok=1; [ \"$(git config core.hooksPath)\" = .githooks ] || ok=0; for h in pre-commit commit-msg pre-merge-commit; do [ -x .githooks/$h ] || ok=0; done; [ $ok = 1 ] || echo '警告：提交闸门没装或失效（core.hooksPath 应为 .githooks、.githooks/ 下三个钩子须可执行），此时提交不会被拦。修复：git config core.hooksPath .githooks。见仓库工作须知 §7。'"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; ok=1; [ \"$(git config core.hooksPath)\" = .githooks ] || ok=0; for h in pre-commit commit-msg pre-merge-commit; do [ -x .githooks/$h ] || ok=0; done; git ls-files -s .githooks | grep -qv '^100755 ' && ok=0; [ $ok = 1 ] || echo '警告：提交闸门没装或失效（core.hooksPath 应为 .githooks、.githooks/ 下三个钩子须可执行且索引模式为 100755），此时提交不会被拦。修复：git config core.hooksPath .githooks；索引模式：git update-index --chmod=+x .githooks/*。见仓库工作须知 §7。'"
           }
         ]
       },
