@@ -285,21 +285,12 @@ def _run(cfg):
                                       _anchor_miss(rel, where, target, anchor, rel, frozen_note))
                     continue
 
+                root_abs = False
                 if path_part.startswith("/"):
                     # 仓库根路径：GitHub 按仓根解析，别的渲染器按站点根或主机根——本工具按仓根核，
                     # 核不到只记未定（契约 §1.1：解析方式是约定）
                     abs_tgt = os.path.normpath(os.path.join(root, path_part.lstrip("/").replace("/", os.sep)))
-                    if not os.path.exists(abs_tgt):
-                        n_bad += 1
-                        _merge(out, merged, lineno, finding(
-                            NAME, UNDETERMINED, "%s 的仓根路径链接按仓根找不到：%s" % (rel, target),
-                            where=where, kind="root-abs", key=rel + "|" + target,
-                            reason="以 / 开头的链接各平台解析不一（GitHub 按仓根、静态站按站点根、"
-                                   "本地按主机根），按仓根没找到推不出断链",
-                            why="01 §3.4 引用：B 链接 A 且可机械核对",
-                            evidence=frozen_note,
-                        ))
-                        continue
+                    root_abs = True
                 else:
                     abs_tgt = os.path.normpath(
                         os.path.join(os.path.dirname(abs_src), path_part.replace("/", os.sep)))
@@ -311,6 +302,17 @@ def _run(cfg):
                         reason="目标的真实位置不在被扫项目之内；本工具不读、不探测项目之外的路径，"
                                "它在另一台机器上是否存在也不由本仓决定",
                         why="01 §3.4 引用：B 链接 A 且可机械核对；项目之外的目标不在本次核对范围",
+                        evidence=frozen_note,
+                    ))
+                    continue
+                if root_abs and not cache.path_kind(abs_tgt)[0]:   # 先过 inside，再探测存在性
+                    n_bad += 1
+                    _merge(out, merged, lineno, finding(
+                        NAME, UNDETERMINED, "%s 的仓根路径链接按仓根找不到：%s" % (rel, target),
+                        where=where, kind="root-abs", key=rel + "|" + target,
+                        reason="以 / 开头的链接各平台解析不一（GitHub 按仓根、静态站按站点根、"
+                               "本地按主机根），按仓根没找到推不出断链",
+                        why="01 §3.4 引用：B 链接 A 且可机械核对",
                         evidence=frozen_note,
                     ))
                     continue
@@ -493,10 +495,19 @@ def selftest():
                 os.symlink(secret, os.path.join(tmp, "c.md"))
                 w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x)\n")
                 w("b.md", "# a" + " " * 3000 + "x\n")   # 旧正则下这一行约 12 秒
+                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x) [根](/../x/y.md)\n")
                 cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md"]}
+                probed, real_exists = [], os.path.exists
+                os.path.exists = lambda p: (probed.append(p), real_exists(p))[1]
                 t0 = time.time()
-                res = run(cfg3)
+                try:
+                    res = run(cfg3)
+                finally:
+                    os.path.exists = real_exists
                 took = time.time() - t0
+                # 仓根路径 `/../x` 字面就出了项目：先判越界，不探测存在性（B4）
+                took += 100 * any(not os.path.abspath(p).startswith(os.path.abspath(tmp) + os.sep)
+                                  for p in probed)
             kinds = sorted(set(f["id"].split("/")[1] for f in res if f["status"] != PASS))
             leaked = any("TOPSECRET" in (f.get("evidence") or "") + (f.get("title") or "") for f in res)
             ok = (FAIL not in [f["status"] for f in res] and "outside-root" in kinds

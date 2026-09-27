@@ -29,10 +29,12 @@ GIT_LOCAL_ENV = (
 # 本工具的每个 `git -C <被扫仓>` 都会照它执行（实测 core.fsmonitor、blame 的 textconv、
 # clean 过滤器都会跑）。经 GIT_CONFIG_COUNT 注入的是命令行级配置（git ≥ 2.31），优先级高于
 # 任何配置文件，一处设好全部子进程生效。过滤器的驱动名是被扫方起的，这里列不全，
-# 会读工作区的调用（blame、status）另经 `filter_overrides` 按仓逐个置空。
+# 会读工作区的调用（blame、status）另经 `filter_env` 按仓逐个置空。
 GIT_HARDEN_CONFIG = (
     ("core.fsmonitor", "false"), ("core.hooksPath", "/dev/null"), ("core.sshCommand", ""),
     ("core.gitProxy", ""), ("core.askPass", ""), ("diff.external", ""), ("core.pager", "cat"),
+    # log.showSignature=true 时 `git log` 会对签名提交调 gpg.program（被扫方可指定任意程序）
+    ("log.showSignature", "false"),
 )
 # GIT_OPTIONAL_LOCKS=0：扫描不刷新、不回写被扫仓的 index（只读扫描不该有写入）。
 GIT_HARDEN_ENV = (("GIT_PAGER", "cat"), ("GIT_TERMINAL_PROMPT", "0"), ("GIT_OPTIONAL_LOCKS", "0"))
@@ -56,28 +58,41 @@ def scrub_git_env():
     os.environ.update(GIT_HARDEN_ENV)
 
 
-def filter_overrides(root):
-    """把被扫仓配置里声明的过滤器驱动逐个置空的 `-c` 参数（会读工作区的 git 调用前置它）。
+_FILTER_ENV = {}   # 按仓（真实路径）缓存：一次扫描里 blame 要对每份文档跑一遍，不必每次都起子进程读配置
+
+
+def filter_env(root):
+    """把被扫仓配置里声明的过滤器驱动逐个置空的子进程环境（会读工作区的 git 调用传它）。
 
     过滤器由 .gitattributes 与配置合起来触发，驱动名由被扫方起，无法事先列全；读配置本身不执行
-    任何东西，所以先列出名字再逐个置空。列不出（不是仓、git 不在）返回空列表——那时后续的
-    git 调用自己会失败并记未定。
+    任何东西，所以先列出名字再逐个置空。经 GIT_CONFIG_KEY_n/VALUE_n 传，键值分开——名字里带
+    `=` 也不会像 `-c k=v` 那样被切错。列不出（git 失败、超时）返回 None，调用方记未定，不照常执行。
     """
+    key = os.path.realpath(str(root))
+    if key in _FILTER_ENV:
+        return _FILTER_ENV[key]
     try:
         out = subprocess.run(["git", "-C", root, "config", "-z", "--name-only", "--get-regexp",
                               r"^filter\."], capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
-        return []
+        return None
+    if out.returncode not in (0, 1):      # 1 = 一个过滤器都没配，是正常出口
+        return None
     names = set()
-    for key in (out.stdout or b"").decode("utf-8", "surrogateescape").split("\0"):
-        head, _dot, _tail = key.strip().rpartition(".")
+    for k in (out.stdout or b"").decode("utf-8", "surrogateescape").split("\0"):
+        head, _dot, _tail = k.rpartition(".")
         if head.startswith("filter."):
             names.add(head)
-    args = []
+    env = dict(os.environ)
+    n = int(env.get("GIT_CONFIG_COUNT") or 0)
     for head in sorted(names):
-        args += ["-c", head + ".clean=", "-c", head + ".smudge=", "-c", head + ".process=",
-                 "-c", head + ".required=false"]
-    return args
+        for sub, val in (("clean", ""), ("smudge", ""), ("process", ""), ("required", "false")):
+            env["GIT_CONFIG_KEY_%d" % n] = "%s.%s" % (head, sub)
+            env["GIT_CONFIG_VALUE_%d" % n] = val
+            n += 1
+    env["GIT_CONFIG_COUNT"] = str(n)
+    _FILTER_ENV[key] = env
+    return env
 
 
 PASS = "PASS"
@@ -503,9 +518,11 @@ def load_config(root, config_path=None):
 
     for rel in CONFIG_CANDIDATES:
         p = os.path.join(root, rel)
-        if os.path.isfile(p):
+        if os.path.lexists(p):               # lstat，不跟随：先判真实位置再探测目标
             if not inside(root, p):
                 return {}, "%s 的真实位置在被扫项目之外（符号链接），未读" % rel
+            if not os.path.isfile(p):
+                continue
             cfg, problem = _read_config(root, p, rel)
             if problem:
                 return {}, problem
@@ -591,7 +608,7 @@ def _ex_field(header_cell):
     return None
 
 
-def load_exceptions(config_dir):
+def load_exceptions(config_dir, root=None):
     """读例外登记册：配置文件**同目录**的 `exceptions.md`（契约 §9）。
 
     不带 `--config` 时就是 `<项目根>/governance/exceptions.md`。
@@ -606,9 +623,14 @@ def load_exceptions(config_dir):
       02 §4「到期未清理 CI 转红」对它们同样成立，到期由调用方按运行日判。
     """
     path = os.path.join(config_dir, EXCEPTIONS_FILE)
-    if not os.path.isfile(path):
+    if not os.path.lexists(path):            # 只 lstat 这一处，先不跟随链接
         return [], [], None, []
+    # 护栏：配置在项目内时登记册须在项目内，外部配置（--config）时须在配置目录内；越界不读、不回显
+    base = root if (root and inside(root, config_dir)) else config_dir
     try:
+        guard(base, path)
+        if not os.path.isfile(path):
+            return [], [], None, []
         with io.open(path, encoding="utf-8-sig") as fh:
             text = fh.read()
     except (OSError, UnicodeDecodeError) as exc:

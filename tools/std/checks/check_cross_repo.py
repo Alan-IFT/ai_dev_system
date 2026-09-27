@@ -773,7 +773,7 @@ def _check_links(repos):
         broken, host_abs, total, unread, outside = [], [], 0, [], []
         for f in mds:
             try:
-                if os.path.getsize(f) > _MAX_READ_BYTES:
+                if os.path.getsize(guard(r["_real"], f)) > _MAX_READ_BYTES:   # 先过护栏再取大小
                     unread.append("%s（超过 %d 字节）" % (os.path.relpath(f, r["_real"]), _MAX_READ_BYTES))
                     continue
                 text = _read(f, r["_real"])
@@ -1150,16 +1150,18 @@ def selftest():
             _mk(locked, "# 锁\n\n见 [没有](../../sys/nope.md)。\n")
             os.chmod(locked, 0)
             try:
-                got = run(cfg)
+                # 以 root 跑时 chmod 000 挡不住读，样本不成立，跳过这一条（不算失败）
+                got = None if os.access(locked, os.R_OK) else run(cfg)
             finally:
                 os.chmod(locked, 0o644)
-            hit = [f for f in got if f["id"] == NAME + "/unreadable/app"]
-            ok = len(hit) == 1 and hit[0]["status"] == UNDETERMINED
-            results.append(finding(
-                NAME, PASS if ok else FAIL, "读不了的 *.md 须记一条未定，不得静默跳过",
-                evidence="实得 %s" % [(f["status"], f["id"]) for f in got if f["status"] != PASS][:8],
-                why="契约 §1：依赖不可用记未定，不得吞掉异常记 PASS",
-            ))
+            if got is not None:
+                hit = [f for f in got if f["id"] == NAME + "/unreadable/app"]
+                ok = len(hit) == 1 and hit[0]["status"] == UNDETERMINED
+                results.append(finding(
+                    NAME, PASS if ok else FAIL, "读不了的 *.md 须记一条未定，不得静默跳过",
+                    evidence="实得 %s" % [(f["status"], f["id"]) for f in got if f["status"] != PASS][:8],
+                    why="契约 §1：依赖不可用记未定，不得吞掉异常记 PASS",
+                ))
 
         # 兄弟仓经 repos[].path 声明、天然在项目之外，但经它读到的文件须落在该仓自己的真实位置之内
         # （D-123 裁定 1）：入口是指向仓外的符号链接不读；指向所有声明仓之外的引用不探测存在性
@@ -1173,7 +1175,17 @@ def selftest():
             os.remove(app_entry)
             os.symlink(secret, app_entry)
             _mk(os.path.join(d, "sys", "docs", "far.md"), u"见 [外](../../../../nowhere/x.md)。\n")
-            got = run(cfg)
+            ext = os.path.join(d, "app", "docs", "ext.md")
+            os.makedirs(os.path.dirname(ext), exist_ok=True)
+            os.symlink(secret, ext)
+            sized, real_size = [], os.path.getsize
+            os.path.getsize = lambda p: (sized.append(p), real_size(p))[1]
+            try:
+                got = run(cfg)
+            finally:
+                os.path.getsize = real_size
+            if ext in sized:      # 出仓的软链接先过护栏，不许先取大小（那是探测仓外文件）
+                got.append(finding(NAME, FAIL, "出仓软链接被 getsize 探测", evidence=ext))
             leaked = any("TOPSECRET" in (f.get("evidence") or "") + (f.get("title") or "") for f in got)
             bad = sorted((f["status"], f["id"]) for f in got if f["status"] in (FAIL, UNDETERMINED))
             ok = (not leaked and (UNDETERMINED, NAME + "/outside-repos/sys") in bad

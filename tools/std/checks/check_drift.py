@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, docs_root_of, filter_overrides, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
+    cfg_get, docs_root_of, filter_env, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
     rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
 )
@@ -103,10 +103,10 @@ def _cap(items):
     return u"、".join(shown) + more
 
 
-def _git(root, args, timeout=120):
+def _git(root, args, timeout=120, env=None):
     """返回 (退出码, stdout 文本, 错误串)。跑不起来时退出码为 None。"""
     try:
-        out = subprocess.run(["git", "-C", root] + list(args), capture_output=True, timeout=timeout)
+        out = subprocess.run(["git", "-C", root] + list(args), capture_output=True, timeout=timeout, env=env)
     except (OSError, subprocess.SubprocessError) as exc:
         return None, "", "跑不了 git %s：%s" % (args[0], exc)
     text = (out.stdout or b"").decode("utf-8", "replace")
@@ -147,7 +147,10 @@ def _blame(root, rel):
     porcelain 的 `committer-time` **只在一个 commit 首次出现时输出**，
     后续行头只有 sha。不先建 commit→时间缓存再按行头摊开，94% 的行会读成 None。
     """
-    code, text, err = _git(root, filter_overrides(root) + ["blame", "-p", "--no-textconv", "--", rel])
+    env = filter_env(root)
+    if env is None:
+        return None, u"列不出被扫仓配置的过滤器（git config 失败或超时），不在未压住过滤器时读工作区"
+    code, text, err = _git(root, ["blame", "-p", "--no-textconv", "--", rel], env=env)
     if code is None:
         return None, err
     if code != 0:

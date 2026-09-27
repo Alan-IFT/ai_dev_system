@@ -689,15 +689,16 @@ def selftest():
             locked = os.path.join(tmp, "copy", "a.md")
             os.chmod(locked, 0)
             try:
-                got = [(f["status"], f["id"]) for f in run(cfg)]
+                # 以 root 跑时 chmod 000 挡不住读，样本不成立，跳过这一条（不算失败）
+                got = None if os.access(locked, os.R_OK) else [(f["status"], f["id"]) for f in run(cfg)]
             finally:
                 os.chmod(locked, 0o644)
-        ok = (UNDETERMINED, NAME + "/unreadable") in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
-            u"反例一之二：读不了的被跟踪文件须记一条未定（single-authority/unreadable）",
-            evidence=u"实得 %s" % got, why=u"契约 §1：依赖不可用记未定，不得吞掉记 PASS",
-        ))
+        if got is not None:
+            results.append(finding(
+                NAME, PASS if (UNDETERMINED, NAME + "/unreadable") in got else FAIL,
+                u"反例一之二：读不了的被跟踪文件须记一条未定（single-authority/unreadable）",
+                evidence=u"实得 %s" % got, why=u"契约 §1：依赖不可用记未定，不得吞掉记 PASS",
+            ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 

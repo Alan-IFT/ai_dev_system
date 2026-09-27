@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     guard, FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, embedded_std_rel, filter_overrides, finding, is_tailored_out, undetermined_from_exception,
+    cfg_get, embedded_std_rel, filter_env, finding, is_tailored_out, undetermined_from_exception,
 )
 
 NAME = "adoption"
@@ -121,10 +121,10 @@ def _embedded_revision(root, embedded_rel, version):
         evidence="%s：%s；%s：%s" % (_REL, version, readme_rel, got))
 
 
-def _git(root, *args):
+def _git(root, *args, env=None):
     """只读 git 调用：不抢可选锁（与并行的 git 操作不互相干扰），路径原样输出。"""
     cmd = ["git", "--no-optional-locks", "-C", root, "-c", "core.quotepath=false"] + list(args)
-    return subprocess.run(cmd, capture_output=True, timeout=60)
+    return subprocess.run(cmd, capture_output=True, timeout=60, env=env)
 
 
 def _embedded_readonly(root, embedded_rel):
@@ -159,7 +159,15 @@ def _embedded_readonly(root, embedded_rel):
                        "本仓的 git status 看不见里面的改动；按「接入一个项目」用 subtree 取用"
                        % embedded_rel,
                 why=why)
-        out = _git(root, *(filter_overrides(root) + ["status", "--porcelain", "--untracked-files=no", "--", embedded_rel]))
+        env = filter_env(root)
+        if env is None:
+            return finding(
+                NAME, UNDETERMINED, "查不了 %s 有无改动" % where, where=where, kind="embedded-readonly-unknown",
+                reason="列不出本仓配置的过滤器（git config 失败或超时）；不在未压住过滤器时跑 git status",
+                why=why)
+        # --ignore-submodules=dirty：内嵌目录是子模块时不递归进去（那会跑子模块自己配置的过滤器）
+        out = _git(root, "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=dirty",
+                   "--", embedded_rel, env=env)
     except (OSError, subprocess.SubprocessError) as exc:
         return undetermined_from_exception(NAME, exc, "查 %s 有无改动（git）" % where)
     if out.returncode != 0:

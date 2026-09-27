@@ -1004,6 +1004,21 @@ def _stdlib_selftest():
                 except sl.ConfigError as exc:
                     got, ok = str(exc), u"第 " in str(exc)
                 cases.append(("YAML 子集对歧义写法拒收并给行号 %r" % text[:24], ok, got))
+            # B4：配置是指向项目之外（且不存在）的软链接 → 先判真实位置，不去探测目标在不在
+            proj = fresh("p14")
+            os.makedirs(os.path.join(proj, "governance"))
+            os.symlink(os.path.join(out_dir, "nope.yaml"), os.path.join(proj, "governance", "project.yaml"))
+            cfg, prob = sl.load_config(proj)
+            cases.append(("配置软链到项目之外且目标不存在：报越界，不报「未找到」（没探测目标）",
+                          bool(prob) and u"之外" in prob, prob))
+            # B4：例外登记册是指向项目之外的软链接 → 不读、不回显，记一条问题
+            proj = fresh("p15")
+            os.makedirs(os.path.join(proj, "governance"))
+            os.symlink(secret, os.path.join(proj, "governance", "exceptions.md"))
+            rows, probs, _src, _own = sl.load_exceptions(os.path.join(proj, "governance"), proj)
+            cases.append(("例外登记册软链到项目之外：不读、不回显内容",
+                          not rows and probs and not any("TOPSECRET" in x for x in probs)
+                          and any(u"之外" in x for x in probs), probs))
             # 裁定 6：拒收信息带行号并指明不支持的写法
             msgs = []
             for text, want in ((u"---\ntier: L1\n", u"文档分隔符"), (u"tier:L1\n", u"冒号后没有空格"),
@@ -1064,51 +1079,116 @@ def _stdlib_selftest():
 
 
 def _hostile_git_config_selftest():
-    """被扫仓 .git/config 里的外部程序不得被本工具执行（stdlib.GIT_HARDEN_CONFIG）。
+    """被扫仓 .git/config 里的外部程序不得被本工具执行（stdlib.GIT_HARDEN_CONFIG、filter_env）。
 
-    夹具仓的配置写上 core.fsmonitor、blame 会走的 textconv、clean 过滤器与 diff.external，
-    每个都 touch 一个标记文件；工作区文件带一行会被 drift 拿去 blame 的日期，保证读工作区的
-    git 调用真的发生。跑一遍完整扫描后标记文件一个都不许出现。
+    夹具仓的配置写上 core.fsmonitor、blame 会走的 textconv、两个 clean 过滤器（其一名字带 `=`，
+    `-c k=v` 会把它切错）、diff.external，以及 log.showSignature + gpg.program + 一个签名提交
+    （freshness 退到提交时间时的 `git log` 会验签）；每个都 touch 一个标记文件。工作区文件带会被
+    drift 拿去 blame 的日期、带一件没有转换时间戳的进行中工作项，保证这些 git 调用真的发生。
+    另两件：内嵌目录是子模块时 `git status` 不递归进去跑子模块自己的过滤器；读不出过滤器名
+    （配置坏了）时 filter_env 返回 None、blame 记未定而不是照常执行。
     """
     import subprocess
     import tempfile
+    import stdlib as sl
 
     title = "被扫仓配置里的外部程序不得被执行"
-    why = "扫描不可信目录时，其 .git/config 可让 git 执行任意命令（fsmonitor、textconv、过滤器）"
+    why = "扫描不可信目录时，其 .git/config 可让 git 执行任意命令（fsmonitor、textconv、过滤器、gpg）"
+    git_id = ["-c", "init.defaultBranch=main", "-c", "user.email=std@example.invalid",
+              "-c", "user.name=std", "-c", "commit.gpgsign=false", "-c", "protocol.file.allow=always"]
+
+    def git(repo, *args, **kw):
+        r = subprocess.run(["git", "-C", repo] + git_id + list(args), capture_output=True, timeout=60, **kw)
+        if r.returncode != 0:
+            raise RuntimeError("git %s 退出码 %d：%s" % (args[0], r.returncode, r.stderr[-200:]))
+        return r.stdout.decode("utf-8", "replace").strip()
+
+    def put(path, body):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(body)
+
+    mods = {n: m for n, m, _e in discover() if m is not None}
+    notes = []
     try:
         with tempfile.TemporaryDirectory() as tmp:
+            mark = os.path.join(tmp, "PWNED_")
             proj, cfg_path = os.path.join(tmp, "proj"), os.path.join(tmp, "project.yaml")
+            wi = os.path.join(proj, "docs", "state", "work", "WI-001-x.md")
             for path, body in ((os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY),
                                (os.path.join(proj, "docs", "a.md"), u"# a\n\n2099-01-01 已完成 某事\n"),
-                               (os.path.join(proj, ".gitattributes"), u"*.md diff=evil filter=evil\n"),
+                               (os.path.join(proj, "docs", "b.md"), u"# b\n\n2099-01-02 已完成 某事\n"),
+                               (wi, u"# WI-001\n\n状态：in_progress\n"),
+                               (os.path.join(proj, ".gitattributes"),
+                                u"*.md diff=evil filter=evil\ndocs/b.md filter=a=b\n"),
                                (cfg_path, _SMOKE_CONFIG)):
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-                with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-                    fh.write(body)
-            mark = os.path.join(tmp, "PWNED_")
-            git_id = ["-c", "init.defaultBranch=main", "-c", "user.email=std@example.invalid",
-                      "-c", "user.name=std", "-c", "commit.gpgsign=false"]
-            for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "s"],
-                         ["config", "core.fsmonitor", "touch %sfsmonitor; false" % mark],
-                         ["config", "diff.evil.textconv", "sh -c 'touch %stextconv; cat \"$1\"' -" % mark],
-                         ["config", "filter.evil.clean", "sh -c 'touch %sclean; cat'" % mark],
-                         ["config", "diff.external", "touch %sexternal" % mark]):
-                r = subprocess.run(["git", "-C", proj] + git_id + args, capture_output=True, timeout=60)
-                if r.returncode != 0:
-                    raise RuntimeError("git %s 退出码 %d" % (args[0], r.returncode))
-            os.utime(os.path.join(proj, "docs", "a.md"))   # stat 失效，逼 git 重读工作区
+                put(path, body)
+            git(proj, "init", "-q")
+            git(proj, "add", "-A")
+            git(proj, "commit", "-q", "-m", "s")
+            # 签名提交：不依赖 gpg，直接写一个带 gpgsig 头的提交对象，再把分支指过去
+            put(wi, u"# WI-001\n\n状态：in_progress\n\n补一句。\n")
+            git(proj, "add", "-A")
+            raw = (u"tree %s\nparent %s\nauthor a <a@b> 1700000000 +0000\ncommitter a <a@b> 1700000000 +0000\n"
+                   u"gpgsig -----BEGIN PGP SIGNATURE-----\n \n abc\n -----END PGP SIGNATURE-----\n\nsigned\n"
+                   % (git(proj, "write-tree"), git(proj, "rev-parse", "HEAD")))
+            sha = git(proj, "hash-object", "-t", "commit", "-w", "--stdin", input=raw.encode("utf-8"))
+            with io.open(os.path.join(proj, ".git", "refs", "heads", "main"), "w") as fh:
+                fh.write(sha + "\n")
+            gpg = os.path.join(tmp, "gpg.sh")
+            put(gpg, u"#!/bin/sh\ntouch %sgpg\nexit 1\n" % mark)
+            os.chmod(gpg, 0o755)
+            for k, v in (("core.fsmonitor", "touch %sfsmonitor; false" % mark),
+                         ("diff.evil.textconv", "sh -c 'touch %stextconv; cat \"$1\"' -" % mark),
+                         ("filter.evil.clean", "sh -c 'touch %sclean; cat'" % mark),
+                         ("filter.a=b.clean", "sh -c 'touch %sclean_eq; cat'" % mark),
+                         ("diff.external", "touch %sexternal" % mark),
+                         ("log.showSignature", "true"), ("gpg.program", gpg)):
+                git(proj, "config", k, v)
+            for rel in ("docs/a.md", "docs/b.md"):
+                os.utime(os.path.join(proj, rel))   # stat 失效，逼 git 重读工作区
             findings, _cfg = run_all(proj, selftest_only=False, config_path=cfg_path)
-            blamed = any(f.get("id") == "drift/future-date/docs/a.md｜2099-01-01" for f in findings)
+            ids = set(f.get("id") for f in findings)
+            if not {"drift/future-date/docs/a.md｜2099-01-01", "drift/future-date/docs/b.md｜2099-01-02"} <= ids:
+                notes.append("夹具没走到 git blame")
+            if not any(f.get("where") == "docs/state/work/WI-001-x.md" and f["check"] == "freshness"
+                       and f["status"] in (PASS, FAIL) for f in findings):
+                notes.append("夹具没走到 freshness 的 git log")
+
+            # 子模块：内嵌目录 .std 是子模块，子模块自己配了过滤器
+            sub, par = os.path.join(tmp, "sub"), os.path.join(tmp, "par")
+            put(os.path.join(sub, "x.md"), u"x\n")
+            put(os.path.join(sub, ".gitattributes"), u"*.md filter=subf\n")
+            put(os.path.join(par, "a.md"), u"a\n")
+            for repo in (sub, par):
+                git(repo, "init", "-q")
+                git(repo, "add", "-A")
+                git(repo, "commit", "-q", "-m", "s")
+            git(par, "submodule", "add", "-q", sub, ".std")
+            git(par, "commit", "-q", "-m", "sub")
+            git(os.path.join(par, ".std"), "config", "filter.subf.clean", "sh -c 'touch %ssubmodule; cat'" % mark)
+            os.utime(os.path.join(par, ".std", "x.md"))
+            mods["adoption"]._embedded_readonly(par, ".std")
+
+            # 配置坏了：列不出过滤器名 → None，blame 记未定，不照常执行
+            bad = os.path.join(tmp, "bad")
+            git(bad if os.path.isdir(bad) else tmp, "init", "-q", bad)
+            with io.open(os.path.join(bad, ".git", "config"), "a") as fh:
+                fh.write(u"[broken\n")
+            env_bad = sl.filter_env(bad)
+            blamed = mods["drift"]._blame(bad, "a.md")
+            if env_bad is not None or blamed[0] is not None:
+                notes.append("配置坏了时 filter_env=%r、blame=%r，应为 None 与未定" % (type(env_bad).__name__, blamed[1]))
             hits = sorted(f[len("PWNED_"):] for f in os.listdir(tmp) if f.startswith("PWNED_"))
     except Exception as exc:  # noqa: BLE001
         return [finding("shared-fact", FAIL, title, why=why,
                         evidence="跑不起来：%s: %s" % (type(exc).__name__, exc))]
-    if hits or not blamed:
+    if hits or notes:
         return [finding("shared-fact", FAIL, title, why=why,
-                        evidence="被执行：%s" % "、".join(hits) if hits
-                        else "夹具没走到 git blame（drift 未报 future-date），断言不成立")]
+                        evidence="被执行：%s；%s" % ("、".join(hits) or "无", "；".join(notes) or "断言全过"))]
     return [finding("shared-fact", PASS, title, why=why,
-                    evidence="fsmonitor、textconv、clean 过滤器、diff.external 均未执行；drift 的 blame 已跑")]
+                    evidence="fsmonitor、textconv、两个 clean 过滤器（含名字带 = 的）、diff.external、gpg、"
+                             "子模块过滤器均未执行；配置坏了时 blame 记未定")]
 
 
 def run_all(root, selftest_only=False, config_path=None):
@@ -1199,7 +1279,7 @@ def _join_exceptions(findings, cfg):
         cdir = _config_dir(cfg)
         if cdir is None:
             return info
-        rows, problems, src, own = load_exceptions(cdir)
+        rows, problems, src, own = load_exceptions(cdir, cfg.get("_root"))
     except Exception as exc:  # noqa: BLE001 —— 读登记册出错也是未定，不静默当成没有登记
         findings.append(undetermined_from_exception(EXCEPTION_CHECK, exc, "读例外登记"))
         return info
