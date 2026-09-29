@@ -1320,7 +1320,10 @@ GIT_FIXTURE_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
 
 
 def git_fixture(repo, *args, env=None):
-    """在夹具仓里跑一条 git；退出码非 0 即抛。"""
+    """在本工具自建的夹具仓里跑一条 git；退出码非 0 即抛。
+
+    只用于自检夹具，不得用于被扫仓：它不走 filter_env，被扫仓的 git 调用一律经 filter_env。
+    """
     cmd = ["git", "-C", repo, "-c", "init.defaultBranch=main"] + GIT_FIXTURE_ID + list(args)
     r = subprocess.run(cmd, capture_output=True, timeout=60, env=env)
     if r.returncode != 0:
@@ -1329,7 +1332,10 @@ def git_fixture(repo, *args, env=None):
 
 
 def git_track(tmp, when=None):
-    """自检样本要被 git 跟踪才进得了扫描范围；给了 when 再以该时间真提交一次。返回 None 或错误串。"""
+    """自检样本要被 git 跟踪才进得了扫描范围；给了 when 再以该时间真提交一次。返回 None 或错误串。
+
+    只用于本工具自建的夹具仓，不得用于被扫仓（不走 filter_env）。
+    """
     cmds = [["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
             ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]]
     env = None

@@ -1421,9 +1421,27 @@ def _stdlib_selftest(mods):
                           cfg == {} and u"第 2 行 tailoring 须是映射组成的列表" in (prob or ""), prob))
     except Exception as exc:  # noqa: BLE001
         return [undetermined_from_exception("stdlib", exc, "跑 stdlib 自检")]
-    return [probe("stdlib", ok, "stdlib：" + title,
-                    why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
-            for title, ok, ev in cases]
+    # 断言与外壳自身（R124-2）：全部自检都经 probe／probe_crashed 出结论、九个检查器都经 run_guarded
+    # 兜底，改坏一行就整批失效。这三条直接比状态字面值，结论也不经 probe 出
+    def _boom(_cfg):
+        raise ValueError("x")
+    core = []
+    for title, fn in (
+            ("probe 对假值记 FAIL", lambda: sl.probe("x", False, "t")["status"]),
+            ("probe_crashed 记 FAIL", lambda: sl.probe_crashed("x", "t", ValueError())["status"]),
+            ("run_guarded 把内部异常转成恰好一条 internal-error 未定",
+             lambda: [(f["status"], f["id"]) for f in sl.run_guarded("x", _boom, {})])):
+        want = [(UNDETERMINED, "x/internal-error")] if "run_guarded" in title else FAIL
+        try:
+            got = fn()
+        except Exception as exc:  # noqa: BLE001
+            got = "%s: %s" % (type(exc).__name__, exc)
+        core.append(finding("stdlib", PASS if got == want else FAIL, "stdlib：" + title,
+                            why="契约 §3：断言外壳被改坏时，经它出的断言会整批跟着变绿",
+                            evidence="期望 %s，实得 %s" % (want, got)))
+    return core + [probe("stdlib", ok, "stdlib：" + title,
+                         why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
+                   for title, ok, ev in cases]
 
 
 def _hostile_git_config_selftest(mods):
