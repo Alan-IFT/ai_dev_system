@@ -37,8 +37,9 @@ _LINK_RE = re.compile(
     r'\(\s*(?:<([^<>\n]+)>|([^()<>\s]+))(?:\s+"[^"]*"|\s+\'[^\']*\')?\s*\)'
 )
 
-# 跳过的协议：契约要求跳过 http/https/mailto，另加几个同样不是本地路径的
-_SKIP_SCHEME_RE = re.compile(r'^(?:https?|mailto|ftp|ftps|tel|sms|data|file|irc|ssh|git):', re.I)
+# 带协议的目标（http:、mailto:、javascript:、vscode: ……）都不是本地路径，一律跳过（RFC 3986 的 scheme 形状）。
+# 至少两个字符：单字母加冒号是 Windows 盘符，归 _WIN_ABS_RE
+_SKIP_SCHEME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]+:')
 _WIN_ABS_RE = re.compile(r'^[A-Za-z]:[\\/]')
 
 _MD_EXT = (".md", ".markdown")
@@ -272,7 +273,7 @@ def _run(cfg):
                     continue
 
                 path_part, _, anchor = target.partition("#")
-                path_part = unquote(path_part)
+                path_part = unquote(path_part.partition("?")[0])   # ?plain=1 之类是查询串，不是文件名的一部分
                 anchor = unquote(anchor)
 
                 # 纯锚点：指向本文件
@@ -282,8 +283,7 @@ def _run(cfg):
                     if anchor in src_anchors:
                         continue
                     n_bad += 1
-                    _emit_anchor_miss(out, merged, lineno,
-                                      _anchor_miss(rel, where, target, anchor, rel, frozen_note))
+                    _merge(out, merged, lineno, _anchor_miss(rel, where, target, anchor, rel, frozen_note))
                     continue
 
                 root_abs = False
@@ -320,9 +320,9 @@ def _run(cfg):
                 exists, isdir = cache.path_kind(abs_tgt)
                 if not exists:
                     n_bad += 1
-                    out.append(finding(
+                    _merge(out, merged, lineno, finding(
                         NAME, FAIL, "%s 指向不存在的路径：%s" % (rel, target),
-                        where=where,
+                        where=where, kind="missing", key=rel + "|" + target,
                         why="01 §3.4 引用关系的核对方式就是 linkcheck；"
                             "01 §3.2 里 INDEX 过期的发现方式是「指向不存在的路径」",
                         evidence="解析为 %s；%s" % (abs_tgt, frozen_note or "不在归档区"),
@@ -348,8 +348,7 @@ def _run(cfg):
                 if anchor in tgt_anchors:
                     continue
                 n_bad += 1
-                _emit_anchor_miss(out, merged, lineno,
-                                  _anchor_miss(rel, where, target, anchor, path_part, frozen_note))
+                _merge(out, merged, lineno, _anchor_miss(rel, where, target, anchor, path_part, frozen_note))
 
     out.append(finding(
         NAME, PASS,
@@ -367,7 +366,7 @@ def _lines_note(base, lines):
 
 
 def _merge(out, merged, lineno, f):
-    """带 `kind` 的未定三类按 Finding id 合并：同一份文件里同一个链接目标只出一条。
+    """按 Finding id 合并（各条都带 `kind`）：同一份文件里同一个链接目标只出一条。
 
     id 是 `links/<kind>/<文件>｜<目标>`，同一 (文件, 目标) 重复出现只是同一件事被写了
     多遍——出成多条会让登记册要为同一件事写多行，行号一改登记就失效。行号进 evidence。
@@ -384,14 +383,6 @@ def _merge(out, merged, lineno, f):
     prev["evidence"] = _lines_note(base, lines)
 
 
-def _emit_anchor_miss(out, merged, lineno, f):
-    """锚点没匹配上：中文那支（未定，带 kind）合并，ASCII 那支（FAIL）逐处照报。"""
-    if f["status"] == UNDETERMINED:
-        _merge(out, merged, lineno, f)
-    else:
-        out.append(f)
-
-
 def _anchor_miss(src_rel, where, target, anchor, tgt_rel, frozen_note):
     """锚点没匹配上。中文锚点判未定，ASCII 锚点判 FAIL。"""
     if _CJK_RE.search(anchor):
@@ -405,7 +396,7 @@ def _anchor_miss(src_rel, where, target, anchor, tgt_rel, frozen_note):
         )
     return finding(
         NAME, FAIL, "%s 的锚点不存在：%s" % (src_rel, target),
-        where=where,
+        where=where, kind="anchor-missing", key=src_rel + "|" + target,
         why="01 §3.4 引用：B 链接 A 不复制 A，靠 linkcheck 核对；锚点失效即引用失效",
         evidence="目标 %s 里既无 <a id=\"%s\">，也没有能生成该锚点的标题。%s"
                  % (tgt_rel, anchor, frozen_note),
@@ -485,6 +476,20 @@ def selftest():
                 "反例四：下划线锚点、setext 锚点、仓根路径、<> 包裹路径按实际渲染认；仓根找不到记未定",
                 evidence="非通过项 %s；应得 %s" % (bad, want),
                 why="契约 §1.1：约定落空只记未定；01 §3.4 引用核对不得误报",
+            ))
+
+            # 反例五（C19 C20）：同一缺失文件、同一 ASCII 缺失锚点各写两遍，各只出一条 FAIL、id 带 kind；
+            # ?plain=1 是查询串（b.md 在），javascript:/vscode: 之类带协议的不是本地路径
+            w("b.md", "# b\n")
+            w("a.md", "[x](gone.md)\n[y](gone.md)\n[z](b.md#nope)\n[z](b.md#nope)\n"
+                      "[q](b.md?plain=1) [v](vscode:extension/x) [n](news:comp.lang)\n")
+            got = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
+            want = [(FAIL, "links/anchor-missing/a.md｜b.md#nope"), (FAIL, "links/missing/a.md｜gone.md")]
+            results.append(finding(
+                NAME, PASS if got == want else FAIL,
+                "反例五：同一缺失目标只出一条 FAIL、id 不随行号漂；查询串与带协议的目标不当本地路径",
+                evidence="非通过项 %s；应得 %s" % (got, want),
+                why="契约 §4/§9：id 是登记的地址；01 §3.4 引用核对不得误报",
             ))
 
             # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；
