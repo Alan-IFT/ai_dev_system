@@ -148,19 +148,23 @@ def _last_transition(text):
 
     block = _section_body(text, _TRANSITION_HEADINGS)
     if block is None:
-        rows = [ln for ln in text.splitlines() if "from" in ln.lower() and "|" in ln]
-        block = "\n".join(rows) if rows else None
-    if block is None:
         return None, None, ("absent", "文件里没有状态转换记录小节，也没有显式转换时间字段")
 
-    found = []
-    for token in re.findall(r"\d{4}-\d{2}-\d{2}", block):
-        d, _err = parse_date(token)
-        if d:
-            found.append(d)
-    if not found:
-        return None, None, ("absent", "状态转换记录小节里没有可解析的日期")
-    return max(found), "取自状态转换记录里最晚的日期（共 %d 个）" % len(found), None
+    # 取最后一条记录（表格行或列表项）里的第一个日期（C10）。不取全节最大值——小节里的备注、
+    # 计划日期会把停滞的工作项洗成活着；记录是按发生顺序追加的，最后一条就是最后一次转换
+    last = None
+    for ln in block.splitlines():
+        if not re.match(r"\s*(?:\||[-*+]\s)", ln):
+            continue
+        for token in re.findall(r"\d{4}-\d{2}-\d{2}", ln):
+            d, _err = parse_date(token)
+            if d:
+                last = d
+                break
+    if last is None:
+        # 有小节却找不到一条带日期的记录：不退到提交时间去猜（01 §2 N1）
+        return None, None, ("bad", "状态转换记录小节里找不到带日期的记录行（表格行或列表项）")
+    return last, "取自状态转换记录的最后一条（%s）" % last.isoformat(), None
 
 
 def _int_budget(cfg, path, default):
@@ -721,6 +725,31 @@ def selftest():
             evidence="实得 %s%s" % ([(f["status"], f["id"]) for f in res], ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §1.1：目录名是工具约定，约定命中或落空都不产出 FAIL",
         ))
+
+    # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；
+    # 有小节却没有带日期的记录记未定，不退到提交时间
+    got = {}
+    for tag, body in (
+            ("note", "## 状态转换记录\n\n| from → to | 时间 |\n|---|---|\n| planned → in_progress | %s |\n\n"
+                     "备注：计划 %s 前完成\n" % (old, fresh)),
+            ("elsewhere", "## 其他\n\n| from | to | %s |\n|---|---|---|\n" % fresh),
+            ("empty", "## 状态转换记录\n\n（无）\n")):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, "updated_at: %s\n" % fresh, "# WI-0001\n\n状态：in_progress\n\n" + body)
+            if not err:   # 退到提交时间的那支按 100 天前提交
+                env = dict(os.environ, GIT_COMMITTER_DATE="%s 12:00:00 +0000" % old,
+                           GIT_AUTHOR_DATE="%s 12:00:00 +0000" % old)
+                subprocess.run(["git", "-C", tmp, "-c", "user.name=a", "-c", "user.email=a@b",
+                                "-c", "commit.gpgsign=false", "commit", "-q", "-m", "s"],
+                               capture_output=True, timeout=60, env=env)
+            got[tag] = [f["status"] for f in run(cfg) if (f.get("where") or "") == "work/WI-0001-x.md"] \
+                if not err else err
+    want = {"note": [FAIL], "elsewhere": [FAIL], "empty": [UNDETERMINED]}
+    results.append(finding(
+        NAME, PASS if got == want else FAIL,
+        "C10：取最后一条转换记录；备注日期与别处的 from 行不洗白停滞工作项，空记录记未定",
+        evidence="实得 %s；应得 %s" % (got, want), why="01 §4.1：活性看最后一次状态转换；01 §2 N1 判不了不猜",
+    ))
 
     # C11：metadata_required 声明了而 metadata_fields 没声明，无日期文档只记一条聚合未定，不判 FAIL
     # （与 layout 的 meta-unrecognized 同口径：字段名是工具默认，没认出推不出没写）
