@@ -39,8 +39,8 @@ _LINK_RE = re.compile(
 
 # 带协议的目标（http:、mailto:、javascript:、vscode: ……）都不是本地路径，一律跳过（RFC 3986 的 scheme 形状）。
 # 至少两个字符：单字母加冒号是 Windows 盘符，归 _WIN_ABS_RE。scheme 不含点、冒号后不是纯行号：
-# `a.py:12`、`Makefile:3` 是「本地路径:行号」，按路径核（R2-9）
-_SKIP_SCHEME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9+-]+:(?!\d+(?::\d+)?$)')
+# `a.py:12`、`Makefile:3` 是「本地路径:行号」，按路径核（R2-9）；tel:、sms: 的值本就是纯数字，照跳过
+_SKIP_SCHEME_RE = re.compile(r'^(?:(?:tel|sms):|[A-Za-z][A-Za-z0-9+-]+:(?!\d+(?::\d+)?$))', re.I)
 _LINE_SUFFIX_RE = re.compile(r':\d+(?::\d+)?$')
 _WIN_ABS_RE = re.compile(r'^[A-Za-z]:[\\/]')
 
@@ -498,7 +498,8 @@ def selftest():
             # ?plain=1 是查询串（b.md 在），javascript:/vscode: 之类带协议的不是本地路径
             w("b.md", "# b\n")
             w("a.md", "[x](gone.md)\n[y](gone.md)\n[z](b.md#nope)\n[z](b.md#nope)\n"
-                      "[q](b.md?plain=1) [v](vscode:extension/x) [n](news:comp.lang)\n")
+                      "[q](b.md?plain=1) [v](vscode:extension/x) [n](news:comp.lang)"
+                      " [t](tel:10086) [s](sms:10086)\n")
             got = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
             want = [(FAIL, "links/anchor-missing/a.md｜b.md#nope"), (FAIL, "links/missing/a.md｜gone.md")]
             results.append(finding(
