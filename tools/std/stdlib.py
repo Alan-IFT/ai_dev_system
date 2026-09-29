@@ -512,17 +512,20 @@ def _bad_dup_budgets(cfg, text):
 
 # 配置键的形状（契约 §5 类型表）。写成别的形状不许静默误读——frozen 写成字符串被逐字符迭代、
 # tailoring 写成映射静默不生效、layout.entry: 5 让两个检查器崩溃——整份拒收，报键名与行号。空值＝没写。
-_SHAPES = (("layout", "map"), ("layout.artifacts", "map"), ("budgets", "map"),
+_SHAPES = (("tier", "str"), ("layout.docs_root", "str"), ("layout.work_root", "str"),
+           ("layout", "map"), ("layout.artifacts", "map"), ("budgets", "map"),
            ("tailoring", "maps"), ("derived", "maps"), ("repos", "maps"),
            ("layout.frozen", "strs"), ("layout.rule_files", "strs"), ("metadata_required", "strs"),
            ("layout.entry", "str|strs"), ("metadata_fields", "str|strs"),
            ("work_item_done_states", "str|strs"), ("work_item_in_progress_states", "str|strs"))
-_SHAPE_NAMES = {"map": "映射", "maps": "映射组成的列表", "strs": "字符串列表", "str|strs": "字符串或字符串列表"}
+_SHAPE_NAMES = {"str": "字符串", "map": "映射", "maps": "映射组成的列表", "strs": "字符串列表", "str|strs": "字符串或字符串列表"}
 
 
 def _shape_ok(v, shape):
     if v is None or (shape == "str|strs" and isinstance(v, str)):
         return True
+    if shape == "str":
+        return isinstance(v, (str, int, float)) and not isinstance(v, bool)
     if shape == "map":
         return isinstance(v, dict)
     return isinstance(v, list) and all(
@@ -532,8 +535,14 @@ def _shape_ok(v, shape):
 
 def _bad_shape(cfg, text):
     items = [(key, cfg_get(cfg, key), shape) for key, shape in _SHAPES]
-    items += [("repos[%d].former_names" % i, r.get("former_names"), "strs")
-              for i, r in enumerate(cfg_get(cfg, "repos") or []) if isinstance(r, dict)]
+    for lst, subs in (("repos", (("name", "str"), ("path", "str"), ("role", "str"), ("former_names", "strs"))),
+                      ("derived", (("artifact", "str"), ("source", "str"), ("regen", "str"))),
+                      ("tailoring", (("check", "str"), ("reason", "str")))):
+        items += [("%s[%d].%s" % (lst, i, k), r.get(k), shape)
+                  for i, r in enumerate(cfg_get(cfg, lst) or []) if isinstance(r, dict) for k, shape in subs]
+    arts = cfg_get(cfg, "layout.artifacts")
+    items += [("layout.artifacts." + str(k), v, "str|strs" if k == "entry" else "str")
+              for k, v in (arts.items() if isinstance(arts, dict) else ())]
     for key, v, shape in items:
         if not _shape_ok(v, shape):
             return "第 %d 行 %s 须是%s；写成别的形状不猜" % (

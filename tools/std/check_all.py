@@ -999,7 +999,13 @@ def _stdlib_selftest(mods):
                     ("p21", u"tier: L1\nlayout:\n  entry: 5\n", u"第 3 行 layout.entry"),
                     ("p22", u"tier: L1\nwork_item_done_states:\n  done: x\n", u"第 2 行 work_item_done_states"),
                     ("p23", u"tier: L1\nrepos:\n  - name: a\n    path: .\n    former_names: b\n",
-                     u"第 5 行 repos[0].former_names")):
+                     u"第 5 行 repos[0].former_names"),
+                    # R1-04：字符串键写成列表或映射同样拒收
+                    ("p28", u"tier: L1\nlayout:\n  work_root:\n    - a\n", u"第 3 行 layout.work_root"),
+                    ("p29", u"tier: L1\nlayout:\n  docs_root:\n    k: v\n", u"第 3 行 layout.docs_root"),
+                    ("p30", u"tier: L1\nlayout:\n  artifacts:\n    status:\n      - a\n",
+                     u"第 4 行 layout.artifacts.status"),
+                    ("p31", u"tier: L1\nrepos:\n  - name: a\n    path:\n      - x\n", u"第 4 行 repos[0].path")):
                 cfg, prob = load(fresh(tag), body)
                 cases.append(("配置键形状不对整份拒收（%s）" % key, not cfg and key in (prob or ""), prob))
             # A10：列表项空值取 None（不按下一行形状读成 [] 或 {}）；a: b: c、引号不闭合拒收
