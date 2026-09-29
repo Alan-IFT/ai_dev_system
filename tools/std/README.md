@@ -148,7 +148,9 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   支是线性的，两者都是完整的升级差异。读完差异再改 `governance/STANDARD_VERSION`（值取
   `.std/标准/README.md` 第 3 行），**在 pull 之后改，不要先改再 pull**：pull 认的是当前 `.std/`
   的内容，先改版本号只会让文件和记录对不上。
-- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
+- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：先在 main 上跑
+  `python3 tools/std/check_all.py --selftest`，退出 0 才继续——跨检查器反例只在 `--selftest` 里跑，
+  不在提交路径上（钩子跑的是 `check_all . --no-scope`）→ 在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
   `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
   `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
