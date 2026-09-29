@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import importlib.util
 import io
 import json
 import os
@@ -25,6 +24,27 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+
+
+def _load_source(name, path, register=False):
+    """按 .py 源码字节编译并执行成模块，不经导入系统、不读 `__pycache__`。
+
+    PEP 552 的 unchecked-hash pyc 不与源码比对：往 `__pycache__/` 放一份篡改版，执行的就是它，
+    而契约 §8 的身份只哈希 .py 源码，身份不变。stdlib 与各检查器一律经这里加载。
+    register：放进 sys.modules（stdlib 要被检查器 `from stdlib import` 取到）。
+    """
+    import types
+    with io.open(path, "rb") as fh:
+        code = compile(fh.read(), path, "exec", dont_inherit=True)
+    mod = types.ModuleType(name)
+    mod.__file__ = path
+    if register:
+        sys.modules[name] = mod
+    exec(code, mod.__dict__)
+    return mod
+
+
+_load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
@@ -164,11 +184,8 @@ def discover():
     for fn in sorted(os.listdir(CHECKS_DIR)):
         if not (fn.startswith("check_") and fn.endswith(".py")):
             continue
-        path = os.path.join(CHECKS_DIR, fn)
-        spec = importlib.util.spec_from_file_location(fn[:-3], path)
-        mod = importlib.util.module_from_spec(spec)
         try:
-            spec.loader.exec_module(mod)
+            mod = _load_source(fn[:-3], os.path.join(CHECKS_DIR, fn))
         except (Exception, SystemExit) as exc:  # 加载失败也是未定，不是没有这项检查
             mods.append((fn[:-3], None, exc))
             continue
@@ -958,6 +975,19 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A6：模块按源码加载，__pycache__ 里的 unchecked-hash pyc 顶替不了源码
+            import py_compile
+            import importlib.util
+            src = os.path.join(fresh("p18"), "m.py")
+            with io.open(src, "w", encoding="utf-8") as fh:
+                fh.write(u"X = 2\n")
+            py_compile.compile(src, cfile=importlib.util.cache_from_source(src), doraise=True,
+                               invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH)
+            with io.open(src, "w", encoding="utf-8") as fh:
+                fh.write(u"X = 1\n")
+            got = (_load_source("m", src).X, getattr(sys.modules["stdlib"], "__spec__", 1),
+                   [n for n, m, _e in discover() if m is not None and getattr(m, "__spec__", 1) is not None])
+            cases.append(("stdlib 与检查器按源码加载，不读 __pycache__ 里的 pyc", got == (1, None, []), got))
             # A5：顶层 _ 开头的键是代码注入口，写进 project.yaml 整份拒收（曾可用 _links_files 缩小 links 扫描面）
             cfg, prob = load(fresh("p17"), u"tier: L1\n_links_files:\n  - CLAUDE.md\n")
             cases.append(("配置写 _links_files 整份拒收并给行号", not cfg and u"第 2 行" in (prob or ""), prob))
