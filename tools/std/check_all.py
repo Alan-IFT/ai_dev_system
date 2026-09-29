@@ -922,6 +922,42 @@ def _stdlib_selftest():
                 cases.append(("read_text 不跟随指向项目之外的符号链接", False, "读到了"))
             except sl.OutsideRoot as exc:
                 cases.append(("read_text 不跟随指向项目之外的符号链接", "TOPSECRET" not in str(exc), str(exc)))
+            # A2／A3／A15：读被扫文件只走 stdlib.read_bytes——FIFO 不读不阻塞、超限不读、打开前后复核真实位置
+            proj = fresh("p16")
+            def _try(fn):
+                try:
+                    return "读到：%r" % fn()[:20]
+                except OSError as exc:
+                    return type(exc).__name__
+            fifo = os.path.join(proj, "fifo.md")
+            os.mkfifo(fifo)
+            got = _try(lambda: sl.read_text(fifo, proj))
+            cases.append(("FIFO 不读、不阻塞（NotRegular）", got == "NotRegular", got))
+            big = os.path.join(proj, "big.md")
+            with open(big, "wb") as fh:
+                fh.truncate(sl.MAX_READ_BYTES + 1)          # 稀疏文件，不占盘
+            got = [_try(lambda: sl.read_text(big, proj)), _try(lambda: sl.read_bytes(big, proj, head=4))]
+            cases.append(("超过 MAX_READ_BYTES 不读（TooLarge），只读头部时照读",
+                          got == ["TooLarge", "读到：b'\\x00\\x00\\x00\\x00'"], got))
+            inner, outer = os.path.join(proj, "d"), os.path.join(out_dir, "d")
+            for d_, body in ((inner, u"inside\n"), (outer, u"TOPSECRET\n")):
+                os.makedirs(d_)
+                with io.open(os.path.join(d_, "a.md"), "w", encoding="utf-8") as fh:
+                    fh.write(body)
+            real_guard = sl.guard
+
+            def _swap(root_, path_):                        # 护栏放行之后、打开之前把中间目录换成出仓链接
+                real_guard(root_, path_)
+                os.rename(inner, inner + ".bak")
+                os.symlink(outer, inner)
+                return path_
+            sl.guard = _swap
+            try:
+                got = _try(lambda: sl.read_text(os.path.join(inner, "a.md"), proj))
+            finally:
+                sl.guard = real_guard
+            cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
+                          got == "OutsideRoot", got))
             # bug 6：GBK 编码的配置不崩，记未定
             cfg, prob = load(fresh("p8"), None, raw=u"tier: L1\nlayout:\n  docs_root: 文档\n".encode("gbk"))
             cases.append(("非 UTF-8 编码的配置应报未定，不抛 UnicodeDecodeError", bool(prob), prob))

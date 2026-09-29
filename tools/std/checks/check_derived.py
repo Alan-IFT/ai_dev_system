@@ -15,7 +15,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    shallow_problem, guard, FAIL, PASS, SKIP, UNDETERMINED,
+    shallow_problem, read_bytes, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, is_tailored_out, undetermined_from_exception,
 )
 
@@ -80,8 +80,7 @@ def git_last_commit_epoch(root, relpath):
 def read_header(path, root):
     """读文件头部若干行。二进制或读不了时返回 (None, 原因)。"""
     try:
-        with io.open(guard(root, path), "rb") as fh:
-            data = fh.read(_HEADER_MAX_BYTES)
+        data = read_bytes(path, root, head=_HEADER_MAX_BYTES)
     except OSError as exc:
         return None, u"读不了：%s" % exc
     if b"\x00" in data:

@@ -35,7 +35,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    guard, FAIL, PASS, SKIP, UNDETERMINED,
+    read_bytes, read_text, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, embedded_std_rel, filter_env, finding, is_tailored_out, undetermined_from_exception,
 )
 
@@ -96,8 +96,7 @@ def _embedded_revision(root, embedded_rel, version):
     """内嵌运行时的一条比对：STANDARD_VERSION 的版本值 vs 内嵌标准 README 的修订号。"""
     readme_rel = "%s/标准/README.md" % embedded_rel
     try:
-        with io.open(guard(root, os.path.join(root, readme_rel)), encoding="utf-8-sig", errors="replace") as fh:
-            m = _EMBED_REV_RE.search(fh.read())
+        m = _EMBED_REV_RE.search(read_text(os.path.join(root, readme_rel), root))
     except OSError as exc:
         return undetermined_from_exception(NAME, exc, "读 %s" % readme_rel)
     why = ("01 §8 第一条：项目记录采用的标准版本；01 §4.7『标准升级』行的验收判据："
@@ -273,8 +272,7 @@ def _version(cfg, root, tool_root):
         return out + _readonly_findings(root, embedded)
 
     try:
-        with io.open(guard(root, path), encoding="utf-8-sig", errors="replace") as fh:
-            text = fh.read()
+        text = read_text(path, root)
     except OSError as exc:
         return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)] + _readonly_findings(root, embedded)
 
@@ -483,8 +481,7 @@ def _settings_allow(root):
             reason="本检查只读 Claude Code 的项目级共享设置；项目不用它或把清单放在别的宿主里时，"
                    "那份清单本工具不读（见覆盖边界）", why=why)]
     try:
-        with io.open(guard(root, path), encoding="utf-8-sig") as fh:
-            data = json.load(fh)
+        data = json.loads(read_bytes(path, root).decode("utf-8-sig"))
         perms = data.get("permissions") or {}
         allow = perms.get("allow") or []
         if not isinstance(allow, list):

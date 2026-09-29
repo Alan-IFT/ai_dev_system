@@ -17,7 +17,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    guard, FAIL, PASS, SKIP, UNDETERMINED,
+    read_bytes, MAX_READ_BYTES, TooLarge, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, tracked_files,
     undetermined_from_exception,
 )
@@ -41,7 +41,6 @@ _DEFAULT_MIN_LINES = 3
 _DEFAULT_MIN_CHARS = 60
 
 _MAX_FINDINGS_PER_KIND = 30      # 超出部分不静默丢弃，另记一条未定
-_MAX_FILE_BYTES = 2 * 1024 * 1024  # 更大的文件不读，记未定
 _MIN_FILE_EFFECTIVE = 20         # 有效字符少于此数的文件不参与"逐字节相同"判定
 _MAX_BLOCK_LINES = 2000
 
@@ -207,13 +206,11 @@ def _collect(cfg):
             notes["absent"] += 1
             continue
         try:
-            size = os.path.getsize(path)
-            if size > _MAX_FILE_BYTES:
-                notes["skipped_big"] += 1
-                notes["big_paths"].append(rel)
-                continue
-            with io.open(guard(root, path), "rb") as fh:
-                data = fh.read()
+            data = read_bytes(path, root)
+        except TooLarge:
+            notes["skipped_big"] += 1
+            notes["big_paths"].append(rel)
+            continue
         except OSError as exc:
             notes["unreadable"] += 1
             notes["unreadable_paths"].append("%s（%s）" % (rel, type(exc).__name__))
@@ -346,7 +343,7 @@ def scope(cfg):
             u"不进判据 2、3（判据 1 的逐字节相同仍然看它们）",
             u"不看非文本文件（二进制、含 NUL 或非 UTF-8 的文件）",
             u"不看未被 git 跟踪的文件（未提交、被 .gitignore 排除的一律不看）",
-            u"不看单个大于 %d 字节的文件" % _MAX_FILE_BYTES,
+            u"不看单个大于 %d 字节的文件" % MAX_READ_BYTES,
             u"不判断两处内容是否语义相同，只判文本——换个说法写同一事实抓不到",
             u"不跨仓库比对（跨仓副本归 check_cross_repo）",
             u"不看代码块（``` 围栏之间）里的重复，除非整文件逐字节相同",
@@ -407,7 +404,7 @@ def _run(cfg):
         len(files), notes["excluded"], notes["skipped_binary"], notes["skipped_big"], notes["unreadable"])
     # 没读的文件不是"没有重复"：读不了、超大的各汇一条未定（契约 §1：依赖不可用记未定）
     for key, kind, what in (("unreadable_paths", u"unreadable", u"读不了"),
-                            ("big_paths", u"too-big", u"超过 %d 字节未读" % _MAX_FILE_BYTES)):
+                            ("big_paths", u"too-big", u"超过 %d 字节未读" % MAX_READ_BYTES)):
         paths = notes[key]
         if paths:
             out.append(finding(

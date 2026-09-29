@@ -18,7 +18,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    guard, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
+    read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
     STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
     is_tailored_out, rebase_docs, undetermined_from_exception,
 )
@@ -135,13 +135,7 @@ def _artifact_tailored(cfg, role):
 
 
 def _head(path, root):
-    with io.open(guard(root, path), encoding="utf-8", errors="replace") as fh:
-        out = []
-        for i, line in enumerate(fh):
-            if i >= _META_HEAD_LINES:
-                break
-            out.append(line)
-    return "".join(out)
+    return "".join(read_text(path, root, head=MAX_READ_BYTES).splitlines(True)[:_META_HEAD_LINES])
 
 
 def _has_field(head, field):

@@ -20,7 +20,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    inside, guard, FAIL, PASS, SKIP, UNDETERMINED,
+    inside, read_bytes, MAX_READ_BYTES, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
@@ -76,23 +76,13 @@ _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 # 小工具（stdlib 里没有的一律在本模块实现，不改公共库）
 # --------------------------------------------------------------------------
 
-_MAX_READ_BYTES = 2 * 1024 * 1024
-
-
-def _read(path, root, limit_bytes=_MAX_READ_BYTES):
-    with io.open(guard(root, path), "rb") as fh:
-        raw = fh.read(limit_bytes)
-    return raw.decode("utf-8", "replace")
+def _read(path, root):
+    return read_bytes(path, root).decode("utf-8", "replace")   # 护栏、非常规文件与上限都在 stdlib
 
 
 def _head_lines(path, root, n=_MARKER_HEAD_LINES):
-    out = []
-    with io.open(guard(root, path), "rb") as fh:
-        for i, raw in enumerate(fh):
-            if i >= n:
-                break
-            out.append(raw.decode("utf-8", "replace"))
-    return "".join(out)
+    lines = read_bytes(path, root, head=MAX_READ_BYTES).decode("utf-8", "replace").split("\n")
+    return "".join(ln + "\n" for ln in lines[:n])
 
 
 def _has_invalidation_marker(text):
@@ -773,9 +763,6 @@ def _check_links(repos):
         broken, host_abs, total, unread, outside = [], [], 0, [], []
         for f in mds:
             try:
-                if os.path.getsize(guard(r["_real"], f)) > _MAX_READ_BYTES:   # 先过护栏再取大小
-                    unread.append("%s（超过 %d 字节）" % (os.path.relpath(f, r["_real"]), _MAX_READ_BYTES))
-                    continue
                 text = _read(f, r["_real"])
             except OSError as exc:
                 unread.append("%s（%s）" % (os.path.relpath(f, r["_real"]), type(exc).__name__))

@@ -500,8 +500,7 @@ def _bad_dup_budgets(cfg, text):
 def _read_config(root, p, shown):
     """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
     try:
-        with io.open(p, encoding="utf-8-sig") as fh:   # 带 BOM 的首键不许读成 \ufeffcompatibility
-            text = fh.read()
+        text = read_bytes(p).decode("utf-8-sig")   # 带 BOM 的首键不许读成 \ufeffcompatibility
         cfg = parse_yaml_subset(text)
     except ConfigError as exc:
         return {}, "%s 无法无歧义解析：%s" % (shown, exc)
@@ -657,8 +656,7 @@ def load_exceptions(config_dir, root=None):
         guard(base, path)
         if not os.path.isfile(path):
             return [], [], None, []
-        with io.open(path, encoding="utf-8-sig") as fh:
-            text = fh.read()
+        text = read_bytes(path, base).decode("utf-8-sig")
     except (OSError, UnicodeDecodeError) as exc:
         return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path, []
     table = _first_md_table(text)
@@ -816,15 +814,62 @@ def shallow_problem(root):
     return None
 
 
-def read_text(path, root=None):
-    """读文本。给了 root 就先判真实位置在不在 root 之内（`guard`），不在抛 OutsideRoot。"""
-    with io.open(guard(root, path) if root is not None else path, encoding="utf-8-sig", errors="replace") as fh:
-        return fh.read()
+# 读被扫项目文件的唯一上限（此前 cross-repo 与 single-authority 各持一份 2MB，read_text 没有上限，
+# 一份 4GB 稀疏文件就能把机器撑爆）。超限抛 TooLarge，各读点照常按 OSError 记未定。
+MAX_READ_BYTES = 2 * 1024 * 1024
+
+
+class TooLarge(OSError):
+    """文件超过 MAX_READ_BYTES，未读。"""
+
+
+class NotRegular(OSError):
+    """不是常规文件（FIFO、设备、socket、目录），未读：FIFO 会让 open/read 永久阻塞。"""
+
+
+def read_bytes(path, root=None, head=None):
+    """读被扫项目文件的唯一入口：护栏 → 非阻塞打开 → 只收常规文件 → 大小上限。
+
+    head=None 时超过 MAX_READ_BYTES 抛 TooLarge；给了 head 就只读前 head 字节、不因体量拒读。
+    给了 root：打开前按真实位置判（`guard`），打开后再核一次——真实路径仍在 root 内、且与打开的
+    fd 是同一个文件（st_dev/st_ino）。O_NOFOLLOW 挡住末段在两步之间被换成符号链接；中间目录
+    被换出去又在复核前换回的双换窗口关不上（要逐段 openat），不处理。
+    """
+    if root is not None:
+        guard(root, path)
+    real = os.path.realpath(path)
+    fd = os.open(real, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise NotRegular("%s 不是常规文件，未读" % path)
+        if root is not None:
+            again = os.stat(real)
+            if (not _under(os.path.realpath(real), os.path.realpath(str(root)))
+                    or (again.st_dev, again.st_ino) != (st.st_dev, st.st_ino)):
+                raise OutsideRoot("%s 在读取期间被换位，未读" % path)
+        if head is None and st.st_size > MAX_READ_BYTES:
+            raise TooLarge("%s 超过 %d 字节，未读" % (path, MAX_READ_BYTES))
+        with os.fdopen(fd, "rb") as fh:
+            fd = None
+            data = fh.read(MAX_READ_BYTES + 1 if head is None else head)
+    finally:
+        if fd is not None:
+            os.close(fd)
+    if head is None and len(data) > MAX_READ_BYTES:     # 读的过程中长大了
+        raise TooLarge("%s 超过 %d 字节，未读" % (path, MAX_READ_BYTES))
+    return data
+
+
+def read_text(path, root=None, head=None):
+    """读文本（UTF-8，解不开的字节替换，行尾归一为 \\n）。走 read_bytes，同一套护栏与上限。"""
+    text = read_bytes(path, root, head).decode("utf-8-sig", "replace")
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def count_lines(path, root=None):
-    with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
-        return sum(1 for _ in fh)
+    text = read_text(path, root)
+    return text.count("\n") + (1 if text and not text.endswith("\n") else 0)
 
 
 def in_frozen(cfg, relpath):
