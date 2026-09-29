@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
-    agg, clean, finding, git_track, is_tailored_out, item_status, state_class,
+    agg, clean, finding, git_track, in_frozen, is_tailored_out, item_status, state_class,
     read_text, state_list, undetermined_from_exception, unreadable, work_root, work_root_absent, write_text,
 )
 
@@ -333,6 +333,7 @@ def _run(cfg):
     declared = state_list(cfg, "work_item_done_states", ())
     note = "完成态按 01 §4.1 done 及别名（stdlib.WORK_ITEM_STATES）%s；%s" % (
         "，并入 project.yaml 的 work_item_done_states：%s" % "/".join(declared) if declared else "", wnote)
+    fresh_off = is_tailored_out(cfg, "freshness")[0]
 
     absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
     if absent:
@@ -343,7 +344,7 @@ def _run(cfg):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
 
-    out, other, unknown = [], [], []
+    out, other, unknown, unknown_here = [], [], [], []
     for rel in files:
         try:
             text = read_text(os.path.join(root, rel), root)
@@ -358,7 +359,9 @@ def _run(cfg):
             continue
         cls = state_class(cfg, status)
         if cls is None:
-            unknown.append("%s（%s）" % (rel, status or "空"))
+            # freshness 被裁剪或该件落在 frozen（freshness 不读它的状态）时由本检查器报，否则指向 freshness
+            (unknown_here if fresh_off or in_frozen(cfg, rel) else unknown).append(
+                "%s（%s）" % (rel, status or "空"))
             continue
         if cls != "done":
             other.append("%s（%s）" % (rel, status or "空"))
@@ -369,6 +372,10 @@ def _run(cfg):
     if unknown:
         out.append(agg(NAME, SKIP, "状态认不出的工作项不查完成证据", unknown, kind="unknown-state-by-freshness",
                        reason="状态认不出由 freshness/unknown-state 记未定，报一次（契约 §1）"))
+    if unknown_here:
+        out.append(agg(NAME, UNDETERMINED, "工作项状态不在已知词表", unknown_here, kind="unknown-state",
+                       reason="freshness 被裁剪或这些件落在 layout.frozen（freshness 不读其状态），由本检查器报一次；"
+                              "认不出就说不清是否完成，完成证据本次没查（契约 §1.1）"))
     if other:
         out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))

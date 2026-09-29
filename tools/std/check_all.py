@@ -811,7 +811,7 @@ def _shared_fact_selftest(mods):
 
         # E：工作项状态按 stdlib.state_class 一份映射归到 01 §4.1 六态（D-127）。认不出的（旧模板的
         #    DEFINED、IMPLEMENTING）记未定且只报一次；别名、开头词后跟日期、项目声明的词都按所属态判，
-        #    声明词并入不替换缺省。
+        #    声明词并入不替换缺省；freshness 被裁剪或该件在 frozen 时由 evidence 报。
         def _judge(files, extra=None):
             with tempfile.TemporaryDirectory() as tmp:
                 _repo(tmp, dict(("work/WI-%02d-x.md" % k, u"# WI\n\n状态：%s\n" % v) for k, v in files))
@@ -835,6 +835,9 @@ def _shared_fact_selftest(mods):
             "declared": _judge(list(enumerate(["done", "closed", "in_progress", "doing"])),
                                {"work_item_done_states": ["closed"], "work_item_in_progress_states": "doing"}),
             "single": _judge([(0, "DEFINED")]),
+            "tailored": _judge([(0, "DEFINED")], {"tailoring": [{"check": "freshness", "applicable": False,
+                                                                 "reason": "x"}]}),
+            "frozen": _judge([(0, "DEFINED"), (1, "DEFINED")], {"layout": {"frozen": ["work/WI-00-x.md"]}}),
         }
         want_e = {
             "default": {"freshness": {8, 9}, "evidence": {6, 7},
@@ -843,6 +846,10 @@ def _shared_fact_selftest(mods):
             "declared": {"freshness": {2, 3}, "evidence": {0, 1}},
             "single": {"freshness/unknown-state": (UNDETERMINED, [0]),
                        "evidence/unknown-state-by-freshness": (SKIP, [0])},
+            "tailored": {"evidence/unknown-state": (UNDETERMINED, [0])},
+            "frozen": {"freshness/unknown-state": (UNDETERMINED, [1]),
+                       "evidence/unknown-state-by-freshness": (SKIP, [1]),
+                       "evidence/unknown-state": (UNDETERMINED, [0])},
         }
         out.append(finding(
             "shared-fact", PASS if got_e == want_e else FAIL,
