@@ -28,7 +28,7 @@ sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    embedded_std_rel, finding, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
+    embedded_std_rel, filter_env, finding, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
     tracked_files, undetermined_from_exception, work_root,
 )
 
@@ -52,10 +52,10 @@ def _sha256_file(path):
         return "读不了：%s" % exc
 
 
-def _git_line(args):
+def _git_line(args, here=HERE, env=None):
     import subprocess
     try:
-        out = subprocess.run(["git", "-C", HERE] + list(args),
+        out = subprocess.run(["git", "-C", here] + list(args), env=env,
                              capture_output=True, text=True, encoding="utf-8", timeout=60)
     except (OSError, subprocess.SubprocessError) as exc:
         return None, "跑不了 git：%s" % exc
@@ -64,29 +64,34 @@ def _git_line(args):
     return (out.stdout or ""), None
 
 
-def tool_identity():
+def tool_identity(here=HERE):
     """本次跑的这套检查器是哪一套。
 
     身份是**内容哈希**，不是提交号：提交号覆盖不了工作区未提交的改动，而决定行为的
     是文件内容。`CONTRACT.md` 也算进去——`_contract_examples_selftest` 会读它，
     它进闸门，就必须进身份。提交号与 `--porcelain` 只作旁证与 dirty 标记。
+    here 只为自检注入（工具位于被扫仓内的夹具），生产路径不传。
     """
     import hashlib
 
-    files = [("check_all.py", os.path.join(HERE, "check_all.py")),
-             ("stdlib.py", os.path.join(HERE, "stdlib.py")),
-             ("CONTRACT.md", os.path.join(HERE, "CONTRACT.md"))]
-    if os.path.isdir(CHECKS_DIR):
-        for fn in sorted(os.listdir(CHECKS_DIR)):
+    checks_dir = os.path.join(here, "checks")
+    files = [("check_all.py", os.path.join(here, "check_all.py")),
+             ("stdlib.py", os.path.join(here, "stdlib.py")),
+             ("CONTRACT.md", os.path.join(here, "CONTRACT.md"))]
+    if os.path.isdir(checks_dir):
+        for fn in sorted(os.listdir(checks_dir)):
             if fn.startswith("check_") and fn.endswith(".py"):
-                files.append(("checks/" + fn, os.path.join(CHECKS_DIR, fn)))
+                files.append(("checks/" + fn, os.path.join(checks_dir, fn)))
 
     digests = [(rel, _sha256_file(path)) for rel, path in files]
     joined = "\n".join("%s %s" % (rel, h) for rel, h in digests)
     combined = hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
-    head, head_err = _git_line(["rev-parse", "HEAD"])
-    porcelain, por_err = _git_line(["status", "--porcelain", "--", HERE])
+    head, head_err = _git_line(["rev-parse", "HEAD"], here)
+    # 内嵌运行时 here 在被扫仓里：status 会重哈希工作区、触发被扫方配置的过滤器，与 adoption 同样置空
+    env = filter_env(here)
+    porcelain, por_err = ((None, "列不出被扫仓的过滤器，未跑 git status") if env is None else
+                          _git_line(["status", "--porcelain", "--ignore-submodules=all", "--", here], here, env))
     if porcelain is None:
         dirty, dirty_detail = None, por_err
     else:
@@ -1127,6 +1132,8 @@ def _hostile_git_config_selftest():
                                (wi, u"# WI-001\n\n状态：in_progress\n"),
                                (os.path.join(proj, ".gitattributes"),
                                 u"*.md diff=evil filter=evil\ndocs/b.md filter=a=b\n"),
+                               # 工具位于被扫仓内（内嵌运行）：tool_identity 的 git status 也不得跑过滤器
+                               (os.path.join(proj, "tools", "std", "CONTRACT.md"), u"# 契约\n"),
                                (cfg_path, _SMOKE_CONFIG)):
                 put(path, body)
             git(proj, "init", "-q")
@@ -1151,8 +1158,10 @@ def _hostile_git_config_selftest():
                          ("diff.external", "touch %sexternal" % mark),
                          ("log.showSignature", "true"), ("gpg.program", gpg)):
                 git(proj, "config", k, v)
-            for rel in ("docs/a.md", "docs/b.md"):
+            for rel in ("docs/a.md", "docs/b.md", "tools/std/CONTRACT.md"):
                 os.utime(os.path.join(proj, rel))   # stat 失效，逼 git 重读工作区
+            if tool_identity(os.path.join(proj, "tools", "std"))["dirty"] is not False:
+                notes.append("夹具没走到 tool_identity 的 git status")
             findings, _cfg = run_all(proj, selftest_only=False, config_path=cfg_path)
             ids = set(f.get("id") for f in findings)
             if not {"drift/future-date/docs/a.md｜2099-01-01", "drift/future-date/docs/b.md｜2099-01-02"} <= ids:
