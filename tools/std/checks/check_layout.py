@@ -232,6 +232,20 @@ def _run(cfg):
     out = []
     md_to_check = []   # [(role, 中文名, relpath)]
 
+    # 声明了工作项目录却不在：项目声明的落点不成立，任何档都判 FAIL（契约 §1.1；C09）。
+    # evidence／freshness／drift 对同一件记 SKIP 指向这里；L1 的 work_current 取它时不再另报
+    wr = _norm(cfg_get(cfg, "layout.work_root") or "")
+    wr_there = _exists(root, wr, "dir") if wr else True
+    if wr_there is None:
+        out.append(_outside(wr, "工作项目录"))
+    elif not wr_there:
+        out.append(finding(
+            NAME, FAIL, "layout.work_root 声明的工作项目录不在：%s" % wr, where=wr,
+            kind="work-root-absent", key=wr,
+            why="01 §3.1：工作项一件一文件放在工作项目录；项目声明了它在哪，那里没有就是确定的缺失",
+            evidence="project.yaml 的 layout.work_root = %s，%s 下没有这个目录" % (wr, os.path.abspath(root)),
+        ))
+
     for role, label, star, kind, cands in _tier_items(tier):
         skipped, sreason = _artifact_tailored(cfg, role)
         if skipped:
@@ -268,8 +282,10 @@ def _run(cfg):
             continue
 
         override, src_key = overrides.get(role), "layout.artifacts.%s" % role
-        if not override and role == "work_current" and cfg_get(cfg, "layout.work_root"):
-            override, src_key = cfg_get(cfg, "layout.work_root"), "layout.work_root"
+        if not override and role == "work_current" and wr:
+            if not wr_there:
+                continue      # 上面已报
+            override, src_key = wr, "layout.work_root"
         cand_list = [_norm(override)] if override else [
             rebase_docs(c, docs_root) for c in cands
         ]
@@ -308,18 +324,6 @@ def _run(cfg):
                     why="01 §3.1：入口、验收、状态是最小起点（★）。要把它判成缺失，"
                         "先在 layout.artifacts 里声明落点——声明后仍然没有才记 FAIL",
                     evidence="候选都不存在。%s" % src,
-                ))
-            elif src_key == "layout.work_root":
-                # 路径是项目声明的，不是工具猜的；它不在就说它不在，不往"可能是有意裁剪"上推。
-                out.append(finding(
-                    NAME, UNDETERMINED,
-                    "%s 档要求的 %s（%s）：layout.work_root 声明的目录不在" % (tier, label, role),
-                    where=cand_list[0],
-                    reason="layout.work_root 声明的目录 %s 不在；是还没建还是配置过期，本工具判不了"
-                           % cand_list[0],
-                    why="01 §3.1：%s 档的树里有这一项；工作项目录是它的目录形态" % tier,
-                    evidence="未声明 layout.artifacts.work_current，取 layout.work_root：%s"
-                             % cand_list[0],
                 ))
             else:
                 out.append(finding(
@@ -498,6 +502,19 @@ def selftest():
             evidence="实得 %s；应得 %s" % (got, want),
             why="契约 §5：只读被扫项目之内的文件；§1 同一事实只报一次",
         ))
+        # C09：声明了 layout.work_root 而目录不在，L0、L1、以及另行声明了 work_current 时都只报一条 FAIL
+        with tempfile.TemporaryDirectory() as tmp:
+            got = []
+            for tier, art in (("L0", {}), ("L1", {}), ("L1", {"work_current": "ACCEPTANCE.md"})):
+                res = run({"_root": tmp, "tier": tier, "layout": {"work_root": "nope", "artifacts": art}})
+                got.append([(f["status"], f["id"]) for f in res if "nope" in (f.get("where") or "")])
+        want = [[(FAIL, "layout/work-root-absent/nope")]] * 3
+        results.append(finding(
+            NAME, PASS if got == want else FAIL,
+            "C09：声明的工作项目录不在，任何档都由 layout 报且只报一条 FAIL",
+            evidence="实得 %s" % (got,), why="契约 §1.1 声明后仍不成立判 FAIL；§1 同一事实只报一次",
+        ))
+
         # C14：扫描根路径里带 [ ] 时，项目侧检查器的通配候选照样找得到
         with tempfile.TemporaryDirectory(prefix="a[b]") as tmp:
             os.makedirs(os.path.join(tmp, "tools"))
