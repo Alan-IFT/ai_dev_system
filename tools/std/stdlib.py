@@ -960,7 +960,9 @@ def read_text(path, root=None, head=None):
 
 
 def count_lines(path, root=None):
-    text = read_text(path, root)
+    """行数。超过 MAX_READ_BYTES 的文件只数前 MAX_READ_BYTES 字节，得到的是**下界**：下界超预算
+    照判超预算——入口撑过上限不许从确定的 FAIL 变成未定（R1-06）。"""
+    text = read_text(path, root, head=MAX_READ_BYTES)
     return text.count("\n") + (1 if text and not text.endswith("\n") else 0)
 
 

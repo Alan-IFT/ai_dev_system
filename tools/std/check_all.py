@@ -1043,6 +1043,15 @@ def _stdlib_selftest(mods):
             fake = [ln for ln in text.splitlines()[:-1] if ln.startswith(u"结论")]
             cases.append(("文本报告里没有从第 0 列开始的伪造结论行（含 U+2028/2029 断行）、没有 ESC 与双向控制符",
                           not fake and u"\x1b" not in text and u"\u202e" not in text, fake or text[-120:]))
+            # R1-06：已声明入口撑过读取上限，照数行（下界）判超预算 FAIL，不落未定
+            proj = fresh("p32")
+            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+                fh.write(u"x\n" * (sl.MAX_READ_BYTES // 2 + 10))
+            eb = dict((n, m) for n, m, _e in mods if m is not None)["entry-budget"]
+            got = [(f["status"], f["title"][:40]) for f in eb.run(
+                {"_root": proj, "tier": "L0", "layout": {"entry": ["CLAUDE.md"]}, "budgets": {"entry_lines": 150}})
+                if u"CLAUDE.md" in (f.get("title") or "")]
+            cases.append(("已声明入口超过 2MB 判超预算 FAIL", [s_ for s_, _t in got] == [FAIL], got))
             # R1-02：工具目录里同名的标准库模块（未跟踪、不进身份哈希）不得被执行
             import shutil
             shadow = os.path.join(fresh("p26"), "std")
