@@ -509,6 +509,37 @@ def _bad_dup_budgets(cfg, text):
     return None
 
 
+# 配置键的形状（契约 §5 类型表）。写成别的形状不许静默误读——frozen 写成字符串被逐字符迭代、
+# tailoring 写成映射静默不生效、layout.entry: 5 让两个检查器崩溃——整份拒收，报键名与行号。空值＝没写。
+_SHAPES = (("layout", "map"), ("layout.artifacts", "map"), ("budgets", "map"),
+           ("tailoring", "maps"), ("derived", "maps"), ("repos", "maps"),
+           ("layout.frozen", "strs"), ("layout.rule_files", "strs"), ("metadata_required", "strs"),
+           ("layout.entry", "str|strs"), ("metadata_fields", "str|strs"),
+           ("work_item_done_states", "str|strs"), ("work_item_in_progress_states", "str|strs"))
+_SHAPE_NAMES = {"map": "映射", "maps": "映射组成的列表", "strs": "字符串列表", "str|strs": "字符串或字符串列表"}
+
+
+def _shape_ok(v, shape):
+    if v is None or (shape == "str|strs" and isinstance(v, str)):
+        return True
+    if shape == "map":
+        return isinstance(v, dict)
+    return isinstance(v, list) and all(
+        isinstance(x, dict) if shape == "maps" else
+        isinstance(x, (str, int, float)) and not isinstance(x, bool) for x in v)
+
+
+def _bad_shape(cfg, text):
+    items = [(key, cfg_get(cfg, key), shape) for key, shape in _SHAPES]
+    items += [("repos[%d].former_names" % i, r.get("former_names"), "strs")
+              for i, r in enumerate(cfg_get(cfg, "repos") or []) if isinstance(r, dict)]
+    for key, v, shape in items:
+        if not _shape_ok(v, shape):
+            return "第 %d 行 %s 须是%s；写成别的形状不猜" % (
+                _key_line(text, key.rsplit(".", 1)[-1]), key, _SHAPE_NAMES[shape])
+    return None
+
+
 def _read_config(root, p, shown):
     """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
     try:
@@ -526,7 +557,7 @@ def _read_config(root, p, shown):
     if injected:      # 下划线键是代码注入口（契约 §4），写进配置等于让被检查方指定检查范围
         return {}, "%s 第 %d 行的顶层键以 _ 开头；这类键只由代码注入，项目配置写了整份拒收" % (
             shown, _key_line(text, injected[0]))
-    bad_budget = _bad_dup_budgets(cfg, text)
+    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text)
     if bad_budget:
         return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
     bad = _escaping_paths(cfg)

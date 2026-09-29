@@ -975,6 +975,16 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A11／C21／A4：列表键写成标量或映射、layout.entry: 5 → 整份拒收并报键名与行号，不静默误读、不崩检查器
+            for tag, body, key in (
+                    ("p19", u"tier: L1\nlayout:\n  frozen: docs/archive\n", u"第 3 行 layout.frozen"),
+                    ("p20", u"tier: L1\ntailoring:\n  check: layout\n  applicable: false\n", u"第 2 行 tailoring"),
+                    ("p21", u"tier: L1\nlayout:\n  entry: 5\n", u"第 3 行 layout.entry"),
+                    ("p22", u"tier: L1\nwork_item_done_states:\n  done: x\n", u"第 2 行 work_item_done_states"),
+                    ("p23", u"tier: L1\nrepos:\n  - name: a\n    path: .\n    former_names: b\n",
+                     u"第 5 行 repos[0].former_names")):
+                cfg, prob = load(fresh(tag), body)
+                cases.append(("配置键形状不对整份拒收（%s）" % key, not cfg and key in (prob or ""), prob))
             # A10：列表项空值取 None（不按下一行形状读成 [] 或 {}）；a: b: c、引号不闭合拒收
             got = [sl.parse_yaml_subset(u"r:\n  - name: a\n    former_names:\n  - name: b\n"),
                    sl.parse_yaml_subset(u"d:\n  - artifact: x\n    source:\n    regen: y\n")]
