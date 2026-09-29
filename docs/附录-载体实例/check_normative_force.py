@@ -189,7 +189,7 @@ def main() -> int:
                     f"governed_by 未解析出任何 decision_id：{gm.group(1)!r}"))
             for did in refs:
                 if did not in index:
-                    findings.append(Finding("C1", rel, gm.start(),
+                    findings.append(Finding("C1", rel, head[:gm.start()].count("\n") + 1,
                         f"governed_by 引用了决策索引中不存在的 {did}"))
 
         if rel in STATE_COPY_EXEMPT:
