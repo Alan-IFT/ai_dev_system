@@ -586,6 +586,17 @@ def _entry_smoke_selftest():
             if crash["id"] != "layout/internal-error" or got != [None] or not _has(fs, "invalid-rows"):
                 raise AssertionError("⑦ 崩溃未定 %s 登记后应仍未登记并报 invalid-rows，实得 %r"
                                      % (crash["id"], got))
+
+            # ⑧ 到期上限一年：今天 + 365 天仍生效，+ 366 天记不合格、不生效
+            edge = (today + datetime.timedelta(days=365)).isoformat()
+            far = (today + datetime.timedelta(days=366)).isoformat()
+            fs, hit, _ = _register(target, edge)
+            if (hit.get("registered") or {}).get("id") != "EX-001" or _has(fs, "invalid-rows"):
+                raise AssertionError("⑧ 到期恰为今天 + 365 天应生效，实得 %r" % (hit.get("registered"),))
+            fs, hit, _ = _register(target, far)
+            if hit.get("registered") is not None or not _has(fs, "invalid-rows"):
+                raise AssertionError("⑧ 到期晚于今天 + 365 天应不生效并报 invalid-rows，实得 %r"
+                                     % (hit.get("registered"),))
             os.remove(ex_path)
 
             # 3h) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
@@ -646,7 +657,8 @@ def _entry_smoke_selftest():
                  "例外登记五条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan／"
                  "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated；"
-                 "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows）、"
+                 "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows；"
+                 "到期恰为今天 + 365 天生效、再晚一天报 invalid-rows）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
     return out
@@ -1592,11 +1604,12 @@ def _join_exceptions(findings, cfg):
     if not isinstance(cfg, dict):
         return info
     cfg["_exceptions"] = info
+    today = datetime.date.today()
     try:
         cdir = _config_dir(cfg)
         if cdir is None:
             return info
-        rows, problems, src, own = load_exceptions(cdir, cfg.get("_root"))
+        rows, problems, src, own = load_exceptions(cdir, cfg.get("_root"), today)
     except Exception as exc:  # noqa: BLE001 —— 读登记册出错也是未定，不静默当成没有登记
         findings.append(undetermined_from_exception(EXCEPTION_CHECK, exc, "读例外登记"))
         return info
@@ -1609,7 +1622,6 @@ def _join_exceptions(findings, cfg):
                        if not os.path.isabs(cfg_path) else src)
     info["valid"] = len(rows)
 
-    today = datetime.date.today()
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
     by_id = {}
     for f in findings:

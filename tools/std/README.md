@@ -71,7 +71,7 @@
 `exception-register/expired`；过期的行在首部标「其中 M 行已过期」。**FAIL 不能登记**——那是
 确定的违规，处置是修；整个检查器不适用走 `tailoring`。检查器自身出错的未定（id 为
 `<检查器>/internal-error`）也不能登记——崩溃顶掉了该检查器本次的全部结论，登记它等于登记 FAIL。
-这种行按不合格报 `exception-register/invalid-rows`。
+到期最远写到运行日起 365 天，更远的行不生效。两种行都按不合格报 `exception-register/invalid-rows`。
 语义细则见 CONTRACT.md §9。
 
 同一张表里项目自己的门号例外（规则列不含 `/`，如依赖规则、依赖审计）不参与登记，但**也按到期判**：
