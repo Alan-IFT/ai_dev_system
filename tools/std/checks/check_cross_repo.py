@@ -223,7 +223,7 @@ def _load_repos(cfg):
     if len(raw) < 2:
         return None, "repos 只有 %d 个条目" % len(raw)
     root = cfg.get("_root") or "."
-    repos = []
+    repos, seen = [], {}
     for i, item in enumerate(raw, 1):
         if not isinstance(item, dict):
             return None, "repos 第 %d 项不是映射" % i
@@ -232,6 +232,9 @@ def _load_repos(cfg):
         role = str(item.get("role") or "").strip()
         if not name:
             return None, "repos 第 %d 项缺 name" % i
+        if name in seen:      # 各判据按仓名取入口与登记，同名两仓会被混成一个（B6）
+            return None, "repos 第 %d 项与第 %d 项同名 %r，按仓名定位的判据分不清是哪个仓" % (i, seen[name], name)
+        seen[name] = i
         if not path and role != "archived":
             return None, "repos 第 %d 项缺 path（只有 role: archived 可省略：%s）" % (i, _ARCHIVED_ABSENT)
         abspath = os.path.abspath(os.path.join(root, path)) if path else None
@@ -1091,6 +1094,20 @@ def selftest():
                 why="01 §3.8 把 archived 定义为'已移出工作区，只在远端'；"
                     "要求它在本机有检出才算过，就是把定义读反（契约 §1.1 的反向："
                     "把定义允许的状态记成判不了，会逼项目写一条随机器漂移的本机绝对路径）",
+            ))
+
+        # repos 重名（B6）：两个仓同名时入口按名字存取会互相覆盖，没入口的那个曾报 PASS；须整条记配置读不出
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _sample(tmp, bad=False)
+            _mk_repo(tmp, "app2")
+            cfg["repos"] = [cfg["repos"][0], {"name": "app", "path": "app2", "role": "app"}, cfg["repos"][1]]
+            res = run(cfg)
+            got = [(f["status"], f["title"]) for f in res]
+            results.append(finding(
+                NAME, PASS if len(got) == 1 and got[0][0] == UNDETERMINED and u"同名" in res[0]["reason"] else FAIL,
+                "repos 两项同名须整条记未定（配置读不出），不得让无入口的那个仓借名报 PASS",
+                evidence="实得 %s" % got[:6],
+                why="契约 §5：取值有歧义时不猜",
             ))
 
         for want, title, probes in (
