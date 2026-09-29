@@ -167,7 +167,10 @@ def main() -> int:
                 f"{did} 使用了未定义的状态值「{status}」"))
 
     # ---- C1 / C5 / C6 逐文档 ----
-    md_files = sorted({p for g in GOVERNED_GLOBS for p in ROOT.glob(g)})
+    # 全部扫描面只取已跟踪（含已暂存）的 .md，与 linkcheck 同口径：未跟踪草稿不参与任何一项
+    tracked = sorted(pathlib.Path(f) for f in _md_files(str(ROOT)))
+    tset = set(tracked)
+    md_files = sorted({p for g in GOVERNED_GLOBS for p in ROOT.glob(g) if p in tset})
     # 上下文合同只进 C5 的扫描面（它是加载入口，一句过期的效力声明在这里最危险），
     # 不进 C6 的 governed_by 要求——它不是规范正文。
     # PROJECT_STATUS、README 与失败 Case 清单刻意不纳入：那里有对历史状态的叙述
@@ -211,7 +214,7 @@ def main() -> int:
 
     # ---- C7：每条原则在追溯记录中有且只有一条对应项（D-014 §9） ----
     ledger_p = ROOT / "docs" / "追溯账本.md"
-    chapters = sorted(ROOT.glob("docs/[1-4][0-9]-*.md"))
+    chapters = [p for p in tracked if re.fullmatch(r"docs/[1-4][0-9]-.*\.md", p.relative_to(ROOT).as_posix())]
     if chapters and not ledger_p.exists():  # 账本段缺失即为缺陷（上下文合同第 7 项），不得静默跳过
         findings.append(Finding("C7", "docs/追溯账本.md", None,
             "追溯账本不存在，正文原则无从对账"))
@@ -244,7 +247,6 @@ def main() -> int:
     # ---- C8：语料版本号只允许一处（D-014 §7 的单一副本判据） ----
     VERSION_SNAPSHOT_DIRS = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     ver_re = re.compile(r"^(?:状态|当前版本)[：:]\s*`v\d+\.\d+[-\w]*`", re.M)
-    tracked = sorted(pathlib.Path(f) for f in _md_files(str(ROOT)))  # git ls-files，与 linkcheck 同口径
     for p in tracked:
         rel = p.relative_to(ROOT).as_posix()
         if any(rel.startswith(d) for d in VERSION_SNAPSHOT_DIRS):
@@ -271,7 +273,7 @@ def main() -> int:
 
     # ---- C10：散文里的「NN §M」引用须指向正文中真实存在的小节（Case C-003） ----
     body_secs = {}
-    for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
+    for p in chapters:
         body_secs[p.name[:2]] = set(re.findall(r"^## (\d+)\. ", p.read_text(encoding="utf-8"), re.M))
     LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     # 两种引用形态都要认：裸写「21 §6」，以及链接写法「[21 调度与拆分](21-调度与拆分.md) §6」
