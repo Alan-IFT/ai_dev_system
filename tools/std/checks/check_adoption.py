@@ -37,7 +37,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     read_bytes, read_text, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, embedded_std_rel, filter_env, finding, inside, is_tailored_out, outside_root,
-    undetermined_from_exception, unreadable,
+    unreadable,
 )
 
 NAME = "adoption"
@@ -169,7 +169,8 @@ def _embedded_readonly(root, embedded_rel):
         out = _git(root, "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=dirty",
                    "--", embedded_rel, env=env)
     except (OSError, subprocess.SubprocessError) as exc:
-        return undetermined_from_exception(NAME, exc, "查 %s 有无改动（git）" % where)
+        return finding(NAME, UNDETERMINED, "查不了 %s 有无改动" % where, where=where, kind="embedded-readonly-unknown",
+                       reason="git status 跑不起来：%s: %s" % (type(exc).__name__, exc), why=why)
     if out.returncode != 0:
         return _unknown(out, "git status")
     lines = [ln for ln in (out.stdout or b"").decode("utf-8", "replace").splitlines() if ln.strip()]
@@ -210,6 +211,7 @@ def scope(cfg):
             "以内嵌方式运行时：内嵌目录下有没有已跟踪文件的改动（git status，含已暂存与未暂存），"
             "有判 FAIL（01 §8 只读）；git 查不了记未定",
             "配置里有没有非空的 compatibility.policy（01 §5.3 必填，不分档），没有判 FAIL",
+            "tailoring 裁掉本检查时，内嵌目录只读与 compatibility.policy 两项不可裁剪、照判，其余记 SKIP",
             "%s 的 permissions.allow 里有没有通配放行项：`Bash`、`Bash(*)`，或命令解释器、脚本运行器、"
             "包管理器运行命令后面只剩通配（如 `Bash(python3 *)`、`Bash(npm run *)`、`Bash(uv run:*)`；"
             "中间的选项与登记过的带值选项（python -X/-W、node -r/--require/--import/--loader、perl -I、"
@@ -253,9 +255,11 @@ def scope(cfg):
 def run(cfg, tool_root=None):
     """tool_root 只为自检注入（同 stdlib.embedded_std_rel），生产路径不传。"""
     tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
     root = cfg.get("_root") or "."
+    if tailored:                       # 内嵌目录只读与 compatibility.policy 必填不可裁剪（D-126），照判
+        return ([finding(NAME, SKIP, "项目已裁剪本检查（内嵌目录只读与 compatibility.policy 不可裁剪，照判）",
+                         reason=reason or "project.yaml 未写理由")]
+                + _readonly_findings(root, embedded_std_rel(root, tool_root)) + [_compatibility(cfg)])
     return _version(cfg, root, tool_root) + [_compatibility(cfg)] + _settings_allow(root)
 
 
@@ -519,8 +523,11 @@ def _settings_allow(root):
         allow = perms.get("allow") or []
         if not isinstance(allow, list):
             raise ValueError("permissions.allow 不是列表：%r" % (allow,))
-    except (OSError, ValueError, AttributeError, RecursionError) as exc:   # 深嵌套 JSON 抛 RecursionError
-        return [undetermined_from_exception(NAME, exc, "读 %s 的 permissions" % _SETTINGS_REL)]
+    except OSError as exc:
+        return [unreadable(NAME, _SETTINGS_REL, exc)]
+    except (ValueError, AttributeError, RecursionError) as exc:   # 深嵌套 JSON 抛 RecursionError
+        return [finding(NAME, UNDETERMINED, "%s 的 permissions 解析不了" % _SETTINGS_REL, where=_SETTINGS_REL,
+                        kind="settings-invalid", reason="%s: %s" % (type(exc).__name__, exc), why=why)]
     out = []
     for rule in allow:
         hit = _wildcard_allow(rule)
@@ -696,6 +703,9 @@ def _readonly_selftest():
                 else:
                     os.environ["GIT_CEILING_DIRECTORIES"] = saved
 
+            # 裁掉本检查（tailoring）时只读守卫与 compatibility.policy 照判：修前整条只剩一条 SKIP
+            tail = run(dict(cfg, tailoring=[{"check": NAME, "applicable": False, "reason": u"自检"}]), tool_root=tr)
+            tailored = sorted((f["status"], f["id"]) for f in tail if f["status"] != SKIP)
             fail = [f for f in dirty_fs if f["id"] == "adoption/embedded-modified"]
             ok = (len(clean) == 1 and clean[0][0] == PASS
                   and untracked == clean
@@ -705,13 +715,17 @@ def _readonly_selftest():
                   and "只读" in fail[0]["title"]
                   and ignored == [(UNDETERMINED, "adoption/embedded-untracked")]
                   and outside["status"] == UNDETERMINED
-                  and outside["id"] == "adoption/embedded-readonly-unknown")
+                  and outside["id"] == "adoption/embedded-readonly-unknown"
+                  and tailored == [(FAIL, "adoption/compatibility-policy"), (FAIL, "adoption/embedded-modified")]
+                  and sum(f["status"] == SKIP for f in tail) == 1)
             return finding(
                 NAME, PASS if ok else FAIL,
                 "内嵌目录只读（经 run() 注入内嵌）：未暂存或已暂存改动 FAIL embedded-modified、"
-                "干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定",
-                evidence="干净 %s；仅未跟踪 %s；未暂存 %s；已暂存 %s；被忽略 %s；非 git %s"
-                         % (clean, untracked, dirty, staged, ignored, (outside["status"], outside["id"])),
+                "干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定；"
+                "裁掉本检查时只读守卫与 compatibility.policy 照判 FAIL，其余只剩一条 SKIP",
+                evidence="干净 %s；仅未跟踪 %s；未暂存 %s；已暂存 %s；被忽略 %s；非 git %s；裁剪 %s"
+                         % (clean, untracked, dirty, staged, ignored, (outside["status"], outside["id"]),
+                            [(f["status"], f["id"]) for f in tail]),
                 why="01 §8：内嵌的 `.std/` 只读；契约 §3 静默失效探测")
     except Exception as exc:  # noqa: BLE001
         return finding(NAME, FAIL, "内嵌目录只读的自检跑不起来",
@@ -765,12 +779,12 @@ def _declarations_selftest(tmp):
     ok = (compat == [FAIL, FAIL, FAIL, PASS, PASS] and not missed and not false_hit
           and bad == [(FAIL, "adoption/wildcard-allow/Bash(python3_*)")]
           and good == [(PASS, "adoption/no-wildcard-allow")]
-          and [x[0] for x in broken] == [UNDETERMINED]
+          and broken == [(UNDETERMINED, "adoption/settings-invalid")]
           and [f["id"] for f in absent] == ["adoption/settings-absent"] and absent[0]["status"] == SKIP)
     return finding(
         NAME, PASS if ok else FAIL,
         "compatibility.policy 缺或空判 FAIL、有值 PASS；免审批清单通配放行判 FAIL、窄规则 PASS、"
-        "坏 JSON 记未定、无文件 SKIP",
+        "坏 JSON 记未定 settings-invalid（配置错误，可登记，不是 internal-error）、无文件 SKIP",
         evidence="compat %s；漏报 %s；误报 %s；反例 %s；正例 %s；坏文件 %s；无文件 %s"
                  % (compat, missed, false_hit, bad, good, broken, [f["status"] for f in absent]),
         why="01 §5.3 compatibility.policy 必填；01 §5.5 通配放行项不作为免审批项保留；契约 §3")

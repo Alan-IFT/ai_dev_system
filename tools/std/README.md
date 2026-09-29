@@ -32,7 +32,8 @@
 
 **不许用 `tailoring` 把红的关绿。** 它的语义是"这条在本项目不适用，理由是……"，粒度是**整个
 检查器**，或 `layout` 下的单个工件（`layout:<role>`，见 [CONTRACT §5](CONTRACT.md)）：
-写上去之后被裁的那一项变成"不适用"，本来会报的 FAIL 一起消失，不是被修好了。
+写上去之后被裁的那一项变成"不适用"，本来会报的 FAIL 一起消失，不是被修好了（裁掉 `adoption` 时，
+内嵌目录只读与 `compatibility.policy` 必填两项不可裁剪，照判）。
 判"不适用"的判据是**对象不存在**；缺人、没数据、没测试是待确认，不是不适用
 （见[如何裁剪并开始使用](../../标准/覆盖与采用检查.md#如何裁剪并开始使用)）。
 
@@ -69,11 +70,14 @@
 登记**不改变结论**：那条仍是未定、仍逐条列出、仍计入未定计数，报告里标「（已登记 EX-xxx，
 到期 …）」，变的只有退出码。到期由工具按**运行日**校验，过期即回到未登记，并多出一条
 `exception-register/expired`；过期的行在首部标「其中 M 行已过期」。**FAIL 不能登记**——那是
-确定的违规，处置是修；整个检查器不适用走 `tailoring`。语义细则见 CONTRACT.md §9。
+确定的违规，处置是修；整个检查器不适用走 `tailoring`。检查器自身出错的未定（id 为
+`<检查器>/internal-error`）也不能登记——崩溃顶掉了该检查器（或某条判据）本次的结论，登记它等于登记 FAIL。
+到期最远写到运行日起 365 天，更远的行不生效。两种行都按不合格报 `exception-register/invalid-rows`。
+语义细则见 CONTRACT.md §9。
 
 同一张表里项目自己的门号例外（规则列不含 `/`，如依赖规则、依赖审计）不参与登记，但**也按到期判**：
 没关闭、到期早于运行日的判 FAIL（`exception-register/own-expired/<编号>`），到期写不成日期的记一条
-未定。关闭的写法是状态列写「已处理」「关闭」之类并写明处理方式。
+未定，到期晚于运行日起 365 天的也记一条未定（`own-too-far`）。关闭的写法是状态列写「已处理」「关闭」之类并写明处理方式。
 
 ## 命令行开关
 
@@ -144,7 +148,9 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   支是线性的，两者都是完整的升级差异。读完差异再改 `governance/STANDARD_VERSION`（值取
   `.std/标准/README.md` 第 3 行），**在 pull 之后改，不要先改再 pull**：pull 认的是当前 `.std/`
   的内容，先改版本号只会让文件和记录对不上。
-- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：在 main 上
+- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：先在 main 上跑
+  `python3 tools/std/check_all.py --selftest` 与 `python3 tools/std/check_all.py . --no-scope`，都退出 0
+  才继续——跨检查器反例只在 `--selftest` 里跑、不在提交路径上，绕过钩子进来的内容也要在这里再判一次 → 在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
   `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
   `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
@@ -169,10 +175,14 @@ exec python3 .std/tools/std/check_all.py . --no-scope
 ```
 
 `git subtree add/pull` 走 `commit-tree`，不经过这个钩子，升级不需要放行；反过来它也看不见
-`--no-verify` 的提交，以及 `git cherry-pick`、`git revert`、`git rebase` 与 fast-forward 的 `git merge`
+`--no-verify` 的提交（git 接受无歧义缩写如 `--no-veri`，`-n` 可并进组合短选项如 `-an`）、
+`git -c core.hooksPath=… commit` 临时换走钩子目录的提交、钩子文件失去执行权限后的提交（git 只打一行
+hint 就跳过），以及 `git cherry-pick`、`git revert`、`git rebase` 与 fast-forward 的 `git merge`
 写进分支的提交（这几类默认不运行 pre-commit 与 commit-msg，只有 `rebase -i` 的 reword 和冲突解决后的
 `--continue`／`git commit` 会经过钩子）——这些盲区按
-[01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。非 fast-forward 的 `git merge`
+[01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。不建议为这些写法加宿主询问规则：
+git 选项的缩写与组合写不完，按命令字符串拦只能打地鼠；兜底靠 git 历史可查与非 fast-forward 合并、发布前的全量检查。
+非 fast-forward 的 `git merge`
 可再接一个 `pre-merge-commit` 钩子（内容为 `exec "$(dirname "$0")/pre-commit"`）转调同一钩子覆盖。这段是形态示意不是发布物；
 `.std/` 前缀由采用项目自己的取用方式决定，换了前缀要跟着改。`check_all` 启动时先去掉 git 给钩子注入的
 `GIT_DIR` 等仓库定位变量，从 git worktree 提交也不会把自检夹具写进本仓；`2026-09-23.9` 之前的版本在

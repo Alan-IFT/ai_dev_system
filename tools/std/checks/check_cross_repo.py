@@ -21,8 +21,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     inside, outside_root, read_bytes, FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
+    cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception, unreadable,
 )
+
+
+def _enum_failed(repo, what, exc):
+    """列不出某仓的文件（OSError）是对象的事，不是检查器故障：给专门 kind，可登记（契约 §9）。"""
+    return finding(NAME, UNDETERMINED, "列不出仓 %s 的%s" % (repo, what), kind="enum-failed", key=repo,
+                   reason="%s: %s" % (type(exc).__name__, exc), why="01 §2 N1：依赖不可用记未定，不记通过")
 
 NAME = "cross-repo"
 STANDARD_REFS = ["01 §3.8"]
@@ -534,7 +540,7 @@ def _check_projection(repos, entries):
         try:
             text = _read(entry_path, r["_real"])
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s 的入口" % r["name"]))
+            out.append(unreadable(NAME, "%s/%s" % (r["name"], nm), exc))
             continue
         hit = _mentions_system(text, sysrepo, entry_path)
         if hit:
@@ -604,7 +610,7 @@ def _check_registration(repos, entries):
     try:
         text = _read(entry_path, sysrepo["_real"])
     except OSError as exc:
-        return [undetermined_from_exception(NAME, exc, "读系统仓入口")]
+        return [unreadable(NAME, "%s/%s" % (sysrepo["name"], nm), exc)]
 
     lines = text.splitlines()
     missing, bare, ok = [], [], []
@@ -689,7 +695,7 @@ def _check_retired(cfg, repos, entry_names):
         try:
             files, truncated, outside = _expand_rule_files(r["_real"], patterns)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "枚举 %s 的规则文件" % r["name"]))
+            out.append(_enum_failed(r["name"], "规则文件", exc))
             continue
         live, unreadable = [], ["%s（真实位置在该仓之外，未读）" % p for p in outside]
         for p in files:
@@ -768,7 +774,7 @@ def _check_links(repos):
         try:
             mds, truncated = _list_md(r, known)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "枚举 %s 的 md 文件" % r["name"]))
+            out.append(_enum_failed(r["name"], "md 文件", exc))
             continue
         broken, host_abs, total, unread, outside = [], [], 0, [], []
         for f in mds:

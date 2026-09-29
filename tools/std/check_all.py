@@ -53,7 +53,7 @@ _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
-    tracked_files, undetermined_from_exception, work_root,
+    EXCEPTION_MAX_DAYS, INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -215,7 +215,7 @@ def _gated_by_selftest(name, mod):
     """
     if not hasattr(mod, "selftest"):
         return False, [finding(
-            name, UNDETERMINED, "检查器没有自检",
+            name, UNDETERMINED, "检查器没有自检", kind=INTERNAL_ERROR_KIND,
             reason="契约 §3 要求每个检查器自带反例；没有反例就无法证明它抓得住违规",
             why="01 §5.6 守卫存在不等于守卫在执行",
         )], []
@@ -226,7 +226,7 @@ def _gated_by_selftest(name, mod):
     # 契约 §3：反例与正例至少各一条。空自检（或只有一条）照样放行，等于没有自检（D-123）
     if not isinstance(results, list) or len(results) < 2 or not all(isinstance(r, dict) for r in results):
         return False, [finding(
-            name, UNDETERMINED, "检查器自检不足反例与正例各一条，其对本仓库的结论作废",
+            name, UNDETERMINED, "检查器自检不足反例与正例各一条，其对本仓库的结论作废", kind=INTERNAL_ERROR_KIND,
             reason="selftest() 返回 %s；契约 §3 要求至少一条反例、一条正例" % (
                 "%d 条" % len(results) if isinstance(results, list) else type(results).__name__),
             why="契约 §3 / 01 §5.6：守卫存在不等于守卫在执行",
@@ -234,7 +234,7 @@ def _gated_by_selftest(name, mod):
     bad = [r for r in results if r.get("status") != PASS]
     if bad:
         return False, [finding(
-            name, UNDETERMINED, "检查器自检未通过，其对本仓库的结论作废",
+            name, UNDETERMINED, "检查器自检未通过，其对本仓库的结论作废", kind=INTERNAL_ERROR_KIND,
             reason="; ".join("%s（%s）" % (r.get("title"), r.get("evidence")) for r in bad),
             why="契约 §3 / 01 §5.6：检查器故障按未定处置，不按通过记",
         )], results
@@ -489,7 +489,7 @@ def _entry_smoke_selftest():
             ok_day = (today + datetime.timedelta(days=30)).isoformat()
             yesterday = (today - datetime.timedelta(days=1)).isoformat()
 
-            def _register(rule, expires, extra=u""):
+            def _register(rule, expires, extra=u"", more=()):
                 with io.open(ex_path, "w", encoding="utf-8", newline="\n") as fh:
                     fh.write(u"# 例外登记\n\n"
                              u"| id | 规则 | 理由 | 范围 | 批准人 | 到期 | 状态 |\n"
@@ -498,7 +498,7 @@ def _entry_smoke_selftest():
                              % (rule, expires, extra))
                 # 登记只在检查器跑完之后 join（契约 §9），检查器结论不随登记册变：复用第一遍的结论只重做 join，
                 # 不再把全部检查器（连同自检闸门）重跑六遍（R1-12）
-                fs, c = [dict(f, registered=None) for f in findings], dict(cfg)
+                fs, c = [dict(f, registered=None) for f in list(findings) + list(more)], dict(cfg)
                 _join_exceptions(fs, c)
                 hits = [f for f in fs if f.get("id") == target]
                 if not hits:
@@ -568,15 +568,47 @@ def _entry_smoke_selftest():
                 u"| EX-004 | G6 依赖审计 | 未到期 | 全仓 | 自检 | %s | active |\n"
                 u"| EX-005 | G11 文档新鲜度 | 无到期 | 全仓 | 自检 |  | active |\n"
                 u"| EX-006 | G7 | 已关闭 | 全仓 | 自检 | %s | 已处理 |\n"
-                u"| EX-007 | G8 | 待关闭不是关闭 | 全仓 | 自检 | %s | 待关闭 |\n") % (yesterday, ok_day, yesterday, yesterday))
+                u"| EX-007 | G8 | 待关闭不是关闭 | 全仓 | 自检 | %s | 待关闭 |\n"
+                u"| EX-00A | G12 | 太远 | 全仓 | 自检 | %s | active |\n"
+                u"| EX-00B | G13 | 恰一年 | 全仓 | 自检 | %s | active |\n")
+                % (yesterday, ok_day, yesterday, yesterday, (today + datetime.timedelta(days=366)).isoformat(),
+                   (today + datetime.timedelta(days=365)).isoformat()))
             own = sorted((f["status"], f["id"]) for f in fs if f["id"].startswith(EXCEPTION_CHECK + "/"))
             if own != [(FAIL, EXCEPTION_CHECK + "/own-expired/EX-003"),
                        (FAIL, EXCEPTION_CHECK + "/own-expired/EX-007"),
+                       (UNDETERMINED, EXCEPTION_CHECK + "/own-too-far"),
                        (UNDETERMINED, EXCEPTION_CHECK + "/own-undated")]:
                 raise AssertionError("⑥ 项目自有例外应只得 own-expired/EX-003、EX-007（状态「待关闭」不是关闭）"
-                                     "FAIL 与 own-undated，实得 %r" % (own,))
+                                     "FAIL、own-too-far（+366 天，+365 天不报）与 own-undated，实得 %r" % (own,))
             if (hit.get("registered") or {}).get("id") != "EX-001":
                 raise AssertionError("⑥ 项目自有例外行不得影响 Finding id 行的登记")
+            # ⑦ 检查器自身出错（崩溃、自检闸门不过）的未定不可登记：修前它是稳定 id、登记即退出 0，
+            #    等于登记了被崩溃顶掉的 FAIL；修后该行记不合格，那条未定仍是未登记（契约 §9）
+            crash = undetermined_from_exception("layout", TypeError("x"), u"跑 layout")
+            fs, _, _ = _register(target, ok_day, u"| EX-008 | %s | 崩溃 | 全仓 | 自检 | %s | active |\n"
+                                 % (crash["id"], ok_day), more=[crash])
+            got = [f.get("registered") for f in fs if f["id"] == crash["id"]]
+            if crash["id"] != "layout/internal-error" or got != [None] or not _has(fs, "invalid-rows"):
+                raise AssertionError("⑦ 崩溃未定 %s 登记后应仍未登记并报 invalid-rows，实得 %r"
+                                     % (crash["id"], got))
+            #    对照：读不了的文件（unreadable/<路径>）是对象的事，登记照常生效（R126-1）
+            unr = sl_unreadable("evidence", u"work/WI-9.md", OSError("x"))
+            fs, _, _ = _register(target, ok_day, u"| EX-009 | %s | 读不了 | 该文件 | 自检 | %s | active |\n"
+                                 % (unr["id"], ok_day), more=[unr])
+            got = [(f.get("registered") or {}).get("id") for f in fs if f["id"] == unr["id"]]
+            if got != ["EX-009"] or _has(fs, "invalid-rows"):
+                raise AssertionError("⑦ unreadable 未定登记应生效，实得 %r" % (got,))
+
+            # ⑧ 到期上限一年：今天 + 365 天仍生效，+ 366 天记不合格、不生效
+            edge = (today + datetime.timedelta(days=365)).isoformat()
+            far = (today + datetime.timedelta(days=366)).isoformat()
+            fs, hit, _ = _register(target, edge)
+            if (hit.get("registered") or {}).get("id") != "EX-001" or _has(fs, "invalid-rows"):
+                raise AssertionError("⑧ 到期恰为今天 + 365 天应生效，实得 %r" % (hit.get("registered"),))
+            fs, hit, _ = _register(target, far)
+            if hit.get("registered") is not None or not _has(fs, "invalid-rows"):
+                raise AssertionError("⑧ 到期晚于今天 + 365 天应不生效并报 invalid-rows，实得 %r"
+                                     % (hit.get("registered"),))
             os.remove(ex_path)
 
             # 3h) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
@@ -636,8 +668,9 @@ def _entry_smoke_selftest():
                  "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
                  "例外登记五条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan／"
-                 "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated；"
-                 "有过期行时首部标出其中几行已过期）、"
+                 "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated、晚于运行日 + 365 天报 own-too-far；"
+                 "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows，读不了的文件照常可登记；"
+                 "到期恰为今天 + 365 天生效、再晚一天报 invalid-rows）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
     return out
@@ -1583,11 +1616,12 @@ def _join_exceptions(findings, cfg):
     if not isinstance(cfg, dict):
         return info
     cfg["_exceptions"] = info
+    today = datetime.date.today()
     try:
         cdir = _config_dir(cfg)
         if cdir is None:
             return info
-        rows, problems, src, own = load_exceptions(cdir, cfg.get("_root"))
+        rows, problems, src, own = load_exceptions(cdir, cfg.get("_root"), today)
     except Exception as exc:  # noqa: BLE001 —— 读登记册出错也是未定，不静默当成没有登记
         findings.append(undetermined_from_exception(EXCEPTION_CHECK, exc, "读例外登记"))
         return info
@@ -1600,7 +1634,6 @@ def _join_exceptions(findings, cfg):
                        if not os.path.isabs(cfg_path) else src)
     info["valid"] = len(rows)
 
-    today = datetime.date.today()
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
     by_id = {}
     for f in findings:
@@ -1673,11 +1706,14 @@ def _own_exceptions(own, where, today, base):
     """
     why = ("02 §4：依赖规则的例外登记在 governance/exceptions.md，带到期；到期未清理 CI 转红"
            "（01 §8：例外记录含到期，不能只是一份让检查永久跳过的名单）")
-    out, undated = [], []
+    out, undated, far = [], [], []
+    limit = today + datetime.timedelta(days=EXCEPTION_MAX_DAYS)
     for r in own:
         label = "第 %d 行 %s" % (r["lineno"], r["ex_id"] or r["rule"] or "（无编号）")
         if r["expires_date"] is None:
             undated.append("%s：%s" % (label, r["error"]))
+        elif r["expires_date"] > limit:
+            far.append("%s 到期 %s" % (label, r["expires_date"].isoformat()))
         elif r["expires_date"] < today:
             out.append(finding(
                 EXCEPTION_CHECK, FAIL, "项目例外 %s 已于 %s 到期，未关闭" % (label, r["expires_date"].isoformat()),
@@ -1685,6 +1721,14 @@ def _own_exceptions(own, where, today, base):
                 reason="清理这条例外（修掉偏离后在状态列写处理方式，如「已处理」「关闭」），"
                        "或经批准人重新评估后改到期",
                 evidence="%s；规则列：%s" % (base, r["rule"] or "（空）")))
+    if far:
+        out.append(finding(
+            EXCEPTION_CHECK, UNDETERMINED, "有 %d 行项目例外的到期晚于上限 %s（运行日起 %d 天）"
+            % (len(far), limit.isoformat(), EXCEPTION_MAX_DAYS),
+            where=where, kind="own-too-far", why=why + "；契约 §9：到期不得晚于运行日 + 365 天",
+            reason="；".join(far[:_MAX_REGISTER_LISTED])
+                   + ("；……共 %d 行" % len(far) if len(far) > _MAX_REGISTER_LISTED else ""),
+            evidence=base))
     if undated:
         out.append(finding(
             EXCEPTION_CHECK, UNDETERMINED, "有 %d 行项目例外的到期写不成日期，到没到期判不了" % len(undated),

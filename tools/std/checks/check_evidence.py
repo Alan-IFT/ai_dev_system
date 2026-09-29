@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status,
-    read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
+    read_text, state_list, undetermined_from_exception, unreadable, work_root, work_root_absent, write_text,
 )
 
 NAME = "evidence"
@@ -351,7 +351,7 @@ def _run(cfg):
         try:
             text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
 
         status = item_status(text)
@@ -542,6 +542,29 @@ def selftest():
             why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
                 "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
         ))
+
+    # 读不了的工作项是对象的事：出 unreadable/<路径>（可登记、按文件分开），不出不可登记的
+    # internal-error（D-126 返修 R126-1：修前两份读不了的文件合成同一个 evidence/internal-error）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _SIX)
+        write_text(os.path.join(tmp, "work", "WI-0003-z.md"), "# WI-0003\n\n状态：done\n")
+        err = err or git_track(tmp)
+        locked = [os.path.join(tmp, "work", n) for n in ("WI-0001-x.md", "WI-0003-z.md")]
+        for p in locked:
+            os.chmod(p, 0)
+        try:
+            ids = sorted(f["id"] for f in run(cfg) if f["status"] == UNDETERMINED) if not err else err
+        finally:
+            for p in locked:
+                os.chmod(p, 0o644)
+    want = ["evidence/unreadable/work/WI-0001-x.md", "evidence/unreadable/work/WI-0003-z.md"]
+    can_lock = hasattr(os, "geteuid") and os.geteuid() != 0      # root 读得了 000 文件，这条无从构造
+    results.append(finding(
+        NAME, PASS if (not can_lock or ids == want) else FAIL,
+        "反例：两份工作项读不了，各出一条 unreadable/<路径>，不出 internal-error",
+        evidence="实得 %s%s" % (ids, "" if can_lock else "（root 运行，未构造）"),
+        why="契约 §9：读不了的文件是对象的事，可登记；检查器自身出错才不可登记",
+    ))
 
     # 只看工作项目录直接一层（D-123 裁定 3）；读不到状态的文件一律静默跳过——是不是工作项、
     # 要不要报 no-status 由 freshness 报一次（审查 B5）
