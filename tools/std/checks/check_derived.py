@@ -59,9 +59,9 @@ _GENERATOR_HINTS = (
 # 本模块自备的小工具（不改 stdlib，见任务纪律）
 # --------------------------------------------------------------------------
 
-def git_last_commit_epoch(root, relpath):
-    """该路径最后一次提交的时间戳。返回 (epoch, 原因)；取不到时 epoch 为 None。"""
-    shallow = shallow_problem(root)
+def git_last_commit_epoch(root, relpath, shallow):
+    """该路径最后一次提交的时间戳。返回 (epoch, 原因)；取不到时 epoch 为 None。
+    shallow 是本次扫描探测一次的 shallow_problem(root)，不逐条再起子进程（C22）。"""
     if shallow:
         return None, shallow
     # --literal-pathspecs：路径按字面，`m[1].json` 不许匹配到 `m1.json` 的提交（C02）
@@ -183,12 +183,13 @@ def _run(cfg):
             why=u"01 §3.4：派生关系由项目指定主从，不由检查器推定",
         )]
     out = []
+    shallow = shallow_problem(root)
     for i, item in enumerate(decls, 1):
-        out.extend(_check_one(root, i, item))
+        out.extend(_check_one(root, i, item, shallow))
     return out
 
 
-def _check_one(root, idx, item):
+def _check_one(root, idx, item, shallow):
     # derived 须是映射组成的列表，load_config 已按形状校验拒收别的写法（契约 §5）
     label = u"derived[%d]" % idx
     artifact = str(item.get("artifact") or "").strip()
@@ -224,8 +225,8 @@ def _check_one(root, idx, item):
     out = []
 
     # 陈旧检测：派生物落后于源
-    a_epoch, a_why = git_last_commit_epoch(root, artifact)
-    s_epoch, s_why = git_last_commit_epoch(root, source)
+    a_epoch, a_why = git_last_commit_epoch(root, artifact, shallow)
+    s_epoch, s_why = git_last_commit_epoch(root, source, shallow)
     if a_epoch is None or s_epoch is None:
         out.append(finding(
             NAME, UNDETERMINED, u"%s 取不到 git 提交时间，陈旧与否未定" % label,
@@ -508,16 +509,23 @@ def selftest():
             _commit(tmp, "docs/map.html", _BAD, "2026-01-01T00:00:00 +0000")
             _commit(tmp, "src/map.json", _SRC, "2026-02-01T00:00:00 +0000")
             one = {"artifact": "docs/map.html", "source": "src/map.json", "regen": "make"}
-            ids = [sorted(f["id"] for f in run(dict(cfg, derived=d)) if f["status"] == FAIL)
-                   for d in ([one], [{"artifact": "", "source": "", "regen": ""}, one])]
+            # C22：两次扫描各只探测一次浅克隆（旧写法每条声明的 artifact、source 各起一次子进程）
+            probes, real_probe = [], globals()["shallow_problem"]
+            globals()["shallow_problem"] = lambda r: (probes.append(r), real_probe(r))[1]
+            try:
+                ids = [sorted(f["id"] for f in run(dict(cfg, derived=d)) if f["status"] == FAIL)
+                       for d in ([one], [{"artifact": "", "source": "", "regen": ""}, one])]
+            finally:
+                globals()["shallow_problem"] = real_probe
         stable = ids[0] == ids[1] == [NAME + u"/behind/docs/map.html", NAME + u"/header-undeclared/docs/map.html"]
         mids = [f["id"] for f in miss]
-        ok = (len(miss) == 2 and len(set(mids)) == 2 and stable
+        ok = (len(miss) == 2 and len(set(mids)) == 2 and stable and len(probes) == 2
               and mids[0].endswith(u"docs/a.html") and mids[1].endswith(u"docs/b.html"))
         results.append(finding(
             NAME, PASS if ok else FAIL,
             u"反例四：两条声明各缺自己的源，两条未定的 id 须按 artifact 路径分开；FAIL 的 id 不随声明序号漂",
-            evidence=u"实得 %d 条：%s；序号 1 与 2 时的 FAIL id：%s" % (len(miss), u"、".join(mids) or u"无", ids),
+            evidence=u"实得 %d 条：%s；序号 1 与 2 时的 FAIL id：%s；两次扫描共探测浅克隆 %d 次（应 2 次，C22）"
+                     % (len(miss), u"、".join(mids) or u"无", ids, len(probes)),
             why=u"契约 §9：id 是例外登记的地址，两件事共用一个地址就会被一行登记一起静音",
         ))
     except Exception as exc:  # noqa: BLE001

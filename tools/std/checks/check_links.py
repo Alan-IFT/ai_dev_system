@@ -101,10 +101,10 @@ def _atx_title(raw):
 _SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
 
 
-def _titles(text):
-    """按出现顺序给出标题文字：ATX（`# x`）与 setext（下一行是 `===` / `---`）两种。"""
+def _titles(masked):
+    """按出现顺序给出标题文字：ATX（`# x`）与 setext（下一行是 `===` / `---`）两种。入参是涂白后的文本。"""
     prev = ""
-    for line in _mask_code(text).split(_NL):
+    for line in masked.split(_NL):
         m = _HEADING_RE.match(line)
         if m:
             yield _atx_title(m.group(2))
@@ -117,11 +117,11 @@ def _titles(text):
         prev = line
 
 
-def _anchors_of(text):
-    """一份 markdown 里可用的锚点集合。"""
+def _anchors_of(text, masked=None):
+    """一份 markdown 里可用的锚点集合。masked：调用方已涂白的同一份文本，省一次涂白。"""
     found = set(_EXPLICIT_ANCHOR_RE.findall(text))
     seen = {}
-    for title in _titles(text):
+    for title in _titles(_mask_code(text) if masked is None else masked):
         for s in {_slug(title), _slug(title, keep_inner_underscore=True)}:
             if not s:
                 continue
@@ -132,10 +132,14 @@ def _anchors_of(text):
 
 
 class _Cache(object):
-    """目标文件读一次就够：几千份 markdown 上不能对每条链接重读一次文件。"""
+    """目标文件读一次就够：几千份 markdown 上不能对每条链接重读一次文件。
+    扫描对象与链接目标共用这一份（C22）：扫过的对象再被链接时直接取锚点；还没扫到的对象
+    先被当成目标读了，正文留在 pending 里，轮到扫它时取走，不读第二遍。"""
 
-    def __init__(self, root):
+    def __init__(self, root, todo=()):
         self.root = root
+        self.todo = set(todo)     # 还没扫到的扫描对象（normpath）
+        self.pending = {}
         self.exists = {}
         self.isdir = {}
         self.anchors = {}
@@ -160,7 +164,16 @@ class _Cache(object):
             self.errors[key] = "%s: %s" % (type(exc).__name__, exc)
             return None, self.errors[key]
         self.anchors[key] = _anchors_of(text)
+        if key in self.todo:
+            self.pending[key] = text
         return self.anchors[key], None
+
+    def source_text(self, abspath):
+        """取一份扫描对象的正文：先当过目标的从 pending 取走，否则读盘。"""
+        key = os.path.normpath(abspath)
+        self.todo.discard(key)
+        text = self.pending.pop(key, None)
+        return read_text(abspath, self.root) if text is None else text
 
 
 def _markdown_files(cfg):
@@ -231,7 +244,7 @@ def _run(cfg):
             why="契约 §1：适用却没执行的检查记未定，不记通过",
         )]
 
-    cache = _Cache(root)
+    cache = _Cache(root, (os.path.normpath(os.path.join(root, r.replace("/", os.sep))) for r in files))
     out = []
     merged = {}          # Finding id -> [finding, [行号…], 原始 evidence]
     n_links = 0
@@ -240,7 +253,7 @@ def _run(cfg):
     for rel in files:
         abs_src = os.path.join(root, rel.replace("/", os.sep))
         try:
-            text = read_text(abs_src, root)
+            text = cache.source_text(abs_src)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -249,7 +262,7 @@ def _run(cfg):
             if in_frozen(cfg, rel) else ""
 
         masked = _mask_code(text)
-        src_anchors = None   # 惰性：只有出现 #锚点 才算本文件的锚点
+        src_anchors = cache.anchors[os.path.normpath(abs_src)] = _anchors_of(text, masked)
 
         for lineno, line in enumerate(masked.split(_NL), 1):
             if "](" not in line:
@@ -278,8 +291,6 @@ def _run(cfg):
 
                 # 纯锚点：指向本文件
                 if not path_part:
-                    if src_anchors is None:
-                        src_anchors = _anchors_of(text)
                     if anchor in src_anchors:
                         continue
                     n_bad += 1
@@ -490,6 +501,22 @@ def selftest():
                 "反例五：同一缺失目标只出一条 FAIL、id 不随行号漂；查询串与带协议的目标不当本地路径",
                 evidence="非通过项 %s；应得 %s" % (got, want),
                 why="契约 §4/§9：id 是登记的地址；01 §3.4 引用核对不得误报",
+            ))
+
+            # C22：互相链接的两份 markdown 各只读一遍（旧写法作为链接目标时再读一遍）
+            w("a.md", "# A\n\n[b](b.md#b)\n")
+            w("b.md", "# B\n\n[a](a.md#a)\n")
+            reads, real_read = [], globals()["read_text"]
+            globals()["read_text"] = lambda p, r=None: (reads.append(os.path.normpath(p)), real_read(p, r))[1]
+            try:
+                got = [f["status"] for f in run({"_root": tmp, "_links_files": ["a.md", "b.md"]})]
+            finally:
+                globals()["read_text"] = real_read
+            results.append(finding(
+                NAME, PASS if got == [PASS] and len(reads) == 2 == len(set(reads)) else FAIL,
+                "C22：互相链接的两份 markdown 各只读一遍",
+                evidence="实得 %s；读 %d 次：%s" % (got, len(reads), [os.path.basename(r) for r in reads]),
+                why="一次扫描里同一份文件不重复 I/O",
             ))
 
             # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；

@@ -111,11 +111,13 @@ def _section_body(text, keywords):
     return "\n".join(out)
 
 
-def _git_commit_date(root, rel):
-    """该文件最后一次提交的时间。返回 (date, None) 或 (None, 原因)。"""
-    shallow = shallow_problem(root)
-    if shallow:
-        return None, shallow
+def _git_commit_date(root, rel, memo):
+    """该文件最后一次提交的时间。返回 (date, None) 或 (None, 原因)。
+    memo 是一次扫描共用的空列表：浅克隆只探测一次，不每份工作项起一个子进程（C22）。"""
+    if not memo:
+        memo.append(shallow_problem(root))
+    if memo[0]:
+        return None, memo[0]
     cmd = ["git", "--literal-pathspecs", "-C", root, "log", "-1", "--format=%cI", "--", rel]   # 路径按字面（C02）
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
@@ -262,13 +264,14 @@ def _run(cfg):
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
 
     out = []
+    texts = {}   # 工作项目录在文档根之下时，文档巡检读过的工作项留给活性巡检，不读第二遍（C22）
     # 文档部分整组依赖 docs_root：取了默认就在这里统一注明，不在各条 finding 里逐个拼
-    out.extend(note_default(_check_docs(cfg, root, today, base), docs_root_of(cfg)[1]))
-    out.extend(_check_work_items(cfg, root, today, base))
+    out.extend(note_default(_check_docs(cfg, root, today, base, texts), docs_root_of(cfg)[1]))
+    out.extend(_check_work_items(cfg, root, today, base, texts))
     return out
 
 
-def _check_docs(cfg, root, today, base):
+def _check_docs(cfg, root, today, base, texts):
     docs_root, dnote = docs_root_of(cfg)
 
     days, used_default, bad = _int_budget(cfg, "budgets.stale_days", _DEFAULT_STALE_DAYS)
@@ -300,6 +303,7 @@ def _check_docs(cfg, root, today, base):
             reason="空集上说不出'全部文档都新鲜'（01 §2 N1：X 为空集时'全部 X 通过'判未定）",
         )]
 
+    wdir = norm_rel(work_root(cfg)[0]).rstrip("/")
     out, frozen, unclassified, declared_none, by_convention = [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
@@ -310,6 +314,8 @@ def _check_docs(cfg, root, today, base):
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
+        if os.path.dirname(rel) == wdir:
+            texts[rel] = text
 
         value, hit = find_field(text[:HEAD_CHARS], names)
         if value is None or not clean(value):
@@ -408,7 +414,7 @@ def _check_docs(cfg, root, today, base):
     return out
 
 
-def _check_work_items(cfg, root, today, base):
+def _check_work_items(cfg, root, today, base, texts):
     wroot, wnote = work_root(cfg)
 
     days, used_default, bad = _int_budget(
@@ -429,13 +435,14 @@ def _check_work_items(cfg, root, today, base):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
 
-    out, frozen, nostatus, other, not_items = [], [], [], [], []
+    out, frozen, nostatus, other, not_items, memo = [], [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
             continue
         try:
-            text = read_text(os.path.join(root, rel), root)
+            text = texts.pop(rel, None)
+            text = read_text(os.path.join(root, rel), root) if text is None else text
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
             continue
@@ -453,7 +460,7 @@ def _check_work_items(cfg, root, today, base):
         d, how, err = _last_transition(text)
         used_git = False
         if d is None and err and err[0] == "absent":
-            d, gerr = _git_commit_date(root, rel)
+            d, gerr = _git_commit_date(root, rel, memo)
             if d is None:
                 out.append(finding(
                     NAME, UNDETERMINED, "取不到最后状态转换时间：%s" % rel, where=rel,
@@ -760,6 +767,28 @@ def selftest():
         "反例七之二：文件名带 [ ] 的超龄工作项按字面取提交时间，仍判 FAIL",
         evidence="实得 %s" % (got,),
         why="01 §4.1：活性看的是这一份工作项自己的提交，不是被通配到的别的文件",
+    ))
+
+    # C22：工作项目录在文档根之下（缺省形态）时每份工作项只读一遍；浅克隆一次扫描只探测一次
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        for i in (1, 2):
+            write_text(os.path.join(tmp, "docs", "state", "work", "WI-000%d-x.md" % i), "# WI\n\n状态：in_progress\n")
+        err = git_track(tmp)
+        reads, probes = [], []
+        real_read, real_probe = globals()["read_text"], globals()["shallow_problem"]
+        globals()["read_text"] = lambda p, r=None: (reads.append(p), real_read(p, r))[1]
+        globals()["shallow_problem"] = lambda r: (probes.append(r), real_probe(r))[1]
+        try:
+            run({"_root": tmp}) if not err else None
+        finally:
+            globals()["read_text"], globals()["shallow_problem"] = real_read, real_probe
+    ok = (not err) and len(reads) == 2 and len(set(reads)) == 2 and len(probes) == 1
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "C22：工作项目录在文档根下时每份只读一遍，浅克隆只探测一次",
+        evidence="读 %d 次（%d 份），探测 %d 次%s" % (len(reads), len(set(reads)), len(probes),
+                                             ("；git 准备失败：%s" % err) if err else ""),
+        why="一次扫描里同一份文件不重复 I/O，不为每份工作项起子进程",
     ))
 
     # 反例五之二（D-123 bug 10）：超龄工作项的 FAIL 标题带天数，id 须不随天数变；
