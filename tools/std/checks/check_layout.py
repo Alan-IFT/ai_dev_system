@@ -105,8 +105,8 @@ def _norm(p):
 def _exists(root, rel, kind):
     """工件在不在：True / False，真实位置在项目之外返回 None（不探测项目之外，调用方记未定；C16）。"""
     path = os.path.join(root, rel.replace("/", os.sep))
-    if kind == "glob":
-        return any(inside(root, p) for p in _glob.glob(path))
+    if kind == "glob":   # 只有候选部分是通配；扫描根里的 [ ] * ? 按字面（C14）
+        return any(inside(root, p) for p in _glob.glob(os.path.join(_glob.escape(root), rel.replace("/", os.sep))))
     if not inside(root, path):
         return None
     if kind == "file":
@@ -497,6 +497,16 @@ def selftest():
             "C16：入口与状态工件链到项目之外记未定，不判在、不判缺",
             evidence="实得 %s；应得 %s" % (got, want),
             why="契约 §5：只读被扫项目之内的文件；§1 同一事实只报一次",
+        ))
+        # C14：扫描根路径里带 [ ] 时，项目侧检查器的通配候选照样找得到
+        with tempfile.TemporaryDirectory(prefix="a[b]") as tmp:
+            os.makedirs(os.path.join(tmp, "tools"))
+            io.open(os.path.join(tmp, "tools", "check_x.py"), "w", encoding="utf-8").close()
+            got = [f["status"] for f in run({"_root": tmp, "tier": "L2"}) if "（checkers）" in f["title"]]
+        results.append(finding(
+            NAME, PASS if got == [PASS] else FAIL,
+            "C14：扫描根带 [ ] 时 glob 候选按字面拼根，tools/check_x.py 判在",
+            evidence="实得 %s" % got, why="01 §3.1：L2 的项目侧检查器；候选命中就是看见的事实",
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(undetermined_from_exception(NAME, exc, "跑自检"))
