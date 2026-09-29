@@ -53,7 +53,7 @@ _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
-    INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
+    EXCEPTION_MAX_DAYS, INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -568,13 +568,18 @@ def _entry_smoke_selftest():
                 u"| EX-004 | G6 依赖审计 | 未到期 | 全仓 | 自检 | %s | active |\n"
                 u"| EX-005 | G11 文档新鲜度 | 无到期 | 全仓 | 自检 |  | active |\n"
                 u"| EX-006 | G7 | 已关闭 | 全仓 | 自检 | %s | 已处理 |\n"
-                u"| EX-007 | G8 | 待关闭不是关闭 | 全仓 | 自检 | %s | 待关闭 |\n") % (yesterday, ok_day, yesterday, yesterday))
+                u"| EX-007 | G8 | 待关闭不是关闭 | 全仓 | 自检 | %s | 待关闭 |\n"
+                u"| EX-00A | G12 | 太远 | 全仓 | 自检 | %s | active |\n"
+                u"| EX-00B | G13 | 恰一年 | 全仓 | 自检 | %s | active |\n")
+                % (yesterday, ok_day, yesterday, yesterday, (today + datetime.timedelta(days=366)).isoformat(),
+                   (today + datetime.timedelta(days=365)).isoformat()))
             own = sorted((f["status"], f["id"]) for f in fs if f["id"].startswith(EXCEPTION_CHECK + "/"))
             if own != [(FAIL, EXCEPTION_CHECK + "/own-expired/EX-003"),
                        (FAIL, EXCEPTION_CHECK + "/own-expired/EX-007"),
+                       (UNDETERMINED, EXCEPTION_CHECK + "/own-too-far"),
                        (UNDETERMINED, EXCEPTION_CHECK + "/own-undated")]:
                 raise AssertionError("⑥ 项目自有例外应只得 own-expired/EX-003、EX-007（状态「待关闭」不是关闭）"
-                                     "FAIL 与 own-undated，实得 %r" % (own,))
+                                     "FAIL、own-too-far（+366 天，+365 天不报）与 own-undated，实得 %r" % (own,))
             if (hit.get("registered") or {}).get("id") != "EX-001":
                 raise AssertionError("⑥ 项目自有例外行不得影响 Finding id 行的登记")
             # ⑦ 检查器自身出错（崩溃、自检闸门不过）的未定不可登记：修前它是稳定 id、登记即退出 0，
@@ -663,7 +668,7 @@ def _entry_smoke_selftest():
                  "工作目录 ≠ 被扫根时项目内的默认配置仍标『在被扫描项目内』、"
                  "例外登记五条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan／"
-                 "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated；"
+                 "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated、晚于运行日 + 365 天报 own-too-far；"
                  "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows，读不了的文件照常可登记；"
                  "到期恰为今天 + 365 天生效、再晚一天报 invalid-rows）、"
                  "main 两种 argv 退出码合法且有输出",
@@ -1701,11 +1706,14 @@ def _own_exceptions(own, where, today, base):
     """
     why = ("02 §4：依赖规则的例外登记在 governance/exceptions.md，带到期；到期未清理 CI 转红"
            "（01 §8：例外记录含到期，不能只是一份让检查永久跳过的名单）")
-    out, undated = [], []
+    out, undated, far = [], [], []
+    limit = today + datetime.timedelta(days=EXCEPTION_MAX_DAYS)
     for r in own:
         label = "第 %d 行 %s" % (r["lineno"], r["ex_id"] or r["rule"] or "（无编号）")
         if r["expires_date"] is None:
             undated.append("%s：%s" % (label, r["error"]))
+        elif r["expires_date"] > limit:
+            far.append("%s 到期 %s" % (label, r["expires_date"].isoformat()))
         elif r["expires_date"] < today:
             out.append(finding(
                 EXCEPTION_CHECK, FAIL, "项目例外 %s 已于 %s 到期，未关闭" % (label, r["expires_date"].isoformat()),
@@ -1713,6 +1721,14 @@ def _own_exceptions(own, where, today, base):
                 reason="清理这条例外（修掉偏离后在状态列写处理方式，如「已处理」「关闭」），"
                        "或经批准人重新评估后改到期",
                 evidence="%s；规则列：%s" % (base, r["rule"] or "（空）")))
+    if far:
+        out.append(finding(
+            EXCEPTION_CHECK, UNDETERMINED, "有 %d 行项目例外的到期晚于上限 %s（运行日起 %d 天）"
+            % (len(far), limit.isoformat(), EXCEPTION_MAX_DAYS),
+            where=where, kind="own-too-far", why=why + "；契约 §9：到期不得晚于运行日 + 365 天",
+            reason="；".join(far[:_MAX_REGISTER_LISTED])
+                   + ("；……共 %d 行" % len(far) if len(far) > _MAX_REGISTER_LISTED else ""),
+            evidence=base))
     if undated:
         out.append(finding(
             EXCEPTION_CHECK, UNDETERMINED, "有 %d 行项目例外的到期写不成日期，到没到期判不了" % len(undated),
