@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, docs_root_of, filter_env, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
+    cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, is_tailored_out, norm_rel, note_default, read_text,
     rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
 )
@@ -463,8 +463,9 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
         adr_id = m.group(0)
         listed.add(adr_id)
         target = _index_target(cells[file_col]) if file_col is not None and file_col < len(cells) else None
-        if target and (os.path.isfile(os.path.join(root, adr_dir, target))
-                       or os.path.isfile(os.path.join(root, target))):
+        # 先护栏：「文件」列写绝对路径或 `..` 时，字面出仓的不碰文件系统（B11）
+        if target and any(inside(root, p) and os.path.isfile(p)
+                          for p in (os.path.join(root, adr_dir, target), os.path.join(root, target))):
             continue
         if adr_id in dir_ids:            # 「文件」列不是可用路径时回落到 <ID>*.md
             continue
@@ -853,6 +854,27 @@ def selftest():
                 u"3d 正例：索引「文件」列写裸 `ADR-0002`，实物叫 `ADR-0002-y.md`，两段式定位须找到它",
                 u"实得 %s" % _ids(res, "adr-index-missing"),
                 why=u"D-5：只认「文件」列、不回落 glob 时，这一行会成为假的 adr-index-missing")
+
+    # ---- 3e（B11）：索引「文件」列写绝对路径或 `..` 出仓时不探测存在性，按缺实物记未定 ----
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp, \
+            tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as outside_dir:
+        for n in ("0008", "0009"):
+            write_text(os.path.join(outside_dir, "ADR-%s.md" % n), u"# 仓外\n")
+        up = os.path.relpath(outside_dir, os.path.join(tmp, "docs", "decisions"))
+        write_text(os.path.join(tmp, "docs", "decisions", "README.md"),
+                   u"| ID | 文件 |\n|---|---|\n| ADR-0008 | %s/ADR-0008.md |\n| ADR-0009 | [x](%s/ADR-0009.md) |\n"
+                   % (outside_dir, up))
+        probed, real_isfile = [], os.path.isfile
+        os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
+        try:
+            res = _check_index(tmp, "docs/decisions", [], "docs/decisions/README.md", True)
+        finally:
+            os.path.isfile = real_isfile
+        leak = [p for p in probed if os.path.realpath(p).startswith(os.path.realpath(outside_dir))]
+        _assert(results, not leak and _ids(res, "adr-index-missing") == [u"drift/adr-index-missing/docs/decisions/README.md"],
+                u"3e 反例：索引「文件」列指向仓外（绝对路径、`..`）不得探测存在性，按缺实物记未定",
+                u"探测仓外 %s；实得 %s" % (leak, [f["id"] for f in res]),
+                why=u"契约 §5：字面就在项目之外的路径连存在性也不探测")
 
     # ---- 3a/3b/3c：索引对账，声明与回退的结论必须不同 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
