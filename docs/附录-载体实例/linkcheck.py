@@ -55,7 +55,8 @@ def md_files(root):
 
 
 def anchors_of(text):
-    """GitHub 式锚点：<a id> 与标题 slug（重复标题加 -1、-2 后缀）；代码块里的不算。"""
+    """近似 GitHub 的锚点：<a id> 与标题 slug（重复标题加 -1、-2 后缀）；代码块里的不算。
+    按原始 markdown 算：标题内链接与 HTML、结尾 #、撞名后缀的二次冲突与 GitHub 不一致（仓库工作须知 §2）。"""
     masked = mask_code(text)
     found = set(re.findall(r'<a id="([^"]+)"', masked))
     seen = {}
