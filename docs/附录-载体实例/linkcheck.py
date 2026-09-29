@@ -44,8 +44,12 @@ def links(text):
 
 
 def md_files(root):
-    out = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "*.md"],
-                         capture_output=True, check=True).stdout.decode("utf-8")
+    try:
+        out = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "*.md"], capture_output=True,
+                             check=True).stdout.decode("utf-8", "surrogateescape")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("不在 git 工作区（或没有 git），无法取文件清单：%s" % root, file=sys.stderr)
+        sys.exit(2)
     return [os.path.join(root, f) for f in out.split("\0")
             if f and os.path.isfile(os.path.join(root, f))]
 
@@ -66,6 +70,7 @@ def anchors_of(text):
 
 
 def main():
+    sys.stdout.reconfigure(errors="backslashreplace")   # 非 UTF-8 文件名照样能报出来
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     mds = md_files(root)
     texts = {os.path.normpath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in mds}
