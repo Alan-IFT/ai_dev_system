@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -202,7 +203,8 @@ def _split_row(ln):
 
 
 def _is_sep(ln):
-    return bool(re.match(r"^\s*\|?[\s:\-|]+\|[\s:\-|]*$", ln)) and "-" in ln
+    """表格分隔行。不用正则：原写法里 `\\s*` 与字符类重叠，满行 `|` 或空格是平方级（R2-11）。"""
+    return "|" in ln and "-" in ln and set(ln.strip()) <= set("|:- \t")
 
 
 def _map_header(cells):
@@ -615,6 +617,16 @@ def selftest():
         NAME, PASS if got == [(SKIP, NAME + "/work-root-absent")] else FAIL,
         "R2-5：工作项目录链到项目之外只记 SKIP 指向 layout",
         evidence="实得 %s" % (got,), why="契约 §1 同一事实只报一次；§5 只读项目之内",
+    ))
+
+    # R2-11：证据段里一行 4 万个 `|` 或空格，表格分隔行判定须线性（旧正则约 7 秒）
+    t0 = time.time()
+    seps = (_is_sep("|" * 40000 + "x"), _is_sep(" " * 40000), _is_sep("|---|:-:|"), _is_sep("| a | b |"))
+    took = time.time() - t0
+    results.append(finding(
+        NAME, PASS if seps == (False, False, True, False) and took < 1 else FAIL,
+        "R2-11：表格分隔行判定线性、结果不变",
+        evidence="实得 %s，耗时 %.2fs" % (seps, took), why="一份文件不许拖死整次检查",
     ))
 
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
