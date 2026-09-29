@@ -201,7 +201,8 @@ def _parse_table_blocks(rows):
             j = i + 2
             while j < len(rows) and "|" in rows[j][1] and rows[j][1].strip():
                 cells = _split_row(rows[j][1])
-                blk = {"name": (cells[0] if cells else "").strip() or "第 %d 行" % rows[j][0],
+                # 条目名取第一个非空格：不取行号，否则 id 随行号漂（C19）
+                blk = {"name": next((c for c in cells if c.strip()), "（空行）").strip(),
                        "line": rows[j][0], "fields": {}, "limit_cols": [], "kind": "表行"}
                 for idx, key in cols.items():
                     if idx >= len(cells):
@@ -364,6 +365,7 @@ def _check_one(rel, text, status, note):
         if not other_bad:
             out.append(finding(
                 NAME, FAIL, "%s 的限制（④ 适用范围）为空，其余五项齐全" % head, where=where,
+                kind="limits-empty", key="%s|%s" % (rel, blk["name"]),
                 why="01 §4.2 的六字段里④是适用范围，01 §1 G4 缺一即声明无效。"
                     "没有写限制不等于没有限制——空的限制字段让通过看起来比实际更强，"
                     "读的人会把一次局部验证当成全面验证",
@@ -381,6 +383,7 @@ def _check_one(rel, text, status, note):
             parts.append("限制列为空")
         out.append(finding(
             NAME, FAIL, "%s 证据六字段不全" % head, where=where,
+            kind="incomplete", key="%s|%s" % (rel, blk["name"]),
             why="01 §4.2 收工前第 1 条列的六字段是①断言②原始证据③版本与工作区身份"
                 "④适用范围⑤观察时间⑥确认方法；01 §1 G4：证据六字段缺一即声明无效。"
                 "当时没记，事后补不出来",
@@ -478,6 +481,20 @@ def selftest():
         "只看直接一层、读不到状态的静默跳过：子目录里的完成态留证不查，current.md 与无状态 WI 不报",
         evidence="实得 %s" % (got,),
         why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
+    ))
+
+    # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
+    ids = []
+    for pad in ("", "\n\n"):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, pad + "| 编号 | 断言 | 原始证据 | 版本 | 范围 | 时间 | 方法 |\n"
+                                          "|---|---|---|---|---|---|---|\n|  | 导入一致 | TBD | c | d | e | f |\n")
+            ids.append([f["id"] for f in run(cfg)] if not err else err)
+    ok = ids[0] == ids[1] and len(ids[0]) == 1 and ids[0][0].startswith(NAME + "/incomplete/work/WI-0001-x.md｜")
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "C19：字段表条目的 id 取条目名与文件，不随行号漂",
+        evidence="两次实得 %s" % (ids,), why="契约 §4/§9：id 是登记与复核的地址",
     ))
 
     # 证据段标题是工具约定（契约 §1.1，D-123）：英文 `## Evidence` 照认；一个都认不出只记未定

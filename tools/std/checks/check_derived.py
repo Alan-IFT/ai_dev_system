@@ -256,14 +256,14 @@ def _check_one(root, idx, item):
     elif a_epoch < s_epoch:
         out.append(finding(
             NAME, FAIL, u"%s 落后于源 %s" % (label, source),
-            where=artifact,
+            where=artifact, kind=u"behind", key=artifact,
             why=u"01 §3.4：派生物记录源的版本、CI 重建后 diff 为零才算一致；落后的派生物默认不作事实（02 §9.4）",
             evidence=u"artifact 最后提交 %d，source 最后提交 %d，晚 %d 秒" % (a_epoch, s_epoch, s_epoch - a_epoch),
         ))
     else:
         out.append(finding(
             NAME, PASS, u"%s 不落后于源" % label,
-            where=artifact,
+            where=artifact, kind=u"not-behind", key=artifact,
             why=u"01 §3.4",
             evidence=u"artifact 最后提交 %d ≥ source 最后提交 %d（只比提交先后，不比内容）" % (a_epoch, s_epoch),
         ))
@@ -281,7 +281,7 @@ def _check_one(root, idx, item):
         if hit:
             out.append(finding(
                 NAME, PASS, u"%s 头部声明了自己是派生物" % label,
-                where=artifact, why=u"02 §9.1", evidence=hit,
+                where=artifact, kind=u"header-declared", key=artifact, why=u"02 §9.1", evidence=hit,
             ))
         else:
             why = (u"02 §9.1 派生工件头部须声明『派生缓存，权威是 X』并记 source_rev；"
@@ -290,10 +290,10 @@ def _check_one(root, idx, item):
             if gen:
                 # 两种事实的第一种：有生成痕迹，但没说源是谁。结论仍是 FAIL——
                 # 02 §9.1 要的是"权威是 X"，不是"我是自动生成的"。
-                kind, lineno, line = gen
+                hint, lineno, line = gen
                 out.append(finding(
-                    NAME, FAIL, u"%s 头部有%s但未指明源" % (label, kind),
-                    where=u"%s:%d" % (artifact, lineno),
+                    NAME, FAIL, u"%s 头部有%s但未指明源" % (label, hint),
+                    where=u"%s:%d" % (artifact, lineno), kind=u"header-undeclared", key=artifact,
                     why=why,
                     evidence=u"第 %d 行原文：%s；但前 %d 行里既没有源路径 %s、也没有源文件名 %s、"
                              u"也没有 source_rev——只说了『这是生成的』，没说权威是谁，"
@@ -304,7 +304,7 @@ def _check_one(root, idx, item):
                 # 第二种：完全没有痕迹。
                 out.append(finding(
                     NAME, FAIL, u"%s 头部没有任何生成/派生标记" % label,
-                    where=u"%s:1" % artifact,
+                    where=u"%s:1" % artifact, kind=u"header-undeclared", key=artifact,
                     why=why,
                     evidence=u"前 %d 行里既没有源路径 %s，也没有任何生成/派生/不要手改一类标记，"
                              u"也没有生成器署名；派生物没有自我声明，接手者无法知道改它是白改"
@@ -521,13 +521,22 @@ def selftest():
             ]
             res = run(cfg)
         miss = [f for f in res if (f.get("id") or u"").startswith(NAME + u"/missing-file/")]
-        ids = [f["id"] for f in miss]
-        ok = (len(miss) == 2 and len(set(ids)) == 2
-              and ids[0].endswith(u"docs/a.html") and ids[1].endswith(u"docs/b.html"))
+        # C19：同一条声明挪到第二位，落后、头部两条 FAIL 的 id 不许随 derived[序号] 变
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _repo(tmp)
+            _commit(tmp, "docs/map.html", _BAD, "2026-01-01T00:00:00 +0000")
+            _commit(tmp, "src/map.json", _SRC, "2026-02-01T00:00:00 +0000")
+            one = {"artifact": "docs/map.html", "source": "src/map.json", "regen": "make"}
+            ids = [sorted(f["id"] for f in run(dict(cfg, derived=d)) if f["status"] == FAIL)
+                   for d in ([one], [{"artifact": "", "source": "", "regen": ""}, one])]
+        stable = ids[0] == ids[1] == [NAME + u"/behind/docs/map.html", NAME + u"/header-undeclared/docs/map.html"]
+        mids = [f["id"] for f in miss]
+        ok = (len(miss) == 2 and len(set(mids)) == 2 and stable
+              and mids[0].endswith(u"docs/a.html") and mids[1].endswith(u"docs/b.html"))
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            u"反例四：两条声明各缺自己的源，两条未定的 id 须按 artifact 路径分开",
-            evidence=u"实得 %d 条：%s" % (len(miss), u"、".join(ids) or u"无"),
+            u"反例四：两条声明各缺自己的源，两条未定的 id 须按 artifact 路径分开；FAIL 的 id 不随声明序号漂",
+            evidence=u"实得 %d 条：%s；序号 1 与 2 时的 FAIL id：%s" % (len(miss), u"、".join(mids) or u"无", ids),
             why=u"契约 §9：id 是例外登记的地址，两件事共用一个地址就会被一行登记一起静音",
         ))
     except Exception as exc:  # noqa: BLE001
