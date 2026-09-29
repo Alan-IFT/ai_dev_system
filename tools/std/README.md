@@ -149,8 +149,8 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   `.std/标准/README.md` 第 3 行），**在 pull 之后改，不要先改再 pull**：pull 认的是当前 `.std/`
   的内容，先改版本号只会让文件和记录对不上。
 - **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：先在 main 上跑
-  `python3 tools/std/check_all.py --selftest`，退出 0 才继续——跨检查器反例只在 `--selftest` 里跑，
-  不在提交路径上（钩子跑的是 `check_all . --no-scope`）→ 在 main 上
+  `python3 tools/std/check_all.py --selftest` 与 `python3 tools/std/check_all.py . --no-scope`，都退出 0
+  才继续——跨检查器反例只在 `--selftest` 里跑、不在提交路径上，绕过钩子进来的内容也要在这里再判一次 → 在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
   `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
   `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
@@ -181,7 +181,7 @@ hint 就跳过），以及 `git cherry-pick`、`git revert`、`git rebase` 与 f
 写进分支的提交（这几类默认不运行 pre-commit 与 commit-msg，只有 `rebase -i` 的 reword 和冲突解决后的
 `--continue`／`git commit` 会经过钩子）——这些盲区按
 [01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。不建议为这些写法加宿主询问规则：
-git 选项的缩写与组合写不完，按命令字符串拦只能打地鼠；兜底靠 git 历史可查与合并、发布前的全量检查。
+git 选项的缩写与组合写不完，按命令字符串拦只能打地鼠；兜底靠 git 历史可查与非 fast-forward 合并、发布前的全量检查。
 非 fast-forward 的 `git merge`
 可再接一个 `pre-merge-commit` 钩子（内容为 `exec "$(dirname "$0")/pre-commit"`）转调同一钩子覆盖。这段是形态示意不是发布物；
 `.std/` 前缀由采用项目自己的取用方式决定，换了前缀要跟着改。`check_all` 启动时先去掉 git 给钩子注入的
