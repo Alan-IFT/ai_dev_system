@@ -51,7 +51,7 @@ def _load_source(name, path, register=False):
 _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
+    FAIL, PASS, SKIP, STATUS_CANDIDATES, TOOL_ROOT, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
     EXCEPTION_MAX_DAYS, INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
 )
@@ -808,6 +808,61 @@ def _shared_fact_selftest(mods):
             why="01 §1 G2：同一配置一种读法（stdlib.entry_files）；契约 §1.1 候选只出通过或未定；"
                 "契约 §1 同一事实只报一次",
             evidence="实得 %r；应得 %r" % (got_d, want_d)))
+
+        # E：工作项状态按 stdlib.state_class 一份映射归到 01 §4.1 六态（D-127）。认不出的（旧模板的
+        #    DEFINED、IMPLEMENTING）记未定且只报一次；别名、开头词后跟日期、项目声明的词都按所属态判，
+        #    声明词并入不替换缺省；freshness 被裁剪或该件在 frozen 时由 evidence 报。
+        def _judge(files, extra=None):
+            with tempfile.TemporaryDirectory() as tmp:
+                _repo(tmp, dict(("work/WI-%02d-x.md" % k, v if v.startswith(u"# ") else u"# WI\n\n状态：%s\n" % v)
+                                for k, v in files))
+                cfg = dict({"_root": tmp, "tier": "L1",
+                            "layout": dict({"docs_root": "docs", "work_root": "work"}, **(extra or {}).pop("layout", {}))},
+                           **(extra or {}))
+                res = {}
+                for n in ("freshness", "evidence"):
+                    for f in by[n].run(cfg):
+                        w = (f["where"] or "").split(":")[0]
+                        if w.startswith("work/WI-"):
+                            res.setdefault(n, set()).add(int(w[8:10]))
+                        elif "unknown" in f["id"] or (n == "evidence" and f["status"] == UNDETERMINED):
+                            res[f["id"]] = (f["status"], sorted(int(x[8:10]) for x in
+                                                               re.findall(r"work/WI-\d\d", f["evidence"] or "")))
+                return res
+        got_e = {
+            "default": _judge(list(enumerate(["DEFINED", "IMPLEMENTING", "planned", "blocked", "in_validation",
+                                              "cancelled", u"**已完成**", "done 2026-02-20",
+                                              u"In Progress（阶段二）", "in progress"]))),
+            "declared": _judge(list(enumerate(["done", "closed", "in_progress", "doing"])),
+                               {"work_item_done_states": ["closed"], "work_item_in_progress_states": "doing"}),
+            "single": _judge([(0, "DEFINED")]),
+            # 模板原样复制、状态没选：状态行是括注，截掉后为空，须记未定而不是认成 planned（R2-1）
+            "template": _judge([(0, io.open(os.path.join(TOOL_ROOT, "templates", "WORK_ITEM.md"),
+                                            encoding="utf-8").read())]),
+            "tailored": _judge([(0, "DEFINED")], {"tailoring": [{"check": "freshness", "applicable": False,
+                                                                 "reason": "x"}]}),
+            "frozen": _judge([(0, "DEFINED"), (1, "DEFINED")], {"layout": {"frozen": ["work/WI-00-x.md"]}}),
+        }
+        want_e = {
+            "default": {"freshness": {8, 9}, "evidence": {6, 7},
+                        "freshness/unknown-state": (UNDETERMINED, [0, 1]),
+                        "evidence/unknown-state-by-freshness": (SKIP, [0, 1])},
+            "declared": {"freshness": {2, 3}, "evidence": {0, 1}},
+            "single": {"freshness/unknown-state": (UNDETERMINED, [0]),
+                       "evidence/unknown-state-by-freshness": (SKIP, [0])},
+            "template": {"freshness/unknown-state": (UNDETERMINED, [0]),
+                         "evidence/unknown-state-by-freshness": (SKIP, [0])},
+            "tailored": {"evidence/unknown-state": (UNDETERMINED, [0])},
+            "frozen": {"freshness/unknown-state": (UNDETERMINED, [1]),
+                       "evidence/unknown-state-by-freshness": (SKIP, [1]),
+                       "evidence/unknown-state": (UNDETERMINED, [0])},
+        }
+        out.append(finding(
+            "shared-fact", PASS if got_e == want_e else FAIL,
+            "工作项状态一份映射：别名与声明词按所属态判，认不出的记未定且只报一次",
+            why="01 §1 G2：进行中/完成的认法一处权威；契约 §1.1：约定落空只记未定，不当'非进行中/非完成'"
+                "静默放过；契约 §1：同一事实只报一次",
+            evidence="实得 %r；应得 %r" % (got_e, want_e)))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))
     return out
@@ -1049,7 +1104,13 @@ def _stdlib_selftest(mods):
                     ("p29", u"tier: L1\nlayout:\n  docs_root:\n    k: v\n", u"第 3 行 layout.docs_root"),
                     ("p30", u"tier: L1\nlayout:\n  artifacts:\n    status:\n      - a\n",
                      u"第 4 行 layout.artifacts.status"),
-                    ("p31", u"tier: L1\nrepos:\n  - name: a\n    path:\n      - x\n", u"第 4 行 repos[0].path")):
+                    ("p31", u"tier: L1\nrepos:\n  - name: a\n    path:\n      - x\n", u"第 4 行 repos[0].path"),
+                    # R127 R2-2：状态声明词与六态别名或另一个键撞词（归到不同态）同样拒收
+                    ("p37", u"tier: L1\nwork_item_done_states:\n  - 验证中\n", u"第 2 行 work_item_done_states 的「验证中」"),
+                    ("p38", u"tier: L1\nwork_item_in_progress_states: done\n",
+                     u"第 2 行 work_item_in_progress_states 的「done」"),
+                    ("p39", u"tier: L1\nwork_item_done_states: closed\nwork_item_in_progress_states: Closed\n",
+                     u"第 3 行 work_item_in_progress_states 的「closed」")):
                 cfg, prob = load(fresh(tag), body)
                 cases.append(("配置键形状不对整份拒收（%s）" % key, not cfg and key in (prob or ""), prob))
             # A10：列表项空值取 None（不按下一行形状读成 [] 或 {}）；a: b: c、引号不闭合拒收

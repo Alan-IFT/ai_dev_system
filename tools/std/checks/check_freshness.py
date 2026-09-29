@@ -26,7 +26,7 @@ from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_list, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
+    read_text, state_class, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
 )
 
 NAME = "freshness"
@@ -80,7 +80,6 @@ def _metadata_requirement(cfg, rel):
     return "unknown"
 
 
-_DEFAULT_IN_PROGRESS = ("in_progress", "进行中")
 
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _TRANSITION_FIELDS = ("last_transition_at", "state_changed_at", "最后状态转换时间", "状态更新时间")
@@ -258,7 +257,8 @@ def scope(cfg):
             "不看未被 git 跟踪的文件，不看 .md 以外的文件（.json、.yaml、.sh、代码注释都不看）",
             "只巡检进行中的工作项；planned / blocked / in_validation 的停滞不看——01 §4.1 里"
             "它们的复查时间是每项自己约定的值，工具读不到那个约定",
-            "不核实工作项状态是否属实，只读它自己写的状态字段",
+            "不核实工作项状态是否属实，只读它自己写的状态字段；状态认不出（不在 stdlib.WORK_ITEM_STATES "
+            "的六态别名与 project.yaml 声明的词里）的记未定（freshness/unknown-state），不查活性",
             "状态转换记录只认小节里第一段连续的表格行或列表项，取最后一条里的第一个日期：按新的在上"
             "倒序写的记录会取到最旧那条（偏向报超龄）；记录行里不按列区分，occurred_at 空着而别的列写了"
             "日期时取到那个日期；只有表头、没有记录行的转换表记未定，不退到提交时间",
@@ -457,8 +457,6 @@ def _check_work_items(cfg, root, today, base, texts):
                         why="01 §4.1 的复查时间是参数，但必须是可比较的数")]
     note = _note(used_default, "budgets.work_item_stale_days", days) + "；" + wnote
 
-    states = state_list(cfg, "work_item_in_progress_states", _DEFAULT_IN_PROGRESS)
-
     absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
     if absent:
         return [absent]
@@ -468,7 +466,7 @@ def _check_work_items(cfg, root, today, base, texts):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
 
-    out, frozen, nostatus, other, not_items, memo = [], [], [], [], [], []
+    out, frozen, nostatus, unknown, other, not_items, memo = [], [], [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -486,7 +484,11 @@ def _check_work_items(cfg, root, today, base, texts):
             # handoff.md、README 之类）不是工作项。带状态字段的照样算工作项（它自己声明了状态）
             (nostatus if is_work_item_name(rel) else not_items).append(rel)
             continue
-        if status not in states:
+        cls = state_class(cfg, status)
+        if cls is None:
+            unknown.append("%s（%s）" % (rel, status or "空"))
+            continue
+        if cls != "in_progress":
             other.append("%s（%s）" % (rel, status or "空"))
             continue
 
@@ -546,6 +548,12 @@ def _check_work_items(cfg, root, today, base, texts):
                        kind="no-status",
                        reason="文件按 01 §3.2 的 WI-* 命名是工作项，但状态字段名是本工具的词表"
                               "（stdlib.STATUS_FIELDS），读不到推不出它没写（契约 §1.1）：它的活性与完成证据本次都没查"))
+    if unknown:
+        out.append(agg(NAME, UNDETERMINED, "工作项状态不在已知词表", unknown, kind="unknown-state",
+                       reason="已知词表是 01 §4.1 六态及别名（stdlib.WORK_ITEM_STATES），并入 project.yaml 的 "
+                              "work_item_*_states；"
+                              "认不出就说不清它是进行中还是完成，超龄与完成证据两道检查本次都没查"
+                              "（契约 §1.1）。改用 01 §4.1 的状态词，或在 project.yaml 声明自己的词"))
     if not_items:
         out.append(agg(NAME, SKIP, "工作项目录下既不按 WI-* 命名、也没有状态字段的文件", not_items,
                        kind="not-work-item",

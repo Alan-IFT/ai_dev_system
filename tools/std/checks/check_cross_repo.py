@@ -762,10 +762,18 @@ def _check_links(repos):
     if len(known) < 2:
         # 其余的仓要么是 archived 本机无检出（按定义不适用），要么 path 不在（判据二已逐仓记未定）：
         # 再记一条未定就是同一事实报两次（契约 §1，B12）
+        # 理由按实际分支写：只列真的出现了的那几类仓（D-127）
+        archived = [r["name"] for r in repos if _archived_absent(r)]
+        missing = [r["name"] for r in repos if not r["_exists"] and not _archived_absent(r)]
+        reason = "repos 声明 %d 个仓，本机可读的只有 %d 个（%s），跨仓判据没有第二个仓可比对" % (
+            len(repos), len(known), "、".join(r["name"] for r in known) or "无")
+        if archived:
+            reason += "；%s 是 archived 本机无检出，按 01 §3.8 不适用" % "、".join(archived)
+        if missing:
+            reason += "；%s 的 path 不在，已由'各仓可定位'一条逐仓记未定" % "、".join(missing)
         out.append(finding(
             NAME, SKIP, "本机可读的仓不足两个，跨仓引用记不适用", kind="too-few-local",
-            reason="repos 里在本机存在的目录只有 %d 个；其余的 archived 无检出按 01 §3.8 不适用，"
-                   "path 不在的已由'各仓可定位'一条逐仓记未定" % len(known),
+            reason=reason,
             why="01 §3.8'跨仓引用按契约处理'：本机没有第二个仓的文件可比对",
         ))
         return out
@@ -1140,19 +1148,26 @@ def selftest():
         # 本机只剩一个仓（B12）：system + archived 无检出是合法配置，不得出未定；另一仓 path 不在时
         # 只由判据二记一条未定，跨仓引用这一条记不适用，不重复报
         with tempfile.TemporaryDirectory() as tmp:
-            got = {}
+            got, why_ = {}, {}
             for label, second in (("archived", {"name": "arch", "role": "archived"}),
                                   ("missing", {"name": "app", "path": "nope", "role": "app"})):
                 cfg = _sample_archived(os.path.join(tmp, label))
                 cfg["repos"] = [cfg["repos"][0], second]
-                got[label] = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
+                res = run(cfg)
+                got[label] = sorted((f["status"], f["id"]) for f in res if f["status"] != PASS)
+                why_[label] = [f["reason"] for f in res if f["id"] == NAME + "/too-few-local"]
             und = {k: [i for st, i in v if st == UNDETERMINED] for k, v in got.items()}
-            ok = (und["archived"] == [] and len(und["missing"]) == 1
+            # 理由只写实际出现的分支（D-127）：只有 archived 时不提 path 不在，反之亦然
+            honest = (len(why_["archived"]) == 1 and u"arch 是 archived" in why_["archived"][0]
+                      and u"path 不在" not in why_["archived"][0]
+                      and len(why_["missing"]) == 1 and u"app 的 path 不在" in why_["missing"][0]
+                      and u"archived" not in why_["missing"][0])
+            ok = (honest and und["archived"] == [] and len(und["missing"]) == 1
                   and all((SKIP, NAME + "/too-few-local") in v for v in got.values()))
             results.append(finding(
                 NAME, PASS if ok else FAIL,
                 "本机只有一个仓：system+archived 不出未定，path 不在只由判据二报一次，跨仓引用记不适用",
-                evidence="实得 %s" % got,
+                evidence="实得 %s；理由 %s" % (got, why_),
                 why="契约 §1：同一事实只报一次；01 §3.8 archived 本就不在工作区",
             ))
 

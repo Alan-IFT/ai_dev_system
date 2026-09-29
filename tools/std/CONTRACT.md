@@ -155,12 +155,10 @@ metadata_fields:                     # 01 §3.5 的日期字段名
   - updated_at
 metadata_required:                   # 哪些路径前缀下的文档必须带元信息
   - docs/decisions
-work_item_done_states:               # 工作项的完成态词
-  - done
-  - 完成
-work_item_in_progress_states:        # 工作项的进行中态词
-  - in_progress
-  - 进行中
+work_item_done_states:               # 项目自有的完成态词，并入 01 §4.1 done 的别名
+  - 已交付
+work_item_in_progress_states:        # 项目自有的进行中态词，并入 in_progress 的别名
+  - 开发中
 derived:                             # 派生工件：改源不改产物，见 01 §3.4
   - artifact: docs/map.html
     source: docs/map.json
@@ -198,13 +196,13 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `budgets.duplicate_min_chars` | 整数 ≥1 | 否 | 取常量 60 并注明未校准；写了却不是 ≥1 的整数，同上 |
 | `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准；未声明时 `layout` 查 ★ 工件头部缺元信息只记未定（`layout/meta-unrecognized`，§1.1），`freshness` 对 `metadata_required` 命中的无日期文档也只记一条聚合未定（`freshness/undated-fields-default`），声明后仍缺才判 `FAIL`；写成别的形状（映射、空列表）同样按未配处理。解析只在 `stdlib.date_fields_of` 一处，`layout` 与 `freshness` 共用 |
 | `metadata_required` | 路径前缀列表 | 否 | 见下方专段。给了就**只认这份清单**；显式写空列表 `[]` 即声明项目没有 01 §3.5 那六类文档，无日期文档整轮记一条 `SKIP`；键缺失或值为空时只按目录名约定**分组**，缺日期的无论约定命中与否都**记未定**（§1.1：约定不产出 `FAIL`），不记不适用 |
-| `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | 取常量 `done`/`完成`/`delivered` 并注明未校准 |
-| `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
+| `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | **并入** `done` 一态的词表，不替换缺省；声明词与六态别名或另一个键撞词（归到不同态）时整份配置拒收，报键名、行号与冲突词，与 `duplicate_*` 写错同口径。状态值由 `stdlib.state_class` 一处归到 01 §4.1 六态：去装饰、截括注后取开头的状态词（其后跟日期、说明也照认），按六态别名（`stdlib.WORK_ITEM_STATES`）加这两个键的声明词归类；`freshness` 只巡检归为 `in_progress` 的，`evidence` 只查归为 `done` 的 |
+| `work_item_in_progress_states` | 字符串列表 | 否 | **并入** `in_progress` 一态的词表，不替换缺省。归不进六态的状态由 `freshness` 记一条聚合未定（`freshness/unknown-state`，§1.1），`evidence` 记 `evidence/unknown-state-by-freshness` 的 `SKIP` 指向它；`freshness` 被裁剪或该件落在 `layout.frozen`（`freshness` 不读其状态）时改由 `evidence` 记 `evidence/unknown-state` 未定，仍只报一次 |
 | `derived` | 列表，每项 `artifact` / `source` / `regen` | 否 | `check_derived` 整条记 `SKIP`——不猜哪些文件是生成的 |
 | `repos` | 列表，每项 `name` / `path` / `role`；`name` 不得重名（重名时 `cross-repo` 整条记未定）；**`path` 只有 `role: archived` 可省略**（01 §3.8 的 archived 就是"已移出工作区，只在远端"）| 否 | `cross-repo` 记 `SKIP`：未声明或不足两个条目记不适用（单仓项目，01 §3.8）。`role` 取 `system`/`app`/`retired`/`archived`。`archived` 省略 `path` 或 `path` 在本机不存在时，"各仓可定位"一条按定义记 `PASS`，凡需读该仓本地文件的各条（入口、退役仓失效标记、跨仓引用）对它记 `SKIP`；给了 `path` 且目录在则照读照判。`retired` 不享受这条——它仍要求本地有检出可核 |
 | `repos[].former_names` | 字符串列表 | 否 | **不声明就一字不查**——不猜哪个名字是旧名（判据八）。别名与任何在册 `name` 相撞（不分大小写）时该项记 `UNDETERMINED` 且不扫描：那种情况下命中的多半是在役引用 |
 
-**缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键（`status_lines`／`work_item_lines`／`handoff_lines`／`module_lines` 四个除外，缺失即该类不判、记 `SKIP`），以及 `layout.docs_root`、`layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；`repos` 与 `derived` 是另一类例外——缺失时整条记 `SKIP`（不适用），既不取默认也不记未定：单仓项目按 01 §3.8「单仓项目记不适用」，未声明派生关系时主从由项目指定、不由检查器推定（01 §3.4）；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。**被多个检查器读的键，常量缺省只在 `stdlib` 写一处**（01 §1 G2）：同一个键不得被一个检查器取常量兜底、另一个记未定。`check_layout` 按分档快照找候选路径、`stdlib.entry_files` 在 `layout.entry` 未配时找入口候选名，都不算缺省——候选是 §1.1 所说的工具约定（提示），命中只许记通过或未定、未命中只记未定，不当作该键的取值。除这些之外的键缺失一律记 `UNDETERMINED`。
+**缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键（`status_lines`／`work_item_lines`／`handoff_lines`／`module_lines` 四个除外，缺失即该类不判、记 `SKIP`），以及 `layout.docs_root`、`layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`（缺省词表恒在，声明只并入），缺失时取常量兜底而不是记未定；`repos` 与 `derived` 是另一类例外——缺失时整条记 `SKIP`（不适用），既不取默认也不记未定：单仓项目按 01 §3.8「单仓项目记不适用」，未声明派生关系时主从由项目指定、不由检查器推定（01 §3.4）；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。**被多个检查器读的键，常量缺省只在 `stdlib` 写一处**（01 §1 G2）：同一个键不得被一个检查器取常量兜底、另一个记未定。`check_layout` 按分档快照找候选路径、`stdlib.entry_files` 在 `layout.entry` 未配时找入口候选名，都不算缺省——候选是 §1.1 所说的工具约定（提示），命中只许记通过或未定、未命中只记未定，不当作该键的取值。除这些之外的键缺失一律记 `UNDETERMINED`。
 
 ### 01 §3.7 给了六项篇幅预算，本工具执行其中五项
 

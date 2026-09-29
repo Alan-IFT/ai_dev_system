@@ -517,6 +517,17 @@ def _bad_dup_budgets(cfg, text):
     return None
 
 
+def _bad_state_words(cfg, text):
+    """work_item_*_states 的声明词与 01 §4.1 六态别名、或两键之间撞词（归到不同态）即整份拒收（R127 R2-2）。"""
+    seen = dict((a, c) for c, al in WORK_ITEM_STATES for a in al)
+    for c, key in _DECLARED_STATES:
+        for w in state_list(cfg, key, ()):
+            if seen.setdefault(w, c) != c:
+                return "第 %d 行 %s 的「%s」已归 %s，声明到 %s 有歧义；撞词不猜归哪一态" % (
+                    _key_line(text, key), key, w, seen[w], c)
+    return None
+
+
 # 配置键的形状（契约 §5 类型表）。写成别的形状不许静默误读——frozen 写成字符串被逐字符迭代、
 # tailoring 写成映射静默不生效、layout.entry: 5 让两个检查器崩溃——整份拒收，报键名与行号。空值＝没写。
 _SHAPES = (("tier", "str"), ("layout.docs_root", "str"), ("layout.work_root", "str"),
@@ -574,7 +585,7 @@ def _read_config(root, p, shown):
     if injected:      # 下划线键是代码注入口（契约 §4），写进配置等于让被检查方指定检查范围
         return {}, "%s 第 %d 行的顶层键以 _ 开头；这类键只由代码注入，项目配置写了整份拒收" % (
             shown, _key_line(text, injected[0]))
-    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text)
+    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text) or _bad_state_words(cfg, text)
     if bad_budget:
         return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
     bad = _escaping_paths(cfg)
@@ -1224,6 +1235,35 @@ def state_list(cfg, path, default):
     if isinstance(states, str):
         states = [states]
     return [str(s).strip().lower() for s in states if str(s).strip()]
+
+
+# 01 §4.1 六态 → 别名（小写），唯一一份（01 §1 G2）：freshness 与 evidence 都按它判进行中 / 完成 / 认不出
+WORK_ITEM_STATES = (
+    ("planned", ("planned", "计划中", "已计划")),
+    ("in_progress", ("in_progress", "in progress", "进行中")),
+    ("blocked", ("blocked", "阻塞", "已阻塞")),
+    ("in_validation", ("in_validation", "验证中", "待验证")),
+    ("done", ("done", "完成", "已完成", "delivered")),
+    ("cancelled", ("cancelled", "canceled", "取消", "已取消")),
+)
+_DECLARED_STATES = (("done", "work_item_done_states"), ("in_progress", "work_item_in_progress_states"))
+
+
+def state_class(cfg, status):
+    """工作项状态值归到 01 §4.1 六态之一，认不出返回 None（D-127）。
+
+    status 取自 item_status（已去装饰、截括注、小写），再取开头的状态词：别名之后是结尾或
+    非字母数字（空白、日期、说明、符号）即命中，长别名优先——`done 2026-02-20` 认作 done。
+    project.yaml 的 work_item_done_states / work_item_in_progress_states **并入**对应态，不替换缺省。
+    认不出的说不清是进行中还是完成，只能记未定（契约 §1.1），不当"非进行中 / 非完成"放过。
+    """
+    words = [(a, c) for c, al in WORK_ITEM_STATES for a in al]
+    words += [(w, c) for c, key in _DECLARED_STATES for w in state_list(cfg, key, ())]
+    s = (status or "").strip()
+    for word, c in sorted(words, key=lambda x: -len(x[0])):
+        if s.startswith(word) and (len(s) == len(word) or not (s[len(word)].isalnum() or s[len(word)] == "_")):
+            return c
+    return None
 
 
 def agg(check, status, title, paths, reason, why="", *, kind):

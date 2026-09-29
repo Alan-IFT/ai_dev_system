@@ -19,14 +19,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
-    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status,
+    agg, clean, finding, git_track, in_frozen, is_tailored_out, item_status, state_class,
     read_text, state_list, undetermined_from_exception, unreadable, work_root, work_root_absent, write_text,
 )
 
 NAME = "evidence"
 STANDARD_REFS = ["01 §1 G4", "01 §2 N1", "01 §3.1", "01 §4.1", "01 §4.2"]
 
-_DEFAULT_DONE_STATES = ("done", "完成", "delivered")
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 # 证据段的标题词（大小写不敏感）。这是工具约定（契约 §1.1）：认不出证据段只记未定，不判 FAIL。
 _EVIDENCE_HEADINGS = ("证据", "evidence")
@@ -308,6 +307,8 @@ def scope(cfg):
             "不看未被 git 跟踪的文件，不看 .md 以外的文件，不看 PR/提交说明里承载的轻量简记"
             "（01 §4.1 允许该写法，本工具读不到）",
             "不判断文档内容是否仍然正确，也不判断日期新旧——那是 freshness 检查器的事",
+            "状态认不出的工作项不查完成证据：未定由 freshness/unknown-state 报；freshness 被裁剪或该件"
+            "落在 layout.frozen 时由本检查器记 evidence/unknown-state",
             "只认 §4.2 的六字段标签及其常见同义词；缺字段而条目里有认不出的「标签: 值」行（或字段表有"
             "映射不到的列）时只记未定（fields-unrecognized），没有这种行就按缺字段判 FAIL；"
             "认出的字段值为空或占位判 FAIL",
@@ -331,11 +332,10 @@ def _run(cfg):
     root = cfg.get("_root") or "."
     wroot, wnote = work_root(cfg)
 
-    states = state_list(cfg, "work_item_done_states", _DEFAULT_DONE_STATES)
-    states_default = not cfg_get(cfg, "work_item_done_states")
-    note = ("完成态用的是默认 %s（未配 work_item_done_states）" % "/".join(states)
-            if states_default else "完成态取自 project.yaml：%s" % "/".join(states))
-    note += "；" + wnote
+    declared = state_list(cfg, "work_item_done_states", ())
+    note = "完成态按 01 §4.1 done 及别名（stdlib.WORK_ITEM_STATES）%s；%s" % (
+        "，并入 project.yaml 的 work_item_done_states：%s" % "/".join(declared) if declared else "", wnote)
+    fresh_off = is_tailored_out(cfg, "freshness")[0]
 
     absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
     if absent:
@@ -346,7 +346,7 @@ def _run(cfg):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
 
-    out, other = [], []
+    out, other, unknown, unknown_here = [], [], [], []
     for rel in files:
         try:
             text = read_text(os.path.join(root, rel), root)
@@ -359,12 +359,25 @@ def _run(cfg):
             # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
             # 这里静默跳过
             continue
-        if status not in states:
+        cls = state_class(cfg, status)
+        if cls is None:
+            # freshness 被裁剪或该件落在 frozen（freshness 不读它的状态）时由本检查器报，否则指向 freshness
+            (unknown_here if fresh_off or in_frozen(cfg, rel) else unknown).append(
+                "%s（%s）" % (rel, status or "空"))
+            continue
+        if cls != "done":
             other.append("%s（%s）" % (rel, status or "空"))
             continue
 
         out.extend(_check_one(rel, text, status, note))
 
+    if unknown:
+        out.append(agg(NAME, SKIP, "状态认不出的工作项不查完成证据", unknown, kind="unknown-state-by-freshness",
+                       reason="状态认不出由 freshness/unknown-state 记未定，报一次（契约 §1）"))
+    if unknown_here:
+        out.append(agg(NAME, UNDETERMINED, "工作项状态不在已知词表", unknown_here, kind="unknown-state",
+                       reason="freshness 被裁剪或这些件落在 layout.frozen（freshness 不读其状态），由本检查器报一次；"
+                              "认不出就说不清是否完成，完成证据本次没查（契约 §1.1）"))
     if other:
         out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
