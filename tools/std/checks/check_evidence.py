@@ -154,12 +154,13 @@ def _parse_list_blocks(rows, whole=True):
     rows = [(n, ln) for n, ln in rows if not ln.lstrip().startswith("|")]
     blocks, cur = [], None
     for lineno, ln in rows:
-        m = _BLOCK_HEAD.match(ln) or _SUBHEAD.match(ln)
+        bold = _BLOCK_HEAD.match(ln)
+        m = bold or _SUBHEAD.match(ln)
         if m and not _label_field(ln)[0]:
             if cur:
                 blocks.append(cur)
             cur = {"name": clean(m.group("name")), "line": lineno, "fields": {},
-                   "limit_cols": [], "kind": "条目", "unknown": 0}
+                   "limit_cols": [], "kind": "条目", "unknown": 0, "sub": not bold}
             continue
         if cur is None:
             continue
@@ -172,6 +173,8 @@ def _parse_list_blocks(rows, whole=True):
                 cur["limit_cols"].append(val)
     if cur:
         blocks.append(cur)
+    # 小标题起头、一个字段行都没有的块（`### 备注`、`#### 附件`）不是证据条目（R2-2）；加粗条目照判
+    blocks = [b for b in blocks if not b["sub"] or b["fields"] or b["unknown"]]
 
     if not blocks and whole:  # 没有条目行但整段就是一条证据
         one = {"name": "（整段）", "line": rows[0][0] if rows else 1, "fields": {},
@@ -585,6 +588,19 @@ def selftest():
         NAME, PASS if got == [PASS] else FAIL,
         "C08：字段表写法里格子与表外的「输出: …」不凭空生出「（整段）」证据",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；一条证据只判一次",
+    ))
+
+    # R2-2：证据段里没有字段行的小标题（### 备注、#### 附件）不当空条目
+    got = []
+    for body in (_SIX + "\n### 备注\n\n一段说明文字。\n",
+                 _SIX.replace("**E-01**（INV-014，staging）", "### E-01") + "\n#### 附件\n\n见 artifacts。\n"):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, body)
+            got.append([f["status"] for f in run(cfg)] if not err else err)
+    results.append(finding(
+        NAME, PASS if got == [[PASS], [PASS]] else FAIL,
+        "R2-2：证据段里没有字段行的小标题不当成一条空证据",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段只对证据条目判；说明性小标题不是条目",
     ))
 
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
