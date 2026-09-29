@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -96,6 +97,13 @@ def read_header(path, root):
     return u"\n".join(text.splitlines()[:_HEADER_LINES]), None
 
 
+def _mentions(low, name):
+    """name 作为整段路径/文件名出现在 low 里：前后不能紧挨文件名字符（C15：`api` 不许命中 `rapid`）。
+    只按 ASCII 判边界——`权威是src/map.json` 这种中文紧贴的写法照认。"""
+    return bool(name) and re.search(r"(?<![A-Za-z0-9_.-])" + re.escape(name.lower()) + r"(?![A-Za-z0-9_-])",
+                                    low) is not None
+
+
 def header_declares(header, source_rel):
     """头部是否**指明了源**（02 §9.1 的门槛）。返回命中说明，没有则 None。
 
@@ -103,10 +111,10 @@ def header_declares(header, source_rel):
     """
     low = header.lower()
     src = str(source_rel).replace("\\", "/")
-    if src and src.lower() in low:
+    if _mentions(low, src):
         return u"头部出现源路径 %s" % src
     base = os.path.basename(src)
-    if base and base.lower() in low:
+    if _mentions(low, base):
         return u"头部出现源文件名 %s" % base
     for mark in _SOURCE_MARKERS:
         if mark.lower() in low:
@@ -488,6 +496,16 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例六（C15）：源文件名按整段匹配——头部只写了 rapid 的派生物不算指明了源 src/api
+    hits = (header_declares(u"<!-- rapid prototype, generated -->", u"src/api"),
+            header_declares(u"<!-- 权威是src/map.json -->", u"src/map.json"),
+            header_declares(u"<!-- source: ../map.json. -->", u"src/map.json"))
+    results.append(finding(
+        NAME, PASS if hits[0] is None and hits[1] and hits[2] else FAIL,
+        u"反例六：源文件名按路径/词边界匹配，api 不命中 rapid；中文紧贴、句号收尾照认",
+        evidence=u"实得 %s" % (hits,), why=u"02 §9.1：指明源要指的是那一个文件",
+    ))
 
     # 反例四（id 的区分力，契约 §9）：两条派生声明同时缺源文件，两条未定的 id 必须
     # 各带自己的 artifact 路径。key 不带 artifact 的话两条 id 一模一样，登记一行就会
