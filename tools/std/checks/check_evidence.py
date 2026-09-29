@@ -603,6 +603,20 @@ def selftest():
         evidence="实得 %s" % (got,), why="01 §4.2 六字段只对证据条目判；说明性小标题不是条目",
     ))
 
+    # R2-5：工作项目录声明成出仓的符号链接——layout 记未定，这里只记 SKIP 指向它，不另报「没有可判定的工作项」
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp, \
+            tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as out_dir:
+        write_text(os.path.join(out_dir, "WI-0001-x.md"), "# WI\n\n状态：done\n")
+        os.symlink(out_dir, os.path.join(tmp, "ext"))
+        err = git_track(tmp)
+        got = [(f["status"], f["id"]) for f in run({"_root": tmp, "layout": {"work_root": "ext"}})] \
+            if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(SKIP, NAME + "/work-root-absent")] else FAIL,
+        "R2-5：工作项目录链到项目之外只记 SKIP 指向 layout",
+        evidence="实得 %s" % (got,), why="契约 §1 同一事实只报一次；§5 只读项目之内",
+    ))
+
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
     ids = []
     for pad in ("", "\n\n"):

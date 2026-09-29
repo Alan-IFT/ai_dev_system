@@ -1067,13 +1067,15 @@ def work_root_absent(check, cfg):
     evidence / freshness 从前各报一条未定，采用方得为同一件事登记两行。
     """
     rel, note = work_root(cfg)
-    if os.path.isdir(os.path.join(cfg.get("_root") or ".", rel.replace("\\", "/").strip())):
+    root = cfg.get("_root") or "."
+    path = os.path.join(root, rel.replace("\\", "/").strip())
+    if inside(root, path) and os.path.isdir(path):   # 出仓的符号链接也回 SKIP，由 layout 记未定
         return None
     return finding(
         check, SKIP, "本检查只扫工作项目录，它不在：%s" % rel, where=rel, kind="work-root-absent",
-        reason="目录在不在由 layout 报：01 §3.1 的存在性判定归它（L1 起的「实时状态源」"
-               "work_current 一项，未声明 layout.artifacts.work_current 时认的就是这个目录；"
-               "L0 档的工作项按模板合在状态工件里，不要求这个目录）。本检查不再另记一条未定",
+        reason="目录在不在由 layout 报：01 §3.1 的存在性判定归它（声明了 layout.work_root 时任何档"
+               "由 layout 判 FAIL，出仓记未定；没声明时 L1 起由 work_current 认这个缺省目录，L0 不要求它）。"
+               "本检查不再另记一条未定",
         evidence="%s；负责报告的检查器：layout" % note,
     )
 
