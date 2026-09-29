@@ -869,8 +869,9 @@ def _check_links(repos):
 def _git_grep(repo_real, needle):
     """一次子进程召回。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
     # --no-color：全局 color.ui／color.grep=always 时输出带转义码，按冒号切行会全数落空
+    # -z：路径、行号、行文之间用 NUL 分隔。按冒号切时路径里的冒号会错位，frozen 豁免随之失效（B9）
     cmd = ["git", "-C", repo_real, "--no-optional-locks", "-c", "core.quotepath=false",
-           "grep", "--no-color", "-I", "-n", "-F", "-e", needle, "--", "."]
+           "grep", "--no-color", "-I", "-n", "-z", "-F", "-e", needle, "--", "."]
     try:
         p = subprocess.run(cmd, capture_output=True, timeout=120)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -878,7 +879,7 @@ def _git_grep(repo_real, needle):
     if p.returncode not in (0, 1):   # 1 = 一条都没命中，是正常出口
         return None, "git grep 退出码 %d：%s" % (
             p.returncode, (p.stderr or b"").decode("utf-8", "replace").strip()[:160])
-    rows = [ln.split(":", 2) for ln in (p.stdout or b"").decode("utf-8", "replace").splitlines()]
+    rows = [ln.split("\0", 2) for ln in (p.stdout or b"").decode("utf-8", "replace").split("\n")]
     return [(h[0].replace("\\", "/"), h[1], h[2].strip()[:120]) for h in rows if len(h) == 3], None
 
 
@@ -1019,19 +1020,19 @@ def _sample_archived(tmp):
     }
 
 
-def _alias_probe(body, former):
+def _alias_probe(body, former, rel="docs/note.md", frozen=()):
     """判据八的两仓样本，必须是**真** git 仓（git grep 只看索引）。只取判据八那几条。"""
     with tempfile.TemporaryDirectory() as tmp:
         for nm in ("sys", "app"):
             d = os.path.join(tmp, nm)
             _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
             if nm == "app":
-                _mk(os.path.join(d, "docs", "note.md"), body + u"\n")
+                _mk(os.path.join(d, rel), body + u"\n")
             for arg in (["init", "-q"], ["add", "-A"]):
                 subprocess.run(["git", "-C", d, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"] + arg,
                                capture_output=True, timeout=60)
         got = [f for f in run({
-            "_root": tmp, "layout": {"entry": ["CLAUDE.md"]},
+            "_root": tmp, "layout": {"entry": ["CLAUDE.md"], "frozen": list(frozen)},
             "repos": [{"name": "sys", "path": "sys", "role": "system", "former_names": former},
                       {"name": "app", "path": "app", "role": "app"}],
         }) if u"历史别名" in f["title"]]
@@ -1125,8 +1126,10 @@ def selftest():
              "判据八收窄反例：同行带改名标记不得报；别名撞在册仓名必须记未定且不扫描",
              [(u"SYS_OLD 已更名为 sys，清单见 ../sys/docs/list.md。", ["SYS_OLD"]),
               (u"现行清单见 app/docs/list.md。", ["app"])]),
+            ([PASS], "判据八：路径含冒号的 layout.frozen 目录照样豁免（B9）",
+             [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"], "a:b/note.md", ["a:b"])]),
         ):
-            got = [_alias_probe(b, f) for b, f in probes]
+            got = [_alias_probe(*p) for p in probes]
             results.append(finding(
                 NAME, PASS if [g[0] for g in got] == [[w] for w in want] else FAIL, title,
                 evidence="期望 %s，实得 %s" % (want, "；".join("%s：%s" % g for g in got)),
