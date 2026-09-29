@@ -284,7 +284,8 @@ def scope(cfg):
             "不看未被 git 跟踪的文件，不看 .md 以外的文件，不看 PR/提交说明里承载的轻量简记"
             "（01 §4.1 允许该写法，本工具读不到）",
             "不判断文档内容是否仍然正确，也不判断日期新旧——那是 freshness 检查器的事",
-            "只认 §4.2 的六字段标签及其常见同义词；项目自造的字段名认不出，会被误报为缺字段",
+            "只认 §4.2 的六字段标签及其常见同义词；项目自造的字段名认不出，这类条目只记未定"
+            "（fields-unrecognized）——认出的字段值为空或占位才判 FAIL",
             "自检只覆盖行内标签写法与不依赖 git 时间的分支；字段表写法未被反例证明",
         ],
     }
@@ -389,6 +390,18 @@ def _check_one(rel, text, status, note):
                                evidence="%s（%s）。%s" % (blk["kind"], "、".join(_LABELS[k] for k in _ORDER), note)))
             continue
 
+        if not empty and not limits_empty:
+            # 只剩没认出的字段：字段名是本工具的词表，项目可能用了自己的叫法（C07，契约 §1.1）
+            out.append(finding(
+                NAME, UNDETERMINED, "%s 有字段没认出：%s" % (head, "、".join(missing)), where=where,
+                kind="fields-unrecognized", key="%s|%s" % (rel, blk["name"]),
+                reason="字段名是本工具的词表（§4.2 六字段及常见同义词），不是项目的声明；没认出推不出"
+                       "没写（契约 §1.1）。认出的字段都有值",
+                why="01 §4.2 收工前第 1 条的六字段；01 §1 G4 完成需要证据",
+                evidence="写法：%s。%s" % (blk["kind"], note),
+            ))
+            continue
+
         if not other_bad:
             out.append(finding(
                 NAME, FAIL, "%s 的限制（④ 适用范围）为空，其余五项齐全" % head, where=where,
@@ -438,6 +451,7 @@ _FIVE = """**E-01**（INV-014，staging）
 3. 版本：`main@7e1f2a9`
 4. 范围：staging；只覆盖单店样表
 5. 时间：2026-09-01 16:42
+6. 方法：待补
 """
 
 
@@ -452,7 +466,7 @@ def _sample(tmp, body, frozen=None, heading="## 验收证据"):
 
 
 def selftest():
-    """反例：只写了五项、缺⑥确认方法的完成证据，须判 FAIL。
+    """反例：⑥确认方法只写了占位「待补」的完成证据，须判 FAIL。
     正例：六项齐全且限制非空，须判 PASS。
     只覆盖行内标签写法；字段表写法与 git 相关分支不在自检内（见 scope）。
     """
@@ -463,7 +477,7 @@ def selftest():
         ok = (not err) and got == [FAIL]
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            "反例：已完成工作项缺⑥确认方法，应判 FAIL",
+            "反例：已完成工作项⑥确认方法为占位，应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：抓不出违规的检查器，其结论作废",
         ))
@@ -488,7 +502,7 @@ def selftest():
         ok = (not err) and got == [FAIL]
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            "反例：落在 layout.frozen 里的已完成工作项，缺⑥仍应判 FAIL",
+            "反例：落在 layout.frozen 里的已完成工作项，⑥为占位仍应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
                 "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
@@ -510,6 +524,16 @@ def selftest():
         why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
     ))
 
+    # C07：项目自造的字段名（「核验手段」）认不出只记未定，不判 FAIL；认出的字段为占位仍判 FAIL（见反例）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _FIVE.replace("6. 方法：待补", "6. 核验手段：人工抽查 10 行"))
+        got = [(f["status"], f["id"]) for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(UNDETERMINED, NAME + "/fields-unrecognized/work/WI-0001-x.md｜E-01")] else FAIL,
+        "C07：自造字段名认不出只记未定（fields-unrecognized），不判 FAIL",
+        evidence="实得 %s" % (got,), why="契约 §1.1：字段名词表落空推不出没写",
+    ))
+
     # C06：条目里的代码块带 `# 注释`，不许把证据段截断；代码块里的 `时间: 3s` 不算字段
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         cfg, err = _sample(tmp, _SIX.replace("6. 方法：", "```bash\n# 跑测试\npytest -v  # 时间: 3s\n```\n6. 方法："))
@@ -522,7 +546,7 @@ def selftest():
 
     # C13：`### E-01` 小标题起头的条目留在 `## 验收证据` 段内，按条目判（旧写法段在此截断，只记未定）
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        cfg, err = _sample(tmp, _FIVE.replace("**E-01**（INV-014，staging）", "### E-01") + "6. 方法：TBD\n"
+        cfg, err = _sample(tmp, _FIVE.replace("**E-01**（INV-014，staging）", "### E-01") +
                                  "\n## 附注\n\n**E-02**\n1. 断言：不属于证据段\n")
         got = [(f["status"], f["title"]) for f in run(cfg)] if not err else err
     results.append(finding(
