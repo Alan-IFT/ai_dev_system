@@ -1,6 +1,7 @@
 #!/bin/sh
 # 提交信息首行须为 type(scope)!?: subject，scope 可省（01 §5.1，同 Conventional Commits）；git 自动生成的 merge/revert/reapply/fixup/squash/amend 信息放行。
-first=$(grep -v '^#' "$1" | grep -m1 -v '^[[:space:]]*$')
+# 首行取第一个非空行，不跳过 # 开头的行：-m/-F 的默认 cleanup 不删它们，跳过就会让任意首行进历史；编辑器模板的注释排在信息之后，不受影响。
+first=$(grep -m1 -v '^[[:space:]]*$' "$1")
 printf '%s\n' "$first" | grep -Eq '^(Merge |Revert "|Reapply "|fixup! |squash! |amend! )|^[a-z]+(\([^()]+\))?!?: [^ ]' && exit 0
 echo "提交信息首行不合 type(scope)!?: subject（scope 可省，01 §5.1）：$first" >&2
 exit 1
