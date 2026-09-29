@@ -74,10 +74,11 @@ def _slug(heading, keep_inner_underscore=False):
     两种都算作可用锚点（`_anchors_of`），宁可少报不误报。
     """
     h = heading.strip()
-    h = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", h)   # 链接取其文字
-    h = re.sub(r"<[^>]+>", "", h)                    # 去内联 HTML
+    # 三处字符类都排除自己的起始符，失败时只扫到下一个起始符：原写法遇满行 `[`、`<` 或长串 `_` 是平方级
+    h = re.sub(r"\[([^\[\]]*)\]\([^()]*\)", r"\1", h)   # 链接取其文字
+    h = re.sub(r"<[^<>]+>", "", h)                    # 去内联 HTML
     if keep_inner_underscore:
-        h = re.sub(r"(?<!\w)_+|_+(?!\w)", "", h)
+        h = re.sub(r"(?<!\w)_+|(?<!_)_+(?!\w)", "", h)
         h = re.sub(r"[" + _BQ + r"*~]", "", h)
     else:
         h = re.sub(r"[" + _BQ + r"*_~]", "", h)          # 去强调标记
@@ -495,8 +496,11 @@ def selftest():
                 os.symlink(secret, os.path.join(tmp, "c.md"))
                 w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x)\n")
                 w("b.md", "# a" + " " * 3000 + "x\n")   # 旧正则下这一行约 12 秒
-                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x) [根](/../x/y.md)\n")
-                cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md"]}
+                # 满行 `[`、`<`、长串词中 `_` 的标题：旧 _slug 下 4 万字符分别约 6.7、1.1、10.4 秒（C03）
+                w("d.md", "# " + "[" * 40000 + "\n# " + "<" * 40000 + "\n# a" + "_" * 40000 + "b\n")
+                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x) [根](/../x/y.md)"
+                          " [满](d.md#ab)\n")
+                cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md", "d.md"]}
                 probed, real_exists = [], os.path.exists
                 os.path.exists = lambda p: (probed.append(p), real_exists(p))[1]
                 t0 = time.time()
@@ -514,7 +518,7 @@ def selftest():
                   and not leaked and took < 5)
             results.append(finding(
                 NAME, PASS if ok else FAIL,
-                "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白标题线性",
+                "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白、满行 [ / < / _ 的标题线性",
                 evidence="非通过项 kind=%s；泄露内容=%s；耗时 %.2fs" % (kinds, leaked, took),
                 why="D-123 安全 2／3：不读项目之外的文件；一个文件不许拖死整次检查",
             ))
