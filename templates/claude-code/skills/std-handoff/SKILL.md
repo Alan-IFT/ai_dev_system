@@ -9,7 +9,7 @@ allowed-tools: Bash(git status *) Bash(git log *)
 
 调用时的工作区（由 Claude Code 注入）：
 
-!`git status -sb | head -20`
+!`git status -sb`
 
 !`git log --oneline -5`
 
