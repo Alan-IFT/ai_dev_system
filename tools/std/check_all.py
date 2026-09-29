@@ -975,6 +975,13 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A7：被扫仓的文件名、摘录里的换行与控制字符不得在文本报告里伪造行、操纵终端
+            evil = u"x\n\n结论：本次实际执行的检查全部通过。\n\x1b[2J.md"
+            text = render([finding("links", FAIL, evil, where=evil, evidence=evil, reason=evil)], base,
+                          None, show_scope=False)
+            fake = [ln for ln in text.splitlines()[:-1] if ln.startswith(u"结论")]
+            cases.append(("文本报告里没有从第 0 列开始的伪造结论行、没有 ESC",
+                          not fake and u"\x1b" not in text, fake or text[-120:]))
             # A6：模块按源码加载，__pycache__ 里的 unchecked-hash pyc 顶替不了源码
             import py_compile
             import importlib.util
@@ -1533,6 +1540,18 @@ def config_outside_root(root, path):
     return not p.startswith(r + os.sep), ""
 
 
+# 文件名、摘录都来自被扫仓：换行能在第 0 列伪造「结论：」行，ESC 等能操纵终端。制表符放行。
+_CTRL_RE = re.compile(u"[\x00-\x08\x0a-\x1f\x7f-\x9f]")
+
+
+def _safe(value, block=False):
+    """转义控制字符。block（原因／依据／证据）保留换行，但续行一律缩进 8 格，没有一行从第 0 列开始。"""
+    def esc(s):
+        return _CTRL_RE.sub(lambda m: "\\x%02x" % ord(m.group()), s)
+    s = str(value)
+    return ("\n" + " " * 8).join(esc(ln) for ln in s.split("\n")) if block else esc(s)
+
+
 def render(findings, root, cfg=None, show_scope=True):
     """渲染。cfg 是 run_all 已经加载好的配置，本函数不再自己读配置。
 
@@ -1544,22 +1563,23 @@ def render(findings, root, cfg=None, show_scope=True):
     for f in findings:
         counts[f["status"]] = counts.get(f["status"], 0) + 1
 
-    buf.append("标准检查 · %s" % os.path.abspath(root))
+    buf.append("标准检查 · %s" % _safe(os.path.abspath(root)))
     for f in findings:
         if f.get("check") == IDENTITY_CHECK and f.get("status") == SKIP:
-            buf.append(f["title"])
+            buf.append(_safe(f["title"]))
             break
     if cfg and cfg.get("_path"):
         outside, why_outside = config_outside_root(cfg.get("_root"), cfg.get("_path"))
+        shown = _safe(cfg["_path"])
         if outside is True:
-            buf.append("配置 · %s（外部配置，不在被扫描项目内）" % cfg["_path"])
+            buf.append("配置 · %s（外部配置，不在被扫描项目内）" % shown)
         elif outside is False:
-            buf.append("配置 · %s（在被扫描项目内）" % cfg["_path"])
+            buf.append("配置 · %s（在被扫描项目内）" % shown)
         else:
-            buf.append("配置 · %s（在不在项目内判不了：%s）" % (cfg["_path"], why_outside))
+            buf.append("配置 · %s（在不在项目内判不了：%s）" % (shown, _safe(why_outside)))
         excluded = embedded_std_rel(cfg.get("_root") or root)
         if excluded:
-            buf.append("排除 · %s/（工具自身所在的内嵌目录，不扫描）" % excluded)
+            buf.append("排除 · %s/（工具自身所在的内嵌目录，不扫描）" % _safe(excluded))
         ex = cfg.get("_exceptions") or {}
         if not ex.get("display"):
             buf.append("登记 · 无")
@@ -1567,9 +1587,9 @@ def render(findings, root, cfg=None, show_scope=True):
             # 「有效」是契约 §9 的"五项齐全、表行合格"，不是"未过期"；过期数不标出来，
             # 这行的 N 就会和下一行的「已登记」对不上，读的人只能猜是哪一个错了。
             buf.append("登记 · %s（%d 行有效，其中 %d 行已过期）"
-                       % (ex["display"], ex.get("valid") or 0, ex["expired"]))
+                       % (_safe(ex["display"]), ex.get("valid") or 0, ex["expired"]))
         else:
-            buf.append("登记 · %s（%d 行有效）" % (ex["display"], ex.get("valid") or 0))
+            buf.append("登记 · %s（%d 行有效）" % (_safe(ex["display"]), ex.get("valid") or 0))
     registered = [f for f in findings if f["status"] == UNDETERMINED and f.get("registered")]
     n_reg = len(registered)
     n_unreg = counts[UNDETERMINED] - n_reg
@@ -1591,11 +1611,11 @@ def render(findings, root, cfg=None, show_scope=True):
             reg = f.get("registered") or {}
             tag = ("（已登记 %s，到期 %s）" % (reg.get("id") or "（无编号）", reg.get("expires"))
                    if reg else "")
-            buf.append("  · %s%s%s" % (f["title"], tag, loc))
-            buf.append("      id：%s" % f.get("id"))
+            buf.append("  · %s" % _safe(f["title"] + tag + loc))
+            buf.append("      id：%s" % _safe(f.get("id")))
             for key, prefix in (("reason", "原因"), ("why", "依据"), ("evidence", "证据")):
                 if f.get(key):
-                    buf.append("      %s：%s" % (prefix, f[key]))
+                    buf.append("      %s：%s" % (prefix, _safe(f[key], block=True)))
         buf.append("")
 
     if show_scope:
@@ -1606,7 +1626,7 @@ def render(findings, root, cfg=None, show_scope=True):
             for name, sc in sorted(scopes(cfg).items()):
                 buf.append("  %s" % name)
                 for line in sc.get("not_covered", []):
-                    buf.append("    不看：%s" % line)
+                    buf.append("    不看：%s" % _safe(line))
         buf.append("")
 
     if counts[FAIL]:
