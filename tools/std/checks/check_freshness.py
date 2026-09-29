@@ -151,11 +151,15 @@ def _last_transition(text):
         return None, None, ("absent", "文件里没有状态转换记录小节，也没有显式转换时间字段")
 
     # 取最后一条记录（表格行或列表项）里的第一个日期（C10）。不取全节最大值——小节里的备注、
-    # 计划日期会把停滞的工作项洗成活着；记录是按发生顺序追加的，最后一条就是最后一次转换
-    last = None
+    # 计划日期会把停滞的工作项洗成活着；记录是按发生顺序追加的，最后一条就是最后一次转换。
+    # 只认小节里第一段连续的记录行：其后的空行、备注列表、第二张表都不算（R2-3）
+    last, started = None, False
     for ln in block.splitlines():
         if not re.match(r"\s*(?:\||[-*+]\s)", ln):
+            if started:
+                break
             continue
+        started = True
         for token in re.findall(r"\d{4}-\d{2}-\d{2}", ln):
             d, _err = parse_date(token)
             if d:
@@ -252,6 +256,9 @@ def scope(cfg):
             "只巡检进行中的工作项；planned / blocked / in_validation 的停滞不看——01 §4.1 里"
             "它们的复查时间是每项自己约定的值，工具读不到那个约定",
             "不核实工作项状态是否属实，只读它自己写的状态字段",
+            "状态转换记录只认小节里第一段连续的表格行或列表项，取最后一条里的第一个日期：按新的在上"
+            "倒序写的记录会取到最旧那条（偏向报超龄）；记录行里不按列区分，occurred_at 空着而别的列写了"
+            "日期时取到那个日期；只有表头、没有记录行的转换表记未定，不退到提交时间",
             "不判断谁该处置超龄工作项，也不代为转 blocked（01 §4.1：巡检只通知负责人核实）",
             "自检只覆盖显式时间戳分支：git 提交时间回退分支、git 不可用分支与 metadata_fields "
             "自定义分支不在自检里，它们的正确性未被反例证明",
@@ -768,6 +775,21 @@ def selftest():
         NAME, PASS if got == {1: [PASS], 2: [UNDETERMINED]} else FAIL,
         "C18：日期晚基准日一天按当天算，晚两天记未定",
         evidence="实得 %s" % (got,), why="基准日是运行环境本地日期，作者可能在更早的时区写当天日期",
+    ))
+
+    # R2-3：转换表之后隔一个空行的备注列表、第二张计划表，不许把停滞工作项洗成活着
+    got = []
+    for tail in ("\n- 备注：计划 %s 复查\n" % fresh, "\n| 计划 | 日期 |\n|---|---|\n| 复查 | %s |\n" % fresh):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, "updated_at: %s\n" % fresh,
+                               "# WI-0001\n\n状态：in_progress\n\n## 状态转换记录\n\n| from → to | 时间 |\n"
+                               "|---|---|\n| planned → in_progress | %s |\n" % old + tail)
+            got.append([f["status"] for f in run(cfg) if (f.get("where") or "") == "work/WI-0001-x.md"]
+                       if not err else err)
+    results.append(finding(
+        NAME, PASS if got == [[FAIL], [FAIL]] else FAIL,
+        "R2-3：只认第一段连续的记录行，其后的备注列表与第二张表不算转换记录",
+        evidence="实得 %s" % (got,), why="01 §4.1：活性看最后一次状态转换",
     ))
 
     # C11：metadata_required 声明了而 metadata_fields 没声明，无日期文档只记一条聚合未定，不判 FAIL
