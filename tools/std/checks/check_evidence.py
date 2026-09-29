@@ -87,11 +87,26 @@ def _is_placeholder(value):
 # 证据段解析
 # --------------------------------------------------------------------------
 
+_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+
+
 def _evidence_sections(text):
-    """返回 [(标题, 起始行号(1-based), [行])]，标题含"证据"的小节。"""
+    """返回 [(标题, 起始行号(1-based), [行])]，标题含"证据"的小节。
+
+    围栏代码块里的行不算标题、也不进小节（C06）：代码里的 `# 注释` 会截断证据段，
+    命令输出里的 `time: 3s` 会被认成字段。
+    """
     lines = text.splitlines()
-    out, cur = [], None
+    out, cur, fence = [], None, None
     for i, ln in enumerate(lines):
+        m = _FENCE.match(ln)
+        if fence is None and m:
+            fence = m.group(1)[0] * 3
+            continue
+        if fence is not None:
+            if ln.strip().startswith(fence):
+                fence = None
+            continue
         if ln.lstrip().startswith("#"):
             title = ln.lstrip("#").strip()
             if cur is not None:
@@ -481,6 +496,16 @@ def selftest():
         "只看直接一层、读不到状态的静默跳过：子目录里的完成态留证不查，current.md 与无状态 WI 不报",
         evidence="实得 %s" % (got,),
         why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
+    ))
+
+    # C06：条目里的代码块带 `# 注释`，不许把证据段截断；代码块里的 `时间: 3s` 不算字段
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _SIX.replace("6. 方法：", "```bash\n# 跑测试\npytest -v  # 时间: 3s\n```\n6. 方法："))
+        got = [f["status"] for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [PASS] else FAIL,
+        "C06：证据条目里代码块的 # 注释不当标题，六字段齐全判 PASS",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；围栏代码块是正文，不是结构",
     ))
 
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
