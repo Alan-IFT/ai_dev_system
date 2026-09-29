@@ -780,8 +780,8 @@ def load_exceptions(config_dir, root=None, today=None):
             problems.append(u"第 %d 行%s缺：%s" % (lineno, tag, u"、".join(missing)))
             continue
         if rule.split(u"/")[1:2] == [INTERNAL_ERROR_KIND]:
-            problems.append(u"第 %d 行%s登记的是检查器自身出错（%s），不可登记：崩溃顶掉了该检查器本次的"
-                            u"全部结论，登记它等于登记 FAIL；修好检查器或它的输入" % (lineno, tag, rule))
+            problems.append(u"第 %d 行%s登记的是检查器自身出错（%s），不可登记：崩溃顶掉了该检查器（或某条判据）"
+                            u"本次的结论，登记它等于登记 FAIL；修好检查器或它的输入" % (lineno, tag, rule))
             continue
         limit = (today or datetime.date.today()) + datetime.timedelta(days=EXCEPTION_MAX_DAYS)
         if day > limit:
