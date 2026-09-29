@@ -22,7 +22,7 @@
 
 - **`UNDETERMINED` 永远不能被合并成 `PASS`。** 汇总时三态各自计数，不允许"没有 FAIL 即通过"。退出码另按已登记／未登记分档（见第 9 节「例外登记」）；状态字段、三态计数与逐条列出**不因登记而改变**——登记改变的只有退出码。
 - 对象不存在时，先判**是否适用**：不适用记 `SKIP`（不计入三态，但必须给理由）；适用而对象缺失记 `UNDETERMINED`。
-- **同一事实只由一个检查器报。** 对象缺失这件事归哪条标准条款，就由执行那条的检查器报；以同一对象为输入的其余检查器记 `SKIP`，证据里写明由谁报。否则采用方得为同一件事登记几行，报告的未定数也虚高。现有一例：工作项目录（`layout.work_root`）不在，由 `layout` 按 01 §3.1 报（L1 起的 `work_current` 一项），`evidence`、`freshness` 与 `drift`（判据 4）各记一条 `<检查器>/work-root-absent` 的 `SKIP`；两件共用的解析与这条 `SKIP` 都在 `stdlib`（`work_root` / `work_root_absent`）。另一例是入口文件不在：由 `layout` 按 01 §3.1 的 ★ 入口报，`entry-budget` 记 `entry-budget/entry-absent` 的 `SKIP`。
+- **同一事实只由一个检查器报。** 对象缺失这件事归哪条标准条款，就由执行那条的检查器报；以同一对象为输入的其余检查器记 `SKIP`，证据里写明由谁报。否则采用方得为同一件事登记几行，报告的未定数也虚高。现有一例：工作项目录（`layout.work_root`）不在，由 `layout` 按 01 §3.1 报——项目声明了 `layout.work_root` 而目录不在，任何档都判 `FAIL`（`layout/work-root-absent/<路径>`，声明的落点不成立）；没声明时缺省目录由 L1 起的 `work_current` 一项认，`evidence`、`freshness` 与 `drift`（判据 4）各记一条 `<检查器>/work-root-absent` 的 `SKIP`；两件共用的解析与这条 `SKIP` 都在 `stdlib`（`work_root` / `work_root_absent`）。另一例是入口文件不在：由 `layout` 按 01 §3.1 的 ★ 入口报，`entry-budget` 记 `entry-budget/entry-absent` 的 `SKIP`；入口或其余工件是指向项目之外的符号链接时同理，`layout` 记 `layout/outside-root/<路径>` 未定（不跟随链接判在、也不判缺），`entry-budget` 不读、不列出仓目录，记 `SKIP`。
 - 检查器自身崩溃、超时、依赖缺失，一律 `UNDETERMINED`，**不得吞掉异常记 PASS**。依据：该项目已发生过"守卫崩溃却报告为漂移"与"退出 0 却跑了 0 个测试"。
 
 `check_all` 的退出码：有任一 `FAIL` → 1；无 FAIL 但有**未登记**的 `UNDETERMINED` → 2；否则 0（全 PASS/SKIP，或全部未定都已登记且未过期）。**调用方不得把 2 当成功。**
@@ -118,7 +118,7 @@ def selftest() -> list[dict]:
 | 给了 `kind` | `check/kind`，再给 `key` 则接 `/` 与归一化后的 key（首尾空白去掉、内部空白折成 `_`、竖线换成 `｜`） | **判据不变它就不变**：标题怎么改、命中几个文件、超期几天，都不影响它。跨工具版本升级时仍须按 §8 的身份重跑核对 |
 | 没给 `kind` | `check/` + `sha1(title)[:8]` | **只在同一工具身份内稳定**：标题改一个字就换一个 id，对应的登记行随之失效。这是兜底，不是承诺 |
 
-给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
+给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定与两条 FAIL（`missing`、`anchor-missing`；同一文件里同一目标合并成一条，行号进证据）、`derived` 的四条未定与 `behind`、`header-undeclared` 两类 FAIL（标题带声明序号），`evidence` 的 `incomplete`、`limits-empty` 与未定 `fields-unrecognized`（key 为文件与条目名；只有认不出的字段、认出的都有值时记未定，§1.1）；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
 
 ---
 
@@ -185,7 +185,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `tailoring` | 列表，每项 `check` / `applicable` / `reason` | 否 | 视为没裁剪任何检查。`check` 可写检查器短名，也可写 `layout:<role>` 或裸 `<role>` 单裁一个工件；写了对不上的名字裁剪不生效，记一条未定（`tailoring/unknown-check/<名字>`） |
 | `layout.entry` | 字符串列表 | 否 | `layout` 与 `entry-budget` 共用 `stdlib.entry_files`：先回退到 `layout.artifacts.entry`（同是项目声明，据此照常判 `FAIL`）；两者都没配才按候选 `CONTEXT.md`、`AGENTS.md`、`CLAUDE.md` 的顺序取第一个存在的（同时存在几个也只取第一个，证据列出其余），证据注明来自候选。候选是 §1.1 的工具约定：`layout` 命中记 `PASS`、全不在记一条 ★ 未定，`entry-budget` 在预算内记 `PASS`、超预算记未定（`candidate-over`），声明之后仍超才判 `FAIL`；入口不在由 `layout` 报，`entry-budget` 记 `SKIP`（§1）。`cross-repo` 的入口相关判据仍记 `UNDETERMINED`：它要在每个仓里认同一组入口名，且那几条判据的结论以 `FAIL` 为主，候选来源下只剩通过与未定 |
 | `layout.docs_root` | 字符串 | 否 | 取常量 `docs`（01 §3.1 文档树的根），`freshness`／`drift` 在 `evidence` 里注明用的是默认，`layout` 在覆盖边界里注明（它只拿它给候选路径改基，候选本就是提示，§1.1）。解析只在 `stdlib.docs_root_of` 一处，`layout`／`freshness`／`drift` 与各缺省路径的改基共用 |
-| `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`（01 §3.1；`docs/` 随 `layout.docs_root` 改基，与 `check_layout` 的候选同一规则），并在 `evidence` 里注明用的是默认。它也是 `check_layout` 的 `work_current`（实时状态源）一项在未声明 `layout.artifacts.work_current` 时认的落点——目录不在由 `layout` 报一次，`evidence`／`freshness`／`drift` 记 `SKIP`（§1）。解析只在 `stdlib.work_root` 一处 |
+| `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`（01 §3.1；`docs/` 随 `layout.docs_root` 改基，与 `check_layout` 的候选同一规则），并在 `evidence` 里注明用的是默认。它也是 `check_layout` 的 `work_current`（实时状态源）一项在未声明 `layout.artifacts.work_current` 时认的落点——目录不在由 `layout` 报一次（声明了却不在，任何档判 `FAIL`），`evidence`／`freshness`／`drift` 记 `SKIP`（§1）。解析只在 `stdlib.work_root` 一处 |
 | `layout.artifacts` | 映射，`<role>: 路径` | 否 | 按分档快照里的候选路径找；给了就只认它，不再猜候选。`status` 的候选（`WORK.md`、`docs/state/STATUS.md`，取自模板 L0 树与 01 §3.1）在 `stdlib.STATUS_CANDIDATES`，`check_layout` 与 `check_drift` 共用。**★ 工件（入口/验收/状态）没声明落点时，候选未命中记 `UNDETERMINED` 而不是 `FAIL`**（§1.1）；声明了却不存在才是 `FAIL`。role 名见 `check_layout` 的 `_TIER_ITEMS`（`entry`/`acceptance`/`status`/`playbook`/`failures`/…） |
 | `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
 | `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
@@ -196,7 +196,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `budgets.work_item_stale_days` | 正整数 | 否 | 取常量 14 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.duplicate_min_lines` | 整数 ≥2 | 否 | 取常量 3 并注明未校准；写了却不是 ≥2 的整数，整份配置按解析失败记未定（报行号），不取默认 |
 | `budgets.duplicate_min_chars` | 整数 ≥1 | 否 | 取常量 60 并注明未校准；写了却不是 ≥1 的整数，同上 |
-| `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准；未声明时 `layout` 查 ★ 工件头部缺元信息只记未定（`layout/meta-unrecognized`，§1.1），声明后仍缺才判 `FAIL`；写成别的形状（映射、空列表）同样按未配处理。解析只在 `stdlib.date_fields_of` 一处，`layout` 与 `freshness` 共用 |
+| `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准；未声明时 `layout` 查 ★ 工件头部缺元信息只记未定（`layout/meta-unrecognized`，§1.1），`freshness` 对 `metadata_required` 命中的无日期文档也只记一条聚合未定（`freshness/undated-fields-default`），声明后仍缺才判 `FAIL`；写成别的形状（映射、空列表）同样按未配处理。解析只在 `stdlib.date_fields_of` 一处，`layout` 与 `freshness` 共用 |
 | `metadata_required` | 路径前缀列表 | 否 | 见下方专段。给了就**只认这份清单**；显式写空列表 `[]` 即声明项目没有 01 §3.5 那六类文档，无日期文档整轮记一条 `SKIP`；键缺失或值为空时只按目录名约定**分组**，缺日期的无论约定命中与否都**记未定**（§1.1：约定不产出 `FAIL`），不记不适用 |
 | `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | 取常量 `done`/`完成`/`delivered` 并注明未校准 |
 | `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
@@ -231,7 +231,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 
 按 §1.1，目录名约定**命中也只记未定**：它说明"像"，推不出"这份必须带日期"。未配 `metadata_required` 时，约定命中的缺日期文档汇成一条 `UNDETERMINED`（`freshness/undated-by-convention`），此前判 `FAIL`，与 §1.1 矛盾，已改（D-123）。
 
-未配 `metadata_required` 且目录名约定未命中时，那些缺日期字段的文档**不逐份记 `SKIP`**——`SKIP`（不适用）是确定结论，而"这份文档算不算重要文档"要看内容，按 §7 机械判不了。它们汇总成**整轮一条 `UNDETERMINED`**，证据里列出路径。代价是这类项目的退出码从 0/1 变 2；收益是"这里没看"从报告末尾的不适用堆里挪到了未定区。配了 `metadata_required` 之后，命中记 `FAIL`、未命中记 `SKIP`，两边都是确定结论。写成空列表 `[]` 是"一类都不要求"的声明，无日期文档整轮汇成一条 `SKIP`——**它与不写这个键不是一回事**：空列表是项目的声明，可给确定结论；键缺失或值为空是没声明，只能记未定。声明错了由写下它的人负责，工具不复核。
+未配 `metadata_required` 且目录名约定未命中时，那些缺日期字段的文档**不逐份记 `SKIP`**——`SKIP`（不适用）是确定结论，而"这份文档算不算重要文档"要看内容，按 §7 机械判不了。它们汇总成**整轮一条 `UNDETERMINED`**，证据里列出路径。代价是这类项目的退出码从 0/1 变 2；收益是"这里没看"从报告末尾的不适用堆里挪到了未定区。配了 `metadata_required` 之后，命中记 `FAIL`（日期字段名也须在 `metadata_fields` 声明，否则只记未定，见 §5 表）、未命中记 `SKIP`，两边都是确定结论。写成空列表 `[]` 是"一类都不要求"的声明，无日期文档整轮汇成一条 `SKIP`——**它与不写这个键不是一回事**：空列表是项目的声明，可给确定结论；键缺失或值为空是没声明，只能记未定。声明错了由写下它的人负责，工具不复核。
 
 **只读被扫项目之内的文件。** 读任何文件前按真实位置（跟随符号链接后）判它在不在项目根之下，不在的不读、记 `UNDETERMINED`（`links` 的链接目标同理，`links/outside-root`）；配置里值为项目内路径的键（`layout.entry`、`layout.docs_root`、`layout.work_root`、`layout.artifacts.*`、`layout.frozen`、`layout.rule_files`、`metadata_required`、`derived[].artifact/source`）写了 `..` 段或绝对路径，整份配置按解析失败记未定；`repos[].path` 除外（兄弟仓本来就在项目之外，01 §3.8），但经它读到的文件须落在该仓自己的真实位置之内，越出去记未定；链接目标不在任何声明仓之内的记 `cross-repo/outside-repos` 未定。字面就在项目之外的路径连存在性也不探测。配置解析失败的报错只给路径与行号，不回显文件内容。被扫仓 `.git/config` 里会执行外部程序的配置（`core.fsmonitor`、钩子、textconv、过滤器等）由 `stdlib.scrub_git_env` 与 `filter_env` 一律压掉（`log.showSignature` 也在内，否则 `git log` 会对签名提交调被扫方指定的 gpg 程序）。
 

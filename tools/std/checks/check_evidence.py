@@ -87,18 +87,38 @@ def _is_placeholder(value):
 # 证据段解析
 # --------------------------------------------------------------------------
 
+_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+
+
 def _evidence_sections(text):
-    """返回 [(标题, 起始行号(1-based), [行])]，标题含"证据"的小节。"""
+    """返回 [(标题, 起始行号(1-based), [行])]，标题含"证据"的小节。
+
+    围栏代码块里的行不算标题、也不进小节（C06）：代码里的 `# 注释` 会截断证据段，
+    命令输出里的 `time: 3s` 会被认成字段。比证据段标题低一级以上的小标题（`### E-01`）
+    留在段内，由 _parse_list_blocks 当条目头（C13）；同级或更高一级的标题才结束这一段。
+    """
     lines = text.splitlines()
-    out, cur = [], None
+    out, cur, fence, level = [], None, None, 0
     for i, ln in enumerate(lines):
+        m = _FENCE.match(ln)
+        if fence is None and m:
+            fence = m.group(1)[0] * 3
+            continue
+        if fence is not None:
+            if ln.strip().startswith(fence):
+                fence = None
+            continue
         if ln.lstrip().startswith("#"):
-            title = ln.lstrip("#").strip()
+            title = ln.lstrip().lstrip("#")
+            depth = len(ln.lstrip()) - len(title)
+            if cur is not None and depth > level:
+                cur[2].append((i + 1, ln))
+                continue
             if cur is not None:
                 out.append(cur)
                 cur = None
-            if any(k in title.lower() for k in _EVIDENCE_HEADINGS):
-                cur = (title, i + 2, [])
+            if any(k in title.strip().lower() for k in _EVIDENCE_HEADINGS):
+                cur, level = (title.strip(), i + 2, []), depth
             continue
         if cur is not None:
             cur[2].append((i + 1, ln))
@@ -122,8 +142,14 @@ def _label_field(line):
     return None, None
 
 
-def _parse_list_blocks(rows):
-    """加粗条目行（或三级以上小标题）起头的证据条目。"""
+def _parse_list_blocks(rows, whole=True):
+    """加粗条目行（或三级以上小标题）起头的证据条目。
+
+    表格行归 _parse_table_blocks，这里不看（C08：表格格子里的「输出: …」曾被认成字段，
+    凭空多出一条「（整段）」证据判 FAIL）。whole=False 时不把整段兜成一条——同一段里已按
+    字段表认出了条目，零散的「字段: 值」只是说明文字。
+    """
+    rows = [(n, ln) for n, ln in rows if not ln.lstrip().startswith("|")]
     blocks, cur = [], None
     for lineno, ln in rows:
         m = _BLOCK_HEAD.match(ln) or _SUBHEAD.match(ln)
@@ -143,7 +169,7 @@ def _parse_list_blocks(rows):
     if cur:
         blocks.append(cur)
 
-    if not blocks:  # 没有条目行但整段就是一条证据
+    if not blocks and whole:  # 没有条目行但整段就是一条证据
         one = {"name": "（整段）", "line": rows[0][0] if rows else 1, "fields": {},
                "limit_cols": [], "kind": "条目"}
         for lineno, ln in rows:
@@ -201,7 +227,8 @@ def _parse_table_blocks(rows):
             j = i + 2
             while j < len(rows) and "|" in rows[j][1] and rows[j][1].strip():
                 cells = _split_row(rows[j][1])
-                blk = {"name": (cells[0] if cells else "").strip() or "第 %d 行" % rows[j][0],
+                # 条目名取第一个非空格：不取行号，否则 id 随行号漂（C19）
+                blk = {"name": next((c for c in cells if c.strip()), "（空行）").strip(),
                        "line": rows[j][0], "fields": {}, "limit_cols": [], "kind": "表行"}
                 for idx, key in cols.items():
                     if idx >= len(cells):
@@ -257,7 +284,8 @@ def scope(cfg):
             "不看未被 git 跟踪的文件，不看 .md 以外的文件，不看 PR/提交说明里承载的轻量简记"
             "（01 §4.1 允许该写法，本工具读不到）",
             "不判断文档内容是否仍然正确，也不判断日期新旧——那是 freshness 检查器的事",
-            "只认 §4.2 的六字段标签及其常见同义词；项目自造的字段名认不出，会被误报为缺字段",
+            "只认 §4.2 的六字段标签及其常见同义词；项目自造的字段名认不出，这类条目只记未定"
+            "（fields-unrecognized）——认出的字段值为空或占位才判 FAIL",
             "自检只覆盖行内标签写法与不依赖 git 时间的分支；字段表写法未被反例证明",
         ],
     }
@@ -338,8 +366,9 @@ def _check_one(rel, text, status, note):
 
     blocks = []
     for _title, _start, rows in sections:
-        blocks.extend(_parse_table_blocks(rows))
-        blocks.extend(_parse_list_blocks(rows))
+        table = _parse_table_blocks(rows)
+        blocks.extend(table)
+        blocks.extend(_parse_list_blocks(rows, whole=not table))
     if not blocks:
         return [finding(
             NAME, UNDETERMINED, "证据段里认不出证据条目：%s" % rel,
@@ -361,9 +390,22 @@ def _check_one(rel, text, status, note):
                                evidence="%s（%s）。%s" % (blk["kind"], "、".join(_LABELS[k] for k in _ORDER), note)))
             continue
 
+        if not empty and not limits_empty:
+            # 只剩没认出的字段：字段名是本工具的词表，项目可能用了自己的叫法（C07，契约 §1.1）
+            out.append(finding(
+                NAME, UNDETERMINED, "%s 有字段没认出：%s" % (head, "、".join(missing)), where=where,
+                kind="fields-unrecognized", key="%s|%s" % (rel, blk["name"]),
+                reason="字段名是本工具的词表（§4.2 六字段及常见同义词），不是项目的声明；没认出推不出"
+                       "没写（契约 §1.1）。认出的字段都有值",
+                why="01 §4.2 收工前第 1 条的六字段；01 §1 G4 完成需要证据",
+                evidence="写法：%s。%s" % (blk["kind"], note),
+            ))
+            continue
+
         if not other_bad:
             out.append(finding(
                 NAME, FAIL, "%s 的限制（④ 适用范围）为空，其余五项齐全" % head, where=where,
+                kind="limits-empty", key="%s|%s" % (rel, blk["name"]),
                 why="01 §4.2 的六字段里④是适用范围，01 §1 G4 缺一即声明无效。"
                     "没有写限制不等于没有限制——空的限制字段让通过看起来比实际更强，"
                     "读的人会把一次局部验证当成全面验证",
@@ -381,6 +423,7 @@ def _check_one(rel, text, status, note):
             parts.append("限制列为空")
         out.append(finding(
             NAME, FAIL, "%s 证据六字段不全" % head, where=where,
+            kind="incomplete", key="%s|%s" % (rel, blk["name"]),
             why="01 §4.2 收工前第 1 条列的六字段是①断言②原始证据③版本与工作区身份"
                 "④适用范围⑤观察时间⑥确认方法；01 §1 G4：证据六字段缺一即声明无效。"
                 "当时没记，事后补不出来",
@@ -408,6 +451,7 @@ _FIVE = """**E-01**（INV-014，staging）
 3. 版本：`main@7e1f2a9`
 4. 范围：staging；只覆盖单店样表
 5. 时间：2026-09-01 16:42
+6. 方法：待补
 """
 
 
@@ -422,7 +466,7 @@ def _sample(tmp, body, frozen=None, heading="## 验收证据"):
 
 
 def selftest():
-    """反例：只写了五项、缺⑥确认方法的完成证据，须判 FAIL。
+    """反例：⑥确认方法只写了占位「待补」的完成证据，须判 FAIL。
     正例：六项齐全且限制非空，须判 PASS。
     只覆盖行内标签写法；字段表写法与 git 相关分支不在自检内（见 scope）。
     """
@@ -433,7 +477,7 @@ def selftest():
         ok = (not err) and got == [FAIL]
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            "反例：已完成工作项缺⑥确认方法，应判 FAIL",
+            "反例：已完成工作项⑥确认方法为占位，应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：抓不出违规的检查器，其结论作废",
         ))
@@ -458,7 +502,7 @@ def selftest():
         ok = (not err) and got == [FAIL]
         results.append(finding(
             NAME, PASS if ok else FAIL,
-            "反例：落在 layout.frozen 里的已完成工作项，缺⑥仍应判 FAIL",
+            "反例：落在 layout.frozen 里的已完成工作项，⑥为占位仍应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
                 "两者无关，拿前者当后者的跳过条件会让归档区的完成声明全部免检",
@@ -478,6 +522,62 @@ def selftest():
         "只看直接一层、读不到状态的静默跳过：子目录里的完成态留证不查，current.md 与无状态 WI 不报",
         evidence="实得 %s" % (got,),
         why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
+    ))
+
+    # C07：项目自造的字段名（「核验手段」）认不出只记未定，不判 FAIL；认出的字段为占位仍判 FAIL（见反例）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _FIVE.replace("6. 方法：待补", "6. 核验手段：人工抽查 10 行"))
+        got = [(f["status"], f["id"]) for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(UNDETERMINED, NAME + "/fields-unrecognized/work/WI-0001-x.md｜E-01")] else FAIL,
+        "C07：自造字段名认不出只记未定（fields-unrecognized），不判 FAIL",
+        evidence="实得 %s" % (got,), why="契约 §1.1：字段名词表落空推不出没写",
+    ))
+
+    # C06：条目里的代码块带 `# 注释`，不许把证据段截断；代码块里的 `时间: 3s` 不算字段
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _SIX.replace("6. 方法：", "```bash\n# 跑测试\npytest -v  # 时间: 3s\n```\n6. 方法："))
+        got = [f["status"] for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [PASS] else FAIL,
+        "C06：证据条目里代码块的 # 注释不当标题，六字段齐全判 PASS",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；围栏代码块是正文，不是结构",
+    ))
+
+    # C13：`### E-01` 小标题起头的条目留在 `## 验收证据` 段内，按条目判（旧写法段在此截断，只记未定）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _FIVE.replace("**E-01**（INV-014，staging）", "### E-01") +
+                                 "\n## 附注\n\n**E-02**\n1. 断言：不属于证据段\n")
+        got = [(f["status"], f["title"]) for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(FAIL, "work/WI-0001-x.md 的证据 E-01 证据六字段不全")] else FAIL,
+        "C13：### 小标题起头的证据条目按条目判，同级标题结束证据段",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；markdown 小标题的层级决定它属于哪一段",
+    ))
+
+    # C08：字段表格子里写「输出: ok」、表下再附一句「输出: 见 artifacts」，不许多出一条「（整段）」证据
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, "| 断言 | 原始证据 | 版本 | 范围 | 时间 | 方法 |\n|---|---|---|---|---|---|\n"
+                                "| 导入一致 | 输出: ok | c | d | e | f |\n\n输出: 见 artifacts/e01.txt\n")
+        got = [f["status"] for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [PASS] else FAIL,
+        "C08：字段表写法里格子与表外的「输出: …」不凭空生出「（整段）」证据",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；一条证据只判一次",
+    ))
+
+    # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
+    ids = []
+    for pad in ("", "\n\n"):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, pad + "| 编号 | 断言 | 原始证据 | 版本 | 范围 | 时间 | 方法 |\n"
+                                          "|---|---|---|---|---|---|---|\n|  | 导入一致 | TBD | c | d | e | f |\n")
+            ids.append([f["id"] for f in run(cfg)] if not err else err)
+    ok = ids[0] == ids[1] and len(ids[0]) == 1 and ids[0][0].startswith(NAME + "/incomplete/work/WI-0001-x.md｜")
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "C19：字段表条目的 id 取条目名与文件，不随行号漂",
+        evidence="两次实得 %s" % (ids,), why="契约 §4/§9：id 是登记与复核的地址",
     ))
 
     # 证据段标题是工具约定（契约 §1.1，D-123）：英文 `## Evidence` 照认；一个都认不出只记未定

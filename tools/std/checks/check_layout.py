@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stdlib import (  # noqa: E402
     read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
     STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
-    is_tailored_out, rebase_docs, undetermined_from_exception,
+    inside, is_tailored_out, rebase_docs, undetermined_from_exception,
 )
 
 NAME = "layout"
@@ -103,9 +103,12 @@ def _norm(p):
 
 
 def _exists(root, rel, kind):
+    """工件在不在：True / False，真实位置在项目之外返回 None（不探测项目之外，调用方记未定；C16）。"""
     path = os.path.join(root, rel.replace("/", os.sep))
-    if kind == "glob":
-        return bool(_glob.glob(os.path.join(root, rel.replace("/", os.sep))))
+    if kind == "glob":   # 只有候选部分是通配；扫描根里的 [ ] * ? 按字面（C14）
+        return any(inside(root, p) for p in _glob.glob(os.path.join(_glob.escape(root), rel.replace("/", os.sep))))
+    if not inside(root, path):
+        return None
     if kind == "file":
         return os.path.isfile(path)
     if kind == "dir":
@@ -132,6 +135,16 @@ def _artifact_tailored(cfg, role):
         if str(item.get("check")) in keys and item.get("applicable") is False:
             return True, (str(item.get("reason") or "").strip() or None)
     return False, None
+
+
+def _outside(rel, label):
+    """工件路径的真实位置在项目之外（符号链接出仓）：不读、不探测，记未定。entry-budget 对同一件记 SKIP。"""
+    return finding(
+        NAME, UNDETERMINED, "%s %s 的真实位置在被扫项目之外" % (label, rel), where=rel,
+        kind="outside-root", key=rel,
+        reason="它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径，换一台机器它是否存在也不由本仓决定",
+        why="01 §3.1：工件要在项目里；契约 §5 只读被扫项目之内的文件",
+    )
 
 
 def _head(path, root):
@@ -219,6 +232,20 @@ def _run(cfg):
     out = []
     md_to_check = []   # [(role, 中文名, relpath)]
 
+    # 声明了工作项目录却不在：项目声明的落点不成立，任何档都判 FAIL（契约 §1.1；C09）。
+    # evidence／freshness／drift 对同一件记 SKIP 指向这里；L1 的 work_current 取它时不再另报
+    wr = _norm(cfg_get(cfg, "layout.work_root") or "")
+    wr_there = _exists(root, wr, "dir") if wr else True
+    if wr_there is None:
+        out.append(_outside(wr, "工作项目录"))
+    elif not wr_there:
+        out.append(finding(
+            NAME, FAIL, "layout.work_root 声明的工作项目录不在：%s" % wr, where=wr,
+            kind="work-root-absent", key=wr,
+            why="01 §3.1：工作项一件一文件放在工作项目录；项目声明了它在哪，那里没有就是确定的缺失",
+            evidence="project.yaml 的 layout.work_root = %s，%s 下没有这个目录" % (wr, os.path.abspath(root)),
+        ))
+
     for role, label, star, kind, cands in _tier_items(tier):
         skipped, sreason = _artifact_tailored(cfg, role)
         if skipped:
@@ -235,7 +262,10 @@ def _run(cfg):
         if entries:
             for rel in entries:
                 rel = _norm(rel)
-                if _exists(root, rel, "file"):
+                there = _exists(root, rel, "file")
+                if there is None:
+                    out.append(_outside(rel, label))
+                elif there:
                     out.append(finding(
                         NAME, PASS, "入口 %s 在" % rel, where=rel,
                         evidence=guessed or "来自项目声明（layout.entry／layout.artifacts.entry）",
@@ -252,16 +282,23 @@ def _run(cfg):
             continue
 
         override, src_key = overrides.get(role), "layout.artifacts.%s" % role
-        if not override and role == "work_current" and cfg_get(cfg, "layout.work_root"):
-            override, src_key = cfg_get(cfg, "layout.work_root"), "layout.work_root"
+        if not override and role == "work_current" and wr:
+            if not wr_there:
+                continue      # 上面已报
+            override, src_key = wr, "layout.work_root"
         cand_list = [_norm(override)] if override else [
             rebase_docs(c, docs_root) for c in cands
         ]
-        hit = None
+        hit = outside = None
         for rel in cand_list:
-            if _exists(root, rel, kind):
+            there = _exists(root, rel, kind)
+            if there:
                 hit = rel
                 break
+            outside = outside or (rel if there is None else None)
+        if hit is None and outside:
+            out.append(_outside(outside, label))
+            continue
 
         src = src_key if override else \
               "%s 快照候选：%s" % (_TEMPLATE_SOURCE, "、".join(cand_list))
@@ -287,18 +324,6 @@ def _run(cfg):
                     why="01 §3.1：入口、验收、状态是最小起点（★）。要把它判成缺失，"
                         "先在 layout.artifacts 里声明落点——声明后仍然没有才记 FAIL",
                     evidence="候选都不存在。%s" % src,
-                ))
-            elif src_key == "layout.work_root":
-                # 路径是项目声明的，不是工具猜的；它不在就说它不在，不往"可能是有意裁剪"上推。
-                out.append(finding(
-                    NAME, UNDETERMINED,
-                    "%s 档要求的 %s（%s）：layout.work_root 声明的目录不在" % (tier, label, role),
-                    where=cand_list[0],
-                    reason="layout.work_root 声明的目录 %s 不在；是还没建还是配置过期，本工具判不了"
-                           % cand_list[0],
-                    why="01 §3.1：%s 档的树里有这一项；工作项目录是它的目录形态" % tier,
-                    evidence="未声明 layout.artifacts.work_current，取 layout.work_root：%s"
-                             % cand_list[0],
                 ))
             else:
                 out.append(finding(
@@ -461,6 +486,45 @@ def selftest():
                 evidence="实得 %s" % got_ok,
                 why="契约 §3 静默失效探测",
             ))
+        # C16：入口与状态工件是指向项目之外的符号链接——不当作在（旧写法跟随链接判 PASS），也不判缺失，
+        # 记未定且不读；entry-budget 对入口记 SKIP，同一件事只报一次
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as out_dir:
+            for name in ("AGENTS.md", "WORK.md"):
+                with io.open(os.path.join(out_dir, name), "w", encoding="utf-8") as fh:
+                    fh.write(meta)
+                os.symlink(os.path.join(out_dir, name), os.path.join(tmp, name))
+            res = run({"_root": tmp, "tier": "L0", "layout": {"entry": ["AGENTS.md"]}})
+            got = sorted(f["id"] for f in res if f["status"] != UNDETERMINED or "outside" in f["id"])
+            want = ["layout/outside-root/AGENTS.md", "layout/outside-root/WORK.md"]
+        results.append(finding(
+            NAME, PASS if got == want else FAIL,
+            "C16：入口与状态工件链到项目之外记未定，不判在、不判缺",
+            evidence="实得 %s；应得 %s" % (got, want),
+            why="契约 §5：只读被扫项目之内的文件；§1 同一事实只报一次",
+        ))
+        # C09：声明了 layout.work_root 而目录不在，L0、L1、以及另行声明了 work_current 时都只报一条 FAIL
+        with tempfile.TemporaryDirectory() as tmp:
+            got = []
+            for tier, art in (("L0", {}), ("L1", {}), ("L1", {"work_current": "ACCEPTANCE.md"})):
+                res = run({"_root": tmp, "tier": tier, "layout": {"work_root": "nope", "artifacts": art}})
+                got.append([(f["status"], f["id"]) for f in res if "nope" in (f.get("where") or "")])
+        want = [[(FAIL, "layout/work-root-absent/nope")]] * 3
+        results.append(finding(
+            NAME, PASS if got == want else FAIL,
+            "C09：声明的工作项目录不在，任何档都由 layout 报且只报一条 FAIL",
+            evidence="实得 %s" % (got,), why="契约 §1.1 声明后仍不成立判 FAIL；§1 同一事实只报一次",
+        ))
+
+        # C14：扫描根路径里带 [ ] 时，项目侧检查器的通配候选照样找得到
+        with tempfile.TemporaryDirectory(prefix="a[b]") as tmp:
+            os.makedirs(os.path.join(tmp, "tools"))
+            io.open(os.path.join(tmp, "tools", "check_x.py"), "w", encoding="utf-8").close()
+            got = [f["status"] for f in run({"_root": tmp, "tier": "L2"}) if "（checkers）" in f["title"]]
+        results.append(finding(
+            NAME, PASS if got == [PASS] else FAIL,
+            "C14：扫描根带 [ ] 时 glob 候选按字面拼根，tools/check_x.py 判在",
+            evidence="实得 %s" % got, why="01 §3.1：L2 的项目侧检查器；候选命中就是看见的事实",
+        ))
     except Exception as exc:  # noqa: BLE001
         results.append(undetermined_from_exception(NAME, exc, "跑自检"))
     return results
