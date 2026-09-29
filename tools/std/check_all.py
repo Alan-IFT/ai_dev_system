@@ -958,6 +958,9 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A5：顶层 _ 开头的键是代码注入口，写进 project.yaml 整份拒收（曾可用 _links_files 缩小 links 扫描面）
+            cfg, prob = load(fresh("p17"), u"tier: L1\n_links_files:\n  - CLAUDE.md\n")
+            cases.append(("配置写 _links_files 整份拒收并给行号", not cfg and u"第 2 行" in (prob or ""), prob))
             # bug 6：GBK 编码的配置不崩，记未定
             cfg, prob = load(fresh("p8"), None, raw=u"tier: L1\nlayout:\n  docs_root: 文档\n".encode("gbk"))
             cases.append(("非 UTF-8 编码的配置应报未定，不抛 UnicodeDecodeError", bool(prob), prob))

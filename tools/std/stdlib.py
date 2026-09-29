@@ -481,6 +481,12 @@ def _escaping_paths(cfg):
 _DUP_BUDGETS = (("duplicate_min_lines", 2), ("duplicate_min_chars", 1))
 
 
+def _key_line(text, key):
+    """键 key 首次出现的行号（报错定位用，不回显内容）；找不到给 0。"""
+    return next((i for i, ln in enumerate(text.splitlines(), 1)
+                 if re.match(r"""\s*(?:-\s+)?["']?%s["']?\s*:""" % re.escape(key), ln)), 0)
+
+
 def _bad_dup_budgets(cfg, text):
     budgets = cfg.get("budgets")
     if not isinstance(budgets, dict):
@@ -491,8 +497,7 @@ def _bad_dup_budgets(cfg, text):
         v = budgets[key]
         if isinstance(v, int) and not isinstance(v, bool) and v >= low:
             continue
-        line = next((i for i, ln in enumerate(text.splitlines(), 1)
-                     if re.match(r"\s*%s\s*:" % key, ln)), 0)
+        line = _key_line(text, key)
         return "第 %d 行 budgets.%s 须是 ≥%d 的整数；写错不取默认值" % (line, key, low)
     return None
 
@@ -510,6 +515,10 @@ def _read_config(root, p, shown):
         return {}, "%s 读不了：%s" % (shown, type(exc).__name__)
     if not isinstance(cfg, dict):
         return {}, "%s 的顶层不是映射" % shown
+    injected = sorted(k for k in cfg if str(k).startswith("_"))
+    if injected:      # 下划线键是代码注入口（契约 §4），写进配置等于让被检查方指定检查范围
+        return {}, "%s 第 %d 行的顶层键以 _ 开头；这类键只由代码注入，项目配置写了整份拒收" % (
+            shown, _key_line(text, injected[0]))
     bad_budget = _bad_dup_budgets(cfg, text)
     if bad_budget:
         return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
