@@ -486,7 +486,7 @@ def _settings_allow(root):
         allow = perms.get("allow") or []
         if not isinstance(allow, list):
             raise ValueError("permissions.allow 不是列表：%r" % (allow,))
-    except (OSError, ValueError, AttributeError) as exc:
+    except (OSError, ValueError, AttributeError, RecursionError) as exc:   # 深嵌套 JSON 抛 RecursionError
         return [undetermined_from_exception(NAME, exc, "读 %s 的 permissions" % _SETTINGS_REL)]
     out = []
     for rule in allow:

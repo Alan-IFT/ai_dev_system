@@ -975,6 +975,18 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A4／B1：.claude/settings.json 深嵌套让 json 抛 RecursionError，只作废这一条判据，不让整个 adoption 崩
+            proj = fresh("p24")
+            os.makedirs(os.path.join(proj, ".claude"))
+            with io.open(os.path.join(proj, ".claude", "settings.json"), "w", encoding="utf-8") as fh:
+                fh.write(u"[" * 200000 + u"]" * 200000)
+            adoption = dict((n, m) for n, m, _e in discover() if m is not None)["adoption"]
+            try:
+                got = [f["title"] for f in adoption._settings_allow(proj)]
+            except RecursionError as exc:
+                got = repr(exc)
+            cases.append(("settings.json 深嵌套记这一条未定，不崩检查器",
+                          isinstance(got, list) and len(got) == 1, got))
             # A11／C21／A4：列表键写成标量或映射、layout.entry: 5 → 整份拒收并报键名与行号，不静默误读、不崩检查器
             for tag, body, key in (
                     ("p19", u"tier: L1\nlayout:\n  frozen: docs/archive\n", u"第 3 行 layout.frozen"),
