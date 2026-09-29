@@ -876,8 +876,25 @@ def _git_grep(repo_real, needles):
     if p.returncode not in (0, 1):   # 1 = 一条都没命中，是正常出口
         return None, "git grep 退出码 %d：%s" % (
             p.returncode, (p.stderr or b"").decode("utf-8", "replace").strip()[:160])
-    rows = [ln.split("\0", 2) for ln in (p.stdout or b"").decode("utf-8", "replace").split("\n")]
-    return [(h[0].replace("\\", "/"), h[1], h[2].strip()[:120]) for h in rows if len(h) == 3], None
+    return _parse_grep_z((p.stdout or b"").decode("utf-8", "replace"))
+
+
+def _parse_grep_z(out):
+    """`git grep -n -z` 的输出是「路径 NUL 行号 NUL 行文 换行」首尾相接。路径可以含换行（行文不会），
+    所以不能先按换行切：按 NUL 切成记号流，行文与下一条路径之间的第一个换行才是分界（R1-09）。"""
+    if not out:
+        return [], None
+    toks, hits = out.split("\0"), []
+    path = toks[0]
+    for i in range(1, len(toks) - 1, 2):
+        line, _nl, nxt = toks[i + 1].partition("\n")
+        if not toks[i].isdigit():
+            return None, "git grep -z 的输出切不开（第 %d 条命中的行号不是数字）" % len(hits)
+        hits.append((path.replace("\\", "/"), toks[i], line.strip()[:120]))
+        path = nxt
+    if len(toks) % 2 == 0 or path:
+        return None, "git grep -z 的输出切不开（记号数不成对）"
+    return hits, None
 
 
 def _check_former_names(cfg, repos):
