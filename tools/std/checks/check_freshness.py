@@ -121,7 +121,7 @@ def _git_commit_date(root, rel):
     shallow = shallow_problem(root)
     if shallow:
         return None, shallow
-    cmd = ["git", "-C", root, "log", "-1", "--format=%cI", "--", rel]
+    cmd = ["git", "--literal-pathspecs", "-C", root, "log", "-1", "--format=%cI", "--", rel]   # 路径按字面（C02）
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -738,6 +738,34 @@ def selftest():
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §2 N1：浅克隆的提交时间是克隆时刻，据它判活性会把 FAIL 翻成 PASS",
         ))
+
+    # 反例七之二（C02）：工作项文件名带 [ ] 时 git 按通配解读，会取到 WI-0001-a.md 刚才的提交，
+    # 把 100 天前提交、无转换记录的进行中工作项判成活着
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "WI-0001-[a].md"), "# WI-0001\n\n状态：in_progress\n")
+        write_text(os.path.join(tmp, "docs", "architecture", "a.md"), "updated_at: %s\n" % fresh)
+        gid = ["-c", "user.name=a", "-c", "user.email=a@b", "-c", "commit.gpgsign=false"]
+        err = None
+        for when, cmd in ((None, ["git", "-c", "init.defaultBranch=main", "init", "-q", tmp]),
+                          (None, ["git", "-C", tmp] + gid + ["add", "-A"]),
+                          (old, ["git", "-C", tmp] + gid + ["commit", "-q", "-m", "s"]),
+                          (None, ["sh", "-c", "echo x > '%s'" % os.path.join(tmp, "work", "WI-0001-a.md")]),
+                          (None, ["git", "-C", tmp] + gid + ["add", "-A"]),
+                          (fresh, ["git", "-C", tmp] + gid + ["commit", "-q", "-m", "t"])):
+            env = dict(os.environ, GIT_COMMITTER_DATE="%s 12:00:00 +0000" % when,
+                       GIT_AUTHOR_DATE="%s 12:00:00 +0000" % when) if when else None
+            r = subprocess.run(cmd, capture_output=True, timeout=60, env=env)
+            if r.returncode != 0:
+                err = "%s 退出码 %d" % (" ".join(cmd[:4]), r.returncode)
+                break
+        got = [f["status"] for f in run(_cfg(tmp)) if (f.get("where") or "") == "work/WI-0001-[a].md"] \
+            if not err else err
+    results.append(finding(
+        NAME, PASS if got == [FAIL] else FAIL,
+        "反例七之二：文件名带 [ ] 的超龄工作项按字面取提交时间，仍判 FAIL",
+        evidence="实得 %s" % (got,),
+        why="01 §4.1：活性看的是这一份工作项自己的提交，不是被通配到的别的文件",
+    ))
 
     # 反例五之二（D-123 bug 10）：超龄工作项的 FAIL 标题带天数，id 须不随天数变；
     # 聚合未定的标题带份数，id 须不随份数变

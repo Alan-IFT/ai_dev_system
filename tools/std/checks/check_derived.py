@@ -63,7 +63,8 @@ def git_last_commit_epoch(root, relpath):
     shallow = shallow_problem(root)
     if shallow:
         return None, shallow
-    cmd = ["git", "-C", root, "log", "-1", "--format=%ct", "--", relpath]
+    # --literal-pathspecs：路径按字面，`m[1].json` 不许匹配到 `m1.json` 的提交（C02）
+    cmd = ["git", "--literal-pathspecs", "-C", root, "log", "-1", "--format=%ct", "--", relpath]
     try:
         out = subprocess.run(cmd, capture_output=True, text=True,
                              encoding="utf-8", timeout=_GIT_TIMEOUT)
@@ -470,6 +471,23 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"正例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例五（C02）：源路径带 [ ] 时 git 按通配解读，会取到 m1.json 更晚的提交，把不落后的派生物判落后
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _repo(tmp)
+            _commit(tmp, "src/m[1].json", _SRC, "2026-01-01T00:00:00 +0000")
+            _commit(tmp, "docs/map.html", u"<!-- 权威是 src/m[1].json -->\n", "2026-01-02T00:00:00 +0000")
+            _commit(tmp, "src/m1.json", _SRC, "2026-02-01T00:00:00 +0000")
+            cfg["derived"] = [{"artifact": "docs/map.html", "source": "src/m[1].json", "regen": "make"}]
+            got = [f["status"] for f in run(cfg)]
+        results.append(finding(
+            NAME, PASS if got == [PASS, PASS] else FAIL,
+            u"反例五：源路径带 [ ] 按字面取提交时间，不被通配到别的文件",
+            evidence=u"实得 %s" % got, why=u"01 §3.4：陈旧判据比的是声明的那个源",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 反例四（id 的区分力，契约 §9）：两条派生声明同时缺源文件，两条未定的 id 必须
     # 各带自己的 artifact 路径。key 不带 artifact 的话两条 id 一模一样，登记一行就会
