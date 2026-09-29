@@ -758,10 +758,13 @@ def _check_links(repos):
                     "别的仓指向它的引用仍按那些仓自己那一条判",
             ))
     if len(known) < 2:
+        # 其余的仓要么是 archived 本机无检出（按定义不适用），要么 path 不在（判据二已逐仓记未定）：
+        # 再记一条未定就是同一事实报两次（契约 §1，B12）
         out.append(finding(
-            NAME, UNDETERMINED, "本机可读的仓不足两个，跨仓引用判不了",
-            reason="repos 里在本机存在的目录只有 %d 个" % len(known),
-            why="01 §3.8'跨仓引用按契约处理'，验收是跨仓链接可机械检查",
+            NAME, SKIP, "本机可读的仓不足两个，跨仓引用记不适用", kind="too-few-local",
+            reason="repos 里在本机存在的目录只有 %d 个；其余的 archived 无检出按 01 §3.8 不适用，"
+                   "path 不在的已由'各仓可定位'一条逐仓记未定" % len(known),
+            why="01 §3.8'跨仓引用按契约处理'：本机没有第二个仓的文件可比对",
         ))
         return out
 
@@ -1116,6 +1119,25 @@ def selftest():
                 "repos 两项同名须整条记未定（配置读不出），不得让无入口的那个仓借名报 PASS",
                 evidence="实得 %s" % got[:6],
                 why="契约 §5：取值有歧义时不猜",
+            ))
+
+        # 本机只剩一个仓（B12）：system + archived 无检出是合法配置，不得出未定；另一仓 path 不在时
+        # 只由判据二记一条未定，跨仓引用这一条记不适用，不重复报
+        with tempfile.TemporaryDirectory() as tmp:
+            got = {}
+            for label, second in (("archived", {"name": "arch", "role": "archived"}),
+                                  ("missing", {"name": "app", "path": "nope", "role": "app"})):
+                cfg = _sample_archived(os.path.join(tmp, label))
+                cfg["repos"] = [cfg["repos"][0], second]
+                got[label] = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
+            und = {k: [i for st, i in v if st == UNDETERMINED] for k, v in got.items()}
+            ok = (und["archived"] == [] and len(und["missing"]) == 1
+                  and all((SKIP, NAME + "/too-few-local") in v for v in got.values()))
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "本机只有一个仓：system+archived 不出未定，path 不在只由判据二报一次，跨仓引用记不适用",
+                evidence="实得 %s" % got,
+                why="契约 §1：同一事实只报一次；01 §3.8 archived 本就不在工作区",
             ))
 
         for want, title, probes in (
