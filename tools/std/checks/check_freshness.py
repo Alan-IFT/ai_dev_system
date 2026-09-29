@@ -90,11 +90,6 @@ _TRANSITION_HEADINGS = ("状态转换记录", "状态转换", "转换记录", "t
 # 小工具（工作项扫描共用的几件在 stdlib）
 # --------------------------------------------------------------------------
 
-# 日期解析已提到 stdlib：例外登记的到期也要解析同样的形态，留两份必然漂（01 §1 G2）。
-# 本名保留是因为本模块内有多处调用点，改名只会制造无谓的 diff。
-_parse_date = parse_date
-
-
 def _section_body(text, keywords):
     """取标题含关键词的那一节正文（到下一个标题为止）。找不到返回 None。"""
     lines = text.splitlines()
@@ -131,7 +126,7 @@ def _git_commit_date(root, rel):
     s = (out.stdout or "").strip()
     if not s:
         return None, "git log 无输出：该文件没有提交历史"
-    return _parse_date(s)
+    return parse_date(s)
 
 
 def _last_transition(text):
@@ -141,9 +136,9 @@ def _last_transition(text):
     类别 'absent' 表示文件里根本没写，可以退到提交时间；'bad' 表示写了但解析不了，
     按 01 §2 N1 记未定，不退到提交时间去猜。
     """
-    val, name = find_field(text[:HEAD_CHARS] + "\n" + text, _TRANSITION_FIELDS)
+    val, name = find_field(text, _TRANSITION_FIELDS)
     if val:
-        d, err = _parse_date(val)
+        d, err = parse_date(val)
         if d:
             return d, "取自显式字段 %s = %s" % (name, clean(val)), None
         return None, None, ("bad", "字段 %s 的值解析不了（%s）" % (name, err))
@@ -157,7 +152,7 @@ def _last_transition(text):
 
     found = []
     for token in re.findall(r"\d{4}-\d{2}-\d{2}", block):
-        d, _err = _parse_date(token)
+        d, _err = parse_date(token)
         if d:
             found.append(d)
     if not found:
@@ -344,7 +339,7 @@ def _check_docs(cfg, root, today, base):
             ))
             continue
 
-        d, err = _parse_date(value)
+        d, err = parse_date(value)
         if d is None:
             out.append(finding(
                 NAME, UNDETERMINED, "日期解析不了：%s" % rel, where="%s:1" % rel,
