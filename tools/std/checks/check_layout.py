@@ -20,7 +20,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
     STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
-    inside, is_tailored_out, rebase_docs, undetermined_from_exception, unreadable,
+    inside, rebase_docs, undetermined_from_exception, unreadable,
+    run_guarded, probe,
 )
 
 NAME = "layout"
@@ -194,14 +195,7 @@ def scope(cfg):
 
 
 def run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001 - 契约 §1：内部异常一律未定
-        return [undetermined_from_exception(NAME, exc, "跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
@@ -443,9 +437,9 @@ def selftest():
             # 同一行用全角空格并排的写法（示例项目的形态）与 freshness 同一套解析，须认得出
             w("WORK.md", "# 标题\n\n状态：进行中　updated_at：2026-09-10\n")
             res_inline = [(f["status"], f["title"]) for f in run(cfg) if f["status"] != PASS]
-            results.append(finding(
-                NAME, PASS if (res_guess == [(UNDETERMINED, "layout/meta-unrecognized/WORK.md")]
-                               and not res_inline) else FAIL,
+            results.append(probe(
+                NAME, (res_guess == [(UNDETERMINED, "layout/meta-unrecognized/WORK.md")]
+                       and not res_inline),
                 "约定：未声明 metadata_fields 时缺元信息只记未定；同行并排的字段须认得出",
                 evidence="未声明时非通过项 %s；同行写法非通过项 %s" % (res_guess, res_inline),
                 why="契约 §1.1：字段名词表落空推不出没写；layout 与 freshness 共用 stdlib.find_field",
@@ -462,27 +456,23 @@ def selftest():
             star_und = [f for f in res_und
                         if f["status"] == UNDETERMINED and f["title"].startswith("★ ")]
 
-            results.append(finding(
-                NAME, PASS if FAIL in got_bad else FAIL,
+            results.append(probe(NAME, FAIL in got_bad,
                 "反例：layout.artifacts 声明了 ★ 状态工件却不存在，应判 FAIL",
                 evidence="实得 %s" % got_bad,
                 why="契约 §3 静默失效探测；判据 01 §3.1 的 ★ 三类",
             ))
-            results.append(finding(
-                NAME, PASS if nometa_fail else FAIL,
+            results.append(probe(NAME, nometa_fail,
                 "反例：声明的 ★ 状态工件缺头部元信息，应判 FAIL",
                 evidence="实得 %s；元信息 FAIL %s" % (got_nometa, nometa_fail),
                 why="01 §3.5 要求重要文档头部带 status 与 updated_at；契约 §3 静默失效探测",
             ))
-            results.append(finding(
-                NAME, PASS if (FAIL not in got_und and star_und) else FAIL,
+            results.append(probe(NAME, (FAIL not in got_und and star_und),
                 "探测：★ 工件未声明落点且候选未命中，应判未定、不得判 FAIL",
                 evidence="实得 %s；★ 未定 %d 条" % (got_und, len(star_und)),
                 why="契约 §1/§7：判据靠猜测（这里是模板快照的候选路径）得出的结论"
                     "只能是 PASS 或 UNDETERMINED",
             ))
-            results.append(finding(
-                NAME, PASS if (got_ok and set(got_ok) == {PASS}) else FAIL,
+            results.append(probe(NAME, (got_ok and set(got_ok) == {PASS}),
                 "正例：L0 五件齐且元信息齐应全判 PASS",
                 evidence="实得 %s" % got_ok,
                 why="契约 §3 静默失效探测",
@@ -497,8 +487,7 @@ def selftest():
             res = run({"_root": tmp, "tier": "L0", "layout": {"entry": ["AGENTS.md"]}})
             got = sorted(f["id"] for f in res if f["status"] != UNDETERMINED or "outside" in f["id"])
             want = ["layout/outside-root/AGENTS.md", "layout/outside-root/WORK.md"]
-        results.append(finding(
-            NAME, PASS if got == want else FAIL,
+        results.append(probe(NAME, got == want,
             "C16：入口与状态工件链到项目之外记未定，不判在、不判缺",
             evidence="实得 %s；应得 %s" % (got, want),
             why="契约 §5：只读被扫项目之内的文件；§1 同一事实只报一次",
@@ -511,8 +500,7 @@ def selftest():
                 res = run({"_root": tmp, "tier": tier, "layout": {"work_root": "nope", "artifacts": art}})
                 got.append([(f["status"], f["id"]) for f in res if "nope" in (f.get("where") or "")])
         want = [[(FAIL, "layout/work-root-absent/nope")]] * 4
-        results.append(finding(
-            NAME, PASS if got == want else FAIL,
+        results.append(probe(NAME, got == want,
             "C09：声明的工作项目录不在，任何档都由 layout 报且只报一条 FAIL",
             evidence="实得 %s" % (got,), why="契约 §1.1 声明后仍不成立判 FAIL；§1 同一事实只报一次",
         ))
@@ -524,8 +512,7 @@ def selftest():
             art = {r: "w" for r in ("status", "acceptance", "handoff", "work_current")}
             got = [f["id"] for f in run({"_root": tmp, "tier": "L1", "layout": {"entry": ["AGENTS.md"], "artifacts": art}})
                    if f["status"] == SKIP]
-        results.append(finding(
-            NAME, PASS if len(got) == 1 else FAIL,
+        results.append(probe(NAME, len(got) == 1,
             "R2-6：同一目录兼作几类工件时「是目录，不逐份判元信息」只出一条",
             evidence="实得 %s" % (got,), why="契约 §1 同一事实只报一次",
         ))
@@ -542,8 +529,7 @@ def selftest():
                    ("状态：\n\n## 历史\n- 09-01 状态：done\n", "状态"), ("状态：　done", "状态")]
         got = [find_field(t, [n])[0] for t, n in samples]
         want = ["done", "done", "done", "done", None, "done", "2026-09-10", "done", None, "done"]
-        results.append(finding(
-            NAME, PASS if got == want and took < 2 else FAIL,
+        results.append(probe(NAME, got == want and took < 2,
             "find_field：满行 * 线性；常见写法照认；首个同名字段为空即缺；全角空格照跳",
             evidence="实得 %s，耗时 %.2fs" % (got, took), why="一份文件不许拖死整次检查；契约 §5 空值与不写同义",
         ))
@@ -553,8 +539,7 @@ def selftest():
             os.makedirs(os.path.join(tmp, "tools"))
             io.open(os.path.join(tmp, "tools", "check_x.py"), "w", encoding="utf-8").close()
             got = [f["status"] for f in run({"_root": tmp, "tier": "L2"}) if "（checkers）" in f["title"]]
-        results.append(finding(
-            NAME, PASS if got == [PASS] else FAIL,
+        results.append(probe(NAME, got == [PASS],
             "C14：扫描根带 [ ] 时 glob 候选按字面拼根，tools/check_x.py 判在",
             evidence="实得 %s" % got, why="01 §3.1：L2 的项目侧检查器；候选命中就是看见的事实",
         ))

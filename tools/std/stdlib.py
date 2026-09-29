@@ -200,6 +200,27 @@ def undetermined_from_exception(check, exc, what):
     )
 
 
+def run_guarded(check, fn, cfg):
+    """检查器 run() 的公共外壳：项目已裁剪记一条 SKIP；fn(cfg) 的内部异常一律转未定（契约 §1、§4）。"""
+    tailored, reason = is_tailored_out(cfg, check)
+    if tailored:
+        return [finding(check, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
+    try:
+        return fn(cfg)
+    except Exception as exc:  # noqa: BLE001 —— 内部异常一律未定，绝不吞掉记 PASS
+        return [undetermined_from_exception(check, exc, "跑 %s" % check)]
+
+
+def probe(check, ok, title, **kw):
+    """自检的一条断言：ok 为真记 PASS，否则 FAIL（契约 §3）。"""
+    return finding(check, PASS if ok else FAIL, title, **kw)
+
+
+def probe_crashed(check, what, exc):
+    """自检的一条断言自己跑崩了：记 FAIL，不按通过记。"""
+    return finding(check, FAIL, "%s自身出错" % what, evidence="%s: %s" % (type(exc).__name__, exc))
+
+
 # --------------------------------------------------------------------------
 # 日期
 # --------------------------------------------------------------------------
@@ -556,8 +577,10 @@ def _bad_shape(cfg, text):
     for lst, subs in (("repos", (("name", "str"), ("path", "str"), ("role", "str"), ("former_names", "strs"))),
                       ("derived", (("artifact", "str"), ("source", "str"), ("regen", "str"))),
                       ("tailoring", (("check", "str"), ("reason", "str")))):
+        rows = cfg_get(cfg, lst)     # 写成非列表（如 `tailoring: 5`）由上面的顶层形状报，这里不迭代
         items += [("%s[%d].%s" % (lst, i, k), r.get(k), shape)
-                  for i, r in enumerate(cfg_get(cfg, lst) or []) if isinstance(r, dict) for k, shape in subs]
+                  for i, r in enumerate(rows if isinstance(rows, list) else []) if isinstance(r, dict)
+                  for k, shape in subs]
     arts = cfg_get(cfg, "layout.artifacts")
     items += [("layout.artifacts." + str(k), v, "str|strs" if k == "entry" else "str")
               for k, v in (arts.items() if isinstance(arts, dict) else ())]
@@ -1276,7 +1299,7 @@ def agg(check, status, title, paths, reason, why="", *, kind):
                    reason=reason, why=why, evidence="；".join(paths[:LIST_CAP]) + more)
 
 
-# 自检样本：写文件、让 git 跟踪（evidence / freshness / drift 的自检共用）
+# 自检夹具：写文件、建 git 仓（各检查器与 check_all 的自检共用）
 
 def write_text(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -1284,12 +1307,44 @@ def write_text(path, text):
         fh.write(text)
 
 
-def git_track(tmp):
-    """自检样本要被 git 跟踪才进得了扫描范围。返回 None 或错误串。"""
-    for cmd in (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
-                ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]):
+def write_files(root, files):
+    """按 {相对路径: 内容} 在 root 下摆自检样本。"""
+    for rel, body in files.items():
+        write_text(os.path.join(root, rel), body)
+
+
+# 夹具不受全局配置左右：固定身份、不签名、不跑全局钩子、不转换换行
+GIT_FIXTURE_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
+                  "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+                  "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
+
+
+def git_fixture(repo, *args, env=None):
+    """在本工具自建的夹具仓里跑一条 git；退出码非 0 即抛。
+
+    只用于自检夹具，不得用于被扫仓：它不走 filter_env，被扫仓的 git 调用一律经 filter_env。
+    """
+    cmd = ["git", "-C", repo, "-c", "init.defaultBranch=main"] + GIT_FIXTURE_ID + list(args)
+    r = subprocess.run(cmd, capture_output=True, timeout=60, env=env)
+    if r.returncode != 0:
+        raise RuntimeError("git %s 退出码 %d：%s" % (
+            " ".join(args), r.returncode, (r.stderr or b"").decode("utf-8", "replace")[:200]))
+
+
+def git_track(tmp, when=None):
+    """自检样本要被 git 跟踪才进得了扫描范围；给了 when 再以该时间真提交一次。返回 None 或错误串。
+
+    只用于本工具自建的夹具仓，不得用于被扫仓（不走 filter_env）。
+    """
+    cmds = [["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
+            ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"]]
+    env = None
+    if when:
+        cmds.append(["git", "-C", tmp] + GIT_FIXTURE_ID + ["commit", "-q", "-m", "s"])
+        env = dict(os.environ, GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when)
+    for cmd in cmds:
         try:
-            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
+            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
         except (OSError, subprocess.SubprocessError) as exc:
             return "%s 跑不了：%s" % (cmd[0], exc)
         if out.returncode != 0:

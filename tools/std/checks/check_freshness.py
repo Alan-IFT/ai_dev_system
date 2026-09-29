@@ -25,8 +25,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
-    is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_class, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
+    item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
+    read_text, state_class, unreadable, once, work_root, work_root_absent, write_text,
+    run_guarded, probe,
 )
 
 NAME = "freshness"
@@ -270,17 +271,10 @@ def scope(cfg):
 
 
 def run(cfg):
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001 —— 契约 §1：内部异常一律未定，绝不吞掉记 PASS
-        return [undetermined_from_exception(NAME, exc, "跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-
     root = cfg.get("_root") or "."
     today = datetime.date.today()
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
@@ -633,8 +627,7 @@ def selftest():
         )
         got = [f["status"] for f in run(cfg)] if not err else []
         ok = (not err) and got and set(got) == {FAIL} and len(got) == 2
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例：无日期文档 + 停滞 100 天的进行中工作项，应各判一条 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：抓不出违规的检查器，其结论作废",
@@ -649,8 +642,7 @@ def selftest():
         )
         got = [f["status"] for f in run(cfg)] if not err else []
         ok = (not err) and got and set(got) == {PASS} and len(got) == 2
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "正例：昨天更新的文档 + 昨天刚转换的进行中工作项，应各判一条 PASS",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：把正常样本判成违规的检查器同样不可用",
@@ -669,8 +661,7 @@ def selftest():
         ev = (aggs[0].get("evidence") or "") if aggs else ""
         ok = ((not err) and not skips and len(aggs) == 1
               and "docs/ops/pitr-runbook.md" in ev and "docs/运维/数据恢复手册.md" in ev)
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例三：路径不匹配目录名约定（含中文名）的无日期文档，"
             "未配 metadata_required 时须记聚合未定，不得逐份记不适用",
             evidence="实得 %s；逐份 SKIP %d 条，聚合未定 %d 条，证据 %r%s"
@@ -689,8 +680,7 @@ def selftest():
         skips = [f for f in res if f["status"] == SKIP and "数据恢复手册" in (f["title"] or "")]
         aggs = [f for f in res if f["status"] == UNDETERMINED and "判不了它们" in (f["title"] or "")]
         ok = (not err) and len(fails) == 1 and len(skips) == 1 and not aggs
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例四：配了 metadata_required: [docs/ops] 后，命中的判 FAIL、未命中的判不适用，"
             "不再有未分类（钉死『替换而非追加』的语义）",
             evidence="实得 %s；命中 FAIL %d 条，未命中 SKIP %d 条，残留聚合未定 %d 条%s"
@@ -712,8 +702,7 @@ def selftest():
         ok = ((not err) and len(skips) == 1 and not aggs
               and FAIL not in [f["status"] for f in res]
               and "docs/ops/pitr-runbook.md" in ev and "docs/运维/数据恢复手册.md" in ev)
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例四之二：metadata_required: [] 时无日期文档整轮记一条不适用，"
             "不留聚合未定（键缺失才记未定，见反例三）",
             evidence="实得 %s；声明型 SKIP %d 条，残留聚合未定 %d 条%s"
@@ -744,8 +733,7 @@ def selftest():
         conv = [f for f in res if f["id"] == NAME + "/undated-by-convention"]
         ok = (not err) and len(conv) == 1 and conv[0]["status"] == UNDETERMINED \
             and FAIL not in [f["status"] for f in res]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例六：未配 metadata_required 时目录名约定命中的无日期文档只记未定，不判 FAIL",
             evidence="实得 %s%s" % ([(f["status"], f["id"]) for f in res], ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §1.1：目录名是工具约定，约定命中或落空都不产出 FAIL",
@@ -770,8 +758,7 @@ def selftest():
             got[tag] = [f["status"] for f in run(cfg) if (f.get("where") or "") == "work/WI-0001-x.md"] \
                 if not err else err
     want = {"note": [FAIL], "elsewhere": [FAIL], "empty": [UNDETERMINED]}
-    results.append(finding(
-        NAME, PASS if got == want else FAIL,
+    results.append(probe(NAME, got == want,
         "C10：取最后一条转换记录；备注日期与别处的 from 行不洗白停滞工作项，空记录记未定",
         evidence="实得 %s；应得 %s" % (got, want), why="01 §4.1：活性看最后一次状态转换；01 §2 N1 判不了不猜",
     ))
@@ -782,8 +769,7 @@ def selftest():
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             cfg, err = _sample(tmp, "updated_at: %s\n" % (today + datetime.timedelta(days=n)).isoformat(), work_fresh)
             got[n] = [f["status"] for f in run(cfg) if (f.get("where") or "").startswith("docs/")] if not err else err
-    results.append(finding(
-        NAME, PASS if got == {1: [PASS], 2: [UNDETERMINED]} else FAIL,
+    results.append(probe(NAME, got == {1: [PASS], 2: [UNDETERMINED]},
         "C18：日期晚基准日一天按当天算，晚两天记未定",
         evidence="实得 %s" % (got,), why="基准日是运行环境本地日期，作者可能在更早的时区写当天日期",
     ))
@@ -797,8 +783,7 @@ def selftest():
                                "|---|---|\n| planned → in_progress | %s |\n" % old + tail)
             got.append([f["status"] for f in run(cfg) if (f.get("where") or "") == "work/WI-0001-x.md"]
                        if not err else err)
-    results.append(finding(
-        NAME, PASS if got == [[FAIL], [FAIL]] else FAIL,
+    results.append(probe(NAME, got == [[FAIL], [FAIL]],
         "R2-3：只认第一段连续的记录行，其后的备注列表与第二张表不算转换记录",
         evidence="实得 %s" % (got,), why="01 §4.1：活性看最后一次状态转换",
     ))
@@ -809,8 +794,7 @@ def selftest():
         cfg, err = _sample(tmp, "# 无日期\n\n日期：2026-09-01\n", work_fresh)
         cfg.pop("metadata_fields", None)
         got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS] if not err else err
-    results.append(finding(
-        NAME, PASS if got == [(UNDETERMINED, NAME + "/undated-fields-default")] else FAIL,
+    results.append(probe(NAME, got == [(UNDETERMINED, NAME + "/undated-fields-default")],
         "C11：未声明 metadata_fields 时 metadata_required 命中的无日期文档只记未定",
         evidence="非通过项 %s" % (got,), why="契约 §1.1 与 §5 metadata_fields：声明后仍缺才判 FAIL",
     ))
@@ -840,8 +824,7 @@ def selftest():
             for tag, d in (("full", src), ("shallow", dst)):
                 got[tag] = [f["status"] for f in run(_cfg(d)) if (f.get("where") or "") == "work/WI-0001-x.md"]
         ok = (not err) and got.get("full") == [FAIL] and got.get("shallow") == [UNDETERMINED]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例七：退到提交时间的超龄工作项，完整仓判 FAIL、浅克隆记未定",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §2 N1：浅克隆的提交时间是克隆时刻，据它判活性会把 FAIL 翻成 PASS",
@@ -868,8 +851,7 @@ def selftest():
                 break
         got = [f["status"] for f in run(_cfg(tmp)) if (f.get("where") or "") == "work/WI-0001-[a].md"] \
             if not err else err
-    results.append(finding(
-        NAME, PASS if got == [FAIL] else FAIL,
+    results.append(probe(NAME, got == [FAIL],
         "反例七之二：文件名带 [ ] 的超龄工作项按字面取提交时间，仍判 FAIL",
         evidence="实得 %s" % (got,),
         why="01 §4.1：活性看的是这一份工作项自己的提交，不是被通配到的别的文件",
@@ -889,8 +871,7 @@ def selftest():
         finally:
             globals()["read_text"], globals()["shallow_problem"] = real_read, real_probe
     ok = (not err) and len(reads) == 2 and len(set(reads)) == 2 and len(probes) == 1
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "C22：工作项目录在文档根下时每份只读一遍，浅克隆只探测一次",
         evidence="读 %d 次（%d 份），探测 %d 次%s" % (len(reads), len(set(reads)), len(probes),
                                              ("；git 准备失败：%s" % err) if err else ""),
@@ -911,8 +892,7 @@ def selftest():
             return sorted(f["id"] for f in run(cfg) if f["status"] in (FAIL, UNDETERMINED)) if not err else err
     ids_a, ids_b = _ids_of(100, 2), _ids_of(300, 3)
     ok = ids_a == ids_b == sorted([NAME + "/undated-unclassified", NAME + "/work-item-stale/work/WI-0001-x.md"])
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "反例五之二：超龄天数与聚合份数变了，FAIL 与未定的 id 都不变",
         evidence="100 天 2 份：%s；300 天 3 份：%s" % (ids_a, ids_b),
         why="契约 §4/§9：id 随天数或份数漂，登记行就成孤儿",
@@ -931,8 +911,7 @@ def selftest():
     ok = (not err) and [(st, i) for st, i, _e in got] == [(UNDETERMINED, NAME + "/no-status"),
                                                            (SKIP, NAME + "/not-work-item")] \
         and got[0][2] == "work/WI-0002-y.md" and got[1][2] == "work/current.md；work/handoff.md"
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "工作项按 WI-* 命名认：current.md/handoff.md 不报 no-status、子目录不数，无状态的 WI-* 记未定",
         evidence="非通过项 %s" % (got,),
         why="01 §3.2 state/work/WI-*；样板 L1（templates/文件树与落地路径.md §3）不许恒退 2",
@@ -942,8 +921,7 @@ def selftest():
     b, err_b = _stale_one(300)
     ok = (a is not None and b is not None and a["id"] == b["id"] and a["title"] != b["title"]
           and a["id"] == "%s/stale/%s" % (NAME, (a.get("where") or "")[:-2]))
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "反例五：同一份文档放得更久，标题里的天数变而 id 不变（id = freshness/stale/<路径>）",
         evidence="100 天：id=%s title=%r；300 天：id=%s title=%r%s"
                  % (a["id"] if a else "（无）", a["title"] if a else "（无）",

@@ -20,7 +20,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
     agg, clean, finding, git_track, in_frozen, is_tailored_out, item_status, state_class,
-    read_text, state_list, undetermined_from_exception, unreadable, work_root, work_root_absent, write_text,
+    read_text, state_list, unreadable, work_root, work_root_absent, write_text,
+    run_guarded, probe,
 )
 
 NAME = "evidence"
@@ -318,17 +319,10 @@ def scope(cfg):
 
 
 def run(cfg):
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001 —— 契约 §1：内部异常一律未定
-        return [undetermined_from_exception(NAME, exc, "跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-
     root = cfg.get("_root") or "."
     wroot, wnote = work_root(cfg)
 
@@ -513,8 +507,7 @@ def selftest():
         cfg, err = _sample(tmp, _FIVE)
         got = [f["status"] for f in run(cfg)] if not err else []
         ok = (not err) and got == [FAIL]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例：已完成工作项缺⑥确认方法，应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：抓不出违规的检查器，其结论作废",
@@ -523,8 +516,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         cfg, err = _sample(tmp, _FIVE + "6. 方法：待补\n")
         got = [f["status"] for f in run(cfg)] if not err else []
-        results.append(finding(
-            NAME, PASS if (not err) and got == [FAIL] else FAIL,
+        results.append(probe(NAME, (not err) and got == [FAIL],
             "反例：已完成工作项⑥确认方法写的是占位，应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §4.2：占位不是值",
@@ -534,8 +526,7 @@ def selftest():
         cfg, err = _sample(tmp, _SIX)
         got = [f["status"] for f in run(cfg)] if not err else []
         ok = (not err) and got == [PASS]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "正例：六字段齐全且限制非空，应判 PASS",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §3 静默失效探测：把合规样本判成违规的检查器同样不可用",
@@ -548,8 +539,7 @@ def selftest():
         cfg, err = _sample(tmp, _FIVE, frozen=["work"])
         got = [f["status"] for f in run(cfg)] if not err else []
         ok = (not err) and got == [FAIL]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "反例：落在 layout.frozen 里的已完成工作项，缺⑥仍应判 FAIL",
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §3.1 的 frozen 是「不承担更新义务」，01 §1 G4 判的是「完成声明成不成立」；"
@@ -572,8 +562,7 @@ def selftest():
                 os.chmod(p, 0o644)
     want = ["evidence/unreadable/work/WI-0001-x.md", "evidence/unreadable/work/WI-0003-z.md"]
     can_lock = hasattr(os, "geteuid") and os.geteuid() != 0      # root 读得了 000 文件，这条无从构造
-    results.append(finding(
-        NAME, PASS if (not can_lock or ids == want) else FAIL,
+    results.append(probe(NAME, (not can_lock or ids == want),
         "反例：两份工作项读不了，各出一条 unreadable/<路径>，不出 internal-error",
         evidence="实得 %s%s" % (ids, "" if can_lock else "（root 运行，未构造）"),
         why="契约 §9：读不了的文件是对象的事，可登记；检查器自身出错才不可登记",
@@ -588,8 +577,7 @@ def selftest():
         cfg, err = _sample(tmp, _SIX)
         got = sorted((f["status"], f.get("where") or "") for f in run(cfg)) if not err else err
     ok = (not err) and [st for st, _w in got] == [PASS] and got[0][1].startswith("work/WI-0001-x.md")
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "只看直接一层、读不到状态的静默跳过：子目录里的完成态留证不查，current.md 与无状态 WI 不报",
         evidence="实得 %s" % (got,),
         why="D-123 裁定 3 与审查 B5：子目录是留证与产物；同一文件的 no-status 只由 freshness 报一次",
@@ -599,8 +587,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         cfg, err = _sample(tmp, _FIVE + "6. 核验手段：人工抽查 10 行\n")
         got = [(f["status"], f["id"]) for f in run(cfg)] if not err else err
-    results.append(finding(
-        NAME, PASS if got == [(UNDETERMINED, NAME + "/fields-unrecognized/work/WI-0001-x.md｜E-01")] else FAIL,
+    results.append(probe(NAME, got == [(UNDETERMINED, NAME + "/fields-unrecognized/work/WI-0001-x.md｜E-01")],
         "C07：自造字段名认不出只记未定（fields-unrecognized），不判 FAIL",
         evidence="实得 %s" % (got,), why="契约 §1.1：字段名词表落空推不出没写",
     ))
@@ -609,8 +596,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         cfg, err = _sample(tmp, _SIX.replace("6. 方法：", "```bash\n# 跑测试\npytest -v  # 时间: 3s\n```\n6. 方法："))
         got = [f["status"] for f in run(cfg)] if not err else err
-    results.append(finding(
-        NAME, PASS if got == [PASS] else FAIL,
+    results.append(probe(NAME, got == [PASS],
         "C06：证据条目里代码块的 # 注释不当标题，六字段齐全判 PASS",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；围栏代码块是正文，不是结构",
     ))
@@ -620,8 +606,7 @@ def selftest():
         cfg, err = _sample(tmp, _FIVE.replace("**E-01**（INV-014，staging）", "### E-01") +
                                  "\n## 附注\n\n**E-02**\n1. 断言：不属于证据段\n")
         got = [(f["status"], f["title"]) for f in run(cfg)] if not err else err
-    results.append(finding(
-        NAME, PASS if got == [(FAIL, "work/WI-0001-x.md 的证据 E-01 证据六字段不全")] else FAIL,
+    results.append(probe(NAME, got == [(FAIL, "work/WI-0001-x.md 的证据 E-01 证据六字段不全")],
         "C13：### 小标题起头的证据条目按条目判，同级标题结束证据段",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；markdown 小标题的层级决定它属于哪一段",
     ))
@@ -631,8 +616,7 @@ def selftest():
         cfg, err = _sample(tmp, "| 断言 | 原始证据 | 版本 | 范围 | 时间 | 方法 |\n|---|---|---|---|---|---|\n"
                                 "| 导入一致 | 输出: ok | c | d | e | f |\n\n输出: 见 artifacts/e01.txt\n")
         got = [f["status"] for f in run(cfg)] if not err else err
-    results.append(finding(
-        NAME, PASS if got == [PASS] else FAIL,
+    results.append(probe(NAME, got == [PASS],
         "C08：字段表写法里格子与表外的「输出: …」不凭空生出「（整段）」证据",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；一条证据只判一次",
     ))
@@ -644,8 +628,7 @@ def selftest():
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             cfg, err = _sample(tmp, body)
             got.append([f["status"] for f in run(cfg)] if not err else err)
-    results.append(finding(
-        NAME, PASS if got == [[PASS], [PASS]] else FAIL,
+    results.append(probe(NAME, got == [[PASS], [PASS]],
         "R2-2：证据段里没有字段行的小标题不当成一条空证据",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段只对证据条目判；说明性小标题不是条目",
     ))
@@ -658,8 +641,7 @@ def selftest():
         err = git_track(tmp)
         got = [(f["status"], f["id"]) for f in run({"_root": tmp, "layout": {"work_root": "ext"}})] \
             if not err else err
-    results.append(finding(
-        NAME, PASS if got == [(SKIP, NAME + "/work-root-absent")] else FAIL,
+    results.append(probe(NAME, got == [(SKIP, NAME + "/work-root-absent")],
         "R2-5：工作项目录链到项目之外只记 SKIP 指向 layout",
         evidence="实得 %s" % (got,), why="契约 §1 同一事实只报一次；§5 只读项目之内",
     ))
@@ -668,8 +650,7 @@ def selftest():
     t0 = time.time()
     seps = (_is_sep("|" * 40000 + "x"), _is_sep(" " * 40000), _is_sep("|---|:-:|"), _is_sep("| a | b |"))
     took = time.time() - t0
-    results.append(finding(
-        NAME, PASS if seps == (False, False, True, False) and took < 1 else FAIL,
+    results.append(probe(NAME, seps == (False, False, True, False) and took < 1,
         "R2-11：表格分隔行判定线性、结果不变",
         evidence="实得 %s，耗时 %.2fs" % (seps, took), why="一份文件不许拖死整次检查",
     ))
@@ -678,8 +659,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         cfg, err = _sample(tmp, _SIX.replace("6. 方法：", "````md\n```\n# 标题样例\n```\n````\n6. 方法："))
         got = [f["status"] for f in run(cfg)] if not err else err
-    results.append(finding(
-        NAME, PASS if got == [PASS] else FAIL,
+    results.append(probe(NAME, got == [PASS],
         "R2-12：长围栏只被同字符、不短于开栏的行闭合",
         evidence="实得 %s" % (got,), why="围栏代码块是正文，不是结构",
     ))
@@ -692,8 +672,7 @@ def selftest():
                                           "|---|---|---|---|---|---|---|\n|  | 导入一致 | TBD | c | d | e | f |\n")
             ids.append([f["id"] for f in run(cfg)] if not err else err)
     ok = ids[0] == ids[1] and len(ids[0]) == 1 and ids[0][0].startswith(NAME + "/incomplete/work/WI-0001-x.md｜")
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "C19：字段表条目的 id 取条目名与文件，不随行号漂",
         evidence="两次实得 %s" % (ids,), why="契约 §4/§9：id 是登记与复核的地址",
     ))
@@ -705,8 +684,7 @@ def selftest():
             cfg, err = _sample(tmp, _SIX, heading=heading)
             got[tag] = [f["status"] for f in run(cfg)] if not err else err
     ok = got == {"en": [PASS], "none": [UNDETERMINED]}
-    results.append(finding(
-        NAME, PASS if ok else FAIL,
+    results.append(probe(NAME, ok,
         "约定：## Evidence 下六字段齐全判 PASS；认不出证据段只记未定，不判 FAIL",
         evidence="实得 %s" % got,
         why="契约 §1.1：标记词落空推不出没有证据",
@@ -729,8 +707,7 @@ def selftest():
             cfg, err = _sample(tmp, body)
             ids = [f["id"].split("/")[1] for f in run(cfg) if f["status"] != SKIP] if not err else [err]
         got.append((ids, want))
-    results.append(finding(
-        NAME, PASS if all(ids == [want] for ids, want in got) else FAIL,
+    results.append(probe(NAME, all(ids == [want] for ids, want in got),
         "R2-1：说明词、URL、时刻不算认不出的标签，一行认不出最多顶一个缺项",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；契约 §1.1 只有确实认不出的字段才记未定"))
     return results

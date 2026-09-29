@@ -54,6 +54,7 @@ from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, TOOL_ROOT, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
     EXCEPTION_MAX_DAYS, INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
+    probe, write_text, write_files, git_track,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -369,7 +370,6 @@ def _entry_smoke_selftest():
     断言不抛异常、返回形状对、三态计数拿得到。
     """
     import contextlib
-    import subprocess
     import tempfile
 
     out = []
@@ -377,15 +377,11 @@ def _entry_smoke_selftest():
         with tempfile.TemporaryDirectory() as tmp:
             proj = os.path.join(tmp, "proj")
             os.makedirs(proj)
-            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8", newline="\n") as fh:
-                fh.write(_SMOKE_ENTRY)
+            write_text(os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY)
             cfg_path = os.path.join(tmp, "outside", "project.yaml")
             os.makedirs(os.path.dirname(cfg_path))
-            with io.open(cfg_path, "w", encoding="utf-8", newline="\n") as fh:
-                fh.write(_SMOKE_CONFIG)
-            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
-                            "add", "-A"], capture_output=True, timeout=60)
+            write_text(cfg_path, _SMOKE_CONFIG)
+            git_track(proj)
 
             # 1) run_all 的返回形状：必须是 (findings, cfg)，不是列表
             ret = run_all(proj, selftest_only=False, config_path=cfg_path)
@@ -419,8 +415,7 @@ def _entry_smoke_selftest():
 
             # 3c) 缺陷四：--config 指向**项目内部**时，不许标"外部配置"
             inside_cfg = os.path.join(proj, "inside-project.yaml")
-            with io.open(inside_cfg, "w", encoding="utf-8") as fh:
-                fh.write(_SMOKE_CONFIG)
+            write_text(inside_cfg, _SMOKE_CONFIG)
             f2, c2 = run_all(proj, selftest_only=False, config_path=inside_cfg)
             t2 = render(f2, proj, c2, show_scope=False)
             if u"外部配置" in t2:
@@ -441,8 +436,7 @@ def _entry_smoke_selftest():
             #     结论（配置从哪读的）对，陈述（它在不在项目内）错。
             dflt_cfg = os.path.join(proj, "governance", "project.yaml")
             os.makedirs(os.path.dirname(dflt_cfg), exist_ok=True)
-            with io.open(dflt_cfg, "w", encoding="utf-8", newline="\n") as fh:
-                fh.write(_SMOKE_CONFIG)
+            write_text(dflt_cfg, _SMOKE_CONFIG)
             cwd_before = os.getcwd()
             if cwd_before == proj:
                 os.chdir(tmp)      # 自检正常在仓根跑；万一就在被扫根里跑，换个目录才验得出
@@ -621,11 +615,8 @@ def _entry_smoke_selftest():
             os.makedirs(os.path.join(emb, "docs"))
             for f_path in (os.path.join(std_dir, "docs", "bad.md"),
                            os.path.join(emb, "docs", "good.md")):
-                with io.open(f_path, "w", encoding="utf-8", newline="\n") as fh:
-                    fh.write(u"# 样本\n")
-            subprocess.run(["git", "init", "-q", emb], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", emb, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
-                            "add", "-A"], capture_output=True, timeout=60)
+                write_text(f_path, u"# 样本\n")
+            git_track(emb)
             for r, tr, want in ((emb, std_dir, ".std"), (emb, emb, None), (emb, tmp, None)):
                 got = embedded_std_rel(r, tr)
                 if got != want:
@@ -686,7 +677,6 @@ def _shared_fact_selftest(mods):
     未配 layout.docs_root 时 layout 兜底取 docs，freshness 与 drift 却记未定；
     未配 layout.entry 时 layout 按候选找到入口，entry-budget 却记「未配置入口文件」。
     """
-    import subprocess
     import tempfile
 
     by = dict((n, m) for n, m, err in mods if err is None)
@@ -697,14 +687,8 @@ def _shared_fact_selftest(mods):
                                                    "/".join(sorted(by))))]
 
     def _repo(tmp, files):
-        for rel, body in files.items():
-            path = os.path.join(tmp, rel)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-                fh.write(body)
-        subprocess.run(["git", "init", "-q", tmp], capture_output=True, timeout=60)
-        subprocess.run(["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
-                        "add", "-A"], capture_output=True, timeout=60)
+        write_files(tmp, files)
+        git_track(tmp)
 
     out = []
     try:
@@ -727,8 +711,7 @@ def _shared_fact_selftest(mods):
                       and wr in (told[0]["where"] or "") + (told[0]["evidence"] or "")
                       and skips == ["evidence/work-root-absent", "freshness/work-root-absent"])
                 got_a.append((wr, ok, [(f["id"], f["title"]) for f in told], skips))
-        out.append(finding(
-            "shared-fact", PASS if all(g[1] for g in got_a) else FAIL,
+        out.append(probe("shared-fact", all(g[1] for g in got_a),
             "工作项目录不在：未定只由 layout 报一次，evidence/freshness 记不适用并指向它",
             why="契约 §1：同一事实只由一个检查器报；报两次采用方就得登记两行",
             evidence="实得 %r" % (got_a,)))
@@ -747,8 +730,7 @@ def _shared_fact_selftest(mods):
                           for f in by["drift"].run(cfg))
                 got_b.append((rel, lay, dri))
         want = [(r, r in STATUS_CANDIDATES, r in STATUS_CANDIDATES) for r, _l, _d in got_b]
-        out.append(finding(
-            "shared-fact", PASS if got_b == want else FAIL,
+        out.append(probe("shared-fact", got_b == want,
             "状态工件候选：layout 与 drift 认同一份（stdlib.STATUS_CANDIDATES）",
             why="01 §1 G2：同一事实一处权威；两份候选让同一个项目被说成既有又没有状态工件",
             evidence="实得 (路径, layout 命中, drift 命中) %r；应得 %r" % (got_b, want)))
@@ -764,8 +746,7 @@ def _shared_fact_selftest(mods):
             judged = [f["id"] for f in fs if f["id"] == "freshness/undated-by-convention"
                       and u"docs/architecture/a.md" in (f["evidence"] or "")
                       and u"未配 layout.docs_root" in (f["evidence"] or "")]
-        out.append(finding(
-            "shared-fact", PASS if not unset and len(judged) == 1 else FAIL,
+        out.append(probe("shared-fact", not unset and len(judged) == 1,
             "未配 layout.docs_root：各检查器取同一个缺省 docs 并注明，不再一家兜底一家记未定",
             why="契约 §5：缺省只有一处（stdlib.docs_root_of），取了默认就在证据里写明",
             evidence="记未配置的 %r；freshness 按缺省判出的 %r" % (unset, judged)))
@@ -802,8 +783,7 @@ def _shared_fact_selftest(mods):
             "absent": sorted([("entry-budget/entry-absent", SKIP),
                               (finding_id("layout", u"★ 入口 类工件没找到（entry）"), UNDETERMINED)]),
         }
-        out.append(finding(
-            "shared-fact", PASS if got_d == want_d else FAIL,
+        out.append(probe("shared-fact", got_d == want_d,
             "未配 layout.entry：layout 与 entry-budget 认同一个入口，候选超预算记未定，入口缺失只报一次",
             why="01 §1 G2：同一配置一种读法（stdlib.entry_files）；契约 §1.1 候选只出通过或未定；"
                 "契约 §1 同一事实只报一次",
@@ -857,8 +837,7 @@ def _shared_fact_selftest(mods):
                        "evidence/unknown-state-by-freshness": (SKIP, [1]),
                        "evidence/unknown-state": (UNDETERMINED, [0])},
         }
-        out.append(finding(
-            "shared-fact", PASS if got_e == want_e else FAIL,
+        out.append(probe("shared-fact", got_e == want_e,
             "工作项状态一份映射：别名与声明词按所属态判，认不出的记未定且只报一次",
             why="01 §1 G2：进行中/完成的认法一处权威；契约 §1.1：约定落空只记未定，不当'非进行中/非完成'"
                 "静默放过；契约 §1：同一事实只报一次",
@@ -909,7 +888,7 @@ def _embedded_readonly_selftest(mods):
         return [finding("shared-fact", FAIL, title, why=why,
                         evidence="跑不起来：%s: %s" % (type(exc).__name__, exc))]
     hit = [f for f in fs if f["id"] == "adoption/embedded-modified" and f["status"] == FAIL]
-    return [finding("shared-fact", PASS if hit else FAIL, title, why=why,
+    return [probe("shared-fact", hit, title, why=why,
                     evidence="adoption 实得 %s" % [(f["status"], f["id"]) for f in fs])]
 
 
@@ -949,9 +928,7 @@ def _git_env_selftest():
             for path, body in ((os.path.join(victim, "a.md"), u"牺牲仓\n"),
                                (os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY),
                                (cfg_path, _SMOKE_CONFIG)):
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-                with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-                    fh.write(body)
+                write_text(path, body)
             for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "s"]):
                 r = subprocess.run(["git", "-C", victim] + git_id + args,
                                    capture_output=True, timeout=60)
@@ -1004,8 +981,7 @@ def _stdlib_selftest(mods):
             # 安全 2：配置是指向项目之外的符号链接 → 不读、不回显内容
             out_dir, proj = fresh("outside"), fresh("p1")
             secret = os.path.join(out_dir, "secret.txt")
-            with io.open(secret, "w", encoding="utf-8") as fh:
-                fh.write(u"tier: TOPSECRET\n")   # 合法配置：护栏失效时会被当成项目配置读进来
+            write_text(secret, u"tier: TOPSECRET\n")   # 合法配置：护栏失效时会被当成项目配置读进来
             os.makedirs(os.path.join(proj, "governance"))
             os.symlink(secret, os.path.join(proj, "governance", "project.yaml"))
             cfg, prob = sl.load_config(proj)
@@ -1055,8 +1031,7 @@ def _stdlib_selftest(mods):
             inner, outer = os.path.join(proj, "d"), os.path.join(out_dir, "d")
             for d_, body in ((inner, u"inside\n"), (outer, u"TOPSECRET\n")):
                 os.makedirs(d_)
-                with io.open(os.path.join(d_, "a.md"), "w", encoding="utf-8") as fh:
-                    fh.write(body)
+                write_text(os.path.join(d_, "a.md"), body)
             real_open = os.open
 
             def _swap(p_, *a_, **k_):                       # 护栏放行之后、打开之前把中间目录换成出仓链接
@@ -1082,8 +1057,7 @@ def _stdlib_selftest(mods):
             # A4／B1：.claude/settings.json 深嵌套让 json 抛 RecursionError，只作废这一条判据，不让整个 adoption 崩
             proj = fresh("p24")
             os.makedirs(os.path.join(proj, ".claude"))
-            with io.open(os.path.join(proj, ".claude", "settings.json"), "w", encoding="utf-8") as fh:
-                fh.write(u"[" * 200000 + u"]" * 200000)
+            write_text(os.path.join(proj, ".claude", "settings.json"), u"[" * 200000 + u"]" * 200000)
             adoption = dict((n, m) for n, m, _e in mods if m is not None)["adoption"]
             try:
                 got = [f["title"] for f in adoption._settings_allow(proj)]
@@ -1154,15 +1128,12 @@ def _stdlib_selftest(mods):
             os.makedirs(os.path.join(proj, "docs", "decisions"))
             fifos = [os.path.join(proj, "docs", "decisions", "0001-a.md")]
             for fp in fifos:
-                with io.open(fp, "w", encoding="utf-8") as fh:
-                    fh.write(u"x\n")
-            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+                write_text(fp, u"x\n")
+            git_track(proj)
             for fp in fifos:                                 # git 不收 FIFO：先跟踪常规文件，再换成 FIFO
                 os.remove(fp)
                 os.mkfifo(fp)
-            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
-                fh.write(u"x\n")
+            write_text(os.path.join(proj, "CLAUDE.md"), u"x\n")
             os.chmod(os.path.join(proj, "CLAUDE.md"), 0)     # entry-budget 先判 isfile，FIFO 进不来；用无读权限
             cfg_u = {"_root": proj, "tier": "L0", "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs",
                      "artifacts": {"handoff": "CLAUDE.md"}}, "budgets": {"handoff_lines": 60}}
@@ -1176,10 +1147,8 @@ def _stdlib_selftest(mods):
             proj = fresh("p36")
             wi = os.path.join(proj, "docs", "state", "work", "WI-001-x.md")
             os.makedirs(os.path.dirname(wi))
-            with io.open(wi, "w", encoding="utf-8") as fh:
-                fh.write(u"# WI-001\n\n状态：in_progress\n")
-            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            write_text(wi, u"# WI-001\n\n状态：in_progress\n")
+            git_track(proj)
             os.remove(wi)
             os.mkfifo(wi)
             cfg_u = {"_root": proj, "tier": "L1", "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs"}}
@@ -1193,10 +1162,8 @@ def _stdlib_selftest(mods):
             proj = fresh("p34")
             #          R1-S2：文件名里的反斜杠也照原样，archive\x.md 不得被改写成 archive/x.md 冒充 frozen 豁免
             for name in (u"src\narchive.md", u"archive\\x.md"):
-                with io.open(os.path.join(proj, name), "w", encoding="utf-8") as fh:
-                    fh.write(u"见 OldName 仓\n")
-            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+                write_text(os.path.join(proj, name), u"见 OldName 仓\n")
+            git_track(proj)
             got = dict((n, m) for n, m, _e in mods if m is not None)["cross-repo"]._git_grep(proj, ["OldName"])
             got = (sorted(got[0] or []), got[1])
             cases.append(("git grep 命中的路径含换行或反斜杠时照原样取回", got == (sorted([
@@ -1208,10 +1175,8 @@ def _stdlib_selftest(mods):
             for rel, tgt in links.items():
                 os.makedirs(os.path.dirname(os.path.join(proj, rel)) or proj, exist_ok=True)
                 os.symlink(os.path.join(outd, tgt), os.path.join(proj, rel))
-            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
-                fh.write(_SMOKE_ENTRY)
-            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            write_text(os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY)
+            git_track(proj)
 
             def _probe():
                 fs = by_name["adoption"].run({"_root": proj, "compatibility": {"policy": "x"}})
@@ -1222,16 +1187,14 @@ def _stdlib_selftest(mods):
             absent = _probe()
             os.makedirs(os.path.join(outd, "dec"))
             for tgt in ("sv", "set.json", "agents.md", "st.md"):
-                with io.open(os.path.join(outd, tgt), "w", encoding="utf-8") as fh:
-                    fh.write(u"x\n")
+                write_text(os.path.join(outd, tgt), u"x\n")
             present = _probe()
             outs = sorted(i for _s, i in absent[0] if "/outside-root/" in i)
             cases.append(("出仓软链接：目标在不在结论一致，且记 outside-root",
                           absent == present and len(outs) == 4, (outs, [x for x in absent[0] if x not in present[0]])))
             # R1-06：已声明入口撑过读取上限，照数行（下界）判超预算 FAIL，不落未定
             proj = fresh("p32")
-            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
-                fh.write(u"x\n" * (sl.MAX_READ_BYTES // 2 + 10))
+            write_text(os.path.join(proj, "CLAUDE.md"), u"x\n" * (sl.MAX_READ_BYTES // 2 + 10))
             eb = dict((n, m) for n, m, _e in mods if m is not None)["entry-budget"]
             got = [(f["status"], f["title"][:40]) for f in eb.run(
                 {"_root": proj, "tier": "L0", "layout": {"entry": ["CLAUDE.md"]}, "budgets": {"entry_lines": 150}})
@@ -1243,15 +1206,12 @@ def _stdlib_selftest(mods):
             shutil.copytree(HERE, shadow, ignore=shutil.ignore_patterns("__pycache__"))
             mark = os.path.join(base, "SHADOW_")
             for mod_name in ("argparse", "hashlib", "glob", "subprocess", "tempfile"):
-                with io.open(os.path.join(shadow, mod_name + ".py"), "w", encoding="utf-8") as fh:
-                    fh.write(u"open(%r, 'w').close()\n" % (mark + mod_name))
+                write_text(os.path.join(shadow, mod_name + ".py"), u"open(%r, 'w').close()\n" % (mark + mod_name))
             proj = fresh("p27")
-            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
-                fh.write(_SMOKE_ENTRY)
+            write_text(os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY)
             subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
             shadow_cfg = os.path.join(base, "p27.yaml")
-            with io.open(shadow_cfg, "w", encoding="utf-8") as fh:
-                fh.write(_SMOKE_CONFIG)
+            write_text(shadow_cfg, _SMOKE_CONFIG)
             r = subprocess.run([sys.executable, os.path.join(shadow, "check_all.py"), proj, "--config", shadow_cfg,
                                 "--no-scope"], capture_output=True, timeout=300)
             hits = sorted(f for f in os.listdir(base) if f.startswith("SHADOW_"))
@@ -1261,12 +1221,10 @@ def _stdlib_selftest(mods):
             import py_compile
             import importlib.util
             src = os.path.join(fresh("p18"), "m.py")
-            with io.open(src, "w", encoding="utf-8") as fh:
-                fh.write(u"X = 2\n")
+            write_text(src, u"X = 2\n")
             py_compile.compile(src, cfile=importlib.util.cache_from_source(src), doraise=True,
                                invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH)
-            with io.open(src, "w", encoding="utf-8") as fh:
-                fh.write(u"X = 1\n")
+            write_text(src, u"X = 1\n")
             got = (_load_source("m", src).X, getattr(sys.modules["stdlib"], "__spec__", 1),
                    [n for n, m, _e in mods if m is not None and getattr(m, "__spec__", 1) is not None])
             cases.append(("stdlib 与检查器按源码加载，不读 __pycache__ 里的 pyc", got == (1, None, []), got))
@@ -1315,16 +1273,14 @@ def _stdlib_selftest(mods):
                           got == [[UNDETERMINED], [UNDETERMINED]], got))
             # bug 6：非 UTF-8 文件名进了发现时，--json 写到严格 UTF-8 的输出不崩
             proj = fresh("p9")
-            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
-                fh.write(_SMOKE_ENTRY)
+            write_text(os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY)
             with open(os.path.join(os.fsencode(proj), b"\xff\xfe.md"), "wb") as fh:
                 fh.write(b"# x\n\n[a](nope.md)\n")
             subprocess.run(["git", "-C", proj, "-c", "init.defaultBranch=main", "init", "-q"],
                            capture_output=True, timeout=60)
             subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
             cfg_p = os.path.join(base, "p9.yaml")
-            with io.open(cfg_p, "w", encoding="utf-8") as fh:
-                fh.write(_SMOKE_CONFIG)
+            write_text(cfg_p, _SMOKE_CONFIG)
             r = subprocess.run([sys.executable, os.path.join(HERE, "check_all.py"), proj, "--config", cfg_p,
                                 "--json"], capture_output=True, timeout=300,
                                env=dict(os.environ, PYTHONIOENCODING="utf-8:strict"))
@@ -1459,11 +1415,33 @@ def _stdlib_selftest(mods):
                                                     {"check": "layout:playbook", "applicable": False}]}, mods)
             cases.append(("裁剪写成不存在的名字（derived）记未定，写对的不报",
                           [f["id"] for f in unk] == ["tailoring/unknown-check/derived"], [f["id"] for f in unk]))
+            # R124-4：tailoring 写成非列表按配置形状错误整份拒收、报键名与行号，不在形状校验里崩
+            cfg, prob = load(fresh("p40"), u"tier: L0\ntailoring: 5\n")
+            cases.append(("tailoring 写成非列表整份拒收并报键名与行号",
+                          cfg == {} and u"第 2 行 tailoring 须是映射组成的列表" in (prob or ""), prob))
     except Exception as exc:  # noqa: BLE001
         return [undetermined_from_exception("stdlib", exc, "跑 stdlib 自检")]
-    return [finding("stdlib", PASS if ok else FAIL, "stdlib：" + title,
-                    why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
-            for title, ok, ev in cases]
+    # 断言与外壳自身（R124-2）：全部自检都经 probe／probe_crashed 出结论、九个检查器都经 run_guarded
+    # 兜底，改坏一行就整批失效。这三条直接比状态字面值，结论也不经 probe 出
+    def _boom(_cfg):
+        raise ValueError("x")
+    core = []
+    for title, fn in (
+            ("probe 对假值记 FAIL", lambda: sl.probe("x", False, "t")["status"]),
+            ("probe_crashed 记 FAIL", lambda: sl.probe_crashed("x", "t", ValueError())["status"]),
+            ("run_guarded 把内部异常转成恰好一条 internal-error 未定",
+             lambda: [(f["status"], f["id"]) for f in sl.run_guarded("x", _boom, {})])):
+        want = [(UNDETERMINED, "x/internal-error")] if "run_guarded" in title else FAIL
+        try:
+            got = fn()
+        except Exception as exc:  # noqa: BLE001
+            got = "%s: %s" % (type(exc).__name__, exc)
+        core.append(finding("stdlib", PASS if got == want else FAIL, "stdlib：" + title,
+                            why="契约 §3：断言外壳被改坏时，经它出的断言会整批跟着变绿",
+                            evidence="期望 %s，实得 %s" % (want, got)))
+    return core + [probe("stdlib", ok, "stdlib：" + title,
+                         why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
+                   for title, ok, ev in cases]
 
 
 def _hostile_git_config_selftest(mods):
@@ -1491,11 +1469,6 @@ def _hostile_git_config_selftest(mods):
             raise RuntimeError("git %s 退出码 %d：%s" % (args[0], r.returncode, r.stderr[-200:]))
         return r.stdout.decode("utf-8", "replace").strip()
 
-    def put(path, body):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(body)
-
     mods = {n: m for n, m, _e in mods if m is not None}
     notes = []
     try:
@@ -1512,12 +1485,12 @@ def _hostile_git_config_selftest(mods):
                                # 工具位于被扫仓内（内嵌运行）：tool_identity 的 git status 也不得跑过滤器
                                (os.path.join(proj, "tools", "std", "CONTRACT.md"), u"# 契约\n"),
                                (cfg_path, _SMOKE_CONFIG)):
-                put(path, body)
+                write_text(path, body)
             git(proj, "init", "-q")
             git(proj, "add", "-A")
             git(proj, "commit", "-q", "-m", "s")
             # 签名提交：不依赖 gpg，直接写一个带 gpgsig 头的提交对象，再把分支指过去
-            put(wi, u"# WI-001\n\n状态：in_progress\n\n补一句。\n")
+            write_text(wi, u"# WI-001\n\n状态：in_progress\n\n补一句。\n")
             git(proj, "add", "-A")
             raw = (u"tree %s\nparent %s\nauthor a <a@b> 1700000000 +0000\ncommitter a <a@b> 1700000000 +0000\n"
                    u"gpgsig -----BEGIN PGP SIGNATURE-----\n \n abc\n -----END PGP SIGNATURE-----\n\nsigned\n"
@@ -1526,7 +1499,7 @@ def _hostile_git_config_selftest(mods):
             with io.open(os.path.join(proj, ".git", "refs", "heads", "main"), "w") as fh:
                 fh.write(sha + "\n")
             gpg = os.path.join(tmp, "gpg.sh")
-            put(gpg, u"#!/bin/sh\ntouch %sgpg\nexit 1\n" % mark)
+            write_text(gpg, u"#!/bin/sh\ntouch %sgpg\nexit 1\n" % mark)
             os.chmod(gpg, 0o755)
             for k, v in (("core.fsmonitor", "touch %sfsmonitor; false" % mark),
                          ("diff.evil.textconv", "sh -c 'touch %stextconv; cat \"$1\"' -" % mark),
@@ -1549,9 +1522,9 @@ def _hostile_git_config_selftest(mods):
 
             # 子模块：内嵌目录 .std 是子模块，子模块自己配了过滤器
             sub, par = os.path.join(tmp, "sub"), os.path.join(tmp, "par")
-            put(os.path.join(sub, "x.md"), u"x\n")
-            put(os.path.join(sub, ".gitattributes"), u"*.md filter=subf\n")
-            put(os.path.join(par, "a.md"), u"a\n")
+            write_text(os.path.join(sub, "x.md"), u"x\n")
+            write_text(os.path.join(sub, ".gitattributes"), u"*.md filter=subf\n")
+            write_text(os.path.join(par, "a.md"), u"a\n")
             for repo in (sub, par):
                 git(repo, "init", "-q")
                 git(repo, "add", "-A")

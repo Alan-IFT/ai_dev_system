@@ -62,22 +62,13 @@
 
 ## 未定项怎么登记
 
-判不了的项可以逐条登记"我看过了，接受到什么时候、谁批的"。在 `governance/exceptions.md`
-（和 `project.yaml` 同一个目录）的第一张表里加一行：**规则列抄报告里那条发现的 `id`**，再写
-理由、范围、批准人、到期。列名按"包含"认（`规则`/`理由`/`范围`/`批准`/`到期`/`状态`），列的
-顺序和多出来的列都不影响。
-
-登记**不改变结论**：那条仍是未定、仍逐条列出、仍计入未定计数，报告里标「（已登记 EX-xxx，
-到期 …）」，变的只有退出码。到期由工具按**运行日**校验，过期即回到未登记，并多出一条
-`exception-register/expired`；过期的行在首部标「其中 M 行已过期」。**FAIL 不能登记**——那是
-确定的违规，处置是修；整个检查器不适用走 `tailoring`。检查器自身出错的未定（id 为
-`<检查器>/internal-error`）也不能登记——崩溃顶掉了该检查器（或某条判据）本次的结论，登记它等于登记 FAIL。
-到期最远写到运行日起 365 天，更远的行不生效。两种行都按不合格报 `exception-register/invalid-rows`。
-语义细则见 CONTRACT.md §9。
-
-同一张表里项目自己的门号例外（规则列不含 `/`，如依赖规则、依赖审计）不参与登记，但**也按到期判**：
-没关闭、到期早于运行日的判 FAIL（`exception-register/own-expired/<编号>`），到期写不成日期的记一条
-未定，到期晚于运行日起 365 天的也记一条未定（`own-too-far`）。关闭的写法是状态列写「已处理」「关闭」之类并写明处理方式。
+判不了的项可以逐条登记"我看过了，接受到什么时候、谁批的"：在 `governance/exceptions.md`（和
+`project.yaml` 同一个目录）的第一张表里加一行，**规则列抄报告里那条发现的 `id`**，再写理由、范围、
+批准人、到期（列名按"包含"认，列的顺序和多出来的列都不影响）。登记**不改变结论**——那条仍是未定、
+仍逐条列出、仍计入未定计数，变的只有退出码；到期按**运行日**校验，最远写到运行日起 365 天，过期即回到
+未登记。**FAIL 不能登记**——那是确定的违规，处置是修；检查器自身出错的未定（`<检查器>/internal-error`）
+也不能登记；整个检查器不适用走 `tailoring`。同一张表里项目自己的门号例外（规则列不含 `/`）不参与登记，
+但到期照判。表头匹配、关闭的写法、过期／不合格／孤儿行各报什么，见 CONTRACT.md §9。
 
 ## 命令行开关
 
@@ -95,20 +86,14 @@
 
 **标准与工具按 tag 以 `git subtree` 内嵌进采用项目的 `.std/`。** 采用项目自己只写
 `governance/` 那两个文件（`project.yaml`、`STANDARD_VERSION`），标准正文、模板和本工具由 subtree
-带进来，clone 即用、离线可跑，不再按绝对路径去调一份仓外的工作副本。**这份副本不会静默失效：**
-会静默失效的是无版本的手工拷贝——副本停在拷贝当天而配置里的版本号照旧，跑得动、报 PASS、结论
-已不可信；而内嵌进来的这份取自某一次发布（取用默认从 `main` 拉最新发布，要钉某一版才用 tag 名），
-`STANDARD_VERSION` 记的就是那次发布的 tag 名。副本只能由一次
-显式的 `subtree pull` 移动，它移动代码与 `.std/标准/README.md` 第 3 行的修订号
-（[01 §8](../../标准/01-项目管理标准.md#adoption)：由项目显式评估并升级，不在任务中自动跟随）；
-`STANDARD_VERSION` 要在 pull 之后手改，漏改就是两边各自漂——`check_adoption` 以内嵌方式运行时比对
-这两个值，不一致判 FAIL。
-**未定优于假通过仍是这套工具存在的理由，它自己的部署方式不能选会假通过的那条：**内嵌的是哪一版
-由 tag 与 `STANDARD_VERSION` 双写钉住，实际跑的是哪份代码由 CONTRACT.md §8 的身份哈希钉住；取不到
-就该记未定，记录与内嵌对不上判失败，不得按"大概是那一版"往下判。
-另外 01 §3.8 与[试点通过条件](../../标准/覆盖与采用检查.md#pilot-exit)第 3 条已把"两份 +
-同步机制"判为待删对象：`.std/` 是只读内嵌，项目不得在里面改标准——改了就是第二处权威，处置是
-把改动合并回标准仓再 `pull`，不是就地同步。
+带进来，clone 即用、离线可跑。内嵌的这份取自某一次发布，`STANDARD_VERSION` 记的就是那次发布的 tag 名；
+副本只能由一次显式的 `subtree pull` 移动（[01 §8](../../标准/01-项目管理标准.md#adoption)：由项目显式评估
+并升级，不在任务中自动跟随），它移动代码与 `.std/标准/README.md` 第 3 行的修订号，`STANDARD_VERSION`
+要在 pull 之后手改——`check_adoption` 以内嵌方式运行时比对这两个值，不一致判 FAIL；实际跑的是哪份代码
+由 CONTRACT.md §8 的身份哈希钉住。这就是它与无版本手工拷贝的区别：后者停在拷贝当天、照旧报 PASS，结论
+已不可信。`.std/` 是只读内嵌（01 §3.8 与[试点通过条件](../../标准/覆盖与采用检查.md#pilot-exit)第 3 条已把
+"两份 + 同步机制"判为待删对象），项目不得在里面改标准——改了就是第二处权威，处置是把改动合并回标准仓
+再 `pull`，不是就地同步。
 
 配置字段的语义见 CONTRACT.md §5，实例见交付面内的
 [示例项目 `governance/project.yaml`](../../标准/示例项目-连锁零售中台/governance/project.yaml)——照实文件抄，本文不另立字段表；
@@ -291,8 +276,7 @@ Edit/Write 写 `.std/`、`echo x > .std/x.md`、`tee`、`cp`、`mv`、`sed -i`�
 
 2026-09-24 在 claude 2.1.281 上用 `claude -p --model haiku` 实测（当时未设 matcher 的旧片段）：
 SessionStart 在 startup、resume、`/compact` 三种情形都注入了，resume 前新做的提交也读对了；clear、
-fork 未实测。现行 `resume|compact` 片段的实测见本节末。std-reviewer 能被
-调用，让它写文件时它一次工具都没调，文件没建出来（对照：同一会话里主 agent 在 acceptEdits 下写入成功）。
+fork 未实测。std-reviewer 能被调用，让它写文件时它一次工具都没调，文件没建出来（对照：同一会话里主 agent 在 acceptEdits 下写入成功）。
 `/std-handoff` 能触发，`!` 注入生效。现行 `resume|compact` 片段同日另测（haiku，`claude -p`）：startup 不注入；
 新提交后 `--resume`，模型逐字读出新的 HEAD 行与提醒句；`git log` 失败（仓里还没有提交）时 `git status`
 照常输出。compact 未对现行片段实测。
@@ -320,9 +304,8 @@ bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生�
 ## 加一个自己的检查器
 
 照 CONTRACT.md §4 的接口写 `checks/check_<name>.py`，最短的现成样板是
-`checks/check_entry_budget.py`。**必须带 `selftest()` 且里面要有反例**：造一个应该被判 FAIL
-的最小样本，跑出来必须是 FAIL。没有自检或自检不过的检查器，汇总器把它对项目的全部结论作废
-成未定。写完跑 `--selftest`。
+`checks/check_entry_budget.py`；`run()` 外壳与自检夹具用 `stdlib` 现成的 `run_guarded`、`probe`、
+`write_files`、`git_track`。**必须带含反例的 `selftest()`**（CONTRACT.md §3），写完跑 `--selftest`。
 
 ## 已知误报形态
 
@@ -355,14 +338,8 @@ bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生�
 - **自检样本自己可能有盲区。** 真实教训：`git ls-files` 曾因 `core.quotepath` 把中文路径输出成
   转义形式，成批产生假 FAIL，而当时的自检是**通过**的——因为样本里的路径全是 ASCII。自检绿
   不等于在你的仓库里也对。新增检查器时，反例样本要包含你项目里真实存在的形态。
-- CONTRACT.md §5 的字段表已按实现补齐（`tier`、`layout.work_root`/`artifacts`/`rule_files`、`derived`、
-  `metadata_fields`/`metadata_required`、两个 `work_item_*_states`、两个 duplicate 阈值与两个 stale
-  阈值），顶层 `rule_files` 这个重复拼法已从代码里删掉，只留 `layout.rule_files`。反向的缺口
-  （§5 写了但没有检查器读的键）已清空：`standard_version` 已删除；`budgets.status_lines` 等四个
-  篇幅预算键曾因没有读者删掉，现在随 `check_entry_budget` 的四项预算一起回来。
 - **"§5 的键集合 == 实现读的键集合"目前只能靠人核对，没有机械手段。** 现在两边一致是一次人工 grep
   比对的结果，不是自检保证的；往检查器里加一个新配置键而忘了写进 §5，没有任何东西会报警。
-
 - **篇幅预算不全。** 01 §3.7 六项里 INDEX 一项不执行（「每份文档一行」不是行数）；状态、交接、
   工作项、模块文档四项未声明预算键不判；工作项只看 `layout.work_root` 直接一层、头部带状态字段的
   文件；状态声明为目录时不按 80 行判。
@@ -374,7 +351,7 @@ bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生�
 
 ## 本仓库自己的采用结果
 
-本仓库自己也是采用者，记录在 标准仓 `governance/project.yaml`。**它自己
-没有全绿**：仍有未定没处置、也没登记。验收条目工件在 `tailoring` 里按"本仓库不交付软件"
-登记为不适用（`layout:acceptance`）——那是裁剪，理由写在登记里，不是被修好了。
-作者自己的仓库不全绿，比全绿的样例更能说明三态怎么用。
+标准仓自己也是采用者（配置在标准仓自己的 `governance/project.yaml`，不在交付面里）。裁剪了哪几项、理由是什么，
+见该文件的 `tailoring`——裁剪是登记的不适用，不是修好了。唯一一条未定是 `single-authority/count-claim/14:个:部件`，
+已登记为 EX-001，所以扫描退出 0。退出 0 不等于全绿：那条仍是未定、仍计数，登记只改了退出码。现状以在标准仓根跑
+`python3 tools/std/check_all.py . --no-scope` 为准。

@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import io
 import os
 import sys
 import tempfile
@@ -14,8 +13,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, count_lines, docs_root_of, entry_files, finding, in_frozen, inside, is_tailored_out, item_status,
+    cfg_get, count_lines, docs_root_of, entry_files, finding, in_frozen, inside, item_status,
     read_text, rebase_docs, unreadable, once, work_root,
+    run_guarded, probe, write_text,
 )
 
 NAME = "entry-budget"
@@ -69,10 +69,7 @@ def scope(cfg):
 
 
 def run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-    return once(_entry(cfg) + _docs(cfg))     # 入口同时是某类文档且读不了时只报一次
+    return run_guarded(NAME, lambda c: once(_entry(c) + _docs(c)), cfg)     # 入口同时是某类文档且读不了时只报一次
 
 
 def _entry(cfg):
@@ -300,14 +297,11 @@ def selftest():
     results = []
 
     def _case(title, got, want):
-        results.append(finding(NAME, PASS if got == want else FAIL, title,
-                               evidence="期望 %s，实得 %s" % (want, got), why="契约 §3 静默失效探测"))
+        results.append(probe(NAME, got == want, title,
+                             evidence="期望 %s，实得 %s" % (want, got), why="契约 §3 静默失效探测"))
 
     def _w(tmp, rel, n, head=u""):
-        path = os.path.join(tmp, rel)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(head + u"x\n" * (n - (1 if head else 0)))
+        write_text(os.path.join(tmp, rel), head + u"x\n" * (n - (1 if head else 0)))
 
     def _got(cfg, ids=False):
         return sorted((f["status"], f["id"]) if ids else f["status"]

@@ -7,10 +7,8 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import time
@@ -19,8 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     read_bytes, MAX_READ_BYTES, NotRegular, TooLarge, FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, tracked_files,
-    undetermined_from_exception,
+    cfg_get, finding, in_frozen, tracked_files, run_guarded, probe, probe_crashed, write_files, git_track,
 )
 
 NAME = "single-authority"
@@ -374,14 +371,7 @@ def scope(cfg):
 
 
 def run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, u"项目已裁剪本检查", reason=reason or u"project.yaml 未写理由")]
-
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001  内部异常一律转未定，绝不吞掉记 PASS
-        return [undetermined_from_exception(NAME, exc, u"跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
@@ -595,14 +585,8 @@ def _run(cfg):
 # --------------------------------------------------------------------------
 
 def _mkrepo(tmp, files):
-    for rel, body in files.items():
-        path = os.path.join(tmp, rel)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(body)
-    subprocess.run(["git", "init", "-q", tmp], capture_output=True, text=True, timeout=60)
-    subprocess.run(["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
-                    "add", "-A"], capture_output=True, text=True, timeout=60)
+    write_files(tmp, files)
+    git_track(tmp)
     return {"_root": tmp, "layout": {"frozen": []}}
 
 
@@ -678,13 +662,12 @@ def selftest():
             cfg = _mkrepo(tmp, {"a.md": _UNIQ_A, "copy/a.md": _UNIQ_A, "b.md": _UNIQ_B})
             got = [f["status"] for f in run(cfg)]
         ok = FAIL in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例一：两个逐字节相同的文件应判 FAIL",
             evidence=u"实得 %s" % got, why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例一自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例一", exc))
 
     # 反例一之二（D-123 bug 3）：读不了的副本不许让「没有逐字节相同」照常 PASS——须各出一条未定
     try:
@@ -698,13 +681,12 @@ def selftest():
             finally:
                 os.chmod(locked, 0o644)
         if got is not None:
-            results.append(finding(
-                NAME, PASS if (UNDETERMINED, NAME + "/unreadable") in got else FAIL,
+            results.append(probe(NAME, (UNDETERMINED, NAME + "/unreadable") in got,
                 u"反例一之二：读不了的被跟踪文件须记一条未定（single-authority/unreadable）",
                 evidence=u"实得 %s" % got, why=u"契约 §1：依赖不可用记未定，不得吞掉记 PASS",
             ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例一之二", exc))
 
     # 反例一之三（B15）：指向仓外的被跟踪软链接先过护栏，不得先 isfile 探测仓外存在性；记未定。
     # 已删未提交的文件仍按不在处理，不记未定
@@ -721,13 +703,12 @@ def selftest():
                 os.path.isfile = real_isfile
         leak = [p for p in probed if p.endswith("ext.md")]
         ok = not leak and (UNDETERMINED, NAME + "/unreadable") in got and got.count((UNDETERMINED, NAME + "/unreadable")) == 1
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例一之三：仓外软链接不得被 isfile 探测、记一条未定；已删未提交的文件不记未定",
             evidence=u"探测 %s；实得 %s" % (leak, got), why=u"契约 §5：字面就在项目之外的路径连存在性也不探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例一之三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例一之三", exc))
 
     # 反例二：跨文件重复的实质文本块（两文件本身不相同）
     try:
@@ -738,13 +719,12 @@ def selftest():
             })
             got = [f["status"] for f in run(cfg)]
         ok = FAIL in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例二：跨文件重复的三行段落应判 FAIL",
             evidence=u"实得 %s" % got, why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例二", exc))
 
     # 探测三：同一数值声明出现在 _CLAIM_MIN_FILES 个文件，按判据 3 应得未定而非失败。
     # 文件数跟着阈值走：阈值从 2 收到 3 那次，这条曾是唯一会当场变红的自检项。
@@ -758,13 +738,12 @@ def selftest():
             cfg = _mkrepo(tmp, dict(list(files.items())[:_CLAIM_MIN_FILES]))
             got = [f["status"] for f in run(cfg)]
         ok = UNDETERMINED in got and FAIL not in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"探测三：重复数值声明出现在 %d 个文件应判未定、不得升格为失败" % _CLAIM_MIN_FILES,
             evidence=u"实得 %s" % got, why=u"契约 §1 未定不可静默升格",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"探测三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"探测三", exc))
 
     # 探测三之三（id 稳定性，契约 §9）：同一个数值再被一个文件抄一遍，**标题里的计数要变、
     # id 不能变**。id 变了登记就失效——每多一个抄的人，上一次写下的登记行就作废一次，
@@ -783,8 +762,7 @@ def selftest():
         ok = (len(few) == 1 and len(more) == 1
               and few[0]["id"] == more[0]["id"]
               and few[0]["title"] != more[0]["title"])
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"探测三之三：再加一个抄同一数值的文件，标题计数变而 id 不变",
             evidence=u"%d 个文件：id=%s title=%r；%d 个文件：id=%s title=%r"
                      % (len(base_files),
@@ -794,8 +772,7 @@ def selftest():
             why=u"契约 §9：id 的稳定性是例外登记能用的前提——登记行写的就是 id",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"探测三之三自身出错",
-                               evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"探测三之三", exc))
 
     # 探测三之二（本次收窄的反例）：同一个数字只出现在 markdown 链接文本里，
     # 出现在足够多的文件也不得报——它是指向另一份文档，不是在声明一个数值。
@@ -808,8 +785,7 @@ def selftest():
             res = run(_mkrepo(tmp, body))
         hits = [f for f in res if u"同一数值声明" in f["title"]]
         ok = not hits and FAIL not in [f["status"] for f in res]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"探测三之二：只出现在链接文本里的数字，跨 3 个文件也不报",
             evidence=u"命中 %d 条：%s" % (
                 len(hits), u"；".join(f["title"] for f in hits) or u"（无）"),
@@ -817,8 +793,7 @@ def selftest():
                 u"把文件名当数值会把一份索引报成 21 处重复",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(
-            NAME, FAIL, u"探测三之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"探测三之二", exc))
 
     # 探测三之三（本次收窄的反例）：带前导零的两位数是文档编号，不是计数声明。
     # 跨 _CLAIM_MIN_FILES 个文件出现也不得报。同一批里再放一条真计数声明
@@ -836,8 +811,7 @@ def selftest():
         noise = [t for t in titles if u"01 项" in t]
         real = [t for t in titles if u"44 篇" in t]
         ok = not noise and len(real) == 1 and FAIL not in [f["status"] for f in res]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"探测三之三：文档编号「01 项…」跨 3 个文件不得报，"
             u"同批的真计数声明「44 篇…」必须照报",
             evidence=u"编号噪声命中 %d 条：%s；真计数命中 %d 条：%s" % (
@@ -847,8 +821,7 @@ def selftest():
                 u"收窄若过头会连真计数一起吃掉，所以两侧一起钉",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(
-            NAME, FAIL, u"探测三之三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"探测三之三", exc))
 
     # 探测三之四：序数「第 N 个」「第 N、M 个」不是计数，跨 3 个文件不得报；
     # 同批不带「第」的真计数「23 个部件」与并列「3、18 个文件」必须照报——排除只认「第」。
@@ -865,8 +838,7 @@ def selftest():
         noise = [t for t in titles if any(n in t for n in (u"15 个", u"16 个", u"17 个"))]
         real = [t for t in titles if u"23 个" in t or u"18 个" in t]
         ok = not noise and len(real) == 2 and FAIL not in [f["status"] for f in res]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"探测三之四：序数「第 N 个」「第 N、M 个」跨 3 个文件不得报，"
             u"同批的基数「23 个…」「3、18 个…」必须照报",
             evidence=u"序数命中 %d 条：%s；基数命中 %d 条：%s" % (
@@ -876,8 +848,7 @@ def selftest():
                 u"排除若过头会连并列基数一起吃掉，所以两侧一起钉",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(
-            NAME, FAIL, u"探测三之四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"探测三之四", exc))
 
     # 探测三之五：千分位「1,614」与「1614」是同一个数；「3,45 个」「1、2」与全角「，」不并数。
     try:
@@ -885,15 +856,13 @@ def selftest():
         keys = set(_count_claims([(u"k%d.md" % i, t, None) for i, t in
                                   enumerate((line, line.replace(u"1,614", u"1614"), line))]))
         want = {(u"1614", u"条", u"记录"), (u"45", u"个", u"文件"), (u"933", u"个", u"自然")}
-        results.append(finding(
-            NAME, PASS if keys == want else FAIL,
+        results.append(probe(NAME, keys == want,
             u"探测三之五：「1,614」与「1614」同键，「3,45」「1、2」「21，933」不并数",
             evidence=u"实得 %s" % sorted(keys),
             why=u"截成「614」会与别处的 614 误并，又与写成 1614 的同一事实漏并",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(
-            NAME, FAIL, u"探测三之五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"探测三之五", exc))
 
     # 线性（B3）：结构行与序数、链接遮盖的正则曾是平方级，一行 6 万字符的单行文件就能拖住提交闸门
     # （旧正则下四行合计约 35 秒）。同时钉住结构行的认法不变
@@ -907,14 +876,13 @@ def selftest():
         shapes = [_is_structural(x) for x in (u"|---|:-:|", u" |---", u"||", u"|", u"---",
                                               u"- [a](b.md)。", u"[a](b)  x")]
         ok = took < 2 and shapes == [True, True, True, False, True, True, False]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"线性：6 万字符的竖线行、链接后长空白行、满行「第 12 个」与满行 `[` 须在 2 秒内，结构行认法不变",
             evidence=u"耗时 %.3fs；结构行判定 %s" % (took, shapes),
             why=u"检查器没有整体超时，一个平方级正则就能拖死提交闸门",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"线性一条自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"线性一条", exc))
 
     # 反例二之二（B4）：一行 ```x``` 是行内代码不开围栏，4 反引号外层里的 ``` 不闭合外层——
     # 旧实现见 ``` 就翻转，其后的重复段落整段被跳过，FAIL 翻成 PASS
@@ -926,13 +894,12 @@ def selftest():
             })
             fails = [f for f in run(cfg) if f["status"] == FAIL]
         ok = len(fails) == 1 and u"x.md" in fails[0]["title"] and u"y.md" in fails[0]["title"]
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例二之二：行内 ```x``` 与外层 4 反引号围栏之后的重复段落仍须判 FAIL",
             evidence=u"实得 FAIL %s" % [f["title"][:60] for f in fails], why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例二之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例二之二", exc))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:
@@ -940,13 +907,12 @@ def selftest():
             cfg = _mkrepo(tmp, {"a.md": _UNIQ_A, "b.md": _UNIQ_B, "c.md": _UNIQ_C})
             got = [f["status"] for f in run(cfg)]
         ok = bool(got) and set(got) == {PASS}
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"正例：三份互不相同的文档应全判 PASS",
             evidence=u"实得 %s" % got, why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"正例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"正例", exc))
 
     # ---- 以下五条覆盖"判据 2、3 只判文档"这次收窄的边界。每条一个独立临时仓，
     #      不把 .py 与 .md 混在同一仓里断言 `FAIL in got`——那样分不清 FAIL 来自谁。
@@ -966,15 +932,14 @@ def selftest():
                       and u"都在非文档文件" in f["title"]]
         ok = (FAIL not in got and UNDETERMINED not in got and len(summarized) == 1
               and summarized[0]["id"] == NAME + u"/nondoc-dup-block")
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"边界一：重复只在 .py 之间应不判 FAIL、不记未定，且汇总成一条 SKIP（id 不变）",
             evidence=u"实得 %s；汇总条数 %d；id %s" % (
                 got, len(summarized), summarized[0]["id"] if summarized else u"（无）"),
             why=u"01 §1 G2 的对象是文档里的值；源码重复实现归 02 §4 技术债（契约 §1 不适用记 SKIP）",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"边界一自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"边界一", exc))
 
     # 边界一之二：同形数值只出现在源码之间 → 同样汇总成一条 SKIP，id 不变
     try:
@@ -987,14 +952,13 @@ def selftest():
         summarized = [f for f in res if f["id"] == NAME + u"/nondoc-count-claim"]
         ok = (UNDETERMINED not in [f["status"] for f in res if u"都在非文档文件" in f["title"]]
               and len(summarized) == 1 and summarized[0]["status"] == SKIP)
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"边界一之二：同形数值只在 .py 之间应汇总成一条 SKIP（id 不变）",
             evidence=u"实得 %s；汇总 %s" % (got, [f["status"] for f in summarized]),
             why=u"判据 3 的对象是文档里的值；源码常量归 02 §4 技术债（契约 §1 不适用记 SKIP）",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"边界一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"边界一之二", exc))
 
     # 边界二：.md 抄了 .py 里的一段 → 仍须判 FAIL，且落点在 .md 不在 .py
     try:
@@ -1008,8 +972,7 @@ def selftest():
         ok = (len(fails) == 1
               and (fails[0].get("where") or u"").startswith(u"doc.md:")
               and u"svc/settle.py" in fails[0]["title"])
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"边界二：文档抄源码的一段仍须判 FAIL，落点在 .md",
             evidence=u"FAIL %d 条；where=%s；title=%s" % (
                 len(fails),
@@ -1018,7 +981,7 @@ def selftest():
             why=u"01 §5.10 模块文档只引用不复制——收窄不得把这一类误杀",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"边界二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"边界二", exc))
 
     # 边界三：一个文档都没有的仓 → 判据 2、3 记未定，不得记 PASS
     try:
@@ -1029,14 +992,13 @@ def selftest():
         nodoc = [f for f in res if f["status"] == UNDETERMINED
                  and u"没有可比对的文档文件" in f["title"]]
         ok = FAIL not in got and len(nodoc) == 2 and got.count(PASS) == 1
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"边界三：纯代码仓的判据 2、3 须记未定，不得记 PASS",
             evidence=u"实得 %s；未定（无文档）%d 条" % (got, len(nodoc)),
             why=u"01 §2 N1：空集上的「全部通过」判未定（判据 1 的 PASS 照旧，它不收窄）",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"边界三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"边界三", exc))
 
     # 边界四（回归点）：两份逐字节相同的 .py，判据 1 未收窄，仍须判 FAIL
     try:
@@ -1045,14 +1007,13 @@ def selftest():
             res = run(cfg)
         fails = [f for f in res if f["status"] == FAIL and u"逐字节相同" in f["title"]]
         ok = len(fails) == 1
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"边界四：两份逐字节相同的 .py 仍须判 FAIL（判据 1 不收窄）",
             evidence=u"实得 %s" % [f["status"] for f in res],
             why=u"01 §2 N2 副本即缺陷；整份复制在代码里同样是缺陷",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"边界四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"边界四", exc))
 
     # 边界五：文档集合不止 .md——两份 .txt 的重复段落仍须判 FAIL
     try:
@@ -1063,13 +1024,12 @@ def selftest():
             })
             got = _statuses(cfg)
         ok = FAIL in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"边界五：.txt 与 .rst 之间的重复段落仍须判 FAIL",
             evidence=u"实得 %s" % got,
             why=u"文档不只有 .md；收窄到单一后缀会静默漏报",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"边界五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"边界五", exc))
 
     return results
