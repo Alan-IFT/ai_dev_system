@@ -18,7 +18,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    read_bytes, MAX_READ_BYTES, TooLarge, FAIL, PASS, SKIP, UNDETERMINED,
+    read_bytes, MAX_READ_BYTES, NotRegular, TooLarge, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, tracked_files,
     undetermined_from_exception,
 )
@@ -212,16 +212,17 @@ def _collect(cfg):
             notes["excluded"] += 1
             continue
         path = os.path.join(root, rel)
-        if not os.path.isfile(path):      # 子模块、已删未提交：不是可读的文本对象
-            notes["absent"] += 1
-            continue
-        try:
+        try:                              # 直接读：护栏在 read_bytes 里先于任何探测（B15）
             data = read_bytes(path, root)
         except TooLarge:
             notes["skipped_big"] += 1
             notes["big_paths"].append(rel)
             continue
         except OSError as exc:
+            # 已删未提交、子模块（目录）：不是可读的文本对象。走到 NotRegular 时护栏已过，isdir 不出仓
+            if isinstance(exc, FileNotFoundError) or (isinstance(exc, NotRegular) and os.path.isdir(path)):
+                notes["absent"] += 1
+                continue
             notes["unreadable"] += 1
             notes["unreadable_paths"].append("%s（%s）" % (rel, type(exc).__name__))
             continue
@@ -704,6 +705,29 @@ def selftest():
             ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例一之三（B15）：指向仓外的被跟踪软链接先过护栏，不得先 isfile 探测仓外存在性；记未定。
+    # 已删未提交的文件仍按不在处理，不记未定
+    try:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            os.symlink(os.path.join(outside_dir, "gone.md"), os.path.join(tmp, "ext.md"))
+            cfg = _mkrepo(tmp, {"a.md": _UNIQ_A, "b.md": _UNIQ_B, "deleted.md": _UNIQ_C})
+            os.remove(os.path.join(tmp, "deleted.md"))
+            probed, real_isfile = [], os.path.isfile
+            os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
+            try:
+                got = [(f["status"], f["id"]) for f in run(cfg)]
+            finally:
+                os.path.isfile = real_isfile
+        leak = [p for p in probed if p.endswith("ext.md")]
+        ok = not leak and (UNDETERMINED, NAME + "/unreadable") in got and got.count((UNDETERMINED, NAME + "/unreadable")) == 1
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例一之三：仓外软链接不得被 isfile 探测、记一条未定；已删未提交的文件不记未定",
+            evidence=u"探测 %s；实得 %s" % (leak, got), why=u"契约 §5：字面就在项目之外的路径连存在性也不探测",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例一之三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 反例二：跨文件重复的实质文本块（两文件本身不相同）
     try:
