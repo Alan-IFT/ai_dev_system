@@ -26,7 +26,7 @@ from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
+    read_text, state_list, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
 )
 
 NAME = "freshness"
@@ -290,7 +290,7 @@ def _run(cfg):
     # 文档部分整组依赖 docs_root：取了默认就在这里统一注明，不在各条 finding 里逐个拼
     out.extend(note_default(_check_docs(cfg, root, today, base, texts), docs_root_of(cfg)[1]))
     out.extend(_check_work_items(cfg, root, today, base, texts))
-    return out
+    return once(out)            # 工作项在文档根下且读不了时，文档巡检与活性巡检只报一次（R1-10）
 
 
 def _check_docs(cfg, root, today, base, texts):
@@ -334,7 +334,7 @@ def _check_docs(cfg, root, today, base, texts):
         try:
             text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
         if os.path.dirname(rel) == wdir:
             texts[rel] = text
@@ -477,7 +477,7 @@ def _check_work_items(cfg, root, today, base, texts):
             text = texts.pop(rel, None)
             text = read_text(os.path.join(root, rel), root) if text is None else text
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
 
         status = item_status(text)

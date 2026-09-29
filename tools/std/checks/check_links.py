@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, inside, is_tailored_out, read_text, tracked_files,
-    undetermined_from_exception,
+    undetermined_from_exception, unreadable,
 )
 
 NAME = "links"
@@ -257,7 +257,7 @@ def _run(cfg):
         try:
             text = cache.source_text(abs_src)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))    # 对象读不了，不是检查器故障（R1-10）
             continue
 
         frozen_note = "该文件在 layout.frozen 归档区，断链照报，是否修由人定" \

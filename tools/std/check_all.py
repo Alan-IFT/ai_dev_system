@@ -1078,6 +1078,23 @@ def _stdlib_selftest(mods):
             cases.append(("读不了的文件记 unreadable，不落兜底 id，检查器内同一文件只报一次", got == [
                 "drift/unreadable/docs/decisions/0001-a.md"] + (["entry-budget/unreadable/CLAUDE.md"]
                                                               if os.geteuid() else []), got))   # root 无视权限位
+            # R1-S2-03：freshness 与 links 读不了的文件同样记 unreadable/<路径>，同一文件只报一次
+            proj = fresh("p36")
+            wi = os.path.join(proj, "docs", "state", "work", "WI-001-x.md")
+            os.makedirs(os.path.dirname(wi))
+            with io.open(wi, "w", encoding="utf-8") as fh:
+                fh.write(u"# WI-001\n\n状态：in_progress\n")
+            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            os.remove(wi)
+            os.mkfifo(wi)
+            cfg_u = {"_root": proj, "tier": "L1", "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs"}}
+            fs = [f for n in ("freshness", "links") for f in by_name[n].run(cfg_u)]
+            got = sorted(f["id"] for f in fs if f["status"] == UNDETERMINED and (
+                u"读不了" in f["title"] or u"自身出错" in f["title"]))
+            cases.append(("freshness/links 读不了的文件记 unreadable、各只报一次", got == [
+                "freshness/unreadable/docs/state/work/WI-001-x.md",
+                "links/unreadable/docs/state/work/WI-001-x.md"], got))
             # R1-09：路径含换行的 git grep 命中按 -z 记号流切，路径不被截成换行后的那半段
             proj = fresh("p34")
             #          R1-S2：文件名里的反斜杠也照原样，archive\x.md 不得被改写成 archive/x.md 冒充 frozen 豁免
