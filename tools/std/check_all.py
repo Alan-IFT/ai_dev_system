@@ -51,7 +51,7 @@ def _load_source(name, path, register=False):
 _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
+    FAIL, PASS, SKIP, STATUS_CANDIDATES, TOOL_ROOT, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
     EXCEPTION_MAX_DAYS, INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
 )
@@ -814,7 +814,8 @@ def _shared_fact_selftest(mods):
         #    声明词并入不替换缺省；freshness 被裁剪或该件在 frozen 时由 evidence 报。
         def _judge(files, extra=None):
             with tempfile.TemporaryDirectory() as tmp:
-                _repo(tmp, dict(("work/WI-%02d-x.md" % k, u"# WI\n\n状态：%s\n" % v) for k, v in files))
+                _repo(tmp, dict(("work/WI-%02d-x.md" % k, v if v.startswith(u"# ") else u"# WI\n\n状态：%s\n" % v)
+                                for k, v in files))
                 cfg = dict({"_root": tmp, "tier": "L1",
                             "layout": dict({"docs_root": "docs", "work_root": "work"}, **(extra or {}).pop("layout", {}))},
                            **(extra or {}))
@@ -835,6 +836,9 @@ def _shared_fact_selftest(mods):
             "declared": _judge(list(enumerate(["done", "closed", "in_progress", "doing"])),
                                {"work_item_done_states": ["closed"], "work_item_in_progress_states": "doing"}),
             "single": _judge([(0, "DEFINED")]),
+            # 模板原样复制、状态没选：状态行是括注，截掉后为空，须记未定而不是认成 planned（R2-1）
+            "template": _judge([(0, io.open(os.path.join(TOOL_ROOT, "templates", "WORK_ITEM.md"),
+                                            encoding="utf-8").read())]),
             "tailored": _judge([(0, "DEFINED")], {"tailoring": [{"check": "freshness", "applicable": False,
                                                                  "reason": "x"}]}),
             "frozen": _judge([(0, "DEFINED"), (1, "DEFINED")], {"layout": {"frozen": ["work/WI-00-x.md"]}}),
@@ -846,6 +850,8 @@ def _shared_fact_selftest(mods):
             "declared": {"freshness": {2, 3}, "evidence": {0, 1}},
             "single": {"freshness/unknown-state": (UNDETERMINED, [0]),
                        "evidence/unknown-state-by-freshness": (SKIP, [0])},
+            "template": {"freshness/unknown-state": (UNDETERMINED, [0]),
+                         "evidence/unknown-state-by-freshness": (SKIP, [0])},
             "tailored": {"evidence/unknown-state": (UNDETERMINED, [0])},
             "frozen": {"freshness/unknown-state": (UNDETERMINED, [1]),
                        "evidence/unknown-state-by-freshness": (SKIP, [1]),

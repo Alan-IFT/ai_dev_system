@@ -3,7 +3,7 @@
 work_item_id：  
 state_revision：  
 updated_at：  
-状态：planned / in_progress / blocked / in_validation / done / cancelled  
+状态：（六选一：planned / in_progress / blocked / in_validation / done / cancelled）  
 负责人：  
 变更级别：
 
