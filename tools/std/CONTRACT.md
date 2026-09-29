@@ -22,7 +22,7 @@
 
 - **`UNDETERMINED` 永远不能被合并成 `PASS`。** 汇总时三态各自计数，不允许"没有 FAIL 即通过"。退出码另按已登记／未登记分档（见第 9 节「例外登记」）；状态字段、三态计数与逐条列出**不因登记而改变**——登记改变的只有退出码。
 - 对象不存在时，先判**是否适用**：不适用记 `SKIP`（不计入三态，但必须给理由）；适用而对象缺失记 `UNDETERMINED`。
-- **同一事实只由一个检查器报。** 对象缺失这件事归哪条标准条款，就由执行那条的检查器报；以同一对象为输入的其余检查器记 `SKIP`，证据里写明由谁报。否则采用方得为同一件事登记几行，报告的未定数也虚高。现有一例：工作项目录（`layout.work_root`）不在，由 `layout` 按 01 §3.1 报——项目声明了 `layout.work_root` 而目录不在，任何档都判 `FAIL`（`layout/work-root-absent/<路径>`，声明的落点不成立）；没声明时缺省目录由 L1 起的 `work_current` 一项认，`evidence`、`freshness` 与 `drift`（判据 4）各记一条 `<检查器>/work-root-absent` 的 `SKIP`；两件共用的解析与这条 `SKIP` 都在 `stdlib`（`work_root` / `work_root_absent`）。另一例是入口文件不在：由 `layout` 按 01 §3.1 的 ★ 入口报，`entry-budget` 记 `entry-budget/entry-absent` 的 `SKIP`；入口或其余工件是指向项目之外的符号链接时同理，`layout` 记 `layout/outside-root/<路径>` 未定（不跟随链接判在、也不判缺），`entry-budget` 不读、不列出仓目录，记 `SKIP`。
+- **同一事实只由一个检查器报。** 对象缺失这件事归哪条标准条款，就由执行那条的检查器报；以同一对象为输入的其余检查器记 `SKIP`，证据里写明由谁报。否则采用方得为同一件事登记几行，报告的未定数也虚高。现有一例：工作项目录（`layout.work_root`）不在，由 `layout` 按 01 §3.1 报——项目声明了 `layout.work_root` 而目录不在，任何档都判 `FAIL`（`layout/work-root-absent/<路径>`，声明的落点不成立）；没声明时缺省目录由 L1 起的 `work_current` 一项认，`evidence`、`freshness` 与 `drift`（判据 4）各记一条 `<检查器>/work-root-absent` 的 `SKIP`；两件共用的解析与这条 `SKIP` 都在 `stdlib`（`work_root` / `work_root_absent`）。另一例是入口文件不在：由 `layout` 按 01 §3.1 的 ★ 入口报，`entry-budget` 记 `entry-budget/entry-absent` 的 `SKIP`；入口或其余工件是指向项目之外的符号链接时同理，`layout` 记 `layout/outside-root/<路径>` 未定（不跟随链接判在、也不判缺），`entry-budget` 不读、不列出仓目录，记 `SKIP`（目录在项目内、其中单份文件链到仓外时照列不探测，记 `entry-budget/outside-root/<路径>` 未定）。
 - 检查器自身崩溃、超时、依赖缺失，一律 `UNDETERMINED`，**不得吞掉异常记 PASS**。依据：该项目已发生过"守卫崩溃却报告为漂移"与"退出 0 却跑了 0 个测试"。
 
 `check_all` 的退出码：有任一 `FAIL` → 1；无 FAIL 但有**未登记**的 `UNDETERMINED` → 2；否则 0（全 PASS/SKIP，或全部未定都已登记且未过期）。**调用方不得把 2 当成功。**

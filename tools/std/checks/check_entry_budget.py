@@ -149,10 +149,12 @@ def _absent(note, rel=None):
 
 def _md_children(root, rel):
     """目录下直接一层的 *.md（相对路径，排好序）。调用方已确认目录本身的真实位置在项目内（C04）。
-    其中指向项目之外的文件照列（名字是项目里的），计行时逐份记未定。"""
+    其中指向项目之外的文件照列、不做 isfile（名字是项目里的；探测会跟随链接到仓外，R2-10），
+    计行时记 outside-root 未定。"""
     base = os.path.join(root, rel)
     return sorted("%s/%s" % (rel.rstrip("/"), n) for n in os.listdir(base)
-                  if n.lower().endswith(".md") and os.path.isfile(os.path.join(base, n)))
+                  if n.lower().endswith(".md") and (not inside(root, os.path.join(base, n))
+                                                     or os.path.isfile(os.path.join(base, n))))
 
 
 def _locate(cfg, role):
@@ -245,6 +247,13 @@ def _docs(cfg):
 
     for rel in sorted(per_file):
         roles = per_file[rel]
+        if not inside(root, os.path.join(root, rel)):   # 护栏在起作用，不是检查器故障（R2-10）
+            out.append(finding(
+                NAME, UNDETERMINED, "%s 的真实位置在被扫项目之外，行数未计" % rel, where=rel,
+                kind="outside-root", key=rel,
+                reason="它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+                why="契约 §5：只读被扫项目之内的文件"))
+            continue
         try:
             n = count_lines(os.path.join(root, rel), root)
         except OSError as exc:
@@ -376,9 +385,15 @@ def selftest():
                          for f in res if f["status"] != SKIP or "absent" in f["id"])
             leaked = any("SECRET-NAME" in (f.get("title") or "") + (f.get("evidence") or "") + (f.get("reason") or "")
                          for f in res)
-            _case("出仓符号链接：不列仓外文件名、一份出仓不吞掉整类、入口出仓记 SKIP",
-                  (got, leaked), ([(FAIL, "doc-over"), (SKIP, "entry-absent"), (SKIP, "handoff-absent"),
-                                   (UNDETERMINED, "读 w/WI-2.md 时检查器自身出错")], False))
+            # R2-10：链到仓外不存在的文件（WI-3）同样照列记 outside-root，输出不随仓外存在与否变
+            os.symlink(os.path.join(out_dir, "no-such.md"), os.path.join(tmp, "w", "WI-3.md"))
+            res = _entry(cfg) + _docs(cfg)
+            got = sorted((f["status"], "/".join(f["id"].split("/")[1:])) for f in res
+                         if f["status"] != SKIP or "absent" in f["id"])
+            _case("出仓符号链接：不列仓外文件名、一份出仓不吞掉整类、入口出仓记 SKIP、出仓工作项记 outside-root",
+                  (got, leaked), ([(FAIL, "doc-over/w/WI-1.md"), (SKIP, "entry-absent/AGENTS.md"),
+                                   (SKIP, "handoff-absent"), (UNDETERMINED, "outside-root/w/WI-2.md"),
+                                   (UNDETERMINED, "outside-root/w/WI-3.md")], False))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, "自检自己跑不起来", evidence="%s: %s" % (type(exc).__name__, exc),
                                why="契约 §3：自检崩了，本检查器对目标仓库的结论作废"))
