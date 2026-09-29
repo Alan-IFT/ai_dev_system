@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,
     cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, is_tailored_out, norm_rel, note_default, read_text,
-    rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
+    WORK_ITEM_NAME, rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
@@ -579,14 +579,10 @@ def _check_work_items(cfg, root, files):
 
     # 只认直接一层：work_root 下的子目录（如 L1 的 work/artifacts/）放的是留证与产物，
     # 文件名以 ID 开头也不是工作项本身。
-    have = set(inline)
-    for rel in _md_under(files, wroot):
-        if os.path.dirname(rel) != wroot:
-            continue
-        base = os.path.basename(rel)
-        for wid in seen:
-            if re.match(re.escape(wid) + r"(?!\d)", base):   # WI-001 不许被 WI-0010-x.md 冒充
-                have.add(wid)
+    # 文件名开头的完整 ID（数字取尽）查集合：WI-001 不许被 WI-0010-x.md 冒充，也不逐 ID 逐文件正则比对
+    have = set(inline) | {m.group(0) for m in (WORK_ITEM_NAME.match(os.path.basename(rel))
+                                               for rel in _md_under(files, wroot)
+                                               if os.path.dirname(rel) == wroot) if m}
 
     out = []
     for wid in sorted(set(seen) - have):
