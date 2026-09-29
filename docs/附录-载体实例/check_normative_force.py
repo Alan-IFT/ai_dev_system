@@ -264,12 +264,12 @@ def main() -> int:
     # ---- C10：散文里的「NN §M」引用须指向正文中真实存在的小节（Case C-003） ----
     body_secs = {}
     for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
-        body_secs[p.name[:2]] = set(re.findall(r"^## (\d)\. ", p.read_text(encoding="utf-8"), re.M))
+        body_secs[p.name[:2]] = set(re.findall(r"^## (\d+)\. ", p.read_text(encoding="utf-8"), re.M))
     LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     # 两种引用形态都要认：裸写「21 §6」，以及链接写法「[21 调度与拆分](21-调度与拆分.md) §6」
     BODY_ALT = r"(1[0-2]|2[0-5]|3[0-3]|40)"
-    ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d)(?![\d.])")
-    ref_link = re.compile(r"\]\(\.?/?" + BODY_ALT + r"-[^)]*\)\s*§\s?(\d)(?![\d.])")
+    ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d+)(?![\d.])")
+    ref_link = re.compile(r"\]\(\.?/?" + BODY_ALT + r"-[^)]*\)\s*§\s?(\d+)(?![\d.])")
     for p in tracked:
         rel = p.relative_to(ROOT).as_posix()
         if any(rel.startswith(s) for s in LIVE_SKIP): continue
@@ -285,7 +285,7 @@ def main() -> int:
             if sec not in body_secs[ch]:
                 ln = text[:mo.start()].count(chr(10)) + 1
                 findings.append(Finding("C10", rel, ln,
-                    f"引用了 {ch} 章的 §{sec}，但该章只有 §" + "/§".join(sorted(body_secs[ch]))))
+                    f"引用了 {ch} 章的 §{sec}，但该章只有 §" + "/§".join(sorted(body_secs[ch], key=int))))
 
     # ---- 报告 ----
     print("D-014 规范效力检查器")
