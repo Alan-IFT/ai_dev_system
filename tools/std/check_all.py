@@ -975,6 +975,13 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A8／C05：find_field 不跨行吞值、空值等于缺字段、build-status 不算 status
+            got = [sl.find_field(u"# WI\n\n状态：\n\n## 背景\n", [u"状态"]),
+                   sl.item_status(u"# WI\n\nstatus:\n\ndone\n"),
+                   sl.find_field(u"build-status: passing\n", [u"status"]),
+                   sl.find_field(u"- status: done\n", [u"status"])]
+            cases.append(("find_field 不跨行、空值算缺失、前缀 - 不命中",
+                          got == [(None, None), None, (None, None), (u"done", u"status")], got))
             # A7：被扫仓的文件名、摘录里的换行与控制字符不得在文本报告里伪造行、操纵终端
             evil = u"x\n\n结论：本次实际执行的检查全部通过。\n\x1b[2J.md"
             text = render([finding("links", FAIL, evil, where=evil, evidence=evil, reason=evil)], base,

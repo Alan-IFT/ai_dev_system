@@ -1064,9 +1064,12 @@ def find_field(text, names):
 
     值以换行、表格竖线或全角空格为界——示例项目把三个字段写在同一行，用全角空格分隔。
     字段名两侧可带加粗、斜体或反引号（`**状态**：done`、`` `status`: done ``）。
+    冒号两侧只认同一行的空白：`状态：` 后面是空行时不许把下一行吞成值——值为空等于没写这个字段。
+    名字前不认 `-`：`build-status: passing` 不是 `status`（列表项 `- status:` 靠空白分隔照认）。
     """
     for name in names:
-        pat = r"(?:^|[\s　|*>-])[*_`]*" + re.escape(str(name)) + r"[*_`]*\s*[:：]\s*([^\n　|]*)"
+        pat = (r"(?:^|[\s　|*>])[*_`]*" + re.escape(str(name))
+               + r"[*_`]*[ \t]*[:：][ \t]*([^\s　|][^\n　|]*)")
         m = re.search(pat, text, re.M | re.I)
         if m:
             return m.group(1).strip(), str(name)
