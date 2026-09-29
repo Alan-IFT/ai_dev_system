@@ -181,21 +181,27 @@ def _blame(root, rel):
 
 
 def _check_dates(cfg, root, files, docs_root):
-    hot, scanned, cand_total = [], 0, 0
+    hot, scanned, cand_total, unread = [], 0, 0, []
     for rel in files:
         if in_frozen(cfg, rel):
             continue
-        scanned += 1
         try:
             # 不走 read_text：它把孤立的 \r 归一成 \n，行号就与只认 \n 的 git blame 错位（B14）
             cand = _candidates(read_bytes(os.path.join(root, rel), root).decode("utf-8", "replace"))
-        except OSError as exc:
-            return [undetermined_from_exception(NAME, exc, u"读 %s" % rel)]
+        except OSError as exc:          # 一份读不了只记它自己，不丢整条判据（B16）
+            unread.append(u"%s（%s）" % (rel, type(exc).__name__))
+            continue
+        scanned += 1
         if cand:
             hot.append((rel, cand))
             cand_total += len(cand)
+    unread_f = [finding(
+        NAME, UNDETERMINED, u"future-date：%d 份文档读不了，其中的日期未判" % len(unread),
+        kind="future-date-unreadable",
+        reason=u"读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文档不是没有问题",
+        why=u"01 §2 N1：依赖不可用记未定，不记通过", evidence=_cap(unread))] if unread else []
     if scanned == 0:
-        return []                       # 空集上说不出"全部通过"（01 §2 N1）
+        return unread_f                 # 空集上说不出"全部通过"（01 §2 N1）
     def _clean_pass():
         return [finding(
             NAME, PASS,
@@ -209,18 +215,18 @@ def _check_dates(cfg, root, files, docs_root):
                      % (docs_root, _ACT_WINDOW, _PLAN_WINDOW))]
 
     if not hot:
-        return _clean_pass()
+        return unread_f + _clean_pass()
 
     code, text, err = _git(root, ["rev-parse", "--is-shallow-repository"], timeout=60)
     if code is None or code != 0:
-        return [finding(
+        return unread_f + [finding(
             NAME, UNDETERMINED, u"判不了日期：探测不出是不是浅克隆",
             kind="future-date",
             reason=err or u"git rev-parse --is-shallow-repository 退出码 %s" % code,
             why=u"01 §2 N1：依赖不可用记未定，不记通过",
             evidence=u"%s 下有 %d 份文档含候选日期" % (docs_root, len(hot)))]
     if text.strip().lower() == "true":
-        return [finding(
+        return unread_f + [finding(
             NAME, UNDETERMINED, u"浅克隆下判不了日期是否晚于写下它的提交",
             kind="future-date",
             reason=u"浅克隆下 blame 时间不可信：git blame 退出 0，但全部行都归到边界提交、"
@@ -274,7 +280,7 @@ def _check_dates(cfg, root, files, docs_root):
                        % (_ACT_WINDOW, u"/".join(_PAST_ACTS[:4]) + u"…"),
                 why=u"01 §2 N1：判不了的记未定不记通过；词表是工具常量（契约 §1.1），永不 FAIL",
                 evidence=_cap([u"第 %d 行：%s" % (n, note) for n, note in hits])))
-    return out or _clean_pass()
+    return unread_f + (out or _clean_pass())
 
 
 def _parse_day(s):
@@ -539,21 +545,27 @@ def _check_work_items(cfg, root, files):
         sources = [f for f in files if f.lower().endswith(".md") and os.path.dirname(f) == status_rel]
     else:
         sources = [status_rel]
-    seen = {}
+    seen, unread = {}, []
     inline = set()                     # 状态源文件里自带 work_item_id 字段的工作项
     for src in sources:
         try:
             text = read_text(os.path.join(root, src), root)
-        except OSError as exc:
-            return [undetermined_from_exception(NAME, exc, u"读 %s" % src)]
+        except OSError as exc:          # 一份读不了只记它自己，不丢其余状态源（B16）
+            unread.append(u"%s（%s）" % (src, type(exc).__name__))
+            continue
         for n, line in enumerate(text.splitlines(), 1):
             for m in _WI_RE.finditer(line):
                 seen.setdefault(m.group(0), u"%s:%d" % (src, n))
             m = _WI_FIELD_RE.match(line) if src == status_rel else None
             if m:
                 inline.add(m.group(1))
+    unread_f = [finding(
+        NAME, UNDETERMINED, u"work-item：%d 份状态源读不了，其中声明的工作项未核" % len(unread),
+        kind="status-unreadable",
+        reason=u"读不了、不是常规文件、超过读取上限或真实位置在项目之外",
+        why=u"01 §2 N1：依赖不可用记未定，不记通过", evidence=_cap(unread))] if unread else []
     if not seen:                       # 一个 ID 都没有：无结论，不产条目
-        return []
+        return unread_f
 
     wroot, note = work_root(cfg)
     wroot = norm_rel(wroot).rstrip("/")     # 与 dirname 比较：`work/` 须等于 `work`，`.` 即仓根 ""
@@ -563,7 +575,7 @@ def _check_work_items(cfg, root, files):
     # L0 按模板把工作项写在 WORK.md 里、本就没有这个目录，更不该逐条报"没有文件"。
     absent = work_root_absent(NAME, cfg)
     if absent:
-        return [absent]
+        return unread_f + [absent]
 
     # 只认直接一层：work_root 下的子目录（如 L1 的 work/artifacts/）放的是留证与产物，
     # 文件名以 ID 开头也不是工作项本身。
@@ -591,8 +603,8 @@ def _check_work_items(cfg, root, files):
                 u"工件缺失即不得进入该状态",
             evidence=note))
     if out:
-        return out
-    return [finding(
+        return unread_f + out
+    return unread_f + [finding(
         NAME, PASS,
         u"work-item：状态文件列了 %d 个 ID，都有载体（%s 直接一层的文件或状态源里的 work_item_id 字段）"
         % (len(seen), wroot),
@@ -1032,6 +1044,31 @@ def selftest():
                     % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c、U+2028 与孤立 \\r（B14）的行"),
                     u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
                     why=u"行号或行头对不上时旧实现静默跳过该行，把未来日期漏成通过")
+
+    # 4k（B16）：一份文档或一份状态源读不了（这里用 FIFO：不是常规文件不读），只记它自己一条未定，
+    # 其余文件照判——旧实现遇到第一份读不了就把整条判据换成一条未定
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "docs", "a.md"), u"- 2026-09-22 裁定 X。\n")
+        write_text(os.path.join(tmp, "docs", "items", "a.md"), u"- WI-0007 在做。\n")
+        write_text(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
+        for rel in ("docs/b.md", "docs/items/b.md"):
+            write_text(os.path.join(tmp, rel), u"占位\n")
+        err = _git_commit(tmp)
+        for rel in ("docs/b.md", "docs/items/b.md"):
+            os.remove(os.path.join(tmp, rel))
+            os.mkfifo(os.path.join(tmp, rel))
+        res = run({"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}) \
+            if not err else []
+        got = sorted((f["status"], f["id"]) for f in res
+                     if f["id"].startswith((u"drift/future-date", u"drift/status", u"drift/work-item")))
+        _assert(results, (not err) and got == [
+                    (PASS, u"drift/work-item"),
+                    (UNDETERMINED, u"drift/future-date-unreadable"),
+                    (UNDETERMINED, u"drift/future-date/docs/a.md｜2026-09-22"),
+                    (UNDETERMINED, u"drift/status-unreadable")],
+                u"4k 反例：一份文档、一份状态源读不了只各记一条未定，其余照判（未来日期照报、工作项照核）",
+                u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
+                why=u"01 §2 N1：没读的记未定；读得了的照常判，不因一份读不了整条作废")
 
     # 4j（D-123 bug 5）：WI-001 不许被 WI-0010-x.md 冒充成已有文件
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
