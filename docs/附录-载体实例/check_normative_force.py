@@ -11,7 +11,7 @@
   C6  所有规范文档都声明了 governed_by
 
 这是 checker，不是 Gate。把它接成阻断需要单独的 Gate 决策（D-018）。
-退出码：0 全部通过；1 存在不合规项；2 输入缺失或无法解析。
+退出码：0 全部通过；1 存在不合规项；2 输入缺失或无法解析，或生效规则集为空（UNDETERMINED，D-014 §4）。
 """
 from __future__ import annotations
 import datetime as _dt
@@ -289,9 +289,6 @@ def main() -> int:
           f"（{'、'.join(eff_ids) or '无'}）   扫描文档：{len(md_files)}")
     if expired_ids:
         print(f"  已到期：{len(expired_ids)}（{'、'.join(sorted(expired_ids))}）——不计入生效规则，见下方到期通告")
-    if not eff_ids:
-        print("  注意：生效规则集为空。任何『全部规则通过』的判定应计为 UNDETERMINED"
-              "，不得视为 PASS（D-014 §4）。")
     print()
     if expired:
         print("到期通告  不计入不合规项，不影响退出码。按 08 §6 已自动退回「提议」，"
@@ -299,6 +296,9 @@ def main() -> int:
         for f in expired:
             print("  " + str(f))
         print()
+    if not findings and not eff_ids:
+        print("UNDETERMINED  生效规则集为空，『全部规则通过』不得视为 PASS（D-014 §4）。")
+        return 2
     if not findings:
         print("PASS  未发现不合规项。")
         return 0
