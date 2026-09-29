@@ -303,9 +303,11 @@ def main() -> int:
           f"（{'、'.join(eff_ids) or '无'}）   扫描文档：{len(md_files)}")
     if expired_ids:
         print(f"  已到期：{len(expired_ids)}（{'、'.join(sorted(expired_ids))}）——不计入生效规则，见下方到期通告")
+    if not eff_ids:
+        print("  注意：生效规则集为空，『全部规则通过』不得视为 PASS（D-014 §4）。")
     print()
     if expired:
-        print("到期通告  不计入不合规项，不影响退出码。按 08 §6 已自动退回「提议」，"
+        print("到期通告  不计入不合规项（只在它使生效集变空时退出 2，见上）。按 08 §6 已自动退回「提议」，"
               "须人决定续期或移出生效登记表，并在决策日志留下处置痕迹：")
         for f in expired:
             print("  " + str(f))
