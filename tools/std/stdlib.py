@@ -275,27 +275,28 @@ def _strip_comment(line):
     引号只在值的开头（行首、`:` 或 `- ` 之后）才开启引用：`don't # 注释` 里的撇号是正文，
     不许把后面的注释吞进值里。
     """
-    out, in_q, q = [], False, ""
+    out, in_q, q, last = [], False, "", ""     # last：已收下的最后一个非空白字符（不每次 join，免平方级）
     for i, ch in enumerate(line):
         if in_q:
             out.append(ch)
             if ch == q:
                 in_q = False
-            continue
-        if ch in "\"'":
-            before = "".join(out).rstrip()
-            if not before or before.endswith((":", "-")):
+        elif ch in "\"'":
+            if last in ("", ":", "-"):
                 in_q, q = True, ch
             out.append(ch)
-            continue
-        if ch == "#" and (i == 0 or line[i - 1] in " \t"):
+        elif ch == "#" and (i == 0 or line[i - 1] in " \t"):
             break
-        out.append(ch)
+        else:
+            out.append(ch)
+        if not ch.isspace():
+            last = ch
     return "".join(out).rstrip()
 
 
-# 映射行：键（裸词或整体加引号）后跟冒号，冒号后是空白或行尾——YAML 的写法；`https://x` 不是映射
-_MAP_LINE = re.compile(r"""^(?:"([^"]*)"|'([^']*)'|([^\s"'#:][^:]*?))\s*:(?:\s+(.*)|)$""")
+# 映射行：键（裸词或整体加引号）后跟冒号，冒号后是空白或行尾——YAML 的写法；`https://x` 不是映射。
+# 裸键不带 `\s*` 接冒号（键尾空白由 _split_kv 去掉）：`[^:]*?\s*:` 在长空白行上是平方级回溯。
+_MAP_LINE = re.compile(r"""^(?:"([^"]*)"\s*|'([^']*)'\s*|([^\s"'#:][^:]*)):(?:\s+(.*)|)$""")
 
 
 def _not_kv(body, lineno):

@@ -975,6 +975,16 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A9：YAML 子集两处平方级（长空白行、满行引号）改线性
+            import time
+            t0 = time.time()
+            for text in (u"a" + u" " * 100000 + u"b\n", u"k: a" + u"'" * 100000 + u"\n"):
+                try:
+                    sl.parse_yaml_subset(text)
+                except sl.ConfigError:
+                    pass
+            spent = time.time() - t0
+            cases.append(("YAML 子集解析 10 万字符的长空白行与满行引号在 2 秒内", spent < 2, "%.2fs" % spent))
             # A8／C05：find_field 不跨行吞值、空值等于缺字段、build-status 不算 status
             got = [sl.find_field(u"# WI\n\n状态：\n\n## 背景\n", [u"状态"]),
                    sl.item_status(u"# WI\n\nstatus:\n\ndone\n"),
