@@ -808,6 +808,26 @@ def _shared_fact_selftest(mods):
             why="01 §1 G2：同一配置一种读法（stdlib.entry_files）；契约 §1.1 候选只出通过或未定；"
                 "契约 §1 同一事实只报一次",
             evidence="实得 %r；应得 %r" % (got_d, want_d)))
+
+        # E：照旧模板写的状态（DEFINED、IMPLEMENTING）认不出，记未定、只由 freshness 报一次
+        #    （freshness/unknown-state）；01 §4.1 六态、中文别名与项目声明的词都不误报（D-127）
+        states = ["DEFINED", "IMPLEMENTING", "planned", "blocked", "in_validation", "cancelled",
+                  "in_progress", "done", u"已完成", "closed"]
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, dict(("work/WI-%02d-x.md" % i, u"# WI\n\n状态：%s\n" % st)
+                            for i, st in enumerate(states)))
+            cfg = {"_root": tmp, "tier": "L1", "layout": {"docs_root": "docs", "work_root": "work"},
+                   "work_item_done_states": ["closed", "done", u"已完成"]}
+            fs = by["freshness"].run(cfg) + by["evidence"].run(cfg)
+            got_e = sorted((f["id"], f["status"], f["evidence"]) for f in fs
+                           if "WI-00-" in (f["evidence"] or "") or "WI-01-" in (f["evidence"] or ""))
+        want_e = [("freshness/unknown-state", UNDETERMINED,
+                   u"work/WI-00-x.md（defined）；work/WI-01-x.md（implementing）")]
+        out.append(finding(
+            "shared-fact", PASS if got_e == want_e else FAIL,
+            "认不出的工作项状态记未定、只由 freshness 报一次，01 §4.1 六态与项目声明的词不误报",
+            why="契约 §1.1：约定落空只记未定，不当'非进行中/非完成'静默放过；契约 §1：同一事实只报一次",
+            evidence="实得 %r；应得 %r" % (got_e, want_e)))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))
     return out

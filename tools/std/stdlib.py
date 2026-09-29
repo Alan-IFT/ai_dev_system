@@ -1226,6 +1226,22 @@ def state_list(cfg, path, default):
     return [str(s).strip().lower() for s in states if str(s).strip()]
 
 
+# 01 §4.1 的六态及常见中文别名（evidence 缺省完成态里的 delivered 一并认）
+WORK_ITEM_STATES = ("planned", "in_progress", "blocked", "in_validation", "done", "cancelled",
+                    "canceled", "delivered", "计划中", "已计划", "进行中", "阻塞", "已阻塞",
+                    "验证中", "待验证", "完成", "已完成", "取消", "已取消")
+
+
+def state_known(cfg, status):
+    """状态值在不在已知词表：01 §4.1 六态及别名，加项目声明的 work_item_*_states。
+
+    认不出的状态说不清是进行中还是完成，超龄与完成证据两道检查对它都没跑，只能记未定
+    （契约 §1.1），不能当"非进行中 / 非完成"放过（D-127）。由 freshness 报一次，evidence 静默跳过。
+    """
+    return status in WORK_ITEM_STATES or any(
+        status in state_list(cfg, k, ()) for k in ("work_item_done_states", "work_item_in_progress_states"))
+
+
 def agg(check, status, title, paths, reason, why="", *, kind):
     """把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。
 

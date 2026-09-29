@@ -199,7 +199,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准；未声明时 `layout` 查 ★ 工件头部缺元信息只记未定（`layout/meta-unrecognized`，§1.1），`freshness` 对 `metadata_required` 命中的无日期文档也只记一条聚合未定（`freshness/undated-fields-default`），声明后仍缺才判 `FAIL`；写成别的形状（映射、空列表）同样按未配处理。解析只在 `stdlib.date_fields_of` 一处，`layout` 与 `freshness` 共用 |
 | `metadata_required` | 路径前缀列表 | 否 | 见下方专段。给了就**只认这份清单**；显式写空列表 `[]` 即声明项目没有 01 §3.5 那六类文档，无日期文档整轮记一条 `SKIP`；键缺失或值为空时只按目录名约定**分组**，缺日期的无论约定命中与否都**记未定**（§1.1：约定不产出 `FAIL`），不记不适用 |
 | `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | 取常量 `done`/`完成`/`delivered` 并注明未校准 |
-| `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
+| `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准。工作项状态值不在 01 §4.1 六态（及中文别名，`stdlib.WORK_ITEM_STATES`）与这两个键的并集里时，由 `freshness` 记一条聚合未定（`freshness/unknown-state`，§1.1），`evidence` 不再另报 |
 | `derived` | 列表，每项 `artifact` / `source` / `regen` | 否 | `check_derived` 整条记 `SKIP`——不猜哪些文件是生成的 |
 | `repos` | 列表，每项 `name` / `path` / `role`；`name` 不得重名（重名时 `cross-repo` 整条记未定）；**`path` 只有 `role: archived` 可省略**（01 §3.8 的 archived 就是"已移出工作区，只在远端"）| 否 | `cross-repo` 记 `SKIP`：未声明或不足两个条目记不适用（单仓项目，01 §3.8）。`role` 取 `system`/`app`/`retired`/`archived`。`archived` 省略 `path` 或 `path` 在本机不存在时，"各仓可定位"一条按定义记 `PASS`，凡需读该仓本地文件的各条（入口、退役仓失效标记、跨仓引用）对它记 `SKIP`；给了 `path` 且目录在则照读照判。`retired` 不享受这条——它仍要求本地有检出可核 |
 | `repos[].former_names` | 字符串列表 | 否 | **不声明就一字不查**——不猜哪个名字是旧名（判据八）。别名与任何在册 `name` 相撞（不分大小写）时该项记 `UNDETERMINED` 且不扫描：那种情况下命中的多半是在役引用 |

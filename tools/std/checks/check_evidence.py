@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
-    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status,
+    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status, state_known,
     read_text, state_list, undetermined_from_exception, unreadable, work_root, work_root_absent, write_text,
 )
 
@@ -355,9 +355,9 @@ def _run(cfg):
             continue
 
         status = item_status(text)
-        if status is None:
-            # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
-            # 这里静默跳过
+        if status is None or not state_known(cfg, status):
+            # 读不到状态或状态认不出：是不是工作项、要不要报 no-status / unknown-state 都由 freshness
+            # 判一次（契约 §1 同一事实只报一次），这里静默跳过
             continue
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
