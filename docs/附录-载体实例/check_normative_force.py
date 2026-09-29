@@ -203,9 +203,13 @@ def main() -> int:
 
     # ---- C7：每条原则在追溯记录中有且只有一条对应项（D-014 §9） ----
     ledger_p = ROOT / "docs" / "追溯账本.md"
-    if ledger_p.exists():
+    chapters = sorted(ROOT.glob("docs/[1-4][0-9]-*.md"))
+    if chapters and not ledger_p.exists():  # 账本段缺失即为缺陷（上下文合同第 7 项），不得静默跳过
+        findings.append(Finding("C7", "docs/追溯账本.md", None,
+            "追溯账本不存在，正文原则无从对账"))
+    elif chapters:
         ledger = ledger_p.read_text(encoding="utf-8")
-        for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
+        for p in chapters:
             rel = p.relative_to(ROOT).as_posix()
             num = p.name[:2]
             _m = re.search(rf'<a id="ch-{num}"></a>', ledger)
