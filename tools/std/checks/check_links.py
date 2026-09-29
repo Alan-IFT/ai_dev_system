@@ -38,8 +38,10 @@ _LINK_RE = re.compile(
 )
 
 # 带协议的目标（http:、mailto:、javascript:、vscode: ……）都不是本地路径，一律跳过（RFC 3986 的 scheme 形状）。
-# 至少两个字符：单字母加冒号是 Windows 盘符，归 _WIN_ABS_RE
-_SKIP_SCHEME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]+:')
+# 至少两个字符：单字母加冒号是 Windows 盘符，归 _WIN_ABS_RE。scheme 不含点、冒号后不是纯行号：
+# `a.py:12`、`Makefile:3` 是「本地路径:行号」，按路径核（R2-9）
+_SKIP_SCHEME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9+-]+:(?!\d+(?::\d+)?$)')
+_LINE_SUFFIX_RE = re.compile(r':\d+(?::\d+)?$')
 _WIN_ABS_RE = re.compile(r'^[A-Za-z]:[\\/]')
 
 _MD_EXT = (".md", ".markdown")
@@ -287,6 +289,9 @@ def _run(cfg):
 
                 path_part, _, anchor = target.partition("#")
                 path_part = unquote(path_part.partition("?")[0])   # ?plain=1 之类是查询串，不是文件名的一部分
+                path_part = _LINE_SUFFIX_RE.sub("", path_part)       # `文件:行号` 只核文件（R2-9）
+                if not path_part and not anchor:                     # 只有查询串：指向本页，没什么可核
+                    continue
                 anchor = unquote(anchor)
 
                 # 纯锚点：指向本文件
@@ -517,6 +522,18 @@ def selftest():
                 "C22：互相链接的两份 markdown 各只读一遍",
                 evidence="实得 %s；读 %d 次：%s" % (got, len(reads), [os.path.basename(r) for r in reads]),
                 why="一次扫描里同一份文件不重复 I/O",
+            ))
+
+            # R2-9：`文件:行号` 按本地路径核（文件在则通过、不在判断链），只有查询串的链接不核
+            w("x.py", "print(1)\n")
+            w("a.md", "[t](x.py:12) [m](x.py:3:5) [g](gone.py:10) [q](?plain=1)\n")
+            got = sorted((f["status"], f["id"]) for f in run({"_root": tmp, "_links_files": ["a.md"]})
+                         if f["status"] != PASS)
+            want = [(FAIL, "links/missing/a.md｜gone.py:10")]
+            results.append(finding(
+                NAME, PASS if got == want else FAIL,
+                "R2-9：文件:行号 按本地路径核，只有查询串的链接不当锚点",
+                evidence="非通过项 %s；应得 %s" % (got, want), why="01 §3.4 引用核对不得漏报也不得误报",
             ))
 
             # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；
