@@ -175,10 +175,14 @@ exec python3 .std/tools/std/check_all.py . --no-scope
 ```
 
 `git subtree add/pull` 走 `commit-tree`，不经过这个钩子，升级不需要放行；反过来它也看不见
-`--no-verify` 的提交，以及 `git cherry-pick`、`git revert`、`git rebase` 与 fast-forward 的 `git merge`
+`--no-verify` 的提交（git 接受无歧义缩写如 `--no-veri`，`-n` 可并进组合短选项如 `-an`）、
+`git -c core.hooksPath=… commit` 临时换走钩子目录的提交、钩子文件失去执行权限后的提交（git 只打一行
+hint 就跳过），以及 `git cherry-pick`、`git revert`、`git rebase` 与 fast-forward 的 `git merge`
 写进分支的提交（这几类默认不运行 pre-commit 与 commit-msg，只有 `rebase -i` 的 reword 和冲突解决后的
 `--continue`／`git commit` 会经过钩子）——这些盲区按
-[01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。非 fast-forward 的 `git merge`
+[01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。不建议为这些写法加宿主询问规则：
+git 选项的缩写与组合写不完，按命令字符串拦只能打地鼠；兜底靠 git 历史可查与合并、发布前的全量检查。
+非 fast-forward 的 `git merge`
 可再接一个 `pre-merge-commit` 钩子（内容为 `exec "$(dirname "$0")/pre-commit"`）转调同一钩子覆盖。这段是形态示意不是发布物；
 `.std/` 前缀由采用项目自己的取用方式决定，换了前缀要跟着改。`check_all` 启动时先去掉 git 给钩子注入的
 `GIT_DIR` 等仓库定位变量，从 git worktree 提交也不会把自检夹具写进本仓；`2026-09-23.9` 之前的版本在
