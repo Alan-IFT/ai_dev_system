@@ -348,3 +348,10 @@ bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生�
   而异，读了会让同一提交在不同机器上结论不同）；要查就自己跑 `grep -n '"Bash' .claude/settings.local.json`。
   只判 Bash 规则，解释器与运行器按一份固定清单认；不判 MCP、WebFetch 等工具的放行范围，也不判每项
   有没有加入理由与复审条件。
+
+## 本仓库自己的采用结果
+
+标准仓自己也是采用者（配置在标准仓自己的 `governance/project.yaml`，不在交付面里）。它唯一的裁剪项是
+`cross-repo`（单仓项目，01 §3.8 记不适用）。唯一一条未定是 `single-authority/count-claim/14:个:部件`，已登记为
+EX-001，所以扫描退出 0。退出 0 不等于全绿：那条仍是未定、仍计数，登记只改了退出码。现状以在标准仓根跑
+`python3 tools/std/check_all.py . --no-scope` 为准。
