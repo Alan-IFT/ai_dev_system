@@ -6,7 +6,8 @@
 
 三态取向（01 §2 N1）：
 - 文档久未更新记 **未定**，不记失败——久未更新可能只是内容稳定，是否过期要人看。
-- 文档没有日期字段记 **失败**——01 §3.2 要求说清"它过期了怎么被发现"，没有日期就发现不了。
+- 文档没有日期字段：项目在 metadata_required 与 metadata_fields 里都声明了（哪些文档要带、字段叫什么）
+  才记 **失败**——01 §3.2 要求说清"它过期了怎么被发现"，没有日期就发现不了；任一处靠工具约定都只记未定（契约 §1.1）。
 - 进行中工作项长期无状态转换记 **失败**，但标题写"需核实"：01 §4.1 说的是超龄触发核实，
   不是自动判违规，处置由负责人定（补进度、转 blocked 或拆分）。
 """
@@ -304,7 +305,7 @@ def _check_docs(cfg, root, today, base, texts):
         )]
 
     wdir = norm_rel(work_root(cfg)[0]).rstrip("/")
-    out, frozen, unclassified, declared_none, by_convention = [], [], [], [], []
+    out, frozen, unclassified, declared_none, by_convention, field_guessed = [], [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -336,6 +337,9 @@ def _check_docs(cfg, root, today, base, texts):
                 continue
             if need == "convention":
                 by_convention.append(rel)
+                continue
+            if names_default:      # 字段名是工具默认，没认出推不出没写（C11，与 layout 同口径）
+                field_guessed.append(rel)
                 continue
             out.append(finding(
                 NAME, FAIL, "缺日期字段：%s" % rel, where="%s:1" % rel,
@@ -397,6 +401,14 @@ def _check_docs(cfg, root, today, base, texts):
                    "故记未定不判 FAIL。要给出定论，在 project.yaml 写 metadata_required"
                    % " / ".join(sorted(_IMPORTANT_DIRS)),
             why="01 §3.5 元信息要求覆盖六类重要文档；契约 §1.1 约定落空或命中都不产出 FAIL"))
+    if field_guessed:
+        out.append(agg(
+            NAME, UNDETERMINED, "metadata_required 要求带日期，但没认出默认日期字段 %s" % "/".join(names),
+            field_guessed, kind="undated-fields-default",
+            reason="这些文档在 metadata_required 清单内（项目声明），但日期字段名是本工具的默认值、"
+                   "项目没在 metadata_fields 里声明；没认出推不出没写（契约 §1.1）。声明 metadata_fields 之后"
+                   "仍缺才判 FAIL",
+            why="01 §3.5 要求重要文档头部带日期；契约 §1.1 字段名约定落空只记未定"))
     if unclassified:
         # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
@@ -550,7 +562,8 @@ def _sample(tmp, doc_text, work_text, declared=True):
     write_text(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
     write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
     err = git_track(tmp)
-    return _cfg(tmp, {"metadata_required": ["docs/architecture"]} if declared else None), err
+    return _cfg(tmp, {"metadata_required": ["docs/architecture"], "metadata_fields": ["updated_at"]}
+                if declared else None), err
 
 
 def _sample_unconventional(tmp, work_text, metadata_required=None):
@@ -567,7 +580,7 @@ def _sample_unconventional(tmp, work_text, metadata_required=None):
                "# 数据恢复手册\n\n正文：故障后的数据恢复步骤。\n")
     write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
     err = git_track(tmp)
-    extra = ({"metadata_required": list(metadata_required)}
+    extra = ({"metadata_required": list(metadata_required), "metadata_fields": ["updated_at"]}
              if metadata_required is not None else None)
     return _cfg(tmp, extra), err
 
@@ -708,6 +721,18 @@ def selftest():
             evidence="实得 %s%s" % ([(f["status"], f["id"]) for f in res], ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §1.1：目录名是工具约定，约定命中或落空都不产出 FAIL",
         ))
+
+    # C11：metadata_required 声明了而 metadata_fields 没声明，无日期文档只记一条聚合未定，不判 FAIL
+    # （与 layout 的 meta-unrecognized 同口径：字段名是工具默认，没认出推不出没写）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, "# 无日期\n\n日期：2026-09-01\n", work_fresh)
+        cfg.pop("metadata_fields", None)
+        got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(UNDETERMINED, NAME + "/undated-fields-default")] else FAIL,
+        "C11：未声明 metadata_fields 时 metadata_required 命中的无日期文档只记未定",
+        evidence="非通过项 %s" % (got,), why="契约 §1.1 与 §5 metadata_fields：声明后仍缺才判 FAIL",
+    ))
 
     # 反例七（D-123 bug 1）：浅克隆下退到提交时间的工作项须记未定。非浅克隆同一样本判 FAIL，
     # 浅克隆取到的是克隆时刻，旧实现会把它翻成 PASS。
