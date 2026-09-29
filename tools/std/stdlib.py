@@ -577,8 +577,10 @@ def _bad_shape(cfg, text):
     for lst, subs in (("repos", (("name", "str"), ("path", "str"), ("role", "str"), ("former_names", "strs"))),
                       ("derived", (("artifact", "str"), ("source", "str"), ("regen", "str"))),
                       ("tailoring", (("check", "str"), ("reason", "str")))):
+        rows = cfg_get(cfg, lst)     # 写成非列表（如 `tailoring: 5`）由上面的顶层形状报，这里不迭代
         items += [("%s[%d].%s" % (lst, i, k), r.get(k), shape)
-                  for i, r in enumerate(cfg_get(cfg, lst) or []) if isinstance(r, dict) for k, shape in subs]
+                  for i, r in enumerate(rows if isinstance(rows, list) else []) if isinstance(r, dict)
+                  for k, shape in subs]
     arts = cfg_get(cfg, "layout.artifacts")
     items += [("layout.artifacts." + str(k), v, "str|strs" if k == "entry" else "str")
               for k, v in (arts.items() if isinstance(arts, dict) else ())]

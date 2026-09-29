@@ -1415,6 +1415,10 @@ def _stdlib_selftest(mods):
                                                     {"check": "layout:playbook", "applicable": False}]}, mods)
             cases.append(("裁剪写成不存在的名字（derived）记未定，写对的不报",
                           [f["id"] for f in unk] == ["tailoring/unknown-check/derived"], [f["id"] for f in unk]))
+            # R124-4：tailoring 写成非列表按配置形状错误整份拒收、报键名与行号，不在形状校验里崩
+            cfg, prob = load(fresh("p40"), u"tier: L0\ntailoring: 5\n")
+            cases.append(("tailoring 写成非列表整份拒收并报键名与行号",
+                          cfg == {} and u"第 2 行 tailoring 须是映射组成的列表" in (prob or ""), prob))
     except Exception as exc:  # noqa: BLE001
         return [undetermined_from_exception("stdlib", exc, "跑 stdlib 自检")]
     return [probe("stdlib", ok, "stdlib：" + title,
