@@ -106,15 +106,9 @@ def _name_appears(text, name):
 
 
 def _has_status_token(line):
-    """这一行上有没有把仓的状态写出来。只认状态词本身，不解读句意。"""
-    low = line.lower()
-    for t in _STATUS_TOKENS:
-        if t.isascii():
-            if t.lower() in low:
-                return True
-        elif t in line:
-            return True
-    return False
+    """这一行上有没有把仓的状态写出来。只认状态词本身，不解读句意。英文词按独立记号认
+    （子串会让 filesystem 命中 system，B13），中文词按子串。"""
+    return any(_name_appears(line, t) if t.isascii() else t in line for t in _STATUS_TOKENS)
 
 
 def _norm(path):
@@ -1139,6 +1133,16 @@ def selftest():
                 evidence="实得 %s" % got,
                 why="契约 §1：同一事实只报一次；01 §3.8 archived 本就不在工作区",
             ))
+
+        # 状态词按独立记号认（B13）：filesystem、app_system_x 都不是 system
+        got = [_has_status_token(x) for x in (u"app 的 filesystem 说明", u"app（active）", u"app: Archived",
+                                              u"app 已退役", u"app_system_x")]
+        results.append(finding(
+            NAME, PASS if got == [False, True, True, True, False] else FAIL,
+            "登记行的英文状态词按独立记号认，filesystem 不算 system",
+            evidence="实得 %s" % got,
+            why="01 §3.8 要求登记的是状态；子串命中会把只出现名字的行记成已登记（假通过）",
+        ))
 
         for want, title, probes in (
             ([FAIL], "判据八反例：历史别名出现在别的仓里，应判 FAIL",
