@@ -197,11 +197,12 @@ def undetermined_from_exception(check, exc, what):
 # 日期
 # --------------------------------------------------------------------------
 
-def parse_date(raw):
+def parse_date(raw, strict=False):
     """支持 YYYY-MM-DD 与 ISO8601。返回 (date, None) 或 (None, 原因)。解析不了不猜。
 
     从 `check_freshness._parse_date` 提上来：新鲜度与例外登记的到期都要解析日期，
     留两份必然漂（01 §1 G2）。`*` 与反引号是 markdown 的加粗/行内代码标记，先剥掉。
+    strict：只收纯日期，不认「日期 + 任意文字」（例外登记的到期，契约 §9）。
     """
     s = str(raw).replace("*", "").replace("`", "").strip()
     if not s:
@@ -215,7 +216,7 @@ def parse_date(raw):
         return datetime.datetime.fromisoformat(t).date(), None
     except ValueError:
         pass
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    m = None if strict else re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
     if m:
         try:
             return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))), None
@@ -610,22 +611,24 @@ def load_config(root, config_path=None):
 
 EXCEPTIONS_FILE = "exceptions.md"
 
-# 表头按「包含」匹配，先命中者为准。`id` 不区分大小写。
-_EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
+# 表头按「包含」匹配，先命中者为准；`id` 只认整格（不区分大小写）——按包含，「到期 / valid until」
+# 「Rule ID」「Provider」都会被当成编号列，到期或规则列随之丢失。
+_EX_HEADERS = ((u"编号", "ex_id"), (u"规则", "rule"),
                (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
                (u"到期", "expires"), (u"状态", "status"))
 
-# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**某一段以关闭词开头**才算关闭——
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**某一段以关闭词整词开头**才算关闭——
 # 含词即关闭会把「没关闭」「not yet closed」「open (to be closed)」这类尚在生效的例外当成历史行放过；
-# 按否定前缀排除又列不全（D-123）。
-_EX_CLOSED = (u"关闭", u"已关闭", u"closed", u"done", u"已处理")
+# 按否定前缀排除又列不全（D-123）；只看前缀又会把「已处理中」「done? 否」「closed-loop 待复核」当成关闭。
+# 关闭词后面只许是段尾、空白、加粗/反引号、括号或冒号、句号。
+_EX_CLOSED_RE = re.compile(u"(?:关闭|已关闭|closed|done|已处理)(?=$|[\\s*`（(【\\[：:。.])")
 
 
 def _ex_closed(status):
-    """按逗号、分号、顿号、斜杠切段，任一段（去首尾加粗与反引号）以关闭词开头即关闭：
-    「**已过期，已处理**（…）」是关闭行，「not yet closed」「open (to be closed)」不是。"""
+    """按逗号、分号、顿号、斜杠切段，任一段（去首尾加粗与反引号）以关闭词整词开头即关闭：
+    「**已过期，已处理**（…）」「已关闭（09-01）」是关闭行，「not yet closed」「已处理中」不是。"""
     for seg in re.split(u"[，,;；、/|]+", status.lower()):
-        if seg.strip().strip(u"*`").strip().startswith(_EX_CLOSED):
+        if _EX_CLOSED_RE.match(seg.strip().strip(u"*`").strip()):
             return True
     return False
 
@@ -674,6 +677,8 @@ def _first_md_table(text):
 
 
 def _ex_field(header_cell):
+    if header_cell.strip().lower() == u"id":
+        return "ex_id"
     for token, field in _EX_HEADERS:
         if token in header_cell or token in header_cell.lower():
             return field
@@ -740,13 +745,13 @@ def load_exceptions(config_dir, root=None):
         ex_id, reason, scope = get("ex_id"), get("reason"), get("scope")
         approver, expires_raw = get("approver"), get("expires")
         if u"/" not in rule:                          # 项目自己的例外：只取到期
-            day, err = parse_date(expires_raw)
+            day, err = parse_date(expires_raw, strict=True)
             own.append({"ex_id": ex_id, "rule": rule, "expires": expires_raw, "expires_date": day,
                         "error": err, "lineno": lineno})
             continue
         missing = [n for n, v in ((u"规则", rule), (u"理由", reason),
                                   (u"范围", scope), (u"批准人", approver)) if not v]
-        day, err = parse_date(expires_raw)
+        day, err = parse_date(expires_raw, strict=True)
         if day is None:
             missing.append(u"到期（%s）" % err)
         if missing:

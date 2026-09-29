@@ -1189,9 +1189,15 @@ def _stdlib_selftest():
             # bug 12：关闭态只认整格等于或以关闭词开头
             closed = [sl._ex_closed(x) for x in (u"关闭", u"已关闭（09-01）", u"**done**",
                                                  u"**已过期，已处理**（06-28 对账）", u"没关闭",
-                                                 u"not yet closed", u"open (to be closed)", u"待关闭")]
-            cases.append(("例外登记的关闭态只认段首：没关闭/not yet closed/open (to be closed) 不算关闭",
-                          closed == [True, True, True, True, False, False, False, False], closed))
+                                                 u"not yet closed", u"open (to be closed)", u"待关闭",
+                                                 u"已处理中", u"done? 否", u"closed-loop 待复核")]
+            cases.append(("例外登记的关闭态只认段首整词：没关闭/not yet closed/已处理中/done? 否/closed-loop 不算关闭",
+                          closed == [True, True, True, True] + [False] * 7, closed))
+            # A12：表头 id 只认整格；到期只收纯日期
+            got = [sl._ex_field(h) for h in (u"到期 / valid until", u"Rule ID", u"Provider", u" ID ", u"编号")]
+            got += [sl.parse_date(u"2026-12-31 以后再说", strict=True)[0], sl.parse_date(u"2026-12-31", strict=True)[0]]
+            cases.append(("登记册表头 id 整格匹配、到期不认「日期 + 文字」",
+                          got == ["expires", None, None, "ex_id", "ex_id", None, datetime.date(2026, 12, 31)], got))
             # A14：git < 2.31 静默忽略 GIT_CONFIG_COUNT，加固全失效——认出来记未定，不静默照跑
             vers = [sl.git_version_problem(v) is None for v in (
                 "git version 2.25.1\n", "git version 2.31.0\n", "git version 2.39.3 (Apple Git-146)\n", "")]
