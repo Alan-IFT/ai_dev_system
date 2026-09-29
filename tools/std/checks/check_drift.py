@@ -32,7 +32,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from stdlib import (  # noqa: E402
-    DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
+    DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,
     cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, is_tailored_out, norm_rel, note_default, read_text,
     rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
@@ -187,7 +187,8 @@ def _check_dates(cfg, root, files, docs_root):
             continue
         scanned += 1
         try:
-            cand = _candidates(read_text(os.path.join(root, rel), root))
+            # 不走 read_text：它把孤立的 \r 归一成 \n，行号就与只认 \n 的 git blame 错位（B14）
+            cand = _candidates(read_bytes(os.path.join(root, rel), root).decode("utf-8", "replace"))
         except OSError as exc:
             return [undetermined_from_exception(NAME, exc, u"读 %s" % rel)]
         if cand:
@@ -1016,7 +1017,7 @@ def selftest():
     # SHA-256 仓的 64 位行头照样解析
     for tag, fmt in (("1g", None), ("1h", "sha256")):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            write_text(os.path.join(tmp, "docs", "a.md"), u"# 样本\x0c分页\u2028续\n- 2026-09-22 裁定 X。\n")
+            write_text(os.path.join(tmp, "docs", "a.md"), u"# 样本\x0c分页\u2028续\r孤立回车\n- 2026-09-22 裁定 X。\n")
             err = None
             if fmt:
                 r = subprocess.run(["git", "init", "-q", "--object-format=" + fmt, tmp],
@@ -1028,7 +1029,7 @@ def selftest():
                    if f["id"].startswith((u"drift/future-date", u"drift/blame"))]
             _assert(results, (not err) and got == [(u"drift/future-date/docs/a.md｜2026-09-22", u"docs/a.md:2")],
                     u"%s 反例：%s里写于 09-21 的『2026-09-22 裁定』须报出，行号按 \\n 计为第 2 行"
-                    % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c 与 U+2028 的行"),
+                    % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c、U+2028 与孤立 \\r（B14）的行"),
                     u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
                     why=u"行号或行头对不上时旧实现静默跳过该行，把未来日期漏成通过")
 
