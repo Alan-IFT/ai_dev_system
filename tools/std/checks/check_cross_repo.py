@@ -20,7 +20,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    inside, read_bytes, MAX_READ_BYTES, FAIL, PASS, SKIP, UNDETERMINED,
+    inside, outside_root, read_bytes, MAX_READ_BYTES, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
@@ -256,7 +256,7 @@ def _load_repos(cfg):
 def _find_entry(repo, entry_names):
     for nm in entry_names:
         p = os.path.join(repo["_real"], str(nm))
-        if os.path.isfile(p):
+        if not inside(repo["_real"], p) or os.path.isfile(p):   # 出仓的不探测，照返回，由读它处记未定
             return p, str(nm)
     return None, None
 
@@ -467,7 +467,9 @@ def _check_entry_exists(repos, entries, entry_names):
         if not r["_exists"]:
             continue
         path, nm = entries.get(r["name"], (None, None))
-        if path:
+        if path and not inside(r["_real"], path):
+            out.append(outside_root(NAME, "%s/%s" % (r["path"].rstrip("/"), nm)))
+        elif path:
             out.append(finding(
                 NAME, PASS, "仓 %s 有自己的入口：%s" % (r["name"], nm),
                 where="%s/%s" % (r["path"].rstrip("/"), nm),

@@ -33,7 +33,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,
-    cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, is_tailored_out, norm_rel, note_default, read_text,
+    cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, outside_root, is_tailored_out, norm_rel, note_default, read_text,
     WORK_ITEM_NAME, rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
     write_text,
 )
@@ -300,6 +300,8 @@ def _adr_dir(cfg, root, files, docs_root):
     if declared:
         rel = norm_rel(declared).rstrip("/")
         path = os.path.join(root, rel)
+        if not inside(root, path):      # 先护栏（R1-07）
+            return None, True, outside_root(NAME, rel)
         if os.path.isfile(path):
             rel = os.path.dirname(rel) or "."
             path = os.path.join(root, rel)
@@ -519,6 +521,8 @@ def _check_work_items(cfg, root, files):
     if declared:
         status_rel = norm_rel(declared).rstrip("/")
         status_path = os.path.join(root, status_rel)
+        if not inside(root, status_path):
+            return [outside_root(NAME, status_rel)]
         if not (os.path.isfile(status_path) or os.path.isdir(status_path)):
             return [finding(
                 NAME, UNDETERMINED, u"状态文件不存在：%s" % status_rel, where=status_rel,
@@ -530,7 +534,8 @@ def _check_work_items(cfg, root, files):
         status_rel = None
         cands = [rebase_docs(c, docs_root_of(cfg)[0]) for c in STATUS_CANDIDATES]
         for cand in cands:
-            if os.path.exists(os.path.join(root, cand)):
+            p = os.path.join(root, cand)
+            if not inside(root, p) or os.path.exists(p):   # 出仓的候选不探测，读时记未定
                 status_rel = cand
                 break
         if status_rel is None:
@@ -541,7 +546,7 @@ def _check_work_items(cfg, root, files):
                 why=u"01 §4.1 以工作项为对象；契约 §1.1：候选路径是约定，猜不到不记通过")]
 
     # 状态源是目录（一件一文件即状态源）时，ID 取它直接一层的 *.md，不递归。
-    if os.path.isdir(os.path.join(root, status_rel)):
+    if inside(root, os.path.join(root, status_rel)) and os.path.isdir(os.path.join(root, status_rel)):
         sources = [f for f in files if f.lower().endswith(".md") and os.path.dirname(f) == status_rel]
     else:
         sources = [status_rel]

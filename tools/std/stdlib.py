@@ -1030,7 +1030,9 @@ def entry_files(cfg):
     if declared:
         return [str(x) for x in ([declared] if isinstance(declared, str) else declared)], ""
     root = cfg.get("_root") or "."
-    hits = [c for c in ENTRY_CANDIDATES if os.path.isfile(os.path.join(root, c))]
+    # 出仓的候选不探测、照算命中（由读它的检查器记 outside-root），结论不随仓外文件在不在而变
+    hits = [c for c in ENTRY_CANDIDATES
+            if not inside(root, os.path.join(root, c)) or os.path.isfile(os.path.join(root, c))]
     note = "未配 layout.entry，按候选 %s 的顺序取第一个存在的" % "、".join(ENTRY_CANDIDATES)
     if not hits:
         return [], note + "：都不存在"
@@ -1069,6 +1071,14 @@ def work_root(cfg):
         return str(raw), "work_root 取自 layout.work_root：%s" % raw
     rel = rebase_docs(DEFAULT_WORK_ROOT, docs_root_of(cfg)[0])
     return rel, "work_root 用的是默认 %s（未配 layout.work_root）" % rel
+
+
+def outside_root(check, rel):
+    """字面在项目内、真实位置出仓的路径：记未定，不判缺失、不探测目标在不在（契约 §5）。"""
+    return finding(check, UNDETERMINED, "%s 的真实位置在被扫项目之外，未读" % rel, where=rel,
+                   kind="outside-root", key=rel,
+                   reason="它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+                   why="契约 §5：只读被扫项目之内的文件")
 
 
 def work_root_absent(check, cfg):

@@ -36,7 +36,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     read_bytes, read_text, FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, embedded_std_rel, filter_env, finding, is_tailored_out, undetermined_from_exception,
+    cfg_get, embedded_std_rel, filter_env, finding, inside, is_tailored_out, outside_root,
+    undetermined_from_exception,
 )
 
 NAME = "adoption"
@@ -261,6 +262,8 @@ def _version(cfg, root, tool_root):
     out = []
     embedded = embedded_std_rel(root, tool_root)
 
+    if not inside(root, path):          # 先护栏：出仓的不探测在不在（R1-07）
+        return [outside_root(NAME, _REL)] + _readonly_findings(root, embedded)
     if not os.path.isfile(path):
         out.append(finding(
             NAME, FAIL, "缺 %s：没有记录采用的是标准的哪一版" % _REL,
@@ -468,6 +471,8 @@ def _settings_allow(root):
     why = ("01 §5.5 审批疲劳段的验收：能执行任意代码的通配放行项（整个命令解释器、脚本运行器或包管理器的"
            "运行命令）不作为免审批项保留，只放行窄到具体动作的规则")
     path = os.path.join(root, _SETTINGS_REL)
+    if not inside(root, path):
+        return [outside_root(NAME, _SETTINGS_REL)]
     if not os.path.isfile(path):
         return [finding(
             NAME, SKIP, "没有入库的 %s，免审批清单无从读" % _SETTINGS_REL, kind="settings-absent",

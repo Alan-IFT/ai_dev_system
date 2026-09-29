@@ -1043,6 +1043,34 @@ def _stdlib_selftest(mods):
             fake = [ln for ln in text.splitlines()[:-1] if ln.startswith(u"结论")]
             cases.append(("文本报告里没有从第 0 列开始的伪造结论行（含 U+2028/2029 断行）、没有 ESC 与双向控制符",
                           not fake and u"\x1b" not in text and u"\u202e" not in text, fake or text[-120:]))
+            # R1-07：护栏在任何 isfile/isdir/exists 之前——出仓软链接的目标在不在，结论都一样（不探测仓外）
+            proj, outd = fresh("p33"), fresh("p33-out")
+            links = {"governance/STANDARD_VERSION": "sv", ".claude/settings.json": "set.json",
+                     "AGENTS.md": "agents.md", "dec": "dec", "st.md": "st.md"}
+            for rel, tgt in links.items():
+                os.makedirs(os.path.dirname(os.path.join(proj, rel)) or proj, exist_ok=True)
+                os.symlink(os.path.join(outd, tgt), os.path.join(proj, rel))
+            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+                fh.write(_SMOKE_ENTRY)
+            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            by_name = dict((n, m) for n, m, _e in mods if m is not None)
+
+            def _probe():
+                fs = by_name["adoption"].run({"_root": proj, "compatibility": {"policy": "x"}})
+                fs += by_name["drift"].run({"_root": proj, "tier": "L0", "layout": {
+                    "entry": ["CLAUDE.md"], "artifacts": {"decisions": "dec", "status": "st.md"}}})
+                return (sorted((f["status"], f["id"]) for f in fs), sl.entry_files({"_root": proj})[0],
+                        by_name["cross-repo"]._find_entry({"_real": proj}, ["AGENTS.md"])[1])
+            absent = _probe()
+            os.makedirs(os.path.join(outd, "dec"))
+            for tgt in ("sv", "set.json", "agents.md", "st.md"):
+                with io.open(os.path.join(outd, tgt), "w", encoding="utf-8") as fh:
+                    fh.write(u"x\n")
+            present = _probe()
+            outs = sorted(i for _s, i in absent[0] if "/outside-root/" in i)
+            cases.append(("出仓软链接：目标在不在结论一致，且记 outside-root",
+                          absent == present and len(outs) == 4, (outs, [x for x in absent[0] if x not in present[0]])))
             # R1-06：已声明入口撑过读取上限，照数行（下界）判超预算 FAIL，不落未定
             proj = fresh("p32")
             with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
