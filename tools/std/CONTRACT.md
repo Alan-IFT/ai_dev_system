@@ -118,7 +118,7 @@ def selftest() -> list[dict]:
 | 给了 `kind` | `check/kind`，再给 `key` 则接 `/` 与归一化后的 key（首尾空白去掉、内部空白折成 `_`、竖线换成 `｜`） | **判据不变它就不变**：标题怎么改、命中几个文件、超期几天，都不影响它。跨工具版本升级时仍须按 §8 的身份重跑核对 |
 | 没给 `kind` | `check/` + `sha1(title)[:8]` | **只在同一工具身份内稳定**：标题改一个字就换一个 id，对应的登记行随之失效。这是兜底，不是承诺 |
 
-给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定与两条 FAIL（`missing`、`anchor-missing`；同一文件里同一目标合并成一条，行号进证据）、`derived` 的四条未定与 `behind`（key 为派生物与源）、`header-undeclared`（同一派生物只判一次）两类 FAIL（标题带声明序号），`evidence` 的 `incomplete`、`limits-empty` 与未定 `fields-unrecognized`（key 为文件与条目名；认出的都有值、缺的字段可能在条目里认不出的「标签: 值」行或映射不到的表头列里时记未定，§1.1；没有这种行就是没写，判 FAIL）；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，`stdlib.unreadable` 与 `stdlib.outside_root` 的 `unreadable`／`outside-root`（读不了、出仓的文件是对象的事，不是检查器故障，不落兜底 id；检查器内同一文件只报一次），标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
+给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定与两条 FAIL（`missing`、`anchor-missing`；同一文件里同一目标合并成一条，行号进证据）、`derived` 的四条未定与 `behind`（key 为派生物与源）、`header-undeclared`（同一派生物只判一次）两类 FAIL（标题带声明序号），`evidence` 的 `incomplete`、`limits-empty` 与未定 `fields-unrecognized`（key 为文件与条目名；认出的都有值、缺的字段可能在条目里认不出的「标签: 值」行或映射不到的表头列里时记未定，§1.1；没有这种行就是没写，判 FAIL）；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，检查器崩溃与自检闸门不过的 `internal-error`（§9：不可登记），`stdlib.unreadable` 与 `stdlib.outside_root` 的 `unreadable`／`outside-root`（读不了、出仓的文件是对象的事，不是检查器故障，不落兜底 id；检查器内同一文件只报一次），标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
 
 ---
 
@@ -298,7 +298,7 @@ tool_identity_files:
 
 **规则列写的是 Finding id**（报告里每条未定下面那行 `id：…`，直接抄）。比较前去首尾空白、剥首尾反引号，然后**精确相等**才算命中。与项目自己的门号例外（`G6`、`G9` 之类）共用一张表：**规则列不含 `/` 的行本工具不登记、不校验五项**——那是项目的门，不是本工具的发现，拿去匹配只会成批报孤儿。**但它们的到期照判**（[02 §4](../../标准/02-项目架构描述规范.md)：依赖规则的例外「带到期；到期未清理 CI 转红」）：未关闭且到期早于运行日的判 `FAIL`（`exception-register/own-expired/<编号>`，编号为空取规则列），到期写不成日期的汇成一条未定（`exception-register/own-undated`）；未到期的不出发现。规则含 `/` 却匹配不到本次任何**未定**发现（含匹配到 `PASS`／`SKIP`／`FAIL`）的行即为孤儿，出一条 `exception-register/orphan`（判据变了、该条已不是未定，或抄错了，都该清理——留着的死行会在日后该条转回未定时静默复活）。
 
-**FAIL 不可登记。** 本工具的 FAIL 按 §1.1 只在项目自己声明的事实下产出，那是确定的违规，处置是修或改声明。整块判据在本项目不适用走 `tailoring`（§5）——那是"这个检查器对我不适用"，粒度是整个检查器；例外登记是"这一条发现我看过并接受到某日"，粒度是单条发现。两者不可互换。
+**FAIL 不可登记。** 本工具的 FAIL 按 §1.1 只在项目自己声明的事实下产出，那是确定的违规，处置是修或改声明。**检查器自身出错的未定同样不可登记**：崩溃或自检闸门不过（id 为 `<检查器>/internal-error`）会顶掉该检查器本次的全部结论，登记它等于登记被顶掉的 FAIL；规则列写这类 id 的行按不合格行处置，那条未定照旧计入退出码 2。读不了的文件（`unreadable/<路径>`）、配置写错等有专门 kind 的未定是对象的事，不在此列。整块判据在本项目不适用走 `tailoring`（§5）——那是"这个检查器对我不适用"，粒度是整个检查器；例外登记是"这一条发现我看过并接受到某日"，粒度是单条发现。两者不可互换。
 
 **与 §1.1 的关系**：登记**不是配置键**，也不改任何判据的召回位置。§1.1 禁的是"替工具修判据"的键——那会让每个采用方各自把召回改一遍；登记不动召回，它承认发现成立，只记录人对它的处置。
 

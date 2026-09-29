@@ -53,7 +53,7 @@ _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
-    tracked_files, undetermined_from_exception, work_root,
+    INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -215,7 +215,7 @@ def _gated_by_selftest(name, mod):
     """
     if not hasattr(mod, "selftest"):
         return False, [finding(
-            name, UNDETERMINED, "检查器没有自检",
+            name, UNDETERMINED, "检查器没有自检", kind=INTERNAL_ERROR_KIND,
             reason="契约 §3 要求每个检查器自带反例；没有反例就无法证明它抓得住违规",
             why="01 §5.6 守卫存在不等于守卫在执行",
         )], []
@@ -226,7 +226,7 @@ def _gated_by_selftest(name, mod):
     # 契约 §3：反例与正例至少各一条。空自检（或只有一条）照样放行，等于没有自检（D-123）
     if not isinstance(results, list) or len(results) < 2 or not all(isinstance(r, dict) for r in results):
         return False, [finding(
-            name, UNDETERMINED, "检查器自检不足反例与正例各一条，其对本仓库的结论作废",
+            name, UNDETERMINED, "检查器自检不足反例与正例各一条，其对本仓库的结论作废", kind=INTERNAL_ERROR_KIND,
             reason="selftest() 返回 %s；契约 §3 要求至少一条反例、一条正例" % (
                 "%d 条" % len(results) if isinstance(results, list) else type(results).__name__),
             why="契约 §3 / 01 §5.6：守卫存在不等于守卫在执行",
@@ -234,7 +234,7 @@ def _gated_by_selftest(name, mod):
     bad = [r for r in results if r.get("status") != PASS]
     if bad:
         return False, [finding(
-            name, UNDETERMINED, "检查器自检未通过，其对本仓库的结论作废",
+            name, UNDETERMINED, "检查器自检未通过，其对本仓库的结论作废", kind=INTERNAL_ERROR_KIND,
             reason="; ".join("%s（%s）" % (r.get("title"), r.get("evidence")) for r in bad),
             why="契约 §3 / 01 §5.6：检查器故障按未定处置，不按通过记",
         )], results
@@ -489,7 +489,7 @@ def _entry_smoke_selftest():
             ok_day = (today + datetime.timedelta(days=30)).isoformat()
             yesterday = (today - datetime.timedelta(days=1)).isoformat()
 
-            def _register(rule, expires, extra=u""):
+            def _register(rule, expires, extra=u"", more=()):
                 with io.open(ex_path, "w", encoding="utf-8", newline="\n") as fh:
                     fh.write(u"# 例外登记\n\n"
                              u"| id | 规则 | 理由 | 范围 | 批准人 | 到期 | 状态 |\n"
@@ -498,7 +498,7 @@ def _entry_smoke_selftest():
                              % (rule, expires, extra))
                 # 登记只在检查器跑完之后 join（契约 §9），检查器结论不随登记册变：复用第一遍的结论只重做 join，
                 # 不再把全部检查器（连同自检闸门）重跑六遍（R1-12）
-                fs, c = [dict(f, registered=None) for f in findings], dict(cfg)
+                fs, c = [dict(f, registered=None) for f in list(findings) + list(more)], dict(cfg)
                 _join_exceptions(fs, c)
                 hits = [f for f in fs if f.get("id") == target]
                 if not hits:
@@ -577,6 +577,15 @@ def _entry_smoke_selftest():
                                      "FAIL 与 own-undated，实得 %r" % (own,))
             if (hit.get("registered") or {}).get("id") != "EX-001":
                 raise AssertionError("⑥ 项目自有例外行不得影响 Finding id 行的登记")
+            # ⑦ 检查器自身出错（崩溃、自检闸门不过）的未定不可登记：修前它是稳定 id、登记即退出 0，
+            #    等于登记了被崩溃顶掉的 FAIL；修后该行记不合格，那条未定仍是未登记（契约 §9）
+            crash = undetermined_from_exception("layout", TypeError("x"), u"跑 layout")
+            fs, _, _ = _register(target, ok_day, u"| EX-008 | %s | 崩溃 | 全仓 | 自检 | %s | active |\n"
+                                 % (crash["id"], ok_day), more=[crash])
+            got = [f.get("registered") for f in fs if f["id"] == crash["id"]]
+            if crash["id"] != "layout/internal-error" or got != [None] or not _has(fs, "invalid-rows"):
+                raise AssertionError("⑦ 崩溃未定 %s 登记后应仍未登记并报 invalid-rows，实得 %r"
+                                     % (crash["id"], got))
             os.remove(ex_path)
 
             # 3h) 工具自身所在的内嵌目录不进扫描面（契约 §2）。采用项目里 `.std/`
@@ -637,7 +646,7 @@ def _entry_smoke_selftest():
                  "例外登记五条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan／"
                  "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated；"
-                 "有过期行时首部标出其中几行已过期）、"
+                 "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows）、"
                  "main 两种 argv 退出码合法且有输出",
     ))
     return out

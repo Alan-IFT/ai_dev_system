@@ -183,6 +183,11 @@ def finding(check, status, title, where=None, why="", reason="", evidence="",
     }
 
 
+# 检查器自身出错（崩溃、自检闸门不过）的 kind。这类未定**不可登记**（契约 §9）：崩溃会顶掉该检查器
+# 本次的全部 FAIL，登记它等于登记 FAIL。load_exceptions 按规则列的第二段认它。
+INTERNAL_ERROR_KIND = "internal-error"
+
+
 def undetermined_from_exception(check, exc, what):
     """检查器内部异常一律转 UNDETERMINED，绝不吞掉记 PASS。"""
     return finding(
@@ -190,6 +195,7 @@ def undetermined_from_exception(check, exc, what):
         "%s 时检查器自身出错" % what,
         reason="%s: %s" % (type(exc).__name__, exc),
         evidence="检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+        kind=INTERNAL_ERROR_KIND,
     )
 
 
@@ -703,7 +709,8 @@ def load_exceptions(config_dir, root=None):
     - `rows`：本工具认领且五项齐全的登记行（rule 含 `/`，即 Finding id 的形态）。
       与项目自己的门号例外（`G6` 之类）共用一张表，**不含 `/` 的行本工具不登记、不校验五项**
       ——那是项目的门，不是本工具的发现，拿它去匹配发现只会成批报孤儿。
-    - `problems`：本工具认领但不合格的行（行号 + 缺什么）。
+    - `problems`：本工具认领但不合格的行（行号 + 缺什么；规则是检查器自身出错
+      `<检查器>/internal-error` 的同样不合格）。
     - `source_path`：文件路径；文件不存在时为 None。
     - `own`：未关闭的项目自有例外行（rule 不含 `/`），只取到期：`expires_date` 解析不了时为 None。
       02 §4「到期未清理 CI 转红」对它们同样成立，到期由调用方按运行日判。
@@ -763,10 +770,13 @@ def load_exceptions(config_dir, root=None):
         day, err = parse_date(expires_raw, strict=True)
         if day is None:
             missing.append(u"到期（%s）" % err)
+        tag = (u"（%s）" % ex_id) if ex_id else u""
         if missing:
-            problems.append(u"第 %d 行%s缺：%s"
-                            % (lineno, (u"（%s）" % ex_id) if ex_id else u"",
-                               u"、".join(missing)))
+            problems.append(u"第 %d 行%s缺：%s" % (lineno, tag, u"、".join(missing)))
+            continue
+        if rule.split(u"/")[1:2] == [INTERNAL_ERROR_KIND]:
+            problems.append(u"第 %d 行%s登记的是检查器自身出错（%s），不可登记：崩溃顶掉了该检查器本次的"
+                            u"全部结论，登记它等于登记 FAIL；修好检查器或它的输入" % (lineno, tag, rule))
             continue
         rows.append({"ex_id": ex_id, "rule": rule, "reason": reason, "scope": scope,
                      "approver": approver, "expires": day.isoformat(), "expires_date": day,
