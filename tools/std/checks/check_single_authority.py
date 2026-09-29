@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -66,9 +67,12 @@ def is_doc(rel):
 
 
 _RE_HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
-_RE_TABLE_SEP = re.compile(r"^\s*\|?[\s:\-|]+\|[\s:\-|]*$")
+# 表格分隔行：整行只有空白、冒号、短横与竖线，且第 2 个字符起有竖线。原写法 `\|?[\s:\-|]+\|[\s:\-|]*$`
+# 两段量词重叠，一行 6 万个竖线后跟一个别的字要跑 18 秒；拆成整行字符集 + 竖线位置两步，线性
+_RE_TABLE_CHARS = re.compile(r"[\s:\-|]*")
 _RE_HR = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,}|={3,})\s*$")
-_RE_ONLY_LINK = re.compile(r"^\s*(?:[-*+]\s*|\d+[.)]\s*)?(?:\*\*)?\[[^\]]*\]\([^)]*\)(?:\*\*)?\s*[，,。.；;]?\s*$")
+# 行尾 `\s*(?:[，,。.；;]\s*)?$`：原写法 `\s*[…]?\s*$` 两段 `\s*` 隔着可省的标点，长空白后跟一个字就平方级
+_RE_ONLY_LINK = re.compile(r"^\s*(?:[-*+]\s*|\d+[.)]\s*)?(?:\*\*)?\[[^\]]*\]\([^)]*\)(?:\*\*)?\s*(?:[，,。.；;]\s*)?$")
 _RE_BARE_URL = re.compile(r"^\s*(?:[-*+]\s*)?<?https?://\S+>?\s*$")
 _RE_FENCE = re.compile(r"^\s*(```|~~~)")
 _RE_WS = re.compile(r"\s+")
@@ -89,7 +93,9 @@ _RE_COUNT_CLAIM = re.compile(
 # 序数不是计数：「第 16 个部件」「第 15、16 个部件」说的是位次，不声明有多少。
 # 只看数字前面紧挨着的「第」，或「第 N、」起头的并列序数；「3、16 个文件」
 # 这种不带「第」的并列照常计。反例见 selftest 的「探测三之四」。
-_RE_ORDINAL_PREFIX = re.compile(u"第\\s*(?:[0-9]+\\s*、\\s*)*$")
+# 按行一次 finditer 取各序数前缀的终点，数字起点落在终点上即序数。原写法对每个数值匹配都从行首
+# search 一遍 `…$`，一行几千个「第 12 个」就是平方级
+_RE_ORDINAL_PREFIX = re.compile(u"第\\s*(?:[0-9]+\\s*、\\s*)*")
 
 # 名词只取前两字作键。同一事实在不同句子里后接的字不同（「192 份归档，按季度」
 # 与「192 份归档由资料员保管」），按全长比会漏判。放宽只会多报，而本判据按设计
@@ -103,7 +109,9 @@ _CLAIM_NOUN_KEY = 2
 # 判据 2 用 _RE_ONLY_LINK 挡掉了**整行只有链接**的行，但这些命中都在表格行与
 # 正文句子里（`README.md:37` 是「责任平面：[40 …](…)」），整行判挡不住。
 # 所以按构造挡：把链接整段换成等长空格，同一行里链接之外的数值照常参与判定。
-_RE_MD_LINK = re.compile(r"\[[^\]\n]*\]\([^)\n]*\)")
+# 链接文本不含 `[`、目标不含 `(`：原写法 `\[[^\]\n]*\]\([^)\n]*\)` 对满行 `[` 每个起点都扫到行尾（64KB 6 秒）；
+# 排除之后每个起点只扫到下一个 `[`／`(`，线性（嵌套方括号、目标带圆括号的链接因此不遮，与 check_links 同）
+_RE_MD_LINK = re.compile(r"\[[^\[\]\n]*\]\([^()\n]*\)")
 
 # 一组要出现在几个文件才报。阈值 2 时本仓 31 组里 20 组是"2 个文件"，
 # 其中经人工逐条核对真候选 0 个；N2 点名的"版本号、条数、状态摘要"那一类
@@ -123,7 +131,7 @@ def _is_structural(line):
         return True
     if _RE_HR.match(line):
         return True
-    if _RE_TABLE_SEP.match(line):
+    if _RE_TABLE_CHARS.fullmatch(line) and u"|" in line[1:]:
         return True
     if _RE_ONLY_LINK.match(line):
         return True
@@ -310,8 +318,9 @@ def _count_claims(files):
     for rel, text, _data in files:
         for lineno, raw in prose_lines(text):
             line = _mask_links(raw)
+            ordinal_ends = {o.end() for o in _RE_ORDINAL_PREFIX.finditer(line)}
             for m in _RE_COUNT_CLAIM.finditer(line):
-                if _RE_ORDINAL_PREFIX.search(line, 0, m.start(1)):
+                if m.start(1) in ordinal_ends:
                     continue
                 num = m.group(1).replace(u",", u"")
                 key = (num, m.group(2), m.group(3)[:_CLAIM_NOUN_KEY])
@@ -859,6 +868,27 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, u"探测三之五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 线性（B3）：结构行与序数、链接遮盖的正则曾是平方级，一行 6 万字符的单行文件就能拖住提交闸门
+    # （旧正则下四行合计约 35 秒）。同时钉住结构行的认法不变
+    try:
+        t0 = time.time()
+        _is_structural(u"|" * 60000 + u"x")
+        _is_structural(u"[a](b)" + u" " * 60000 + u"x")
+        _count_claims([(u"l.md", u"第 12 个文件 " * 6000, None)])
+        _mask_links(u"[" * 60000)
+        took = time.time() - t0
+        shapes = [_is_structural(x) for x in (u"|---|:-:|", u" |---", u"||", u"|", u"---",
+                                              u"- [a](b.md)。", u"[a](b)  x")]
+        ok = took < 2 and shapes == [True, True, True, False, True, True, False]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"线性：6 万字符的竖线行、链接后长空白行、满行「第 12 个」与满行 `[` 须在 2 秒内，结构行认法不变",
+            evidence=u"耗时 %.3fs；结构行判定 %s" % (took, shapes),
+            why=u"检查器没有整体超时，一个平方级正则就能拖死提交闸门",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"线性一条自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:
