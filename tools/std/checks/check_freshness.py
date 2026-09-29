@@ -26,7 +26,7 @@ from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_known, state_list, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
+    read_text, state_class, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
 )
 
 NAME = "freshness"
@@ -80,7 +80,6 @@ def _metadata_requirement(cfg, rel):
     return "unknown"
 
 
-_DEFAULT_IN_PROGRESS = ("in_progress", "进行中")
 
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 _TRANSITION_FIELDS = ("last_transition_at", "state_changed_at", "最后状态转换时间", "状态更新时间")
@@ -457,8 +456,6 @@ def _check_work_items(cfg, root, today, base, texts):
                         why="01 §4.1 的复查时间是参数，但必须是可比较的数")]
     note = _note(used_default, "budgets.work_item_stale_days", days) + "；" + wnote
 
-    states = state_list(cfg, "work_item_in_progress_states", _DEFAULT_IN_PROGRESS)
-
     absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
     if absent:
         return [absent]
@@ -486,10 +483,11 @@ def _check_work_items(cfg, root, today, base, texts):
             # handoff.md、README 之类）不是工作项。带状态字段的照样算工作项（它自己声明了状态）
             (nostatus if is_work_item_name(rel) else not_items).append(rel)
             continue
-        if not state_known(cfg, status):
+        cls = state_class(cfg, status)
+        if cls is None:
             unknown.append("%s（%s）" % (rel, status or "空"))
             continue
-        if status not in states:
+        if cls != "in_progress":
             other.append("%s（%s）" % (rel, status or "空"))
             continue
 
@@ -551,7 +549,8 @@ def _check_work_items(cfg, root, today, base, texts):
                               "（stdlib.STATUS_FIELDS），读不到推不出它没写（契约 §1.1）：它的活性与完成证据本次都没查"))
     if unknown:
         out.append(agg(NAME, UNDETERMINED, "工作项状态不在已知词表", unknown, kind="unknown-state",
-                       reason="已知词表是 01 §4.1 六态及中文别名，加 project.yaml 的 work_item_*_states；"
+                       reason="已知词表是 01 §4.1 六态及别名（stdlib.WORK_ITEM_STATES），并入 project.yaml 的 "
+                              "work_item_*_states；"
                               "认不出就说不清它是进行中还是完成，超龄与完成证据两道检查本次都没查"
                               "（契约 §1.1）。改用 01 §4.1 的状态词，或在 project.yaml 声明自己的词"))
     if not_items:

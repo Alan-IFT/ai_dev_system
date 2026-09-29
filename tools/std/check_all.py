@@ -809,29 +809,46 @@ def _shared_fact_selftest(mods):
                 "契约 §1 同一事实只报一次",
             evidence="实得 %r；应得 %r" % (got_d, want_d)))
 
-        # E：照旧模板写的状态（DEFINED、IMPLEMENTING）认不出，记未定、只由 freshness 报一次
-        #    （freshness/unknown-state）；01 §4.1 六态、中文别名与项目声明的词都不误报（D-127）
-        states = ["DEFINED", "IMPLEMENTING", "planned", "blocked", "in_validation", "cancelled",
-                  "in_progress", "done", u"已完成", "closed"]
-        with tempfile.TemporaryDirectory() as tmp:
-            _repo(tmp, dict(("work/WI-%02d-x.md" % i, u"# WI\n\n状态：%s\n" % st)
-                            for i, st in enumerate(states)))
-            cfg = {"_root": tmp, "tier": "L1", "layout": {"docs_root": "docs", "work_root": "work"},
-                   "work_item_done_states": ["closed", "done", u"已完成"]}
-            fs = by["freshness"].run(cfg) + by["evidence"].run(cfg)
-            got_e = sorted((f["id"], f["status"], f["evidence"]) for f in fs
-                           if "WI-00-" in (f["evidence"] or "") or "WI-01-" in (f["evidence"] or ""))
-        # 只有一件且认不出：evidence 不得再记「没有可判定的工作项」未定（同一事实报两次）
-        with tempfile.TemporaryDirectory() as tmp:
-            _repo(tmp, {"work/WI-00-x.md": u"# WI\n\n状态：DEFINED\n"})
-            got_e += [(f["id"], f["status"]) for f in by["evidence"].run(dict(cfg, _root=tmp))
-                      if f["status"] == UNDETERMINED]
-        lst = u"work/WI-00-x.md（defined）；work/WI-01-x.md（implementing）"
-        want_e = [("evidence/unknown-state", SKIP, lst), ("freshness/unknown-state", UNDETERMINED, lst)]
+        # E：工作项状态按 stdlib.state_class 一份映射归到 01 §4.1 六态（D-127）。认不出的（旧模板的
+        #    DEFINED、IMPLEMENTING）记未定且只报一次；别名、开头词后跟日期、项目声明的词都按所属态判，
+        #    声明词并入不替换缺省。
+        def _judge(files, extra=None):
+            with tempfile.TemporaryDirectory() as tmp:
+                _repo(tmp, dict(("work/WI-%02d-x.md" % k, u"# WI\n\n状态：%s\n" % v) for k, v in files))
+                cfg = dict({"_root": tmp, "tier": "L1",
+                            "layout": dict({"docs_root": "docs", "work_root": "work"}, **(extra or {}).pop("layout", {}))},
+                           **(extra or {}))
+                res = {}
+                for n in ("freshness", "evidence"):
+                    for f in by[n].run(cfg):
+                        w = (f["where"] or "").split(":")[0]
+                        if w.startswith("work/WI-"):
+                            res.setdefault(n, set()).add(int(w[8:10]))
+                        elif "unknown" in f["id"] or (n == "evidence" and f["status"] == UNDETERMINED):
+                            res[f["id"]] = (f["status"], sorted(int(x[8:10]) for x in
+                                                               re.findall(r"work/WI-\d\d", f["evidence"] or "")))
+                return res
+        got_e = {
+            "default": _judge(list(enumerate(["DEFINED", "IMPLEMENTING", "planned", "blocked", "in_validation",
+                                              "cancelled", u"**已完成**", "done 2026-02-20",
+                                              u"In Progress（阶段二）", "in progress"]))),
+            "declared": _judge(list(enumerate(["done", "closed", "in_progress", "doing"])),
+                               {"work_item_done_states": ["closed"], "work_item_in_progress_states": "doing"}),
+            "single": _judge([(0, "DEFINED")]),
+        }
+        want_e = {
+            "default": {"freshness": {8, 9}, "evidence": {6, 7},
+                        "freshness/unknown-state": (UNDETERMINED, [0, 1]),
+                        "evidence/unknown-state-by-freshness": (SKIP, [0, 1])},
+            "declared": {"freshness": {2, 3}, "evidence": {0, 1}},
+            "single": {"freshness/unknown-state": (UNDETERMINED, [0]),
+                       "evidence/unknown-state-by-freshness": (SKIP, [0])},
+        }
         out.append(finding(
             "shared-fact", PASS if got_e == want_e else FAIL,
-            "认不出的工作项状态记未定、只由 freshness 报一次，01 §4.1 六态与项目声明的词不误报",
-            why="契约 §1.1：约定落空只记未定，不当'非进行中/非完成'静默放过；契约 §1：同一事实只报一次",
+            "工作项状态一份映射：别名与声明词按所属态判，认不出的记未定且只报一次",
+            why="01 §1 G2：进行中/完成的认法一处权威；契约 §1.1：约定落空只记未定，不当'非进行中/非完成'"
+                "静默放过；契约 §1：同一事实只报一次",
             evidence="实得 %r；应得 %r" % (got_e, want_e)))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))

@@ -19,14 +19,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
-    agg, cfg_get, clean, finding, git_track, is_tailored_out, item_status, state_known,
+    agg, clean, finding, git_track, is_tailored_out, item_status, state_class,
     read_text, state_list, undetermined_from_exception, unreadable, work_root, work_root_absent, write_text,
 )
 
 NAME = "evidence"
 STANDARD_REFS = ["01 §1 G4", "01 §2 N1", "01 §3.1", "01 §4.1", "01 §4.2"]
 
-_DEFAULT_DONE_STATES = ("done", "完成", "delivered")
 # 状态字段词表已并进 stdlib.STATUS_FIELDS（01 §1 G2：同一事实一处权威）。
 # 证据段的标题词（大小写不敏感）。这是工具约定（契约 §1.1）：认不出证据段只记未定，不判 FAIL。
 _EVIDENCE_HEADINGS = ("证据", "evidence")
@@ -331,11 +330,9 @@ def _run(cfg):
     root = cfg.get("_root") or "."
     wroot, wnote = work_root(cfg)
 
-    states = state_list(cfg, "work_item_done_states", _DEFAULT_DONE_STATES)
-    states_default = not cfg_get(cfg, "work_item_done_states")
-    note = ("完成态用的是默认 %s（未配 work_item_done_states）" % "/".join(states)
-            if states_default else "完成态取自 project.yaml：%s" % "/".join(states))
-    note += "；" + wnote
+    declared = state_list(cfg, "work_item_done_states", ())
+    note = "完成态按 01 §4.1 done 及别名（stdlib.WORK_ITEM_STATES）%s；%s" % (
+        "，并入 project.yaml 的 work_item_done_states：%s" % "/".join(declared) if declared else "", wnote)
 
     absent = work_root_absent(NAME, cfg)    # 目录在不在归 layout 报，这里不重复记未定
     if absent:
@@ -359,17 +356,18 @@ def _run(cfg):
             # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
             # 这里静默跳过
             continue
-        if not state_known(cfg, status):
+        cls = state_class(cfg, status)
+        if cls is None:
             unknown.append("%s（%s）" % (rel, status or "空"))
             continue
-        if status not in states:
+        if cls != "done":
             other.append("%s（%s）" % (rel, status or "空"))
             continue
 
         out.extend(_check_one(rel, text, status, note))
 
     if unknown:
-        out.append(agg(NAME, SKIP, "状态认不出的工作项不查完成证据", unknown, kind="unknown-state",
+        out.append(agg(NAME, SKIP, "状态认不出的工作项不查完成证据", unknown, kind="unknown-state-by-freshness",
                        reason="状态认不出由 freshness/unknown-state 记未定，报一次（契约 §1）"))
     if other:
         out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
