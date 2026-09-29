@@ -131,7 +131,15 @@ def _evidence_sections(text):
 _BLOCK_HEAD = re.compile(r"^\s*(?:[-*+]\s*)?\*\*(?P<name>[^*]+)\*\*")
 _SUBHEAD = re.compile(r"^\s*#{3,6}\s+(?P<name>.+)$")
 # 形如「标签: 值」的行（可带列表记号或编号）。_label_field 不认的这种行算「认不出的字段」（R2-1）
-_LABEL_LINE = re.compile(r"^\s*(?:[-*+]\s+|\d+[.、)）]\s*)?[*_`]{0,2}[^\s:：|][^:：|]{0,29}[:：]\s*\S")
+# 认不出的「标签: 值」行：标签不含空白与斜杠、不超过 12 字、非纯数字（时刻）、冒号后不紧跟 //（URL）；
+# 注意、备注之类说明词不算标签（R2-1 第二轮收窄）
+_LABEL_LINE = re.compile(r"^\s*(?:[-*+]\s+|\d+[.、)）]\s*)?[*_`]{0,2}(?P<l>[^\s:：|/*_`]{1,12})[*_`]{0,2}[:：](?!//)\s*\S")
+_NOTE_WORDS = {"注意", "备注", "说明", "注", "附注", "提示", "note", "notes", "ps", "tip", "todo", "warning"}
+
+
+def _unknown_label(ln):
+    m = _LABEL_LINE.match(ln)
+    return bool(m) and not m.group("l").isdigit() and m.group("l").lower() not in _NOTE_WORDS
 
 
 def _label_field(line):
@@ -166,7 +174,7 @@ def _parse_list_blocks(rows, whole=True):
         if cur is None:
             continue
         key, val = _label_field(ln)
-        if not key and _LABEL_LINE.match(ln):
+        if not key and _unknown_label(ln):
             cur["unknown"] += 1
         if key and key not in cur["fields"]:
             cur["fields"][key] = val
@@ -182,7 +190,7 @@ def _parse_list_blocks(rows, whole=True):
                "limit_cols": [], "kind": "条目", "unknown": 0}
         for lineno, ln in rows:
             key, val = _label_field(ln)
-            if not key and _LABEL_LINE.match(ln):
+            if not key and _unknown_label(ln):
                 one["unknown"] += 1
             if key and key not in one["fields"]:
                 one["fields"][key] = val
@@ -237,6 +245,7 @@ def _parse_table_blocks(rows):
                 continue
             # 首列之外映射不到字段的表头列算「认不出的字段」（首列是条目名/编号，R2-1）
             unknown = sum(1 for idx, c in enumerate(header) if idx and idx not in cols and clean(c)
+                          and clean(c).lower() not in _NOTE_WORDS
                           and not clean(c).lower().endswith("_id"))
             j = i + 2
             while j < len(rows) and "|" in rows[j][1] and rows[j][1].strip():
@@ -406,7 +415,7 @@ def _check_one(rel, text, status, note):
                                evidence="%s（%s）。%s" % (blk["kind"], "、".join(_LABELS[k] for k in _ORDER), note)))
             continue
 
-        if not empty and not limits_empty and blk["unknown"]:
+        if not empty and not limits_empty and blk["unknown"] >= len(missing):   # 一行认不出最多顶一个缺项
             # 缺的字段可能就在那几行认不出的「标签: 值」里：字段名是本工具的词表，项目可能用了
             # 自己的叫法（C07，契约 §1.1）。没有这种行就是真没写，照判 FAIL（R2-1）
             out.append(finding(
@@ -666,4 +675,26 @@ def selftest():
         evidence="实得 %s" % got,
         why="契约 §1.1：标记词落空推不出没有证据",
     ))
+    # R2-1 第二轮：认不出的标签只顶替同样多的缺项；说明词、URL、时刻不算标签。审查席在副本验证的 8 例
+    #              一律回到 FAIL，「6. 核验手段：…」这种确实认不出的第六项仍记未定
+    one = "**E-01**\n1. 断言：导入一致\n"
+    five = ("**E-01**\n1. 断言：x\n2. 原始证据：a.txt\n3. 版本：main@1\n4. 范围：staging\n"
+            "5. 时间：2026-09-01 16:42\n")
+    cases = [(one + "注意：以上只在 staging 跑过\n", "incomplete"), (one + "详见 https://ci.example.com/run/1\n", "incomplete"),
+             (one + "运行于 12:30 完成\n", "incomplete"), (one + "Note: flaky on CI\n", "incomplete"),
+             (five + "备注：无\n", "incomplete"), (five + "日志 https://x/y\n", "incomplete"),
+             ("| 编号 | 断言 | 原始证据 | 版本 | 范围 | 时间 | 备注 |\n|---|---|---|---|---|---|---|\n"
+              "| E-1 | a | b | c | d | e | f |\n", "incomplete"),
+             (one + "note: 见下\n", "incomplete"),
+             (five + "6. 核验手段：人工抽查\n", "fields-unrecognized")]
+    got = []
+    for body, want in cases:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, body)
+            ids = [f["id"].split("/")[1] for f in run(cfg) if f["status"] != SKIP] if not err else [err]
+        got.append((ids, want))
+    results.append(finding(
+        NAME, PASS if all(ids == [want] for ids, want in got) else FAIL,
+        "R2-1：说明词、URL、时刻不算认不出的标签，一行认不出最多顶一个缺项",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；契约 §1.1 只有确实认不出的字段才记未定"))
     return results
