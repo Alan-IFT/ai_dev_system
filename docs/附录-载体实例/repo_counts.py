@@ -10,7 +10,7 @@
 Markdown + Git + Python 上的一种载体实现，删掉它不影响规范。
 """
 import re, sys, pathlib, io
-from linkcheck import mask_code, md_files  # 扫描面与涂白口径只此一处
+from linkcheck import EXTERNAL, links as _links, mask_code, md_files  # 扫描面与涂白口径只此一处
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.stdout.reconfigure(encoding="utf-8")
@@ -35,7 +35,7 @@ effective = sorted(set(re.findall(
 
 mds, links = [pathlib.Path(f) for f in md_files(str(ROOT))], 0
 for p in mds:
-    links += len(re.findall(r"\[[^\]]*\]\((?![a-zA-Z][\w+.-]*:|//)[^)\s]+\)", mask_code(read(p))))
+    links += sum(1 for t in _links(mask_code(read(p))) if not EXTERNAL.match(t))
 
 # ---- 失败 Case 清单的分组数（2026-09-04 新增）----------------------------------
 # 为什么加这一段：2026-09-04 的独立核查在三份活文档里查出 56/139 条断言不属实，

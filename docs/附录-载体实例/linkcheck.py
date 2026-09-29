@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 
 NL = chr(10)
 BQ = chr(96)
@@ -32,10 +33,14 @@ def mask_code(text):
     return text
 
 
-def slug(heading):
-    h = heading.strip().lstrip("#").strip()
-    h = re.sub(r"[" + BQ + r"*_\[\]()]", "", h)
-    return re.sub(r"\s+", "-", h.strip()).lower()
+# 行内链接：目标可用尖括号包住，后面可跟 "title" 或 'title'
+LINK = re.compile(r"""\[[^\]]*\]\(\s*(?:<([^>\n]*)>|([^)\s]+))(?:\s+(?:"[^"\n]*"|'[^'\n]*'))?\s*\)""")
+EXTERNAL = re.compile(r"^(?:[a-zA-Z][\w+.-]*:|//)")   # 带协议或协议相对的链接不是本地链接
+
+
+def links(text):
+    """已涂白代码的文本里的全部行内链接目标。"""
+    return [a or b for a, b in LINK.findall(text)]
 
 
 def md_files(root):
@@ -45,27 +50,38 @@ def md_files(root):
             if f and os.path.isfile(os.path.join(root, f))]
 
 
+def anchors_of(text):
+    """GitHub 式锚点：<a id> 与标题 slug（重复标题加 -1、-2 后缀）；代码块里的不算。"""
+    masked = mask_code(text)
+    found = set(re.findall(r'<a id="([^"]+)"', masked))
+    seen = {}
+    for ml, ln in zip(masked.split(NL), text.split(NL)):
+        if not re.match(r"#{1,6} ", ml):
+            continue
+        s = re.sub(r"[^\w\- ]", "", ln.lstrip("#").strip().lower()).replace(" ", "-")
+        n = seen.get(s, 0)
+        found.add(s if n == 0 else "%s-%d" % (s, n))
+        seen[s] = n + 1
+    return found
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     mds = md_files(root)
+    texts = {os.path.normpath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in mds}
+    anchors = {f: anchors_of(t) for f, t in texts.items()}
 
-    anchors = {}
-    for f in mds:
-        text = io.open(f, encoding="utf-8", errors="replace").read()
-        found = set(re.findall(r'<a id="([^"]+)"', text))
-        for h in re.findall(r"^#{1,6} .*$", text, flags=re.M):
-            found.add(slug(h))
-        anchors[os.path.normpath(f)] = found
-
-    link = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
     total = 0
     bad = []
     for f in mds:
-        text = mask_code(io.open(f, encoding="utf-8", errors="replace").read())
-        for tgt in link.findall(text):
-            if re.match(r"^(https?:|mailto:)", tgt):
+        for tgt in links(mask_code(texts[os.path.normpath(f)])):
+            if EXTERNAL.match(tgt):
                 continue
             total += 1
+            tgt = urllib.parse.unquote(tgt)
+            if tgt.startswith("/"):
+                bad.append((f, tgt, "绝对路径不当仓内路径"))
+                continue
             if tgt.startswith("#"):
                 if tgt[1:] not in anchors[os.path.normpath(f)]:
                     bad.append((f, tgt, "锚点不存在"))
