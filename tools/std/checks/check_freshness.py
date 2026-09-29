@@ -238,7 +238,10 @@ def scope(cfg):
             "layout.docs_root（当前 %r%s）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
             "距基准日是否超 budgets.stale_days" % (docs_root, "，默认" if dnote else ""),
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
-            "是否超 budgets.work_item_stale_days" % work_root(cfg)[0],
+            "是否超 budgets.work_item_stale_days。最后一次转换取显式转换时间字段，否则取状态转换记录小节"
+            "第一段连续记录行的最后一条，没有该小节才退到 git 提交时间（浅克隆记未定）" % work_root(cfg)[0],
+            "日期晚基准日一天按当天算（基准日是运行环境本地日期，作者可能在更早的时区写当天日期），"
+            "晚两天以上记未定",
         ],
         "not_covered": [
             "L0 合在状态工件（WORK.md 之类）里的工作项不扫：活性巡检只扫工作项目录，目录不在记 SKIP，"
@@ -260,8 +263,8 @@ def scope(cfg):
             "倒序写的记录会取到最旧那条（偏向报超龄）；记录行里不按列区分，occurred_at 空着而别的列写了"
             "日期时取到那个日期；只有表头、没有记录行的转换表记未定，不退到提交时间",
             "不判断谁该处置超龄工作项，也不代为转 blocked（01 §4.1：巡检只通知负责人核实）",
-            "自检只覆盖显式时间戳分支：git 提交时间回退分支、git 不可用分支与 metadata_fields "
-            "自定义分支不在自检里，它们的正确性未被反例证明",
+            "自检不覆盖 git 不可用的分支与自定义日期字段名（metadata_fields 写成 updated_at 以外的名字）"
+            "的分支，它们的正确性未被反例证明",
         ],
     }
 
@@ -606,7 +609,7 @@ def _sample_unconventional(tmp, work_text, metadata_required=None):
 def selftest():
     """反例：无日期文档 + 停滞 100 天的进行中工作项，须判 FAIL。
     正例：昨天更新的文档 + 昨天刚转换的进行中工作项，须判 PASS。
-    只覆盖显式时间戳分支；git 提交时间回退分支不在自检内（见 scope）。
+    另有转换记录、提交时间回退、浅克隆、metadata 声明等反例；未覆盖的分支见 scope。
     """
     results = []
     today = datetime.date.today()

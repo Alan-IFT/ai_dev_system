@@ -103,10 +103,10 @@ def _evidence_sections(text):
     for i, ln in enumerate(lines):
         m = _FENCE.match(ln)
         if fence is None and m:
-            fence = m.group(1)[0] * 3
+            fence = m.group(1)
             continue
-        if fence is not None:
-            if ln.strip().startswith(fence):
+        if fence is not None:   # 闭合行：同一种字符、不短于开栏、后面只有空白（CommonMark；R2-12）
+            if re.match(r"^\s*%s{%d,}\s*$" % (re.escape(fence[0]), len(fence)), ln):
                 fence = None
             continue
         if ln.lstrip().startswith("#"):
@@ -302,7 +302,7 @@ def scope(cfg):
             "只认 §4.2 的六字段标签及其常见同义词；缺字段而条目里有认不出的「标签: 值」行（或字段表有"
             "映射不到的列）时只记未定（fields-unrecognized），没有这种行就按缺字段判 FAIL；"
             "认出的字段值为空或占位判 FAIL",
-            "自检只覆盖行内标签写法与不依赖 git 时间的分支；字段表写法未被反例证明",
+            "自检覆盖行内标签与字段表两种写法；不依赖 git 时间",
         ],
     }
 
@@ -484,7 +484,7 @@ def _sample(tmp, body, frozen=None, heading="## 验收证据"):
 def selftest():
     """反例：缺⑥确认方法、或⑥只写了占位「待补」的完成证据，都须判 FAIL。
     正例：六项齐全且限制非空，须判 PASS。
-    只覆盖行内标签写法；字段表写法与 git 相关分支不在自检内（见 scope）。
+    另有字段表写法（C08、C19）、小标题条目、代码块、自造字段名等反例。
     """
     results = []
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -627,6 +627,16 @@ def selftest():
         NAME, PASS if seps == (False, False, True, False) and took < 1 else FAIL,
         "R2-11：表格分隔行判定线性、结果不变",
         evidence="实得 %s，耗时 %.2fs" % (seps, took), why="一份文件不许拖死整次检查",
+    ))
+
+    # R2-12：四个反引号开的围栏里的 ``` 不闭合它，其中的 `# 注释` 仍在代码里
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _SIX.replace("6. 方法：", "````md\n```\n# 标题样例\n```\n````\n6. 方法："))
+        got = [f["status"] for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [PASS] else FAIL,
+        "R2-12：长围栏只被同字符、不短于开栏的行闭合",
+        evidence="实得 %s" % (got,), why="围栏代码块是正文，不是结构",
     ))
 
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
