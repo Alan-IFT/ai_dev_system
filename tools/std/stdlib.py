@@ -1142,13 +1142,16 @@ def find_field(text, names):
     字段名两侧可带加粗、斜体或反引号（`**状态**：done`、`` `status`: done ``）。
     冒号两侧只认同一行的空白：`状态：` 后面是空行时不许把下一行吞成值——值为空等于没写这个字段。
     名字前不认 `-`：`build-status: passing` 不是 `status`（列表项 `- status:` 靠空白分隔照认）。
+    只取第一次出现：它的值为空就是缺字段，不往后文找同名字段（R1-05）；冒号后的全角空格照跳过。
+    线性：名字只在行首或空白、`|`、`>` 之后起算，两侧装饰限 4 个——满行 `*` 曾是平方级（R1-01、R2-11）。
     """
     for name in names:
-        pat = (r"(?:^|[\s　|*>])[*_`]*" + re.escape(str(name))
-               + r"[*_`]*[ \t]*[:：][ \t]*([^\s　|][^\n　|]*)")
+        pat = (r"(?:^|(?<=[\s　|>]))[*_`]{0,4}" + re.escape(str(name))
+               + r"[*_`]{0,4}[ \t　]*[:：][ \t　]*([^\n　|]*)")
         m = re.search(pat, text, re.M | re.I)
         if m:
-            return m.group(1).strip(), str(name)
+            val = m.group(1).strip()
+            return (val, str(name)) if val else (None, None)
     return None, None
 
 

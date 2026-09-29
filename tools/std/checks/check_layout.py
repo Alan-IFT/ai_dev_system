@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -528,6 +529,24 @@ def selftest():
             NAME, PASS if len(got) == 1 else FAIL,
             "R2-6：同一目录兼作几类工件时「是目录，不逐份判元信息」只出一条",
             evidence="实得 %s" % (got,), why="契约 §1 同一事实只报一次",
+        ))
+
+        # R2-11 R1-01 R1-05：find_field 线性（满行 `*` 曾 20 万字符 138 秒）；常见写法结果不变；
+        # 第一次出现的字段值为空即缺字段，不跳到后文同名字段；冒号后全角空格照读
+        t0 = time.time()
+        for line in ("*" * 200000, "**" * 40000):
+            find_field(line, ["status"])
+        took = time.time() - t0
+        samples = [("**status**: done", "status"), ("- status: done", "status"), ("> status: done", "status"),
+                   ("`status`: done", "status"), ("build-status: passing", "status"), ("| status: done |", "status"),
+                   ("状态：进行中　updated_at：2026-09-10", "updated_at"), ("*状态*：done", "状态"),
+                   ("状态：\n\n## 历史\n- 09-01 状态：done\n", "状态"), ("状态：　done", "状态")]
+        got = [find_field(t, [n])[0] for t, n in samples]
+        want = ["done", "done", "done", "done", None, "done", "2026-09-10", "done", None, "done"]
+        results.append(finding(
+            NAME, PASS if got == want and took < 2 else FAIL,
+            "find_field：满行 * 线性；常见写法照认；首个同名字段为空即缺；全角空格照跳",
+            evidence="实得 %s，耗时 %.2fs" % (got, took), why="一份文件不许拖死整次检查；契约 §5 空值与不写同义",
         ))
 
         # C14：扫描根路径里带 [ ] 时，项目侧检查器的通配候选照样找得到
