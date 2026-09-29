@@ -71,6 +71,7 @@ def main():
     texts = {os.path.normpath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in mds}
     anchors = {f: anchors_of(t) for f, t in texts.items()}
 
+    top = os.path.abspath(root)
     total = 0
     bad = []
     for f in mds:
@@ -78,16 +79,19 @@ def main():
             if EXTERNAL.match(tgt):
                 continue
             total += 1
-            tgt = urllib.parse.unquote(tgt)
-            if tgt.startswith("/"):
+            path, _, anc = tgt.partition("#")   # 先切再解码：%23 是文件名里的 #，不是锚点
+            path, anc = urllib.parse.unquote(path), urllib.parse.unquote(anc)
+            if path.startswith("/"):
                 bad.append((f, tgt, "绝对路径不当仓内路径"))
                 continue
-            if tgt.startswith("#"):
-                if tgt[1:] not in anchors[os.path.normpath(f)]:
+            if not path:
+                if anc not in anchors[os.path.normpath(f)]:
                     bad.append((f, tgt, "锚点不存在"))
                 continue
-            path, _, anc = tgt.partition("#")
             p = os.path.normpath(os.path.join(os.path.dirname(f), path))
+            if os.path.commonpath([os.path.abspath(p), top]) != top:
+                bad.append((f, tgt, "越出仓根"))
+                continue
             if not os.path.exists(p):
                 bad.append((f, tgt, "路径不存在"))
                 continue
