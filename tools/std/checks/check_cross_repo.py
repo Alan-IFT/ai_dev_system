@@ -68,7 +68,9 @@ _SKIP_DIRS = {
 # 目标与标题都不含 `(`：原写法 `<?([^)\s>]+)>?[^)]*\)` 两段量词重叠，`](` 连写 8000 次要跑几分钟；
 # 排除 `(` 之后每个起点只扫到下一个 `(`，整体线性（路径里带圆括号的链接因此认不出，与 check_links 同）
 _INLINE_LINK = re.compile(r"\]\(\s*<?([^()\s>]+)>?(?:\s[^()]*)?\)")
-_REF_LINK = re.compile(r"^\s*\[[^\]]+\]:\s*<?([^\s>]+)", re.M)
+# 引用式定义的标签不跨行、行首缩进只认空格与制表符：原写法 `^\s*\[[^\]]+\]:` 的 `\s*` 与 `[^\]]+` 都能跨行，
+# 连续空行或没有 `]` 的 `[` 行让每个行首都扫到文末，192KB 的空行要 30 秒
+_REF_LINK = re.compile(r"^[ \t]*\[[^\]\n]+\]:\s*<?([^\s>]+)", re.M)
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 
 
@@ -1189,11 +1191,15 @@ def selftest():
         t0 = time.time()
         _link_targets("](" * 2000)   # 旧正则下约 4 秒
         took = time.time() - t0
-        got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)")
+        t0 = time.time()
+        _link_targets("\n" * 60000 + "[a\n" * 20000)   # B2：旧 _REF_LINK 下约 5 秒
+        took_ref = time.time() - t0
+        got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)\n  [d]: w.md\n[e]:\n  <v.md>\n")
         results.append(finding(
-            NAME, PASS if took < 1 and got == ["x.md", "y.md", "../z.md"] else FAIL,
-            "链接抽取对 `](` 连写 2000 次须线性，且照常认出带标题与尖括号的链接",
-            evidence="耗时 %.3fs；抽出 %s" % (took, str(got)[:200]),
+            NAME, PASS if took < 1 and took_ref < 1
+            and got == ["x.md", "y.md", "../z.md", "w.md", "v.md"] else FAIL,
+            "链接抽取对 `](` 连写 2000 次、连续空行与无 `]` 的 `[` 行须线性，且照常认出带标题、尖括号与引用式的链接",
+            evidence="耗时 %.3fs / %.3fs；抽出 %s" % (took, took_ref, str(got)[:200]),
             why="D-123 安全 3：检查器没有整体超时，一个平方级正则就能拖死提交闸门",
         ))
     except Exception as exc:  # noqa: BLE001
