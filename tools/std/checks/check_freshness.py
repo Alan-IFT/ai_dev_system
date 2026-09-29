@@ -167,6 +167,13 @@ def _last_transition(text):
     return last, "取自状态转换记录的最后一条（%s）" % last.isoformat(), None
 
 
+def _age(today, d):
+    """距基准日几天。晚一天按当天算（C18）：基准日取运行环境本地日期，记录日期按作者时区写，
+    UTC 的机器上读 UTC+8 当天写的日期就是「明天」；晚两天以上才记未定。"""
+    age = (today - d).days
+    return 0 if age == -1 else age
+
+
 def _int_budget(cfg, path, default):
     raw = cfg_get(cfg, path)
     if raw is None:
@@ -363,7 +370,7 @@ def _check_docs(cfg, root, today, base, texts):
             ))
             continue
 
-        age = (today - d).days
+        age = _age(today, d)
         if age < 0:
             out.append(finding(
                 NAME, UNDETERMINED, "日期晚于基准日：%s" % rel, where="%s:1" % rel,
@@ -495,7 +502,7 @@ def _check_work_items(cfg, root, today, base, texts):
             ))
             continue
 
-        age = (today - d).days
+        age = _age(today, d)
         caveat = "。注意：%s" % how if used_git else "。%s" % how
         if age < 0:
             out.append(finding(
@@ -749,6 +756,18 @@ def selftest():
         NAME, PASS if got == want else FAIL,
         "C10：取最后一条转换记录；备注日期与别处的 from 行不洗白停滞工作项，空记录记未定",
         evidence="实得 %s；应得 %s" % (got, want), why="01 §4.1：活性看最后一次状态转换；01 §2 N1 判不了不猜",
+    ))
+
+    # C18：作者时区比运行环境早一天时，日期写成「明天」不算晚于基准日；晚两天仍记未定
+    got = {}
+    for n in (1, 2):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, "updated_at: %s\n" % (today + datetime.timedelta(days=n)).isoformat(), work_fresh)
+            got[n] = [f["status"] for f in run(cfg) if (f.get("where") or "").startswith("docs/")] if not err else err
+    results.append(finding(
+        NAME, PASS if got == {1: [PASS], 2: [UNDETERMINED]} else FAIL,
+        "C18：日期晚基准日一天按当天算，晚两天记未定",
+        evidence="实得 %s" % (got,), why="基准日是运行环境本地日期，作者可能在更早的时区写当天日期",
     ))
 
     # C11：metadata_required 声明了而 metadata_fields 没声明，无日期文档只记一条聚合未定，不判 FAIL
