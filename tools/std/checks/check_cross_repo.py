@@ -787,8 +787,6 @@ def _check_links(repos):
                 owner = _owner_repo(resolved, known)
                 if owner is not None and owner["_abs"] == r["_abs"]:
                     continue  # 仍在本仓内，不归本检查器
-                if owner is None and _norm(resolved).startswith(r["_abs"].rstrip("/") + "/"):
-                    continue
                 # 只探测落在某个声明仓真实位置之内的目标：声明仓之外、或经符号链接越出所属仓的，
                 # 不查存在性（那是对项目之外路径的探测），记未定
                 if owner is None or not inside(owner["_real"], resolved):

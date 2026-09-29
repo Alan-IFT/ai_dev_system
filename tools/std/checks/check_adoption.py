@@ -455,20 +455,6 @@ def _wildcard_allow(rule):
         if runner[:len(names) - 1] == tuple(names[:-1]) and name_hits(names[-1], [runner[len(names) - 1]], partial):
             return "运行器 %s 后面是通配" % " ".join(runner[:max(len(words), 1)])
     return None
-    inner = rule[5:-1].replace(":*", " *").strip()
-    if "*" not in inner:
-        return None
-    words = [w for w in inner.split("*", 1)[0].split() if w]
-    if not words:
-        return "通配号前没有命令，放行一切命令"
-    head = os.path.basename(words[0])
-    if head in _INTERPRETERS and all(w.startswith("-") for w in words[1:]):
-        return "命令解释器 %s 后面是通配" % head
-    names = tuple([head] + words[1:])
-    for runner in _RUNNERS:
-        if runner[:len(names)] == names:
-            return "运行器 %s 后面是通配" % " ".join(runner[:max(len(names), 1)])
-    return None
 
 
 def _settings_allow(root):
