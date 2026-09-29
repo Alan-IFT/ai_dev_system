@@ -94,10 +94,11 @@ def _evidence_sections(text):
     """返回 [(标题, 起始行号(1-based), [行])]，标题含"证据"的小节。
 
     围栏代码块里的行不算标题、也不进小节（C06）：代码里的 `# 注释` 会截断证据段，
-    命令输出里的 `time: 3s` 会被认成字段。
+    命令输出里的 `time: 3s` 会被认成字段。比证据段标题低一级以上的小标题（`### E-01`）
+    留在段内，由 _parse_list_blocks 当条目头（C13）；同级或更高一级的标题才结束这一段。
     """
     lines = text.splitlines()
-    out, cur, fence = [], None, None
+    out, cur, fence, level = [], None, None, 0
     for i, ln in enumerate(lines):
         m = _FENCE.match(ln)
         if fence is None and m:
@@ -108,12 +109,16 @@ def _evidence_sections(text):
                 fence = None
             continue
         if ln.lstrip().startswith("#"):
-            title = ln.lstrip("#").strip()
+            title = ln.lstrip().lstrip("#")
+            depth = len(ln.lstrip()) - len(title)
+            if cur is not None and depth > level:
+                cur[2].append((i + 1, ln))
+                continue
             if cur is not None:
                 out.append(cur)
                 cur = None
-            if any(k in title.lower() for k in _EVIDENCE_HEADINGS):
-                cur = (title, i + 2, [])
+            if any(k in title.strip().lower() for k in _EVIDENCE_HEADINGS):
+                cur, level = (title.strip(), i + 2, []), depth
             continue
         if cur is not None:
             cur[2].append((i + 1, ln))
@@ -506,6 +511,17 @@ def selftest():
         NAME, PASS if got == [PASS] else FAIL,
         "C06：证据条目里代码块的 # 注释不当标题，六字段齐全判 PASS",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；围栏代码块是正文，不是结构",
+    ))
+
+    # C13：`### E-01` 小标题起头的条目留在 `## 验收证据` 段内，按条目判（旧写法段在此截断，只记未定）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, _FIVE.replace("**E-01**（INV-014，staging）", "### E-01") + "6. 方法：TBD\n"
+                                 "\n## 附注\n\n**E-02**\n1. 断言：不属于证据段\n")
+        got = [(f["status"], f["title"]) for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(FAIL, "work/WI-0001-x.md 的证据 E-01 证据六字段不全")] else FAIL,
+        "C13：### 小标题起头的证据条目按条目判，同级标题结束证据段",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；markdown 小标题的层级决定它属于哪一段",
     ))
 
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
