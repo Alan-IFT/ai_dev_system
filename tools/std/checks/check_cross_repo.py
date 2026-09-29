@@ -669,7 +669,7 @@ def _check_retired(cfg, repos, entry_names):
             reason="layout.rule_files = %r" % (patterns,),
             why="01 §3.8'退役仓在停止使用的同一次变更里，其入口与规则文件必须被标为失效或删除'",
         )]
-    patterns = [str(p) for p in patterns] + [str(e) for e in entry_names]
+    patterns = list(dict.fromkeys([str(p) for p in patterns] + [str(e) for e in entry_names]))   # 入口与清单重叠时只列一次
     note = "layout.rule_files 用的是缺省清单 %s（项目未在 project.yaml 里校准）" % _DEFAULT_RULE_FILES \
         if used_default else "layout.rule_files 取自 project.yaml"
 
@@ -861,12 +861,12 @@ def _check_links(repos):
 # 判据八：仓的历史别名还在被别的仓当作现称使用
 # --------------------------------------------------------------------------
 
-def _git_grep(repo_real, needle):
-    """一次子进程召回。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
+def _git_grep(repo_real, needles):
+    """一仓一次子进程召回全部别名。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
     # --no-color：全局 color.ui／color.grep=always 时输出带转义码，按冒号切行会全数落空
     # -z：路径、行号、行文之间用 NUL 分隔。按冒号切时路径里的冒号会错位，frozen 豁免随之失效（B9）
     cmd = ["git", "-C", repo_real, "--no-optional-locks", "-c", "core.quotepath=false",
-           "grep", "--no-color", "-I", "-n", "-z", "-F", "-e", needle, "--", "."]
+           "grep", "--no-color", "-I", "-n", "-z", "-F"] + [a for n in needles for a in ("-e", n)] + ["--", "."]
     try:
         p = subprocess.run(cmd, capture_output=True, timeout=120)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -902,21 +902,20 @@ def _check_former_names(cfg, repos):
     if not todo:
         return out
     cross, mine, errs = [], [], []
-    for owner, alias in todo:
-        for r in [x for x in repos if x["_is_git"]]:
-            hits, err = _git_grep(r["_real"], alias)
-            if err:
-                errs.append("%s / %s：%s" % (r["name"], alias, err))
+    for r in [x for x in repos if x["_is_git"]]:
+        hits, err = _git_grep(r["_real"], sorted({a for _o, a in todo}))
+        if err:
+            errs.append("%s：%s" % (r["name"], err))
+            continue
+        for rel, no, line in hits:
+            if in_frozen(cfg, rel) or any((m in line) or (m in line.lower()) for m in _RENAME_MARKERS):
                 continue
-            for rel, no, line in hits:
-                if in_frozen(cfg, rel) or not _name_appears(line, alias):
-                    continue
-                if any((m in line) or (m in line.lower()) for m in _RENAME_MARKERS):
-                    continue
-                (mine if r["_abs"] == owner["_abs"] else cross).append(
-                    "%s/%s:%s（%s 的旧名 %s）" % (r["name"], rel, no, owner["name"], alias))
+            for owner, alias in todo:
+                if _name_appears(line, alias):
+                    (mine if r["_abs"] == owner["_abs"] else cross).append(
+                        "%s/%s:%s（%s 的旧名 %s）" % (r["name"], rel, no, owner["name"], alias))
     al = "、".join("%s←%s" % (o["name"], a) for o, a in todo)
-    how = "（逐仓一次 git grep -I -n -F，命中行再过 _name_appears 词边界复核；同行写了 %s 任一改名标记的" \
+    how = "（逐仓一次 git grep -I -n -F 召回全部别名，命中行再过 _name_appears 词边界复核；同行写了 %s 任一改名标记的" \
           "已豁免；layout.frozen 下的路径与根下没有 .git 的仓不扫）" % "/".join(_RENAME_MARKERS)
     if errs:
         out.append(finding(NAME, UNDETERMINED, "有 %d 次历史别名召回没跑成" % len(errs),
@@ -1163,6 +1162,37 @@ def selftest():
                 why="契约 §3 静默失效探测：抓不出违规、或对正例误报的检查器，其结论作废；"
                     "契约 §1.1：召回前提不成立时记未定不产 FAIL，豁免只认被检查的那一行、不设清单",
             ))
+
+        # B20：判据八一仓只起一次 git grep 召回全部别名（两仓两别名＝2 次，不是 4 次），命中仍逐别名归属；
+        # 退役仓的扫描清单在入口与 rule_files 重叠时每项只列一次
+        calls, real_grep = [], _git_grep
+        globals()["_git_grep"] = lambda repo, needles: (calls.append(list(needles)), real_grep(repo, needles))[1]
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                for nm in ("sys", "app"):
+                    d = os.path.join(tmp, nm)
+                    _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
+                    _mk(os.path.join(d, "docs", "n.md"), u"见 SYS_OLD 与 APP_OLD。\n")
+                    for arg in (["init", "-q"], ["add", "-A"]):
+                        subprocess.run(["git", "-C", d] + arg, capture_output=True, timeout=60)
+                got = [f for f in run({"_root": tmp, "layout": {"entry": ["CLAUDE.md"]}, "repos": [
+                    {"name": "sys", "path": "sys", "role": "system", "former_names": ["SYS_OLD"]},
+                    {"name": "app", "path": "app", "role": "app", "former_names": ["APP_OLD"]}]})
+                       if u"历史别名" in f["title"]]
+        finally:
+            globals()["_git_grep"] = real_grep
+        ev = " ".join(f.get("evidence") or "" for f in got)
+        with tempfile.TemporaryDirectory() as tmp:
+            listed = [f.get("evidence") or "" for f in run(_sample(tmp, bad=False)) if u"都带失效标记" in f["title"]]
+        scan = listed[0].split("扫描清单：")[1].split("；")[0].split("、") if listed else []
+        ok = (len(calls) == 2 and u"sys 的旧名 SYS_OLD" in ev and u"app 的旧名 APP_OLD" in ev
+              and scan and len(scan) == len(set(scan)))
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "判据八一仓一次 git grep、命中逐别名归属；退役仓扫描清单不重复列",
+            evidence="grep 次数 %d；别名命中 %s；扫描清单 %s" % (len(calls), [f["status"] for f in got], scan),
+            why="B20 精简：同一件事只做一次",
+        ))
 
         # id 的区分力（契约 §9）：两个仓各有一处指向绝对路径的引用，两条未定的 id
         # 必须按仓名分开。key 不带仓名的话两条 id 相同，登记一行会把两个仓一起静音。
