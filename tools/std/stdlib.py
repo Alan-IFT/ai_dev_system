@@ -517,6 +517,17 @@ def _bad_dup_budgets(cfg, text):
     return None
 
 
+def _bad_state_words(cfg, text):
+    """work_item_*_states 的声明词与 01 §4.1 六态别名、或两键之间撞词（归到不同态）即整份拒收（R127 R2-2）。"""
+    seen = dict((a, c) for c, al in WORK_ITEM_STATES for a in al)
+    for c, key in _DECLARED_STATES:
+        for w in state_list(cfg, key, ()):
+            if seen.setdefault(w, c) != c:
+                return "第 %d 行 %s 的「%s」已归 %s，声明到 %s 有歧义；撞词不猜归哪一态" % (
+                    _key_line(text, key), key, w, seen[w], c)
+    return None
+
+
 # 配置键的形状（契约 §5 类型表）。写成别的形状不许静默误读——frozen 写成字符串被逐字符迭代、
 # tailoring 写成映射静默不生效、layout.entry: 5 让两个检查器崩溃——整份拒收，报键名与行号。空值＝没写。
 _SHAPES = (("tier", "str"), ("layout.docs_root", "str"), ("layout.work_root", "str"),
@@ -574,7 +585,7 @@ def _read_config(root, p, shown):
     if injected:      # 下划线键是代码注入口（契约 §4），写进配置等于让被检查方指定检查范围
         return {}, "%s 第 %d 行的顶层键以 _ 开头；这类键只由代码注入，项目配置写了整份拒收" % (
             shown, _key_line(text, injected[0]))
-    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text)
+    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text) or _bad_state_words(cfg, text)
     if bad_budget:
         return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
     bad = _escaping_paths(cfg)
