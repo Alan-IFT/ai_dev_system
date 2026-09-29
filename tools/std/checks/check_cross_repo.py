@@ -167,13 +167,19 @@ def _list_md(repo, known):
 
 
 def _expand_rule_files(repo_abs, patterns):
-    """把 layout.rule_files 的条目展开成实际存在的文件路径。以 / 结尾的按目录递归。"""
-    out, truncated = [], False
+    """把 layout.rule_files 的条目展开成实际存在的文件路径。以 / 结尾的按目录递归。
+
+    返回 (文件, 是否截断, 出仓条目)。条目本身（如顶层 `.claude` 软链接）的真实位置在仓外时
+    不 isdir、不 walk、不列其中文件名，只把条目原样记进出仓条目（B8）。"""
+    out, outside = [], []
     for pat in patterns:
         pat = str(pat).replace("\\", "/").strip()
         if not pat:
             continue
         target = os.path.join(repo_abs, pat.rstrip("/"))
+        if not inside(repo_abs, target):
+            outside.append(pat)
+            continue
         if pat.endswith("/") or os.path.isdir(target):
             if not os.path.isdir(target):
                 continue
@@ -182,7 +188,7 @@ def _expand_rule_files(repo_abs, patterns):
                 for fn in sorted(filenames):
                     out.append(os.path.join(dirpath, fn))
                     if len(out) >= _MAX_RULE_FILES:
-                        return out, True
+                        return out, True, outside
         elif os.path.isfile(target):
             out.append(target)
     # 去重，保序
@@ -192,7 +198,7 @@ def _expand_rule_files(repo_abs, patterns):
         if k not in seen:
             seen.add(k)
             uniq.append(p)
-    return uniq, truncated
+    return uniq, False, outside
 
 
 def _owner_repo(abs_path, repos):
@@ -685,11 +691,11 @@ def _check_retired(cfg, repos, entry_names):
         if not r["_exists"]:
             continue  # 判据二已记未定
         try:
-            files, truncated = _expand_rule_files(r["_real"], patterns)
+            files, truncated, outside = _expand_rule_files(r["_real"], patterns)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "枚举 %s 的规则文件" % r["name"]))
             continue
-        live, unreadable = [], []
+        live, unreadable = [], ["%s（真实位置在该仓之外，未读）" % p for p in outside]
         for p in files:
             try:
                 head = _head_lines(p, r["_real"])
@@ -727,7 +733,7 @@ def _check_retired(cfg, repos, entry_names):
                             len(live), min(len(live), _MAX_LISTED),
                             "、".join(live[:_MAX_LISTED]), note),
             ))
-        else:
+        elif not unreadable and not truncated:    # 有没读的或没扫全的，就说不出"都带"（B8）
             out.append(finding(
                 NAME, PASS, "退役仓 %s 的 %d 份规则文件都带失效标记" % (r["name"], len(files)),
                 where=r["path"],
@@ -1223,6 +1229,21 @@ def selftest():
                 "第二跳不跟随、不探测指向仓外的链接（入口两跳到不了系统仓照判 FAIL）",
                 evidence="探测仓外 %s；实得 %s" % (leak, got),
                 why="契约 §5：字面就在项目之外的路径连存在性也不探测",
+            ))
+
+        # 退役仓规则位置出仓（B8）：顶层 `.claude` 是指向仓外的软链接时不列仓外文件名，也不报"都带失效标记"
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            cfg = _sample(tmp, bad=False)
+            _mk(os.path.join(outside_dir, "TOPSECRET_NAME.md"), u"# 现行规则\n")
+            os.symlink(outside_dir, os.path.join(tmp, "old", ".claude"))
+            got = [f for f in run(cfg) if u"退役仓 old" in f["title"]]
+            text = " ".join("%s %s %s" % (f["title"], f.get("reason"), f.get("evidence")) for f in got)
+            results.append(finding(
+                NAME, PASS if "TOPSECRET_NAME" not in text and [f["status"] for f in got] == [UNDETERMINED]
+                and ".claude/" in text else FAIL,
+                "退役仓规则位置是出仓软链接：只记一条未定（写条目名），不列仓外文件名、不报 PASS",
+                evidence="实得 %s；泄露=%s" % ([(f["status"], f["title"]) for f in got], "TOPSECRET_NAME" in text),
+                why="契约 §5：只读被扫项目之内的文件，报错不回显仓外文件名；01 §2 N1 没读的不记通过",
             ))
 
         # 线性（D-123 安全 3）：`](` 连写 8000 次曾要跑几分钟，一个文件拖死整次检查与提交闸门
