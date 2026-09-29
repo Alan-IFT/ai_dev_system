@@ -210,6 +210,7 @@ def scope(cfg):
             "以内嵌方式运行时：内嵌目录下有没有已跟踪文件的改动（git status，含已暂存与未暂存），"
             "有判 FAIL（01 §8 只读）；git 查不了记未定",
             "配置里有没有非空的 compatibility.policy（01 §5.3 必填，不分档），没有判 FAIL",
+            "tailoring 裁掉本检查时，内嵌目录只读与 compatibility.policy 两项不可裁剪、照判，其余记 SKIP",
             "%s 的 permissions.allow 里有没有通配放行项：`Bash`、`Bash(*)`，或命令解释器、脚本运行器、"
             "包管理器运行命令后面只剩通配（如 `Bash(python3 *)`、`Bash(npm run *)`、`Bash(uv run:*)`；"
             "中间的选项与登记过的带值选项（python -X/-W、node -r/--require/--import/--loader、perl -I、"
@@ -253,9 +254,11 @@ def scope(cfg):
 def run(cfg, tool_root=None):
     """tool_root 只为自检注入（同 stdlib.embedded_std_rel），生产路径不传。"""
     tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
     root = cfg.get("_root") or "."
+    if tailored:                       # 内嵌目录只读与 compatibility.policy 必填不可裁剪（D-126），照判
+        return ([finding(NAME, SKIP, "项目已裁剪本检查（内嵌目录只读与 compatibility.policy 不可裁剪，照判）",
+                         reason=reason or "project.yaml 未写理由")]
+                + _readonly_findings(root, embedded_std_rel(root, tool_root)) + [_compatibility(cfg)])
     return _version(cfg, root, tool_root) + [_compatibility(cfg)] + _settings_allow(root)
 
 
@@ -696,6 +699,9 @@ def _readonly_selftest():
                 else:
                     os.environ["GIT_CEILING_DIRECTORIES"] = saved
 
+            # 裁掉本检查（tailoring）时只读守卫与 compatibility.policy 照判：修前整条只剩一条 SKIP
+            tail = run(dict(cfg, tailoring=[{"check": NAME, "applicable": False, "reason": u"自检"}]), tool_root=tr)
+            tailored = sorted((f["status"], f["id"]) for f in tail if f["status"] != SKIP)
             fail = [f for f in dirty_fs if f["id"] == "adoption/embedded-modified"]
             ok = (len(clean) == 1 and clean[0][0] == PASS
                   and untracked == clean
@@ -705,13 +711,17 @@ def _readonly_selftest():
                   and "只读" in fail[0]["title"]
                   and ignored == [(UNDETERMINED, "adoption/embedded-untracked")]
                   and outside["status"] == UNDETERMINED
-                  and outside["id"] == "adoption/embedded-readonly-unknown")
+                  and outside["id"] == "adoption/embedded-readonly-unknown"
+                  and tailored == [(FAIL, "adoption/compatibility-policy"), (FAIL, "adoption/embedded-modified")]
+                  and sum(f["status"] == SKIP for f in tail) == 1)
             return finding(
                 NAME, PASS if ok else FAIL,
                 "内嵌目录只读（经 run() 注入内嵌）：未暂存或已暂存改动 FAIL embedded-modified、"
-                "干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定",
-                evidence="干净 %s；仅未跟踪 %s；未暂存 %s；已暂存 %s；被忽略 %s；非 git %s"
-                         % (clean, untracked, dirty, staged, ignored, (outside["status"], outside["id"])),
+                "干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定；"
+                "裁掉本检查时只读守卫与 compatibility.policy 照判 FAIL，其余只剩一条 SKIP",
+                evidence="干净 %s；仅未跟踪 %s；未暂存 %s；已暂存 %s；被忽略 %s；非 git %s；裁剪 %s"
+                         % (clean, untracked, dirty, staged, ignored, (outside["status"], outside["id"]),
+                            [(f["status"], f["id"]) for f in tail]),
                 why="01 §8：内嵌的 `.std/` 只读；契约 §3 静默失效探测")
     except Exception as exc:  # noqa: BLE001
         return finding(NAME, FAIL, "内嵌目录只读的自检跑不起来",

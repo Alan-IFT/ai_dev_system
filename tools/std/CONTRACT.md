@@ -182,7 +182,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | 键 | 类型 | 必填 | 缺省行为 |
 |---|---|---|---|
 | `tier` | 字符串 `L0`/`L1`/`L2`/`L3` | **是** | `check_layout` 整条记 `UNDETERMINED`——不猜该项目该有哪些工件。取值不在四档内同样记未定，不归到最近的一档 |
-| `tailoring` | 列表，每项 `check` / `applicable` / `reason` | 否 | 视为没裁剪任何检查。`check` 可写检查器短名，也可写 `layout:<role>` 或裸 `<role>` 单裁一个工件；写了对不上的名字裁剪不生效，记一条未定（`tailoring/unknown-check/<名字>`） |
+| `tailoring` | 列表，每项 `check` / `applicable` / `reason` | 否 | 视为没裁剪任何检查。`check` 可写检查器短名，也可写 `layout:<role>` 或裸 `<role>` 单裁一个工件；写了对不上的名字裁剪不生效，记一条未定（`tailoring/unknown-check/<名字>`）。裁掉 `adoption` 时内嵌目录只读（01 §8）与 `compatibility.policy` 必填（01 §5.3）两项不可裁剪，照判 |
 | `layout.entry` | 字符串列表 | 否 | `layout` 与 `entry-budget` 共用 `stdlib.entry_files`：先回退到 `layout.artifacts.entry`（同是项目声明，据此照常判 `FAIL`）；两者都没配才按候选 `CONTEXT.md`、`AGENTS.md`、`CLAUDE.md` 的顺序取第一个存在的（同时存在几个也只取第一个，证据列出其余），证据注明来自候选。候选是 §1.1 的工具约定：`layout` 命中记 `PASS`、全不在记一条 ★ 未定，`entry-budget` 在预算内记 `PASS`、超预算记未定（`candidate-over`），声明之后仍超才判 `FAIL`；入口不在由 `layout` 报，`entry-budget` 记 `SKIP`（§1）。`cross-repo` 的入口相关判据仍记 `UNDETERMINED`：它要在每个仓里认同一组入口名，且那几条判据的结论以 `FAIL` 为主，候选来源下只剩通过与未定 |
 | `layout.docs_root` | 字符串 | 否 | 取常量 `docs`（01 §3.1 文档树的根），`freshness`／`drift` 在 `evidence` 里注明用的是默认，`layout` 在覆盖边界里注明（它只拿它给候选路径改基，候选本就是提示，§1.1）。解析只在 `stdlib.docs_root_of` 一处，`layout`／`freshness`／`drift` 与各缺省路径的改基共用 |
 | `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`（01 §3.1；`docs/` 随 `layout.docs_root` 改基，与 `check_layout` 的候选同一规则），并在 `evidence` 里注明用的是默认。它也是 `check_layout` 的 `work_current`（实时状态源）一项在未声明 `layout.artifacts.work_current` 时认的落点——目录不在由 `layout` 报一次（声明了却不在，任何档判 `FAIL`），`evidence`／`freshness`／`drift` 记 `SKIP`（§1）。解析只在 `stdlib.work_root` 一处 |
