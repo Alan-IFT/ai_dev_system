@@ -923,13 +923,15 @@ def read_bytes(path, root=None, head=None):
     """读被扫项目文件的唯一入口：护栏 → 非阻塞打开 → 只收常规文件 → 大小上限。
 
     head=None 时超过 MAX_READ_BYTES 抛 TooLarge；给了 head 就只读前 head 字节、不因体量拒读。
-    给了 root：打开前按真实位置判（`guard`），打开后再核一次——真实路径仍在 root 内、且与打开的
-    fd 是同一个文件（st_dev/st_ino）。O_NOFOLLOW 挡住末段在两步之间被换成符号链接；中间目录
-    被换出去又在复核前换回的双换窗口关不上（要逐段 openat），不处理。
+    给了 root：先按字面、再按真实位置判（与 `guard` 同一规则，字面出仓不碰文件系统），打开后再核
+    一次——真实路径仍是它自己（中间目录没被换成链接）、且与打开的 fd 是同一个文件（st_dev/st_ino，
+    换出去又换回来也拦得下）。O_NOFOLLOW 挡住末段被换成符号链接。每读一份只做 3 次 realpath。
     """
-    if root is not None:
-        guard(root, path)
+    if root is not None and not _under(os.path.abspath(str(path)), os.path.abspath(str(root))):
+        raise OutsideRoot("%s 的真实位置在被扫项目之外（符号链接或 ..），未读" % path)
     real = os.path.realpath(path)
+    if root is not None and not _under(real, os.path.realpath(str(root))):
+        raise OutsideRoot("%s 的真实位置在被扫项目之外（符号链接或 ..），未读" % path)
     fd = os.open(real, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
     try:
         st = os.fstat(fd)
@@ -937,8 +939,7 @@ def read_bytes(path, root=None, head=None):
             raise NotRegular("%s 不是常规文件，未读" % path)
         if root is not None:
             again = os.stat(real)
-            if (not _under(os.path.realpath(real), os.path.realpath(str(root)))
-                    or (again.st_dev, again.st_ino) != (st.st_dev, st.st_ino)):
+            if os.path.realpath(real) != real or (again.st_dev, again.st_ino) != (st.st_dev, st.st_ino):
                 raise OutsideRoot("%s 在读取期间被换位，未读" % path)
         if head is None and st.st_size > MAX_READ_BYTES:
             raise TooLarge("%s 超过 %d 字节，未读" % (path, MAX_READ_BYTES))

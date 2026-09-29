@@ -20,7 +20,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    inside, outside_root, read_bytes, MAX_READ_BYTES, FAIL, PASS, SKIP, UNDETERMINED,
+    inside, outside_root, read_bytes, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
@@ -83,7 +83,7 @@ def _read(path, root):
 
 
 def _head_lines(path, root, n=_MARKER_HEAD_LINES):
-    lines = read_bytes(path, root, head=MAX_READ_BYTES).decode("utf-8", "replace").split("\n")
+    lines = read_bytes(path, root, head=64 * 1024).decode("utf-8", "replace").split("\n")   # 只要头几行
     return "".join(ln + "\n" for ln in lines[:n])
 
 

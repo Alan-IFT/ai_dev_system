@@ -496,7 +496,10 @@ def _entry_smoke_selftest():
                              u"|---|---|---|---|---|---|---|\n"
                              u"| EX-001 | %s | 入口冒烟自检用 | 该项 | 自检 | %s | active |\n%s"
                              % (rule, expires, extra))
-                fs, c = run_all(proj, selftest_only=False, config_path=cfg_path)
+                # 登记只在检查器跑完之后 join（契约 §9），检查器结论不随登记册变：复用第一遍的结论只重做 join，
+                # 不再把全部检查器（连同自检闸门）重跑六遍（R1-12）
+                fs, c = [dict(f, registered=None) for f in findings], dict(cfg)
+                _join_exceptions(fs, c)
                 hits = [f for f in fs if f.get("id") == target]
                 if not hits:
                     raise AssertionError("登记自检：目标未定项 %s 消失了" % target)
@@ -966,20 +969,28 @@ def _stdlib_selftest(mods):
                 os.makedirs(d_)
                 with io.open(os.path.join(d_, "a.md"), "w", encoding="utf-8") as fh:
                     fh.write(body)
-            real_guard = sl.guard
+            real_open = os.open
 
-            def _swap(root_, path_):                        # 护栏放行之后、打开之前把中间目录换成出仓链接
-                real_guard(root_, path_)
-                os.rename(inner, inner + ".bak")
-                os.symlink(outer, inner)
-                return path_
-            sl.guard = _swap
+            def _swap(p_, *a_, **k_):                       # 护栏放行之后、打开之前把中间目录换成出仓链接
+                if not os.path.islink(inner):
+                    os.rename(inner, inner + ".bak")
+                    os.symlink(outer, inner)
+                return real_open(p_, *a_, **k_)
+            os.open = _swap
             try:
                 got = _try(lambda: sl.read_text(os.path.join(inner, "a.md"), proj))
             finally:
-                sl.guard = real_guard
+                os.open = real_open
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # R1-12：每读一份文件的 realpath 次数（原 5 次，每次逐段 lstat）
+            calls, real_rp = [], os.path.realpath
+            os.path.realpath = lambda p_, *a_, **k_: (calls.append(p_), real_rp(p_, *a_, **k_))[1]
+            try:
+                sl.read_bytes(big, proj, head=4)
+            finally:
+                os.path.realpath = real_rp
+            cases.append(("read_bytes 每读一份只做 3 次 realpath", len(calls) <= 3, calls))
             # A4／B1：.claude/settings.json 深嵌套让 json 抛 RecursionError，只作废这一条判据，不让整个 adoption 崩
             proj = fresh("p24")
             os.makedirs(os.path.join(proj, ".claude"))
