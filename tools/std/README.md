@@ -170,7 +170,8 @@ exec python3 .std/tools/std/check_all.py . --no-scope
 
 `git subtree add/pull` 走 `commit-tree`，不经过这个钩子，升级不需要放行；反过来它也看不见
 `--no-verify` 的提交，以及 `git cherry-pick`、`git revert`、`git rebase` 与 fast-forward 的 `git merge`
-写进分支的提交（这几类都不运行 pre-commit 与 commit-msg）——这些盲区按
+写进分支的提交（这几类默认不运行 pre-commit 与 commit-msg，只有 `rebase -i` 的 reword 和冲突解决后的
+`--continue`／`git commit` 会经过钩子）——这些盲区按
 [01 §5.6](../../标准/01-项目管理标准.md#gates) 记为该门未覆盖的范围。非 fast-forward 的 `git merge`
 可再接一个 `pre-merge-commit` 钩子（内容为 `exec "$(dirname "$0")/pre-commit"`）转调同一钩子覆盖。这段是形态示意不是发布物；
 `.std/` 前缀由采用项目自己的取用方式决定，换了前缀要跟着改。`check_all` 启动时先去掉 git 给钩子注入的
