@@ -184,12 +184,16 @@ def _run(cfg):
         )]
     out = []
     shallow = shallow_problem(root)
+    # 同一派生物可配几个源：头部只判一次，指明其中任一个源就算（R2-7）
+    srcs = {}
+    for item in decls:
+        srcs.setdefault(str(item.get("artifact") or "").strip(), []).append(str(item.get("source") or "").strip())
     for i, item in enumerate(decls, 1):
-        out.extend(_check_one(root, i, item, shallow))
+        out.extend(_check_one(root, i, item, shallow, srcs))
     return out
 
 
-def _check_one(root, idx, item, shallow):
+def _check_one(root, idx, item, shallow, srcs):
     # derived 须是映射组成的列表，load_config 已按形状校验拒收别的写法（契约 §5）
     label = u"derived[%d]" % idx
     artifact = str(item.get("artifact") or "").strip()
@@ -238,19 +242,22 @@ def _check_one(root, idx, item, shallow):
     elif a_epoch < s_epoch:
         out.append(finding(
             NAME, FAIL, u"%s 落后于源 %s" % (label, source),
-            where=artifact, kind=u"behind", key=artifact,
+            where=artifact, kind=u"behind", key=artifact + u"|" + source,
             why=u"01 §3.4：派生物记录源的版本、CI 重建后 diff 为零才算一致；落后的派生物默认不作事实（02 §9.4）",
             evidence=u"artifact 最后提交 %d，source 最后提交 %d，晚 %d 秒" % (a_epoch, s_epoch, s_epoch - a_epoch),
         ))
     else:
         out.append(finding(
             NAME, PASS, u"%s 不落后于源" % label,
-            where=artifact, kind=u"not-behind", key=artifact,
+            where=artifact, kind=u"not-behind", key=artifact + u"|" + source,
             why=u"01 §3.4",
             evidence=u"artifact 最后提交 %d ≥ source 最后提交 %d（只比提交先后，不比内容）" % (a_epoch, s_epoch),
         ))
 
-    # 自我声明：改它是白改，得让接手者看得见
+    # 自我声明：改它是白改，得让接手者看得见。同一派生物只在它的第一条声明上判
+    sources = srcs.pop(artifact, None)
+    if sources is None:
+        return out
     header, hwhy = read_header(apath, root)
     if header is None:
         out.append(finding(
@@ -259,7 +266,7 @@ def _check_one(root, idx, item, shallow):
             why=u"02 §9.1：派生工件头部要声明『派生缓存，权威是 X』",
         ))
     else:
-        hit = header_declares(header, source)
+        hit = next((h for h in (header_declares(header, x) for x in sources) if h), None)
         if hit:
             out.append(finding(
                 NAME, PASS, u"%s 头部声明了自己是派生物" % label,
@@ -479,6 +486,26 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
+    # R2-7：同一派生物对 src/a.json、src/b.json 各声明一条，两条「落后」各有自己的 id，头部只判一次
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _repo(tmp)
+            _commit(tmp, "docs/map.html", _BAD, "2026-01-01T00:00:00 +0000")
+            _commit(tmp, "src/a.json", _SRC, "2026-02-01T00:00:00 +0000")
+            _commit(tmp, "src/b.json", _SRC, "2026-02-01T00:00:00 +0000")
+            cfg["derived"] = [{"artifact": "docs/map.html", "source": "src/%s.json" % x, "regen": "make"}
+                              for x in "ab"]
+            got = sorted(f["id"] for f in run(cfg) if f["status"] == FAIL)
+        want = [NAME + u"/behind/docs/map.html｜src/a.json", NAME + u"/behind/docs/map.html｜src/b.json",
+                NAME + u"/header-undeclared/docs/map.html"]
+        results.append(finding(
+            NAME, PASS if got == want else FAIL,
+            u"R2-7：一个派生物配两个源，落后按 (派生物, 源) 分开，头部只判一次",
+            evidence=u"实得 %s" % (got,), why=u"契约 §9：两件事两个地址，一件事只报一次",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"R2-7 反例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
     # 反例六（C15）：源文件名按整段匹配——头部只写了 rapid 的派生物不算指明了源 src/api
     hits = (header_declares(u"<!-- rapid prototype, generated -->", u"src/api"),
             header_declares(u"<!-- 权威是src/map.json -->", u"src/map.json"),
@@ -517,7 +544,7 @@ def selftest():
                        for d in ([one], [{"artifact": "", "source": "", "regen": ""}, one])]
             finally:
                 globals()["shallow_problem"] = real_probe
-        stable = ids[0] == ids[1] == [NAME + u"/behind/docs/map.html", NAME + u"/header-undeclared/docs/map.html"]
+        stable = ids[0] == ids[1] == [NAME + u"/behind/docs/map.html｜src/map.json", NAME + u"/header-undeclared/docs/map.html"]
         mids = [f["id"] for f in miss]
         ok = (len(miss) == 2 and len(set(mids)) == 2 and stable and len(probes) == 2
               and mids[0].endswith(u"docs/a.html") and mids[1].endswith(u"docs/b.html"))
