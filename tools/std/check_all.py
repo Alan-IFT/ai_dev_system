@@ -28,7 +28,7 @@ sys.path.insert(0, HERE)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    embedded_std_rel, finding, finding_id, load_config, load_exceptions, scrub_git_env,
+    embedded_std_rel, finding, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
     tracked_files, undetermined_from_exception, work_root,
 )
 
@@ -1061,6 +1061,11 @@ def _stdlib_selftest():
                                                  u"not yet closed", u"open (to be closed)", u"待关闭")]
             cases.append(("例外登记的关闭态只认段首：没关闭/not yet closed/open (to be closed) 不算关闭",
                           closed == [True, True, True, True, False, False, False, False], closed))
+            # A14：git < 2.31 静默忽略 GIT_CONFIG_COUNT，加固全失效——认出来记未定，不静默照跑
+            vers = [sl.git_version_problem(v) is None for v in (
+                "git version 2.25.1\n", "git version 2.31.0\n", "git version 2.39.3 (Apple Git-146)\n", "")]
+            cases.append(("git 版本 2.25 与认不出的版本报问题，2.31 起放行",
+                          vers == [False, True, True, False], vers))
             # 低：身份行在 git 不可用时不写成「git git 退出码」
             line = identity_line({"digest": "0" * 64, "files": [], "git_head": "git 退出码 128",
                                   "dirty": None, "dirty_detail": "git 退出码 128"})
@@ -1225,6 +1230,13 @@ def run_all(root, selftest_only=False, config_path=None):
             ok, gate, results = _gated_by_selftest(name, mod)
             # 打印闸门**这一次**拿到的那份结果，不再重跑一遍。
             findings.extend(gate if not ok else results)
+        return _sealed(findings, ident_before), None
+
+    old_git = git_version_problem()
+    if old_git:
+        findings.append(finding(
+            "check_all", UNDETERMINED, "git 版本过旧，加固不生效，全部检查未定", kind="git-too-old",
+            reason=old_git, why="契约 §1：依赖不可用记未定；契约 §5：被扫仓配置里的外部程序一律压掉"))
         return _sealed(findings, ident_before), None
 
     cfg, problem = load_config(root, config_path)

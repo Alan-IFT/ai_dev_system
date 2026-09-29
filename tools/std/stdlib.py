@@ -10,6 +10,7 @@ import hashlib
 import io
 import os
 import re
+import stat
 import subprocess
 
 # git 跑钩子时给子进程注入的仓库定位变量，取自 `git rev-parse --local-env-vars`（git 自己
@@ -38,6 +39,28 @@ GIT_HARDEN_CONFIG = (
 )
 # GIT_OPTIONAL_LOCKS=0：扫描不刷新、不回写被扫仓的 index（只读扫描不该有写入）。
 GIT_HARDEN_ENV = (("GIT_PAGER", "cat"), ("GIT_TERMINAL_PROMPT", "0"), ("GIT_OPTIONAL_LOCKS", "0"))
+
+
+# GIT_CONFIG_COUNT 注入要 git ≥ 2.31；更老的 git 静默忽略这些变量，上面的加固全部失效。
+GIT_MIN_VERSION = (2, 31)
+
+
+def git_version_problem(out=None):
+    """git 低于 GIT_MIN_VERSION 或认不出版本时返回原因串，否则 None（git 跑不起来也返回 None——
+    那时每个 git 读点各自记未定）。out 只为自检注入 `git version` 的输出。"""
+    if out is None:
+        try:
+            out = subprocess.run(["git", "version"], capture_output=True, text=True,
+                                 encoding="utf-8", timeout=60).stdout
+        except (OSError, subprocess.SubprocessError):
+            return None
+    m = re.search(r"(\d+)\.(\d+)", out or "")
+    if not m:
+        return "认不出 git 版本（%r）；加固配置要 git ≥ %d.%d 才生效" % (((out or "").strip()[:40],) + GIT_MIN_VERSION)
+    if (int(m.group(1)), int(m.group(2))) < GIT_MIN_VERSION:
+        return ("git %s.%s 低于 %d.%d：经 GIT_CONFIG_COUNT 注入的加固（fsmonitor、过滤器、pager 等）"
+                "会被静默忽略，被扫仓配置里的外部程序可能被执行；请升级 git" % ((m.group(1), m.group(2)) + GIT_MIN_VERSION))
+    return None
 
 
 def scrub_git_env():
