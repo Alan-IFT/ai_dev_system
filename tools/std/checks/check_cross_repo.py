@@ -9,7 +9,6 @@
 """
 from __future__ import annotations
 
-import io
 import os
 import re
 import subprocess
@@ -21,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     inside, outside_root, read_bytes, FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception, unreadable,
+    cfg_get, finding, in_frozen, unreadable, run_guarded, probe, write_text,
 )
 
 
@@ -323,17 +322,10 @@ def scope(cfg):
 
 
 def run(cfg):
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001 —— 内部异常一律未定，绝不吞掉记 PASS
-        return [undetermined_from_exception(NAME, exc, "跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-
     repos, problem = _load_repos(cfg)
     if repos is None:
         if problem in ("repos 未声明",) or problem.startswith("repos 只有"):
@@ -984,14 +976,6 @@ def _check_former_names(cfg, repos):
 # 自检：反例与正例各一（契约 §3）
 # --------------------------------------------------------------------------
 
-def _mk(path, text):
-    d = os.path.dirname(path)
-    if d and not os.path.isdir(d):
-        os.makedirs(d)
-    with io.open(path, "w", encoding="utf-8") as fh:
-        fh.write(text)
-
-
 def _mk_repo(root, name):
     """造一个最小的仓目录。只按 .git 是否存在认仓库身份，故不依赖 git 可执行文件。"""
     d = os.path.join(root, name)
@@ -1004,19 +988,19 @@ def _sample(tmp, bad):
     for nm in ("sys", "app", "old"):
         _mk_repo(tmp, nm)
     if bad:
-        _mk(os.path.join(tmp, "sys", "CLAUDE.md"),
+        write_text(os.path.join(tmp, "sys", "CLAUDE.md"),
             "# 系统仓\n\n本系统由这几个仓组成：sys、app。\n")
-        _mk(os.path.join(tmp, "old", "CLAUDE.md"),
+        write_text(os.path.join(tmp, "old", "CLAUDE.md"),
             "# 老仓入口\n\n七阶段流水线由 PM 调度，子 agent 不自路由。\n")
-        _mk(os.path.join(tmp, "old", ".harness", "rules", "00-core.md"),
+        write_text(os.path.join(tmp, "old", ".harness", "rules", "00-core.md"),
             "# 核心规则\n\n每次开工先跑流水线。\n")
     else:
-        _mk(os.path.join(tmp, "sys", "CLAUDE.md"),
+        write_text(os.path.join(tmp, "sys", "CLAUDE.md"),
             "# 系统仓\n\n本系统由这几个仓组成：sys（system）、app（active）、old（retired）。\n"
             "各仓状态见本文件。\n")
-        _mk(os.path.join(tmp, "old", "CLAUDE.md"),
+        write_text(os.path.join(tmp, "old", "CLAUDE.md"),
             "# 老仓入口（已退役）\n\n本仓已退役，以下内容不再生效，现行规则见 ../sys/CLAUDE.md。\n")
-    _mk(os.path.join(tmp, "app", "CLAUDE.md"),
+    write_text(os.path.join(tmp, "app", "CLAUDE.md"),
         "# 应用仓 app\n\n本仓特有约束见下。系统级权威在 [系统仓](../sys/CLAUDE.md)。\n")
     return {
         "_root": tmp,
@@ -1033,9 +1017,9 @@ def _sample_archived(tmp):
     """archived 且不给 path 的样本：本机只有 sys 与 app 两个检出，arch 只在远端。"""
     for nm in ("sys", "app"):
         _mk_repo(tmp, nm)
-    _mk(os.path.join(tmp, "sys", "CLAUDE.md"),
+    write_text(os.path.join(tmp, "sys", "CLAUDE.md"),
         "# 系统仓\n\n本系统由这几个仓组成：sys（system）、app（active）、arch（archived，已移出工作区）。\n")
-    _mk(os.path.join(tmp, "app", "CLAUDE.md"),
+    write_text(os.path.join(tmp, "app", "CLAUDE.md"),
         "# 应用仓 app\n\n本仓特有约束见下。系统级权威在 [系统仓](../sys/CLAUDE.md)。\n")
     return {
         "_root": tmp,
@@ -1053,9 +1037,9 @@ def _alias_probe(body, former, rel="docs/note.md", frozen=()):
     with tempfile.TemporaryDirectory() as tmp:
         for nm in ("sys", "app"):
             d = os.path.join(tmp, nm)
-            _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
+            write_text(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
             if nm == "app":
-                _mk(os.path.join(d, rel), body + u"\n")
+                write_text(os.path.join(d, rel), body + u"\n")
             for arg in (["init", "-q"], ["add", "-A"]):
                 subprocess.run(["git", "-C", d, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"] + arg,
                                capture_output=True, timeout=60)
@@ -1079,8 +1063,7 @@ def selftest():
             want_retired = any("仍有" in f["title"] and "现行规则读入" in f["title"] for f in fails)
             want_unreg = any("系统级入口未登记" in f["title"] for f in fails)
             ok = bool(fails) and want_retired and want_unreg
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "反例：退役仓规则未失效 + 系统入口未登记该仓，应判 FAIL",
                 evidence="实得 FAIL %d 条：%s（退役仓一条命中=%s，未登记一条命中=%s）"
                          % (len(fails), titles or "无", want_retired, want_unreg),
@@ -1096,8 +1079,7 @@ def selftest():
             other = [f for f in got if f["status"] != PASS and not f["id"].startswith(NAME + "/no-refs/")]
             ok = bool(got) and not other and norefs == [NAME + "/no-refs/old", NAME + "/no-refs/sys"] \
                 and all(f["status"] == SKIP for f in got if f["id"] in norefs)
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "正例：承载仓唯一、各仓有入口、投影可达、状态已登记、退役仓已标失效，应判 PASS",
                 evidence="实得 %d 条，非 PASS %d 条：%s"
                          % (len(got), len(other),
@@ -1117,8 +1099,7 @@ def selftest():
             skips = [f for f in got if f["status"] == SKIP and "arch" in f["title"]]
             # 入口、失效头、跨仓引用三条对它都得记不适用
             ok = bool(reach) and len(skips) >= 3 and not und and not bad
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "archived 无 path 夹具：判据二应 PASS，需读其本地文件的各条应记不适用，全程不得出现未定",
                 evidence="实得 %d 条：判据二 PASS %d 条、不适用 %d 条、未定 %d 条、失败 %d 条；"
                          "非 PASS/SKIP 明细：%s"
@@ -1138,8 +1119,7 @@ def selftest():
             cfg["repos"] = [cfg["repos"][0], {"name": "app", "path": "app2", "role": "app"}, cfg["repos"][1]]
             res = run(cfg)
             got = [(f["status"], f["title"]) for f in res]
-            results.append(finding(
-                NAME, PASS if len(got) == 1 and got[0][0] == UNDETERMINED and u"同名" in res[0]["reason"] else FAIL,
+            results.append(probe(NAME, len(got) == 1 and got[0][0] == UNDETERMINED and u"同名" in res[0]["reason"],
                 "repos 两项同名须整条记未定（配置读不出），不得让无入口的那个仓借名报 PASS",
                 evidence="实得 %s" % got[:6],
                 why="契约 §5：取值有歧义时不猜",
@@ -1164,8 +1144,7 @@ def selftest():
                       and u"archived" not in why_["missing"][0])
             ok = (honest and und["archived"] == [] and len(und["missing"]) == 1
                   and all((SKIP, NAME + "/too-few-local") in v for v in got.values()))
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "本机只有一个仓：system+archived 不出未定，path 不在只由判据二报一次，跨仓引用记不适用",
                 evidence="实得 %s；理由 %s" % (got, why_),
                 why="契约 §1：同一事实只报一次；01 §3.8 archived 本就不在工作区",
@@ -1174,8 +1153,7 @@ def selftest():
         # 状态词按独立记号认（B13）：filesystem、app_system_x 都不是 system
         got = [_has_status_token(x) for x in (u"app 的 filesystem 说明", u"app（active）", u"app: Archived",
                                               u"app 已退役", u"app_system_x")]
-        results.append(finding(
-            NAME, PASS if got == [False, True, True, True, False] else FAIL,
+        results.append(probe(NAME, got == [False, True, True, True, False],
             "登记行的英文状态词按独立记号认，filesystem 不算 system",
             evidence="实得 %s" % got,
             why="01 §3.8 要求登记的是状态；子串命中会把只出现名字的行记成已登记（假通过）",
@@ -1196,8 +1174,7 @@ def selftest():
              [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"], "a:b/note.md", ["a:b"])]),
         ):
             got = [_alias_probe(*p) for p in probes]
-            results.append(finding(
-                NAME, PASS if [g[0] for g in got] == [[w] for w in want] else FAIL, title,
+            results.append(probe(NAME, [g[0] for g in got] == [[w] for w in want], title,
                 evidence="期望 %s，实得 %s" % (want, "；".join("%s：%s" % g for g in got)),
                 why="契约 §3 静默失效探测：抓不出违规、或对正例误报的检查器，其结论作废；"
                     "契约 §1.1：召回前提不成立时记未定不产 FAIL，豁免只认被检查的那一行、不设清单",
@@ -1211,8 +1188,8 @@ def selftest():
             with tempfile.TemporaryDirectory() as tmp:
                 for nm in ("sys", "app"):
                     d = os.path.join(tmp, nm)
-                    _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
-                    _mk(os.path.join(d, "docs", "n.md"), u"见 SYS_OLD 与 APP_OLD。\n")
+                    write_text(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
+                    write_text(os.path.join(d, "docs", "n.md"), u"见 SYS_OLD 与 APP_OLD。\n")
                     for arg in (["init", "-q"], ["add", "-A"]):
                         subprocess.run(["git", "-C", d] + arg, capture_output=True, timeout=60)
                 got = [f for f in run({"_root": tmp, "layout": {"entry": ["CLAUDE.md"]}, "repos": [
@@ -1227,8 +1204,7 @@ def selftest():
         scan = listed[0].split("扫描清单：")[1].split("；")[0].split("、") if listed else []
         ok = (len(calls) == 2 and u"sys 的旧名 SYS_OLD" in ev and u"app 的旧名 APP_OLD" in ev
               and scan and len(scan) == len(set(scan)))
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             "判据八一仓一次 git grep、命中逐别名归属；退役仓扫描清单不重复列",
             evidence="grep 次数 %d；别名命中 %s；扫描清单 %s" % (len(calls), [f["status"] for f in got], scan),
             why="B20 精简：同一件事只做一次",
@@ -1241,13 +1217,12 @@ def selftest():
             os.makedirs(abs_dir)
             cfg = _sample(abs_dir, bad=False)
             for nm in ("sys", "app"):
-                _mk(os.path.join(abs_dir, nm, "docs", "ref.md"),
+                write_text(os.path.join(abs_dir, nm, "docs", "ref.md"),
                     "# 引用\n\n见 [部署目录](/srv/deploy/notes.md)。\n")
             got = [f for f in run(cfg) if (f.get("id") or "").startswith(NAME + "/abs-refs/")]
             ids = sorted(f["id"] for f in got)
             ok = ids == [NAME + "/abs-refs/app", NAME + "/abs-refs/sys"]
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "id 区分力：两个仓各有一处绝对路径引用，两条未定的 id 须按仓名分开",
                 evidence="实得 %d 条：%s" % (len(got), "、".join(ids) or "无"),
                 why="契约 §9：id 是例外登记的地址，两个仓共用一个地址就会被一行登记一起静音",
@@ -1259,7 +1234,7 @@ def selftest():
             os.makedirs(d)
             cfg = _sample(d, bad=False)
             locked = os.path.join(d, "app", "docs", "locked.md")
-            _mk(locked, "# 锁\n\n见 [没有](../../sys/nope.md)。\n")
+            write_text(locked, "# 锁\n\n见 [没有](../../sys/nope.md)。\n")
             os.chmod(locked, 0)
             try:
                 # 以 root 跑时 chmod 000 挡不住读，样本不成立，跳过这一条（不算失败）
@@ -1269,8 +1244,7 @@ def selftest():
             if got is not None:
                 hit = [f for f in got if f["id"] == NAME + "/unreadable/app"]
                 ok = len(hit) == 1 and hit[0]["status"] == UNDETERMINED
-                results.append(finding(
-                    NAME, PASS if ok else FAIL, "读不了的 *.md 须记一条未定，不得静默跳过",
+                results.append(probe(NAME, ok, "读不了的 *.md 须记一条未定，不得静默跳过",
                     evidence="实得 %s" % [(f["status"], f["id"]) for f in got if f["status"] != PASS][:8],
                     why="契约 §1：依赖不可用记未定，不得吞掉异常记 PASS",
                 ))
@@ -1282,11 +1256,11 @@ def selftest():
             os.makedirs(d)
             cfg = _sample(d, bad=False)
             secret = os.path.join(outside_dir, "CLAUDE.md")
-            _mk(secret, u"# TOPSECRET\n\n系统仓 sys\n")
+            write_text(secret, u"# TOPSECRET\n\n系统仓 sys\n")
             app_entry = os.path.join(d, "app", "CLAUDE.md")
             os.remove(app_entry)
             os.symlink(secret, app_entry)
-            _mk(os.path.join(d, "sys", "docs", "far.md"), u"见 [外](../../../../nowhere/x.md)。\n")
+            write_text(os.path.join(d, "sys", "docs", "far.md"), u"见 [外](../../../../nowhere/x.md)。\n")
             ext = os.path.join(d, "app", "docs", "ext.md")
             os.makedirs(os.path.dirname(ext), exist_ok=True)
             os.symlink(secret, ext)
@@ -1303,8 +1277,7 @@ def selftest():
             ok = (not leaked and (UNDETERMINED, NAME + "/outside-repos/sys") in bad
                   and any(st == UNDETERMINED and "app" in (f_id + "") for st, f_id in bad)
                   and not any(st == FAIL for st, _i in bad))
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "兄弟仓读到的文件须在该仓真实位置之内：入口符号链接出仓记未定不读；声明仓之外的引用记未定不探测",
                 evidence="非通过项 %s；泄露=%s" % (bad[:8], leaked),
                 why="D-123 裁定 1/2：repos[].path 豁免只豁免仓本身，不豁免从仓里经符号链接出去",
@@ -1314,8 +1287,8 @@ def selftest():
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
             cfg = _sample(tmp, bad=False)
             secret = os.path.join(outside_dir, "x.md")
-            _mk(secret, u"系统仓 sys\n")
-            _mk(os.path.join(tmp, "app", "CLAUDE.md"),
+            write_text(secret, u"系统仓 sys\n")
+            write_text(os.path.join(tmp, "app", "CLAUDE.md"),
                 u"# 应用仓\n\n见 [外](%s)。\n" % os.path.relpath(secret, os.path.join(tmp, "app")))
             probed, real_isfile = [], os.path.isfile
             os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
@@ -1324,8 +1297,7 @@ def selftest():
             finally:
                 os.path.isfile = real_isfile
             leak = [p for p in probed if os.path.realpath(p).startswith(os.path.realpath(outside_dir))]
-            results.append(finding(
-                NAME, PASS if not leak and [g[0] for g in got] == [FAIL] else FAIL,
+            results.append(probe(NAME, not leak and [g[0] for g in got] == [FAIL],
                 "第二跳不跟随、不探测指向仓外的链接（入口两跳到不了系统仓照判 FAIL）",
                 evidence="探测仓外 %s；实得 %s" % (leak, got),
                 why="契约 §5：字面就在项目之外的路径连存在性也不探测",
@@ -1334,13 +1306,13 @@ def selftest():
         # 退役仓规则位置出仓（B8）：顶层 `.claude` 是指向仓外的软链接时不列仓外文件名，也不报"都带失效标记"
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
             cfg = _sample(tmp, bad=False)
-            _mk(os.path.join(outside_dir, "TOPSECRET_NAME.md"), u"# 现行规则\n")
+            write_text(os.path.join(outside_dir, "TOPSECRET_NAME.md"), u"# 现行规则\n")
             os.symlink(outside_dir, os.path.join(tmp, "old", ".claude"))
             got = [f for f in run(cfg) if u"退役仓 old" in f["title"]]
             text = " ".join("%s %s %s" % (f["title"], f.get("reason"), f.get("evidence")) for f in got)
-            results.append(finding(
-                NAME, PASS if "TOPSECRET_NAME" not in text and [f["status"] for f in got] == [UNDETERMINED]
-                and ".claude/" in text else FAIL,
+            results.append(probe(
+                NAME, "TOPSECRET_NAME" not in text and [f["status"] for f in got] == [UNDETERMINED]
+                and ".claude/" in text,
                 "退役仓规则位置是出仓软链接：只记一条未定（写条目名），不列仓外文件名、不报 PASS",
                 evidence="实得 %s；泄露=%s" % ([(f["status"], f["title"]) for f in got], "TOPSECRET_NAME" in text),
                 why="契约 §5：只读被扫项目之内的文件，报错不回显仓外文件名；01 §2 N1 没读的不记通过",
@@ -1354,9 +1326,9 @@ def selftest():
         _link_targets("\n" * 60000 + "[a\n" * 20000)   # B2：旧 _REF_LINK 下约 5 秒
         took_ref = time.time() - t0
         got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)\n  [d]: w.md\n[e]:\n  <v.md>\n")
-        results.append(finding(
-            NAME, PASS if took < 1 and took_ref < 1
-            and got == ["x.md", "y.md", "../z.md", "w.md", "v.md"] else FAIL,
+        results.append(probe(
+            NAME, took < 1 and took_ref < 1
+            and got == ["x.md", "y.md", "../z.md", "w.md", "v.md"],
             "链接抽取对 `](` 连写 2000 次、连续空行与无 `]` 的 `[` 行须线性，且照常认出带标题、尖括号与引用式的链接",
             evidence="耗时 %.3fs / %.3fs；抽出 %s" % (took, took_ref, str(got)[:200]),
             why="D-123 安全 3：检查器没有整体超时，一个平方级正则就能拖死提交闸门",

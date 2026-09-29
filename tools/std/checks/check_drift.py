@@ -33,9 +33,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,
-    cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, outside_root, is_tailored_out, norm_rel, note_default, read_text,
+    cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, outside_root, norm_rel, note_default, read_text,
     WORK_ITEM_NAME, rebase_docs, tracked_files, under, undetermined_from_exception, unreadable, once, work_root, work_root_absent,
     write_text,
+    run_guarded, probe, git_track,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
 # 再抄一份 markdown 表解析器必然与它漂（01 §1 G2）。
@@ -661,10 +662,10 @@ def scope(cfg):
 
 
 def run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, u"项目已裁剪本检查", reason=reason or u"project.yaml 未写理由")]
+    return run_guarded(NAME, _run, cfg)
 
+
+def _run(cfg):
     root = cfg.get("_root") or "."
     docs_root, dnote = docs_root_of(cfg)
 
@@ -714,31 +715,8 @@ def run(cfg):
 # 自检（契约 §3：必须有反例；本检查器四条判据里三条永不 FAIL，用**结果断言**钉死）
 # --------------------------------------------------------------------------
 
+# 自检样本要**真提交**（git_track 给 when）：判据 1 的基准来自 blame，没有提交就没有基准
 _COMMIT_DATE = "2026-09-21T05:26:00+08:00"      # 基准日 2026-09-21，不随运行机日期漂
-
-
-def _git_commit(tmp, date=_COMMIT_DATE):
-    """自检样本要**真提交**：判据 1 的基准来自 blame，没有提交就没有基准。返回 None 或错误串。"""
-    env = dict(os.environ)
-    env["GIT_COMMITTER_DATE"] = date
-    env["GIT_AUTHOR_DATE"] = date
-    # 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行（同 check_derived 的 _GIT_ID）
-    cmds = (["git", "-c", "init.defaultBranch=main", "init", "-q", tmp],
-            ["git", "-C", tmp, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A", "-f"],
-            ["git", "-C", tmp, "-c", "user.email=a@b", "-c", "user.name=a",
-             "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
-             "-c", "core.autocrlf=false", "-c", "core.safecrlf=false",
-             "commit", "-q", "-m", "s"])
-    for cmd in cmds:
-        try:
-            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                                 timeout=120, env=env)
-        except (OSError, subprocess.SubprocessError) as exc:
-            return "%s 跑不了：%s" % (cmd[0], exc)
-        if out.returncode != 0:
-            return "%s 退出码 %d：%s" % (" ".join(cmd[:4]), out.returncode,
-                                        (out.stderr or "").strip()[:200])
-    return None
 
 
 def _ids(res, kind):
@@ -746,7 +724,7 @@ def _ids(res, kind):
 
 
 def _assert(results, ok, title, evidence, why=u"契约 §3 静默失效探测"):
-    results.append(finding(NAME, PASS if ok else FAIL, title, evidence=evidence, why=why))
+    results.append(probe(NAME, ok, title, evidence=evidence, why=why))
 
 
 def selftest():
@@ -756,7 +734,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "docs", "a.md"),
                    u"# 样本\n\n- 2026-09-14 裁定 X。\n- 2026-09-15 裁定 Y。\n")
-        err = _git_commit(tmp, "2026-09-13T21:46:00-07:00")   # +0800 下已是 09-14 12:46
+        err = git_track(tmp, "2026-09-13T21:46:00-07:00")   # +0800 下已是 09-14 12:46
         res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
         got = _ids(res, "future-date")
         tail = u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u"")
@@ -777,7 +755,7 @@ def selftest():
                    u"- v1 保留至 2026-12-31。\n"                            # 1b 不报
                    u"- 批准 2026-05-12 → 到期 2026-10-31，届时复核。\n"      # 1b 不报
                    u"- 复查：2026-12-08（半年）——已复查，无回退。\n")        # 1d 不报
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs"}}
         res = run(cfg) if not err else []
         got = _ids(res, "future-date")
@@ -813,7 +791,7 @@ def selftest():
                    u"# ADR-0002\n\n正文里补充索引后，检索更快。\n")             # 2b 不报
         write_text(os.path.join(tmp, "docs", "notes", "变更记录.md"),
                    u"# 变更记录\n\n修订三：这份不在 decisions 下。\n")          # 2c 不报
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs",
                                         "artifacts": {"decisions": "docs/decisions"}}}
         res = run(cfg) if not err else []
@@ -890,7 +868,7 @@ def selftest():
                    u"| ADR-0002 | 乙 | active | ADR-0002 |\n")
         write_text(os.path.join(tmp, "docs", "decisions", "ADR-0001-x.md"), u"# ADR-0001\n\n正文。\n")
         write_text(os.path.join(tmp, "docs", "decisions", "ADR-0003-y.md"), u"# ADR-0003\n\n正文。\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         declared = {"_root": tmp, "layout": {"docs_root": "docs",
                                              "artifacts": {"decisions": "docs/decisions"}}}
         res = run(declared) if not err else []
@@ -924,7 +902,7 @@ def selftest():
                    u"# 状态\n\n- WI-0001 在做。\n- WI-0003 也在做。\n")
         write_text(os.path.join(tmp, "docs", "state", "work", "WI-0003-a.md"), u"# WI-0003\n")
         write_text(os.path.join(tmp, "docs", "state", "work", "WI-0002-b.md"), u"# WI-0002\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs",
                                         "artifacts": {"status": "docs/state/STATUS.md"}}}
         res = run(cfg) if not err else []
@@ -957,7 +935,7 @@ def selftest():
         write_text(os.path.join(tmp, "docs", "items", "a.md"), u"# 甲\n\n- WI-0007 在做。\n")
         write_text(os.path.join(tmp, "docs", "items", "sub", "b.md"), u"- WI-0009 不递归。\n")
         write_text(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}
         res = run(cfg) if not err else []
         got = sorted(f["id"] for f in res if f["id"].startswith((u"drift/status", u"drift/work-item")))
@@ -977,7 +955,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "WORK.md"), u"# 工作\n\n- WI-0001 在做。\n")
         write_text(os.path.join(tmp, "docs", "a.md"), u"# 甲\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
         got = sorted(f["id"] for f in res if f["id"].startswith((u"drift/status", u"drift/work")))
         _assert(results,
@@ -994,7 +972,7 @@ def selftest():
                    u"- 依赖 WI-0002；留证见 WI-0003；WI-0004 有独立文件。\n")
         write_text(os.path.join(tmp, "work", "artifacts", "WI-0003-回灌记录.md"), u"# 留证\n")
         write_text(os.path.join(tmp, "work", "WI-0004-a.md"), u"# WI-0004\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         cfg = {"_root": tmp, "layout": {"docs_root": "docs", "work_root": "work",
                                         "artifacts": {"status": "work/current.md"}}}
         res = run(cfg) if not err else []
@@ -1028,7 +1006,7 @@ def selftest():
                 r = subprocess.run(["git", "init", "-q", "--object-format=" + fmt, tmp],
                                    capture_output=True, timeout=60)
                 err = None if r.returncode == 0 else "git init --object-format 退出码 %d" % r.returncode
-            err = err or _git_commit(tmp)
+            err = err or git_track(tmp, _COMMIT_DATE)
             res = run({"_root": tmp, "layout": {"docs_root": "docs"}}) if not err else []
             got = [(f["id"], f.get("where")) for f in res
                    if f["id"].startswith((u"drift/future-date", u"drift/blame"))]
@@ -1046,7 +1024,7 @@ def selftest():
         write_text(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
         for rel in ("docs/b.md", "docs/items/b.md"):
             write_text(os.path.join(tmp, rel), u"占位\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         for rel in ("docs/b.md", "docs/items/b.md"):
             os.remove(os.path.join(tmp, rel))
             os.mkfifo(os.path.join(tmp, rel))
@@ -1068,7 +1046,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "work", "current.md"), u"# 状态\n\n- WI-001 在做。\n")
         write_text(os.path.join(tmp, "work", "WI-0010-x.md"), u"# WI-0010\n")
-        err = _git_commit(tmp)
+        err = git_track(tmp, _COMMIT_DATE)
         res = run({"_root": tmp, "layout": {"docs_root": "docs", "work_root": "work",
                                             "artifacts": {"status": "work/current.md"}}}) if not err else []
         got = _ids(res, "work-item-missing")

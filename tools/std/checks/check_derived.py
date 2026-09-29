@@ -6,7 +6,6 @@
 """
 from __future__ import annotations
 
-import io
 import os
 import re
 import subprocess
@@ -17,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     shallow_problem, read_bytes, FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, is_tailored_out, undetermined_from_exception,
+    cfg_get, finding, run_guarded, probe, probe_crashed, write_text, git_fixture,
 )
 
 NAME = "derived-artifacts"
@@ -165,13 +164,7 @@ def scope(cfg):
 
 
 def run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, u"项目已裁剪本检查", reason=reason or u"project.yaml 未写理由")]
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001  内部异常一律转未定，绝不吞掉记 PASS
-        return [undetermined_from_exception(NAME, exc, u"跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
@@ -307,27 +300,11 @@ def _check_one(root, idx, item, shallow, srcs):
 # 自检（契约 §3）
 # --------------------------------------------------------------------------
 
-# 夹具不受全局配置左右：不签名、不跑全局钩子
-_GIT_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
-           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
-           "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
-
-
-def _git(root, *args, **kw):
-    env = dict(os.environ)
-    env.update(kw.get("env") or {})
-    return subprocess.run(["git", "-C", root] + _GIT_ID + list(args),
-                          capture_output=True, text=True, timeout=_GIT_TIMEOUT, env=env)
-
-
 def _commit(root, rel, body, when):
-    path = os.path.join(root, rel)
-    os.makedirs(os.path.dirname(path) or root, exist_ok=True)
-    with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(body)
-    _git(root, "add", "--", rel)
-    _git(root, "commit", "-q", "-m", "add %s" % rel,
-         env={"GIT_AUTHOR_DATE": when, "GIT_COMMITTER_DATE": when})
+    write_text(os.path.join(root, rel), body)
+    git_fixture(root, "add", "--", rel)
+    git_fixture(root, "commit", "-q", "-m", "add %s" % rel,
+                env=dict(os.environ, GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when))
 
 
 _SRC = u'{"modules": ["inventory", "settlement"]}\n'
@@ -354,7 +331,7 @@ _GENERATOR_ONLY = u"""<!doctype html>
 
 
 def _repo(tmp):
-    subprocess.run(["git", "init", "-q", tmp], capture_output=True, text=True, timeout=_GIT_TIMEOUT)
+    git_fixture(tmp, "init", "-q")
     return {"_root": tmp}
 
 
@@ -372,13 +349,12 @@ def selftest():
                                "regen": "python3 tools/build_map.py"}]
             got = [f["status"] for f in run(cfg)]
         ok = FAIL in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例：派生物头部无自我声明应判 FAIL",
             evidence=u"实得 %s" % got, why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例", exc))
 
     # 反例（D-123 bug 1）：同一份陈旧样本的浅克隆须记未定——浅克隆里两者的提交时间都是边界提交，
     # 旧实现据此判「不落后」，把 FAIL 翻成 PASS
@@ -396,13 +372,12 @@ def selftest():
                                             "regen": "python3 tools/build_map.py"}]})]
         ok = (UNDETERMINED, NAME + "/no-commit-time/docs/map.html") in got and \
             not any(st == PASS and "不落后" in i for st, i in got)
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例：浅克隆下取不到真实提交先后，陈旧与否记未定",
             evidence=u"实得 %s" % got, why=u"01 §2 N1：浅克隆的提交时间是克隆时刻，判不了先后",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"浅克隆反例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"浅克隆反例", exc))
 
     # 反例二：派生物提交早于源（陈旧）
     try:
@@ -415,13 +390,12 @@ def selftest():
                                "regen": "python3 tools/build_map.py"}]
             got = [f["status"] for f in run(cfg)]
         ok = FAIL in got
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例二：派生物落后于源应判 FAIL",
             evidence=u"实得 %s" % got, why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例二", exc))
 
     # 反例三：只有 <meta name="generator">，没有源路径也没有 source_rev。
     # 两条断言缺一不可：① 状态仍是 FAIL（防假 PASS）；② 证据不再说"没有任何标记"（防假陈述）。
@@ -441,15 +415,14 @@ def selftest():
               and u"没有任何生成/派生标记" not in (hdr[0].get("title") or u"")
               and u"没有任何生成/派生" not in ev
               and u'name="generator"' in ev)
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例三：只有生成器署名、未指明源，须仍判 FAIL，且证据须引原文而非说『没有任何标记』",
             evidence=u"实得 %s；头部条目 title=%r evidence=%r"
                      % (got, hdr[0].get("title") if hdr else None, ev[:200]),
             why=u"契约 §3；02 §9.1 的门槛是『权威是 X』，不是『我是自动生成的』",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例三", exc))
 
     # 正例：源在前、派生物在后，且头部声明齐全
     try:
@@ -462,13 +435,12 @@ def selftest():
                                "regen": "python3 tools/build_map.py"}]
             got = [f["status"] for f in run(cfg)]
         ok = bool(got) and set(got) == {PASS}
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"正例：声明齐全且不落后应全判 PASS",
             evidence=u"实得 %s" % got, why=u"契约 §3 静默失效探测",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"正例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"正例", exc))
 
     # 反例五（C02）：源路径带 [ ] 时 git 按通配解读，会取到 m1.json 更晚的提交，把不落后的派生物判落后
     try:
@@ -479,13 +451,12 @@ def selftest():
             _commit(tmp, "src/m1.json", _SRC, "2026-02-01T00:00:00 +0000")
             cfg["derived"] = [{"artifact": "docs/map.html", "source": "src/m[1].json", "regen": "make"}]
             got = [f["status"] for f in run(cfg)]
-        results.append(finding(
-            NAME, PASS if got == [PASS, PASS] else FAIL,
+        results.append(probe(NAME, got == [PASS, PASS],
             u"反例五：源路径带 [ ] 按字面取提交时间，不被通配到别的文件",
             evidence=u"实得 %s" % got, why=u"01 §3.4：陈旧判据比的是声明的那个源",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例五", exc))
 
     # R2-7：同一派生物对 src/a.json、src/b.json 各声明一条，两条「落后」各有自己的 id，头部只判一次
     try:
@@ -499,13 +470,12 @@ def selftest():
             got = sorted(f["id"] for f in run(cfg) if f["status"] == FAIL)
         want = [NAME + u"/behind/docs/map.html｜src/a.json", NAME + u"/behind/docs/map.html｜src/b.json",
                 NAME + u"/header-undeclared/docs/map.html"]
-        results.append(finding(
-            NAME, PASS if got == want else FAIL,
+        results.append(probe(NAME, got == want,
             u"R2-7：一个派生物配两个源，落后按 (派生物, 源) 分开，头部只判一次",
             evidence=u"实得 %s" % (got,), why=u"契约 §9：两件事两个地址，一件事只报一次",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"R2-7 反例自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"R2-7 反例", exc))
 
     # 反例六（C15）：源文件名按整段匹配——头部只写了 rapid 的派生物不算指明了源 src/api
     hits = (header_declares(u"<!-- rapid prototype, generated -->", u"src/api"),
@@ -513,8 +483,7 @@ def selftest():
             header_declares(u"<!-- source: ../map.json. -->", u"src/map.json"),
             header_declares(u"<!-- see api.md -->", u"src/api"),
             header_declares(u"<!-- src/map.json.bak -->", u"src/map.json"))
-    results.append(finding(
-        NAME, PASS if hits[0] is None and hits[1] and hits[2] and hits[3] is None and hits[4] is None else FAIL,
+    results.append(probe(NAME, hits[0] is None and hits[1] and hits[2] and hits[3] is None and hits[4] is None,
         u"反例六：源文件名按路径/词边界匹配，api 不命中 rapid、api.md，map.json 不命中 map.json.bak；"
         u"中文紧贴、句号收尾照认",
         evidence=u"实得 %s" % (hits,), why=u"02 §9.1：指明源要指的是那一个文件",
@@ -552,14 +521,13 @@ def selftest():
         mids = [f["id"] for f in miss]
         ok = (len(miss) == 2 and len(set(mids)) == 2 and stable and len(probes) == 2
               and mids[0].endswith(u"docs/a.html") and mids[1].endswith(u"docs/b.html"))
-        results.append(finding(
-            NAME, PASS if ok else FAIL,
+        results.append(probe(NAME, ok,
             u"反例四：两条声明各缺自己的源，两条未定的 id 须按 artifact 路径分开；FAIL 的 id 不随声明序号漂",
             evidence=u"实得 %d 条：%s；序号 1 与 2 时的 FAIL id：%s；两次扫描共探测浅克隆 %d 次（应 2 次，C22）"
                      % (len(miss), u"、".join(mids) or u"无", ids, len(probes)),
             why=u"契约 §9：id 是例外登记的地址，两件事共用一个地址就会被一行登记一起静音",
         ))
     except Exception as exc:  # noqa: BLE001
-        results.append(finding(NAME, FAIL, u"反例四自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+        results.append(probe_crashed(NAME, u"反例四", exc))
 
     return results

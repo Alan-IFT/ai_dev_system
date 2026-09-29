@@ -37,7 +37,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     read_bytes, read_text, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, embedded_std_rel, filter_env, finding, inside, is_tailored_out, outside_root,
-    unreadable,
+    unreadable, probe, write_text, write_files, git_fixture,
 )
 
 NAME = "adoption"
@@ -607,8 +607,7 @@ def _write(tmp, content):
         if os.path.exists(path):
             os.remove(path)
     else:
-        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(content)
+        write_text(path, content)
     return {"_root": tmp, "compatibility": {"policy": u"未上线，可破坏性重构"}}
 
 
@@ -627,20 +626,6 @@ def _value_insensitive(run_fn, tmp):
     return a == b, (a, b)
 
 
-# 夹具不受全局配置左右：不签名、不跑全局钩子、不转换换行（同 check_derived 的 _GIT_ID）
-_GIT_ID = ["-c", "user.email=std@example.invalid", "-c", "user.name=std",
-           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
-           "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"]
-
-
-def _git_fixture(repo, *args):
-    cmd = ["git", "-C", repo, "-c", "init.defaultBranch=main"] + _GIT_ID + list(args)
-    r = subprocess.run(cmd, capture_output=True, timeout=60)
-    if r.returncode != 0:
-        raise RuntimeError("git %s 退出码 %d：%s" % (
-            " ".join(args), r.returncode, (r.stderr or b"").decode("utf-8", "replace")[:200]))
-
-
 def _embedded_repo(repo, ignore_std=False):
     """造一个内嵌采用项目：STANDARD_VERSION 与内嵌 README 修订号一致，`.std/` 已提交
     （ignore_std 时 `.std/` 被 .gitignore 忽略、从未跟踪）。返回内嵌目录路径（即注入的 tool_root）。"""
@@ -651,14 +636,10 @@ def _embedded_repo(repo, ignore_std=False):
     }
     if ignore_std:
         files[".gitignore"] = u".std/\n"
-    for rel, body in files.items():
-        path = os.path.join(repo, rel)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(body)
-    _git_fixture(repo, "init", "-q")
-    _git_fixture(repo, "add", "-A")
-    _git_fixture(repo, "commit", "-q", "-m", "s")
+    write_files(repo, files)
+    git_fixture(repo, "init", "-q")
+    git_fixture(repo, "add", "-A")
+    git_fixture(repo, "commit", "-q", "-m", "s")
     return os.path.join(repo, ".std")
 
 
@@ -684,7 +665,7 @@ def _readonly_selftest():
                 fh.write(u"就地改\n")
             dirty_fs = run(cfg, tool_root=tr)
             dirty = _ro(dirty_fs)
-            _git_fixture(repo, "add", "--", ".std/x.md")
+            git_fixture(repo, "add", "--", ".std/x.md")
             staged = _ro(run(cfg, tool_root=tr))
 
             ign = os.path.join(tmp, "ignored")
@@ -718,8 +699,7 @@ def _readonly_selftest():
                   and outside["id"] == "adoption/embedded-readonly-unknown"
                   and tailored == [(FAIL, "adoption/compatibility-policy"), (FAIL, "adoption/embedded-modified")]
                   and sum(f["status"] == SKIP for f in tail) == 1)
-            return finding(
-                NAME, PASS if ok else FAIL,
+            return probe(NAME, ok,
                 "内嵌目录只读（经 run() 注入内嵌）：未暂存或已暂存改动 FAIL embedded-modified、"
                 "干净与仅未跟踪 PASS、被忽略记未定 embedded-untracked、不在 git 仓库记未定；"
                 "裁掉本检查时只读守卫与 compatibility.policy 照判 FAIL，其余只剩一条 SKIP",
@@ -781,8 +761,7 @@ def _declarations_selftest(tmp):
           and good == [(PASS, "adoption/no-wildcard-allow")]
           and broken == [(UNDETERMINED, "adoption/settings-invalid")]
           and [f["id"] for f in absent] == ["adoption/settings-absent"] and absent[0]["status"] == SKIP)
-    return finding(
-        NAME, PASS if ok else FAIL,
+    return probe(NAME, ok,
         "compatibility.policy 缺或空判 FAIL、有值 PASS；免审批清单通配放行判 FAIL、窄规则 PASS、"
         "坏 JSON 记未定 settings-invalid（配置错误，可登记，不是 internal-error）、无文件 SKIP",
         evidence="compat %s；漏报 %s；误报 %s；反例 %s；正例 %s；坏文件 %s；无文件 %s"
@@ -813,8 +792,7 @@ def selftest():
         with tempfile.TemporaryDirectory() as tmp:
             for content, want, title in cases:
                 got = _statuses(run, _write(tmp, content))
-                results.append(finding(
-                    NAME, PASS if got == want else FAIL, title,
+                results.append(probe(NAME, got == want, title,
                     evidence="期望 %s，实得 %s" % (list(want), list(got)),
                     why="契约 §3 静默失效探测",
                 ))
@@ -826,8 +804,7 @@ def selftest():
             ok_ev = ("1.0" in ev
                      and "不核实该值背后的 tag 是否真实存在" in ev
                      and "不与工具侧任何常量比对" in ev)
-            results.append(finding(
-                NAME, PASS if ok_ev else FAIL,
+            results.append(probe(NAME, ok_ev,
                 "正例的证据里带原样版本值与『不核实 tag、不比工具常量』的限定",
                 evidence="evidence 首 120 字：%s" % ev[:120].replace("\n", " / "),
                 why="契约 §4：evidence 要可复算；A2 的落点是把值写进报告供人核",
@@ -856,8 +833,7 @@ def selftest():
                   and diff["status"] == FAIL and diff["id"] == "adoption/version-mismatch"
                   and "2026-09-10" in diff["reason"] and "2026-09-22.2" in diff["reason"]
                   and blank["status"] == UNDETERMINED and gone["status"] == UNDETERMINED)
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "内嵌修订号比对：相等 PASS（证据带两值两路径）、不等 FAIL version-mismatch、"
                 "README 取不到值或读不到记未定",
                 evidence="实得 %s" % [(f["status"], f["id"]) for f in (same, diff, blank, gone)],
@@ -866,9 +842,9 @@ def selftest():
 
             _put(u"**候选实现修订：`2026-09-22.2`。**\n")
             ids = [f["id"] for f in run(_write(tmp, u"2026-09-10\nadopted_at: 2025-03-03\n"))]
-            results.append(finding(
-                NAME, PASS if (len(ids) == 5 and "adoption/version-mismatch" not in ids
-                               and not any("embedded-modified" in i for i in ids)) else FAIL,
+            results.append(probe(
+                NAME, (len(ids) == 5 and "adoption/version-mismatch" not in ids
+                       and not any("embedded-modified" in i for i in ids)),
                 "非内嵌运行（被扫根不含本工具）时不产出内嵌修订号比对，内嵌目录只读记不适用",
                 evidence="实得 %s" % ids,
                 why="只在内嵌运行时比对：外部工具副本扫项目时，被扫项目里的 .std/ 不是正在跑的这份",
@@ -886,8 +862,7 @@ def selftest():
             exec(compile(src + _MUTANT_SUFFIX, "<check_adoption 变异体>", "exec"), ns)  # noqa: S102
             ok_mut, detail_mut = _value_insensitive(ns["run"], tmp)
 
-            results.append(finding(
-                NAME, PASS if (ok_real and not ok_mut) else FAIL,
+            results.append(probe(NAME, (ok_real and not ok_mut),
                 "变异验证：真实现对版本值不敏感，而『去比对工具常量』的变异体被探针抓住",
                 evidence="真实现两次判定 %s → 一致=%s；变异体两次判定 %s → 一致=%s"
                          % (list(detail_real), ok_real, list(detail_mut), ok_mut),

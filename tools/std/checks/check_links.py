@@ -19,9 +19,10 @@ from urllib.parse import unquote
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    FAIL, PASS, SKIP, UNDETERMINED,
-    cfg_get, finding, in_frozen, inside, is_tailored_out, read_text, tracked_files,
+    FAIL, PASS, UNDETERMINED,
+    cfg_get, finding, in_frozen, inside, read_text, tracked_files,
     undetermined_from_exception, unreadable,
+    run_guarded, probe,
 )
 
 NAME = "links"
@@ -220,13 +221,7 @@ def scope(cfg):
 
 
 def run(cfg):
-    tailored, reason = is_tailored_out(cfg, NAME)
-    if tailored:
-        return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-    try:
-        return _run(cfg)
-    except Exception as exc:  # noqa: BLE001 - 契约 §1：内部异常一律未定
-        return [undetermined_from_exception(NAME, exc, "跑 %s" % NAME)]
+    return run_guarded(NAME, _run, cfg)
 
 
 def _run(cfg):
@@ -441,14 +436,12 @@ def selftest():
               "# A\n\n见 [b](b.md)。\n\n坏的一条：[没有这个文件](missing.md)。\n")
             got_bad = [f["status"] for f in run(cfg)]
 
-            results.append(finding(
-                NAME, PASS if FAIL in got_bad else FAIL,
+            results.append(probe(NAME, FAIL in got_bad,
                 "反例：指向不存在的 missing.md 应判 FAIL",
                 evidence="实得 %s" % got_bad,
                 why="契约 §3 静默失效探测；判据 01 §3.4 引用",
             ))
-            results.append(finding(
-                NAME, PASS if (got_ok and set(got_ok) == {PASS}) else FAIL,
+            results.append(probe(NAME, (got_ok and set(got_ok) == {PASS}),
                 "正例：文件与两个锚点都在，应全判 PASS",
                 evidence="实得 %s" % got_ok,
                 why="契约 §3 静默失效探测",
@@ -466,8 +459,7 @@ def selftest():
                   and cjk[0]["id"].startswith("links/anchor-cjk/a.md｜")
                   and (cjk[0].get("where") or "") == "a.md:3"
                   and "3、5、7" in (cjk[0].get("evidence") or ""))
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "反例二：同一份文件里同一个链接目标重复出现，应合并成一条、行号进证据、id 带源文件",
                 evidence="中文锚点条数 %d；id=%s；where=%s；证据=%r"
                          % (len(cjk),
@@ -486,9 +478,9 @@ def selftest():
             res = run({"_root": tmp, "_links_files": ["sub/a.md", "b.md", "my file.md"]})
             bad = sorted((f["status"], f["title"].split("：", 1)[-1]) for f in res if f["status"] != PASS)
             want = [(FAIL, "<../no such.md>"), (UNDETERMINED, "/nope.md")]
-            results.append(finding(
-                NAME, PASS if [(st, t.strip("<>").replace("../", "")) for st, t in bad] ==
-                [(st, t.strip("<>").replace("../", "")) for st, t in want] else FAIL,
+            results.append(probe(
+                NAME, [(st, t.strip("<>").replace("../", "")) for st, t in bad] ==
+                [(st, t.strip("<>").replace("../", "")) for st, t in want],
                 "反例四：下划线锚点、setext 锚点、仓根路径、<> 包裹路径按实际渲染认；仓根找不到记未定",
                 evidence="非通过项 %s；应得 %s" % (bad, want),
                 why="契约 §1.1：约定落空只记未定；01 §3.4 引用核对不得误报",
@@ -502,8 +494,7 @@ def selftest():
                       " [t](tel:10086) [s](sms:10086)\n")
             got = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
             want = [(FAIL, "links/anchor-missing/a.md｜b.md#nope"), (FAIL, "links/missing/a.md｜gone.md")]
-            results.append(finding(
-                NAME, PASS if got == want else FAIL,
+            results.append(probe(NAME, got == want,
                 "反例五：同一缺失目标只出一条 FAIL、id 不随行号漂；查询串与带协议的目标不当本地路径",
                 evidence="非通过项 %s；应得 %s" % (got, want),
                 why="契约 §4/§9：id 是登记的地址；01 §3.4 引用核对不得误报",
@@ -518,8 +509,7 @@ def selftest():
                 got = [f["status"] for f in run({"_root": tmp, "_links_files": ["a.md", "b.md"]})]
             finally:
                 globals()["read_text"] = real_read
-            results.append(finding(
-                NAME, PASS if got == [PASS] and len(reads) == 2 == len(set(reads)) else FAIL,
+            results.append(probe(NAME, got == [PASS] and len(reads) == 2 == len(set(reads)),
                 "C22：互相链接的两份 markdown 各只读一遍",
                 evidence="实得 %s；读 %d 次：%s" % (got, len(reads), [os.path.basename(r) for r in reads]),
                 why="一次扫描里同一份文件不重复 I/O",
@@ -531,8 +521,7 @@ def selftest():
             got = sorted((f["status"], f["id"]) for f in run({"_root": tmp, "_links_files": ["a.md"]})
                          if f["status"] != PASS)
             want = [(FAIL, "links/missing/a.md｜gone.py:10")]
-            results.append(finding(
-                NAME, PASS if got == want else FAIL,
+            results.append(probe(NAME, got == want,
                 "R2-9：文件:行号 按本地路径核，只有查询串的链接不当锚点",
                 evidence="非通过项 %s；应得 %s" % (got, want), why="01 §3.4 引用核对不得漏报也不得误报",
             ))
@@ -566,8 +555,7 @@ def selftest():
             leaked = any("TOPSECRET" in (f.get("evidence") or "") + (f.get("title") or "") for f in res)
             ok = (FAIL not in [f["status"] for f in res] and "outside-root" in kinds
                   and not leaked and took < 5)
-            results.append(finding(
-                NAME, PASS if ok else FAIL,
+            results.append(probe(NAME, ok,
                 "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白、满行 [ / < / _ 的标题线性",
                 evidence="非通过项 kind=%s；泄露内容=%s；耗时 %.2fs" % (kinds, leaked, took),
                 why="D-123 安全 2／3：不读项目之外的文件；一个文件不许拖死整次检查",
