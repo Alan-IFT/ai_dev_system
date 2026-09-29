@@ -1073,6 +1073,21 @@ def work_root(cfg):
     return rel, "work_root 用的是默认 %s（未配 layout.work_root）" % rel
 
 
+def unreadable(check, rel, exc):
+    """读不了的文件（超限、不是常规文件、出仓、IO 错）：是对象的事，不是检查器故障，不落兜底 id。
+    每个检查器内同一文件只报一次（同一 id，调用方去重）。"""
+    return finding(check, UNDETERMINED, "%s 读不了（%s），依赖它的判据未判" % (rel, type(exc).__name__),
+                   where=rel, kind="unreadable", key=rel,
+                   reason="读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+                   why="01 §2 N1：依赖不可用记未定，不记通过")
+
+
+def once(findings):
+    """同一 id 只留第一条（契约 §1 同一事实只报一次）：一份文件被几条判据读、各自读不了时用。"""
+    seen = set()
+    return [f for f in findings if not (f["id"] in seen or seen.add(f["id"]))]
+
+
 def outside_root(check, rel):
     """字面在项目内、真实位置出仓的路径：记未定，不判缺失、不探测目标在不在（契约 §5）。"""
     return finding(check, UNDETERMINED, "%s 的真实位置在被扫项目之外，未读" % rel, where=rel,

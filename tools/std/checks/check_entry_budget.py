@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     cfg_get, count_lines, docs_root_of, entry_files, finding, in_frozen, inside, is_tailored_out, item_status,
-    read_text, rebase_docs, undetermined_from_exception, work_root,
+    read_text, rebase_docs, undetermined_from_exception, unreadable, once, work_root,
 )
 
 NAME = "entry-budget"
@@ -72,7 +72,7 @@ def run(cfg):
     tailored, reason = is_tailored_out(cfg, NAME)
     if tailored:
         return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-    return _entry(cfg) + _docs(cfg)
+    return once(_entry(cfg) + _docs(cfg))     # 入口同时是某类文档且读不了时只报一次
 
 
 def _entry(cfg):
@@ -105,7 +105,7 @@ def _entry(cfg):
         try:
             n = count_lines(path, root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, str(rel), exc))
             continue
         if n > budget and guessed:
             # 候选是工具约定：它是不是这个项目的入口本工具不猜（契约 §1.1），超了只记未定
@@ -257,7 +257,7 @@ def _docs(cfg):
         try:
             n = count_lines(os.path.join(root, rel), root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
         lo = min(r[2] for r in roles)
         hi = max(r[2] for r in roles)

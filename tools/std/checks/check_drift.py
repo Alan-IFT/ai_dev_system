@@ -34,7 +34,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,
     cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, outside_root, is_tailored_out, norm_rel, note_default, read_text,
-    WORK_ITEM_NAME, rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
+    WORK_ITEM_NAME, rebase_docs, tracked_files, under, undetermined_from_exception, unreadable, once, work_root, work_root_absent,
     write_text,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
@@ -189,17 +189,13 @@ def _check_dates(cfg, root, files, docs_root):
             # 不走 read_text：它把孤立的 \r 归一成 \n，行号就与只认 \n 的 git blame 错位（B14）
             cand = _candidates(read_bytes(os.path.join(root, rel), root).decode("utf-8", "replace"))
         except OSError as exc:          # 一份读不了只记它自己，不丢整条判据（B16）
-            unread.append(u"%s（%s）" % (rel, type(exc).__name__))
+            unread.append(unreadable(NAME, rel, exc))
             continue
         scanned += 1
         if cand:
             hot.append((rel, cand))
             cand_total += len(cand)
-    unread_f = [finding(
-        NAME, UNDETERMINED, u"future-date：%d 份文档读不了，其中的日期未判" % len(unread),
-        kind="future-date-unreadable",
-        reason=u"读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文档不是没有问题",
-        why=u"01 §2 N1：依赖不可用记未定，不记通过", evidence=_cap(unread))] if unread else []
+    unread_f = unread
     if scanned == 0:
         return unread_f                 # 空集上说不出"全部通过"（01 §2 N1）
     def _clean_pass():
@@ -382,7 +378,7 @@ def _check_revision(root, adr_dir, adr_files):
         try:
             hits = _revision_hits(read_text(os.path.join(root, rel), root))
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, u"读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
         if not hits:
             continue
@@ -443,7 +439,7 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
     try:
         table = _first_md_table(read_text(os.path.join(root, index_rel), root))
     except OSError as exc:
-        return [undetermined_from_exception(NAME, exc, u"读 %s" % index_rel)]
+        return [unreadable(NAME, index_rel, exc)]
     id_col = file_col = None
     if table is not None:
         _hdr_lineno, header, _rows = table
@@ -556,7 +552,7 @@ def _check_work_items(cfg, root, files):
         try:
             text = read_text(os.path.join(root, src), root)
         except OSError as exc:          # 一份读不了只记它自己，不丢其余状态源（B16）
-            unread.append(u"%s（%s）" % (src, type(exc).__name__))
+            unread.append(unreadable(NAME, src, exc))
             continue
         for n, line in enumerate(text.splitlines(), 1):
             for m in _WI_RE.finditer(line):
@@ -564,11 +560,7 @@ def _check_work_items(cfg, root, files):
             m = _WI_FIELD_RE.match(line) if src == status_rel else None
             if m:
                 inline.add(m.group(1))
-    unread_f = [finding(
-        NAME, UNDETERMINED, u"work-item：%d 份状态源读不了，其中声明的工作项未核" % len(unread),
-        kind="status-unreadable",
-        reason=u"读不了、不是常规文件、超过读取上限或真实位置在项目之外",
-        why=u"01 §2 N1：依赖不可用记未定，不记通过", evidence=_cap(unread))] if unread else []
+    unread_f = unread
     if not seen:                       # 一个 ID 都没有：无结论，不产条目
         return unread_f
 
@@ -715,7 +707,7 @@ def run(cfg):
         out.extend(_check_work_items(cfg, root, files))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception(NAME, exc, u"核对 STATUS 声明的工作项"))
-    return out
+    return once(out)                    # 同一份文件读不了只报一次，哪条判据先碰到都一样（契约 §1）
 
 
 # --------------------------------------------------------------------------
@@ -1061,12 +1053,13 @@ def selftest():
         res = run({"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}) \
             if not err else []
         got = sorted((f["status"], f["id"]) for f in res
-                     if f["id"].startswith((u"drift/future-date", u"drift/status", u"drift/work-item")))
+                     if f["id"].startswith((u"drift/future-date", u"drift/status", u"drift/work-item",
+                                            u"drift/unreadable")))
         _assert(results, (not err) and got == [
                     (PASS, u"drift/work-item"),
-                    (UNDETERMINED, u"drift/future-date-unreadable"),
                     (UNDETERMINED, u"drift/future-date/docs/a.md｜2026-09-22"),
-                    (UNDETERMINED, u"drift/status-unreadable")],
+                    (UNDETERMINED, u"drift/unreadable/docs/b.md"),
+                    (UNDETERMINED, u"drift/unreadable/docs/items/b.md")],
                 u"4k 反例：一份文档、一份状态源读不了只各记一条未定，其余照判（未来日期照报、工作项照核）",
                 u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
                 why=u"01 §2 N1：没读的记未定；读得了的照常判，不因一份读不了整条作废")

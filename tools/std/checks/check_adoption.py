@@ -37,7 +37,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     read_bytes, read_text, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, embedded_std_rel, filter_env, finding, inside, is_tailored_out, outside_root,
-    undetermined_from_exception,
+    undetermined_from_exception, unreadable,
 )
 
 NAME = "adoption"
@@ -99,7 +99,7 @@ def _embedded_revision(root, embedded_rel, version):
     try:
         m = _EMBED_REV_RE.search(read_text(os.path.join(root, readme_rel), root))
     except OSError as exc:
-        return undetermined_from_exception(NAME, exc, "读 %s" % readme_rel)
+        return unreadable(NAME, readme_rel, exc)
     why = ("01 §8 第一条：项目记录采用的标准版本；01 §4.7『标准升级』行的验收判据："
            "『`STANDARD_VERSION` 与差异记录一致』——记录与内嵌进来的实物不是同一版，就对不上")
     if not m:
@@ -280,7 +280,7 @@ def _version(cfg, root, tool_root):
     try:
         text = read_text(path, root)
     except OSError as exc:
-        return [undetermined_from_exception(NAME, exc, "读 %s" % _REL)] + _readonly_findings(root, embedded)
+        return [unreadable(NAME, _REL, exc)] + _readonly_findings(root, embedded)
 
     version, adopted, pairs = _parse(text)
     raw_head = "；".join(ln.strip() for ln in text.splitlines() if ln.strip())[:200] or "（空文件）"

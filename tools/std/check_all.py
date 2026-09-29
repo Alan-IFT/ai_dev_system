@@ -1043,6 +1043,30 @@ def _stdlib_selftest(mods):
             fake = [ln for ln in text.splitlines()[:-1] if ln.startswith(u"结论")]
             cases.append(("文本报告里没有从第 0 列开始的伪造结论行（含 U+2028/2029 断行）、没有 ESC 与双向控制符",
                           not fake and u"\x1b" not in text and u"\u202e" not in text, fake or text[-120:]))
+            by_name = dict((n, m) for n, m, _e in mods if m is not None)
+            # R1-10：读不了的文件记 unreadable/<路径>，不落「检查器自身出错」的兜底 id；同一文件在检查器内只报一次
+            proj = fresh("p35")
+            os.makedirs(os.path.join(proj, "docs", "decisions"))
+            fifos = [os.path.join(proj, "docs", "decisions", "0001-a.md")]
+            for fp in fifos:
+                with io.open(fp, "w", encoding="utf-8") as fh:
+                    fh.write(u"x\n")
+            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            for fp in fifos:                                 # git 不收 FIFO：先跟踪常规文件，再换成 FIFO
+                os.remove(fp)
+                os.mkfifo(fp)
+            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+                fh.write(u"x\n")
+            os.chmod(os.path.join(proj, "CLAUDE.md"), 0)     # entry-budget 先判 isfile，FIFO 进不来；用无读权限
+            cfg_u = {"_root": proj, "tier": "L0", "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs",
+                     "artifacts": {"handoff": "CLAUDE.md"}}, "budgets": {"handoff_lines": 60}}
+            fs = [f for n in ("drift", "entry-budget") for f in by_name[n].run(cfg_u)]
+            got = sorted(f["id"] for f in fs if f["status"] == UNDETERMINED and (
+                u"读不了" in f["title"] or u"自身出错" in f["title"]))
+            cases.append(("读不了的文件记 unreadable，不落兜底 id，检查器内同一文件只报一次", got == [
+                "drift/unreadable/docs/decisions/0001-a.md"] + (["entry-budget/unreadable/CLAUDE.md"]
+                                                              if os.geteuid() else []), got))   # root 无视权限位
             # R1-09：路径含换行的 git grep 命中按 -z 记号流切，路径不被截成换行后的那半段
             proj = fresh("p34")
             with io.open(os.path.join(proj, u"src\narchive.md"), "w", encoding="utf-8") as fh:
@@ -1063,7 +1087,6 @@ def _stdlib_selftest(mods):
                 fh.write(_SMOKE_ENTRY)
             subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
             subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
-            by_name = dict((n, m) for n, m, _e in mods if m is not None)
 
             def _probe():
                 fs = by_name["adoption"].run({"_root": proj, "compatibility": {"policy": "x"}})
