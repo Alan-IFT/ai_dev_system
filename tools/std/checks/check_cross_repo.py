@@ -890,7 +890,7 @@ def _parse_grep_z(out):
         line, _nl, nxt = toks[i + 1].partition("\n")
         if not toks[i].isdigit():
             return None, "git grep -z 的输出切不开（第 %d 条命中的行号不是数字）" % len(hits)
-        hits.append((path.replace("\\", "/"), toks[i], line.strip()[:120]))
+        hits.append((path, toks[i], line.strip()[:120]))   # 反斜杠是文件名的一部分，不改写成 /
         path = nxt
     if len(toks) % 2 == 0 or path:
         return None, "git grep -z 的输出切不开（记号数不成对）"

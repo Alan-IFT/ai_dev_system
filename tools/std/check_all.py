@@ -1080,13 +1080,16 @@ def _stdlib_selftest(mods):
                                                               if os.geteuid() else []), got))   # root 无视权限位
             # R1-09：路径含换行的 git grep 命中按 -z 记号流切，路径不被截成换行后的那半段
             proj = fresh("p34")
-            with io.open(os.path.join(proj, u"src\narchive.md"), "w", encoding="utf-8") as fh:
-                fh.write(u"见 OldName 仓\n")
+            #          R1-S2：文件名里的反斜杠也照原样，archive\x.md 不得被改写成 archive/x.md 冒充 frozen 豁免
+            for name in (u"src\narchive.md", u"archive\\x.md"):
+                with io.open(os.path.join(proj, name), "w", encoding="utf-8") as fh:
+                    fh.write(u"见 OldName 仓\n")
             subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
             subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
             got = dict((n, m) for n, m, _e in mods if m is not None)["cross-repo"]._git_grep(proj, ["OldName"])
-            cases.append(("git grep 命中的路径含换行时照原样取回", got == ([(u"src\narchive.md", "1", u"见 OldName 仓")], None),
-                          got))
+            got = (sorted(got[0] or []), got[1])
+            cases.append(("git grep 命中的路径含换行或反斜杠时照原样取回", got == (sorted([
+                (u"src\narchive.md", "1", u"见 OldName 仓"), (u"archive\\x.md", "1", u"见 OldName 仓")]), None), got))
             # R1-07：护栏在任何 isfile/isdir/exists 之前——出仓软链接的目标在不在，结论都一样（不探测仓外）
             proj, outd = fresh("p33"), fresh("p33-out")
             links = {"governance/STANDARD_VERSION": "sv", ".claude/settings.json": "set.json",
