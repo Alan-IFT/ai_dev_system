@@ -250,11 +250,15 @@ def _scalar(raw, lineno):
             "本工具只接受最简子集（缩进映射、短横线列表、纯量），"
             "看不懂即拒绝而不是猜。" % (lineno, s[0])
         )
-    if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+    if s[0] in "\"'":
+        if len(s) < 2 or s[-1] != s[0] or s[0] in s[1:-1]:
+            raise ConfigError("第 %d 行的引号没有成对闭合（或引号里又有同种引号），本解析器不处理" % lineno)
         body = s[1:-1]
         if "\\" in body:
             raise ConfigError("第 %d 行的引号字符串含转义，本解析器不处理" % lineno)
         return body
+    if ": " in s:
+        raise ConfigError("第 %d 行的值里有「: 」：YAML 不收这种写法（`a: b: c`），值里要带冒号请整体加引号" % lineno)
     low = s.lower()
     if low in _SCALAR_TRUE:
         return True
@@ -359,9 +363,11 @@ def parse_yaml_subset(text):
                         k2, v2 = kv2
                         if k2 in item:
                             raise ConfigError("第 %d 行的键 %r 在同一列表项里重复；重复键的取值有歧义" % (n2, k2))
-                        if not v2.strip():
-                            sub, idx = block(idx + 1, child_indent + 2)
-                            item[k2] = sub
+                        if not v2.strip():      # 空值：下一行更深才是子块，否则取 None（与映射分支一致）
+                            if idx + 1 < len(lines) and lines[idx + 1][1] > child_indent:
+                                item[k2], idx = block(idx + 1, lines[idx + 1][1])
+                            else:
+                                item[k2], idx = None, idx + 1
                             continue
                         item[k2] = _scalar(v2, n2)
                         idx += 1

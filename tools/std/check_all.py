@@ -975,6 +975,17 @@ def _stdlib_selftest():
                 sl.guard = real_guard
             cases.append(("护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），不读仓外内容",
                           got == "OutsideRoot", got))
+            # A10：列表项空值取 None（不按下一行形状读成 [] 或 {}）；a: b: c、引号不闭合拒收
+            got = [sl.parse_yaml_subset(u"r:\n  - name: a\n    former_names:\n  - name: b\n"),
+                   sl.parse_yaml_subset(u"d:\n  - artifact: x\n    source:\n    regen: y\n")]
+            for text in (u"a: b: c\n", u"a: \"x\" y\"\n", u"a: \"unterminated\n"):
+                try:
+                    got.append(sl.parse_yaml_subset(text))
+                except sl.ConfigError as exc:
+                    got.append(u"第 " in str(exc))
+            cases.append(("YAML 子集：列表项空值为 None，a: b: c 与引号不闭合拒收并给行号", got == [
+                {"r": [{"name": "a", "former_names": None}, {"name": "b"}]},
+                {"d": [{"artifact": "x", "source": None, "regen": "y"}]}, True, True, True], got))
             # A9：YAML 子集两处平方级（长空白行、满行引号）改线性
             import time
             t0 = time.time()
