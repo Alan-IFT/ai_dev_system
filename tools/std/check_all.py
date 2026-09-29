@@ -48,7 +48,7 @@ _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    embedded_std_rel, filter_env, finding, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
+    embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
     tracked_files, undetermined_from_exception, work_root,
 )
 
@@ -883,7 +883,7 @@ def _git_env_selftest():
                              "其 config、HEAD、refs 共 %d 个文件未变" % len(after))]
 
 
-def _stdlib_selftest():
+def _stdlib_selftest(mods):
     """stdlib 的配置读取与路径护栏：每条样本都来自一次实测的误读或越界（D-123）。
 
     逐条断言，失败时证据写明哪一条；样本写在临时目录里，不碰真实仓库。
@@ -980,7 +980,7 @@ def _stdlib_selftest():
             os.makedirs(os.path.join(proj, ".claude"))
             with io.open(os.path.join(proj, ".claude", "settings.json"), "w", encoding="utf-8") as fh:
                 fh.write(u"[" * 200000 + u"]" * 200000)
-            adoption = dict((n, m) for n, m, _e in discover() if m is not None)["adoption"]
+            adoption = dict((n, m) for n, m, _e in mods if m is not None)["adoption"]
             try:
                 got = [f["title"] for f in adoption._settings_allow(proj)]
             except RecursionError as exc:
@@ -1043,7 +1043,7 @@ def _stdlib_selftest():
             with io.open(src, "w", encoding="utf-8") as fh:
                 fh.write(u"X = 1\n")
             got = (_load_source("m", src).X, getattr(sys.modules["stdlib"], "__spec__", 1),
-                   [n for n, m, _e in discover() if m is not None and getattr(m, "__spec__", 1) is not None])
+                   [n for n, m, _e in mods if m is not None and getattr(m, "__spec__", 1) is not None])
             cases.append(("stdlib 与检查器按源码加载，不读 __pycache__ 里的 pyc", got == (1, None, []), got))
             # A5：顶层 _ 开头的键是代码注入口，写进 project.yaml 整份拒收（曾可用 _links_files 缩小 links 扫描面）
             cfg, prob = load(fresh("p17"), u"tier: L1\n_links_files:\n  - CLAUDE.md\n")
@@ -1113,6 +1113,28 @@ def _stdlib_selftest():
             cases.append(("非 UTF-8 文件名时各检查器不崩、--json 不崩且输出可解析",
                           parsed and r.returncode in (0, 1, 2),
                           "退出码 %d；%s" % (r.returncode, (r.stderr or b"").decode("utf-8", "replace")[-160:])))
+            # A18／C22：一次扫描只加载一遍检查器（覆盖边界复用封签内那份），扫描根上同一组模式的
+            #           git ls-files 只跑一次；缓存只限扫描根，退出即关
+            seen = {"discover": 0, "ls": []}
+            real_disc, real_run = discover, subprocess.run
+
+            def _disc():
+                seen["discover"] += 1
+                return real_disc()
+
+            def _run(cmd, *a, **k):
+                if "ls-files" in cmd and proj in cmd:
+                    seen["ls"].append(tuple(cmd[cmd.index("-z") + 1:]))
+                return real_run(cmd, *a, **k)
+            globals()["discover"], subprocess.run = _disc, _run
+            try:
+                fs, c = run_all(proj, selftest_only=False, config_path=cfg_p)
+                render(fs, proj, c, show_scope=True)
+            finally:
+                globals()["discover"], subprocess.run = real_disc, real_run
+            got = (seen["discover"], len(seen["ls"]) - len(set(seen["ls"])), sl._LS_MEMO[0])
+            cases.append(("一次扫描 discover 一次、扫描根 git ls-files 同模式不重跑、缓存随扫描关闭",
+                          got == (1, 0, None), (got, seen["ls"])))
             # bug 7：BOM 不进首键
             cfg, prob = load(fresh("p10"), None, raw=u"\ufefftier: L1\n".encode("utf-8"))
             cases.append(("带 BOM 的配置首键读作 tier", cfg.get("tier") == "L1" and not prob, cfg or prob))
@@ -1208,7 +1230,6 @@ def _stdlib_selftest():
                                   "dirty": None, "dirty_detail": "git 退出码 128"})
             cases.append(("身份行 git 不可用时措辞不重复", "git git" not in line, line))
             # 低：裁剪写成不存在的检查器名要报出来
-            mods = discover()
             unk = _tailoring_unknown({"tailoring": [{"check": "derived", "applicable": False},
                                                     {"check": "derived-artifacts", "applicable": False},
                                                     {"check": "layout:playbook", "applicable": False}]}, mods)
@@ -1221,7 +1242,7 @@ def _stdlib_selftest():
             for title, ok, ev in cases]
 
 
-def _hostile_git_config_selftest():
+def _hostile_git_config_selftest(mods):
     """被扫仓 .git/config 里的外部程序不得被本工具执行（stdlib.GIT_HARDEN_CONFIG、filter_env）。
 
     夹具仓的配置写上 core.fsmonitor、blame 会走的 textconv、两个 clean 过滤器（其一名字带 `=`，
@@ -1251,7 +1272,7 @@ def _hostile_git_config_selftest():
         with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(body)
 
-    mods = {n: m for n, m, _e in discover() if m is not None}
+    mods = {n: m for n, m, _e in mods if m is not None}
     notes = []
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1362,8 +1383,8 @@ def run_all(root, selftest_only=False, config_path=None):
         findings.extend(_shared_fact_selftest(mods))
         findings.extend(_embedded_readonly_selftest(mods))
         findings.extend(_git_env_selftest())
-        findings.extend(_hostile_git_config_selftest())
-        findings.extend(_stdlib_selftest())
+        findings.extend(_hostile_git_config_selftest(mods))
+        findings.extend(_stdlib_selftest(mods))
         for name, mod, err in mods:
             if err is not None:
                 findings.append(undetermined_from_exception(name, err, "加载检查器"))
@@ -1390,11 +1411,14 @@ def run_all(root, selftest_only=False, config_path=None):
         return _sealed(findings, ident_before), None
 
     findings.extend(_tailoring_unknown(cfg, mods))
-    for name, mod, err in mods:
-        if err is not None:
-            findings.append(undetermined_from_exception(name, err, "加载检查器"))
-            continue
-        findings.extend(_run_one(name, mod, cfg))
+    with scan_memo(root):          # 本次扫描根的 git ls-files 只跑一次（各检查器的自检夹具不在此根，不缓存）
+        for name, mod, err in mods:
+            if err is not None:
+                findings.append(undetermined_from_exception(name, err, "加载检查器"))
+                continue
+            findings.extend(_run_one(name, mod, cfg))
+        # 覆盖边界在封签之内、用同一份加载与同一份 ls-files 缓存算好，render 不再 discover 第二次（契约 §4）
+        cfg["_scopes"] = scopes(cfg, mods)
     _join_exceptions(findings, cfg)
     return _sealed(findings, ident_before), cfg
 
@@ -1553,10 +1577,10 @@ def _sealed(findings, ident_before):
     return [_identity_void_finding(ident_before, ident_after)]
 
 
-def scopes(cfg):
-    """按已加载的 cfg 算各检查器的覆盖边界。cfg 由调用方给，本函数不再自己读配置。"""
+def scopes(cfg, mods):
+    """按已加载的 cfg 与检查器算各检查器的覆盖边界。两样都由调用方给，本函数不再自己读配置、加载检查器。"""
     out = {}
-    for name, mod, err in discover():
+    for name, mod, err in mods:
         if err is not None or not hasattr(mod, "scope"):
             continue
         try:
@@ -1679,7 +1703,7 @@ def render(findings, root, cfg=None, show_scope=True):
         if cfg is None:
             buf.append("  未定：配置没读进来，本次覆盖边界无法给出。")
         else:
-            for name, sc in sorted(scopes(cfg).items()):
+            for name, sc in sorted((cfg.get("_scopes") or scopes(cfg, discover())).items()):
                 buf.append("  %s" % name)
                 for line in sc.get("not_covered", []):
                     buf.append("    不看：%s" % _safe(line))

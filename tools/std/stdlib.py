@@ -821,7 +821,38 @@ def embedded_std_rel(root, tool_root=None):
     return rel
 
 
+_LS_MEMO = [None]   # (扫描根的真实路径, {(模式, tool_root): 结果})；None＝没开
+
+
+class scan_memo(object):
+    """run_all 跑检查器那一段开启：扫描根上同一组模式的 `git ls-files` 一次扫描只跑一次。
+
+    只缓存扫描根本身——检查器自检在临时仓里建夹具、改完再列，缓存它们会读到旧列表。
+    退出即恢复外层（自检里嵌套跑的 run_all 各用各的），不跨扫描、不跨嵌套。
+    """
+
+    def __init__(self, root):
+        self.key = os.path.realpath(str(root))
+
+    def __enter__(self):
+        self.prev, _LS_MEMO[0] = _LS_MEMO[0], (self.key, {})
+
+    def __exit__(self, *_exc):
+        _LS_MEMO[0] = self.prev
+
+
 def tracked_files(root, patterns=None, tool_root=None):
+    memo = _LS_MEMO[0]
+    if memo and memo[0] == os.path.realpath(str(root)):
+        key = (tuple(patterns or ()), tool_root)
+        if key not in memo[1]:
+            memo[1][key] = _tracked_files(root, patterns, tool_root)
+        files, problem = memo[1][key]
+        return (None if files is None else list(files)), problem
+    return _tracked_files(root, patterns, tool_root)
+
+
+def _tracked_files(root, patterns=None, tool_root=None):
     """git 跟踪的文件；不在 git 仓库时返回 (None, 原因)。
 
     用 `-z`：git 默认开 core.quotepath，会把非 ASCII 路径输出成
