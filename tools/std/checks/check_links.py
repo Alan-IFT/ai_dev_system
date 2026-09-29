@@ -16,7 +16,7 @@ import tempfile
 import time
 from urllib.parse import unquote
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,

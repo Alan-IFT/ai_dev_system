@@ -14,16 +14,20 @@
 """
 from __future__ import annotations
 
-import argparse
-import datetime
-import io
-import json
 import os
-import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+# 脚本目录会被 Python 放在 sys.path[0]：工具目录里一份未跟踪的 argparse.py、hashlib.py 就能顶替标准库
+# 执行，而契约 §8 的身份不哈希它。先把工具目录移出 sys.path 再导入别的（os、sys 启动时已载入）；
+# stdlib 与检查器经 _load_source 按路径加载，不靠 sys.path。
+sys.path[:] = [p for p in sys.path if os.path.realpath(p or os.curdir) != os.path.realpath(HERE)]
+
+import argparse  # noqa: E402
+import datetime  # noqa: E402
+import io  # noqa: E402
+import json  # noqa: E402
+import re  # noqa: E402
 
 
 def _load_source(name, path, register=False):
@@ -888,6 +892,7 @@ def _stdlib_selftest(mods):
 
     逐条断言，失败时证据写明哪一条；样本写在临时目录里，不碰真实仓库。
     """
+    import subprocess
     import tempfile
     import stdlib as sl
 
@@ -1032,6 +1037,26 @@ def _stdlib_selftest(mods):
             fake = [ln for ln in text.splitlines()[:-1] if ln.startswith(u"结论")]
             cases.append(("文本报告里没有从第 0 列开始的伪造结论行、没有 ESC",
                           not fake and u"\x1b" not in text, fake or text[-120:]))
+            # R1-02：工具目录里同名的标准库模块（未跟踪、不进身份哈希）不得被执行
+            import shutil
+            shadow = os.path.join(fresh("p26"), "std")
+            shutil.copytree(HERE, shadow, ignore=shutil.ignore_patterns("__pycache__"))
+            mark = os.path.join(base, "SHADOW_")
+            for mod_name in ("argparse", "hashlib", "glob", "subprocess", "tempfile"):
+                with io.open(os.path.join(shadow, mod_name + ".py"), "w", encoding="utf-8") as fh:
+                    fh.write(u"open(%r, 'w').close()\n" % (mark + mod_name))
+            proj = fresh("p27")
+            with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
+                fh.write(_SMOKE_ENTRY)
+            subprocess.run(["git", "init", "-q", proj], capture_output=True, timeout=60)
+            shadow_cfg = os.path.join(base, "p27.yaml")
+            with io.open(shadow_cfg, "w", encoding="utf-8") as fh:
+                fh.write(_SMOKE_CONFIG)
+            r = subprocess.run([sys.executable, os.path.join(shadow, "check_all.py"), proj, "--config", shadow_cfg,
+                                "--no-scope"], capture_output=True, timeout=300)
+            hits = sorted(f for f in os.listdir(base) if f.startswith("SHADOW_"))
+            cases.append(("工具目录里的同名标准库模块不被导入执行", not hits and r.returncode in (0, 1, 2),
+                          "%s；退出码 %d" % (hits, r.returncode)))
             # A6：模块按源码加载，__pycache__ 里的 unchecked-hash pyc 顶替不了源码
             import py_compile
             import importlib.util
@@ -1089,7 +1114,6 @@ def _stdlib_selftest(mods):
             cases.append(("检查器 sys.exit(0) 在自检与运行两处都应转未定",
                           got == [[UNDETERMINED], [UNDETERMINED]], got))
             # bug 6：非 UTF-8 文件名进了发现时，--json 写到严格 UTF-8 的输出不崩
-            import subprocess
             proj = fresh("p9")
             with io.open(os.path.join(proj, "CLAUDE.md"), "w", encoding="utf-8") as fh:
                 fh.write(_SMOKE_ENTRY)

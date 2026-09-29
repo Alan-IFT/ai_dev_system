@@ -29,7 +29,7 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
     DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,

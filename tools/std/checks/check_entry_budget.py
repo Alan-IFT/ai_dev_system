@@ -10,7 +10,7 @@ import os
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
     FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
