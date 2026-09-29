@@ -307,6 +307,8 @@ def scope(cfg):
             "不看未被 git 跟踪的文件，不看 .md 以外的文件，不看 PR/提交说明里承载的轻量简记"
             "（01 §4.1 允许该写法，本工具读不到）",
             "不判断文档内容是否仍然正确，也不判断日期新旧——那是 freshness 检查器的事",
+            "状态认不出的工作项不查完成证据：未定由 freshness/unknown-state 报；freshness 被裁剪或该件"
+            "落在 layout.frozen 时由本检查器记 evidence/unknown-state",
             "只认 §4.2 的六字段标签及其常见同义词；缺字段而条目里有认不出的「标签: 值」行（或字段表有"
             "映射不到的列）时只记未定（fields-unrecognized），没有这种行就按缺字段判 FAIL；"
             "认出的字段值为空或占位判 FAIL",
