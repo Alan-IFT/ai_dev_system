@@ -550,7 +550,7 @@ def _check_projection(repos, entries):
             if t.startswith("/") or os.path.isabs(t) or _SCHEME.match(t):
                 continue
             nxt = os.path.normpath(os.path.join(os.path.dirname(entry_path), t))
-            if not os.path.isfile(nxt):
+            if not inside(r["_real"], nxt) or not os.path.isfile(nxt):   # 先护栏：出仓的不探测（B7）
                 continue
             followed += 1
             try:
@@ -1202,6 +1202,27 @@ def selftest():
                 "兄弟仓读到的文件须在该仓真实位置之内：入口符号链接出仓记未定不读；声明仓之外的引用记未定不探测",
                 evidence="非通过项 %s；泄露=%s" % (bad[:8], leaked),
                 why="D-123 裁定 1/2：repos[].path 豁免只豁免仓本身，不豁免从仓里经符号链接出去",
+            ))
+
+        # 第二跳先过护栏（B7）：入口里指向仓外的链接不跟随，也不许先 isfile 探测它存不存在
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            cfg = _sample(tmp, bad=False)
+            secret = os.path.join(outside_dir, "x.md")
+            _mk(secret, u"系统仓 sys\n")
+            _mk(os.path.join(tmp, "app", "CLAUDE.md"),
+                u"# 应用仓\n\n见 [外](%s)。\n" % os.path.relpath(secret, os.path.join(tmp, "app")))
+            probed, real_isfile = [], os.path.isfile
+            os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
+            try:
+                got = [(f["status"], f["title"]) for f in run(cfg) if u"跳" in f["title"]]
+            finally:
+                os.path.isfile = real_isfile
+            leak = [p for p in probed if os.path.realpath(p).startswith(os.path.realpath(outside_dir))]
+            results.append(finding(
+                NAME, PASS if not leak and [g[0] for g in got] == [FAIL] else FAIL,
+                "第二跳不跟随、不探测指向仓外的链接（入口两跳到不了系统仓照判 FAIL）",
+                evidence="探测仓外 %s；实得 %s" % (leak, got),
+                why="契约 §5：字面就在项目之外的路径连存在性也不探测",
             ))
 
         # 线性（D-123 安全 3）：`](` 连写 8000 次曾要跑几分钟，一个文件拖死整次检查与提交闸门
