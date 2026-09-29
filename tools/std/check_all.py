@@ -821,8 +821,13 @@ def _shared_fact_selftest(mods):
             fs = by["freshness"].run(cfg) + by["evidence"].run(cfg)
             got_e = sorted((f["id"], f["status"], f["evidence"]) for f in fs
                            if "WI-00-" in (f["evidence"] or "") or "WI-01-" in (f["evidence"] or ""))
-        want_e = [("freshness/unknown-state", UNDETERMINED,
-                   u"work/WI-00-x.md（defined）；work/WI-01-x.md（implementing）")]
+        # 只有一件且认不出：evidence 不得再记「没有可判定的工作项」未定（同一事实报两次）
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, {"work/WI-00-x.md": u"# WI\n\n状态：DEFINED\n"})
+            got_e += [(f["id"], f["status"]) for f in by["evidence"].run(dict(cfg, _root=tmp))
+                      if f["status"] == UNDETERMINED]
+        lst = u"work/WI-00-x.md（defined）；work/WI-01-x.md（implementing）"
+        want_e = [("evidence/unknown-state", SKIP, lst), ("freshness/unknown-state", UNDETERMINED, lst)]
         out.append(finding(
             "shared-fact", PASS if got_e == want_e else FAIL,
             "认不出的工作项状态记未定、只由 freshness 报一次，01 §4.1 六态与项目声明的词不误报",

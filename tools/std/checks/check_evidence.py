@@ -346,7 +346,7 @@ def _run(cfg):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
 
-    out, other = [], []
+    out, other, unknown = [], [], []
     for rel in files:
         try:
             text = read_text(os.path.join(root, rel), root)
@@ -355,9 +355,12 @@ def _run(cfg):
             continue
 
         status = item_status(text)
-        if status is None or not state_known(cfg, status):
-            # 读不到状态或状态认不出：是不是工作项、要不要报 no-status / unknown-state 都由 freshness
-            # 判一次（契约 §1 同一事实只报一次），这里静默跳过
+        if status is None:
+            # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
+            # 这里静默跳过
+            continue
+        if not state_known(cfg, status):
+            unknown.append("%s（%s）" % (rel, status or "空"))
             continue
         if status not in states:
             other.append("%s（%s）" % (rel, status or "空"))
@@ -365,6 +368,9 @@ def _run(cfg):
 
         out.extend(_check_one(rel, text, status, note))
 
+    if unknown:
+        out.append(agg(NAME, SKIP, "状态认不出的工作项不查完成证据", unknown, kind="unknown-state",
+                       reason="状态认不出由 freshness/unknown-state 记未定，报一次（契约 §1）"))
     if other:
         out.append(agg(NAME, SKIP, "未完成的工作项不查完成证据", other, kind="not-done",
                        reason="01 §1 G4 约束的是完成声明；未声明完成的不适用本检查"))
