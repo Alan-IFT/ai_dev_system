@@ -468,7 +468,7 @@ def _wildcard_allow(rule):
     rest, arg_opts, unknown = list(words[1:]), _INTERP_ARG_OPTS.get(base, ()), None
     while rest and rest[0].startswith("-"):          # 解释器之后只剩选项（及带值选项的值）即通配
         if rest[0] in _INTERP_PROG_OPTS.get(base, ()):
-            rest = rest[:2]                          # -m 模块：其后就是程序，窄
+            rest = rest[1:2]                         # -m 模块：其后的模块名就是程序，窄；没有模块名即通配
             break
         if rest[0] not in arg_opts and rest[0] != "--":
             unknown = unknown or rest[0]
@@ -734,7 +734,7 @@ def _declarations_selftest(tmp):
             "Bash(npx -y *)", "Bash(npm run -s *)", "Bash(python3.12 *)", "Bash(python3 -X dev *)",
             # R1-08：带值选项补登记、运行器后跟解释器
             "Bash(perl -I lib *)", "Bash(node --loader x *)", "Bash(uv run --with x *)",
-            "Bash(npm --prefix x run *)", "Bash(uv run python *)"]
+            "Bash(npm --prefix x run *)", "Bash(uv run python *)", "Bash(python3 -m *)"]
     # R1-08：通配前有未登记选项、其后的词不像脚本路径——判不了，记未定
     unsure = ["Bash(ruby -r x *)", "Bash(bash -o posix *)", "Bash(bash --rcfile x *)",
               "Bash(node --env-file x *)", "Bash(npm --foo x run *)"]
