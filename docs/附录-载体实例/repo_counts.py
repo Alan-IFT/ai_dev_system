@@ -97,4 +97,4 @@ print("已绑定原则  %d 条 / 共 %d 条（未绑 %d，%.0f%%）；已被证�
     (princ - len(bound_rules)) * 100.0 / princ if princ else 0,
     "、".join(bound_chapters)))
 print()
-print("断链数跑第二项自检：python docs/附录-载体实例/linkcheck.py")
+print("断链数跑第二项自检：python3 docs/附录-载体实例/linkcheck.py")

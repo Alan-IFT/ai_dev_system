@@ -9,8 +9,12 @@
   C4  决策索引状态列与生效登记表一致
   C5  规范正文中不存在第三处状态值副本
   C6  所有规范文档都声明了 governed_by
+  C7  正文每条原则在追溯账本中有且只有一条记录；账本缺失也算不合规
+  C8  活文档不自行声明语料版本号
+  C9  决策日志的散文生效计数与生效登记表对账
+  C10 散文里的「NN §M」引用指向正文中真实存在的小节
 
-这是 checker，不是 Gate。把它接成阻断需要单独的 Gate 决策（D-018）。
+由 pre-commit 挂成提交闸门（Gate 合同见仓库工作须知 §7）。
 退出码：0 全部通过；1 存在不合规项；2 输入缺失或无法解析，或生效规则集为空（UNDETERMINED，D-014 §4）。
 """
 from __future__ import annotations
@@ -132,10 +136,14 @@ def main() -> int:
         if status == "试行":
             exp = _strip(rec.get("expiry", ""))
             m = re.search(r"(\d{4})-(\d{2})-(\d{2})", exp)
-            if not m:
+            try:
+                exp_date = _dt.date(*map(int, m.groups())) if m else None
+            except ValueError:  # 形如 2020-02-30：像日期但不存在，同样是写错了
+                exp_date = None
+            if exp_date is None:
                 findings.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）的 expiry 不是可解析日期：{exp!r}"))
-            elif _dt.date(*map(int, m.groups())) < today:
+            elif exp_date < today:
                 expired_ids.add(did)
                 expired.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）已于 {exp} 到期，按 D-014 §6 自动退回「提议」，"
