@@ -341,7 +341,8 @@ def _run(cfg):
         if kind != "glob" and hit.lower().endswith(".md") and \
                 os.path.isfile(os.path.join(root, hit.replace("/", os.sep))):
             md_to_check.append((role, label, hit))
-        elif os.path.isdir(os.path.join(root, hit.replace("/", os.sep))):
+        elif role in ("acceptance", "status") and os.path.isdir(os.path.join(root, hit.replace("/", os.sep))) \
+                and not any(f["where"] == hit and f["status"] == SKIP for f in out):   # 只报判元信息的两类、同一目录一次（R2-6）
             out.append(finding(
                 NAME, SKIP, "%s 是目录，不逐份判其下文档的元信息" % hit,
                 where=hit,
@@ -514,6 +515,19 @@ def selftest():
             NAME, PASS if got == want else FAIL,
             "C09：声明的工作项目录不在，任何档都由 layout 报且只报一条 FAIL",
             evidence="实得 %s" % (got,), why="契约 §1.1 声明后仍不成立判 FAIL；§1 同一事实只报一次",
+        ))
+
+        # R2-6：同一目录兼作 status、acceptance、handoff、work_current 时，「是目录」SKIP 只出一条
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "w"))
+            io.open(os.path.join(tmp, "AGENTS.md"), "w", encoding="utf-8").close()
+            art = {r: "w" for r in ("status", "acceptance", "handoff", "work_current")}
+            got = [f["id"] for f in run({"_root": tmp, "tier": "L1", "layout": {"entry": ["AGENTS.md"], "artifacts": art}})
+                   if f["status"] == SKIP]
+        results.append(finding(
+            NAME, PASS if len(got) == 1 else FAIL,
+            "R2-6：同一目录兼作几类工件时「是目录，不逐份判元信息」只出一条",
+            evidence="实得 %s" % (got,), why="契约 §1 同一事实只报一次",
         ))
 
         # C14：扫描根路径里带 [ ] 时，项目侧检查器的通配候选照样找得到
