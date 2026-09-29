@@ -10,19 +10,12 @@
 Markdown + Git + Python 上的一种载体实现，删掉它不影响规范。
 """
 import re, sys, pathlib, io
+from linkcheck import mask_code, md_files  # 扫描面与涂白口径只此一处
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.stdout.reconfigure(encoding="utf-8")
 
 def read(p): return p.read_text(encoding="utf-8")
-
-
-def mask_code(t):
-    """与检查器 C10 和链接自检同一口径：代码块与行内代码里的链接是举例，不计数。"""
-    NL, BT = chr(10), chr(96)
-    def blank(m): return "".join(c if c == NL else " " for c in m.group(0))
-    t = re.sub(BT * 3 + ".*?" + BT * 3, blank, t, flags=re.S)
-    return re.sub(BT + "[^" + BT + NL + "]*" + BT, blank, t)
 
 body = [ROOT / "docs" / "00-总览.md"] + sorted(ROOT.glob("docs/[1234][0-9]-*.md"))
 chars = sum(len(read(p)) for p in body)
@@ -40,11 +33,8 @@ reg = log.split("## 决策索引")[0]
 effective = sorted(set(re.findall(
     r"^\| (D-\d{3}) \|\s*\**\s*(?:试行|已接受)\s*\**\s*\|", reg, re.M)))
 
-mds, links, bad = [], 0, 0
-SKIP = {".git", ".staging"}
-for p in ROOT.rglob("*.md"):
-    if any(s in p.parts for s in SKIP): continue
-    mds.append(p)
+mds, links = [pathlib.Path(f) for f in md_files(str(ROOT))], 0
+for p in mds:
     links += len(re.findall(r"\[[^\]]*\]\((?![a-zA-Z][\w+.-]*:|//)[^)\s]+\)", mask_code(read(p))))
 
 # ---- 失败 Case 清单的分组数（2026-09-04 新增）----------------------------------

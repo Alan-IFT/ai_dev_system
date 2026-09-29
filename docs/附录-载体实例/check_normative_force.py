@@ -19,6 +19,8 @@ import pathlib
 import re
 import sys
 
+from linkcheck import mask_code as _mask_code, md_files as _md_files  # 扫描面与涂白口径只此一处
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent  # 2026-09-02：脚本移入附录后多一层目录
 LOG = ROOT / "docs" / "决策日志.md"
 
@@ -69,17 +71,6 @@ def _section(text: str, anchor_or_head: str) -> str:
     start = m.end()
     nxt = re.search(r"^#{2,3} ", text[start:], re.M)
     return text[start:start + nxt.start()] if nxt else text[start:]
-
-
-def _mask_code(text: str) -> str:
-    """把围栏代码块与行内代码替换成等长空白：代码里的引用是举例，不是活引用。"""
-    NL = chr(10)
-    def blank(m):
-        return "".join(c if c == NL else " " for c in m.group(0))
-    fence = chr(96) * 3
-    text = re.sub(fence + ".*?" + fence, blank, text, flags=re.S)
-    text = re.sub(chr(96) + "[^" + chr(96) + NL + "]*" + chr(96), blank, text)
-    return text
 
 
 def _strip(cell: str) -> str:
@@ -241,9 +232,10 @@ def main() -> int:
     # ---- C8：语料版本号只允许一处（D-014 §7 的单一副本判据） ----
     VERSION_SNAPSHOT_DIRS = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     ver_re = re.compile(r"^(?:状态|当前版本)[：:]\s*`v\d+\.\d+[-\w]*`", re.M)
-    for p in sorted(ROOT.rglob("*.md")):
+    tracked = sorted(pathlib.Path(f) for f in _md_files(str(ROOT)))  # git ls-files，与 linkcheck 同口径
+    for p in tracked:
         rel = p.relative_to(ROOT).as_posix()
-        if rel.startswith(".staging/") or any(rel.startswith(d) for d in VERSION_SNAPSHOT_DIRS):
+        if any(rel.startswith(d) for d in VERSION_SNAPSHOT_DIRS):
             continue  # 冻结快照与研究材料保留其被冻结时的版本号
         if rel == "PROJECT_STATUS.md":
             continue  # 唯一权威位置
@@ -269,12 +261,12 @@ def main() -> int:
     body_secs = {}
     for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
         body_secs[p.name[:2]] = set(re.findall(r"^## (\d)\. ", p.read_text(encoding="utf-8"), re.M))
-    LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章", ".staging/")
+    LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     # 两种引用形态都要认：裸写「21 §6」，以及链接写法「[21 调度与拆分](21-调度与拆分.md) §6」
     BODY_ALT = r"(1[0-2]|2[0-5]|3[0-3]|40)"
     ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d)(?![\d.])")
     ref_link = re.compile(r"\]\(\.?/?" + BODY_ALT + r"-[^)]*\)\s*§\s?(\d)(?![\d.])")
-    for p in sorted(ROOT.rglob("*.md")):
+    for p in tracked:
         rel = p.relative_to(ROOT).as_posix()
         if any(rel.startswith(s) for s in LIVE_SKIP): continue
         text = _mask_code(p.read_text(encoding="utf-8"))

@@ -8,15 +8,17 @@
 报出一批假断链、结论 FAIL——而真实断链是 0（数字与经过见 Case C-016）。
 判据本身很短，但"排除哪些目录"这类前提每次重写都会丢，所以固化下来。
 
-SKIP 与 mask_code 必须与 repo_counts.py、check_normative_force.py 保持一致，
-否则三处计数与判定会互相对不上（Case C-009 的同型问题）。
+扫描面取 git ls-files（已跟踪与已暂存），与 check_all 同口径：未跟踪草稿、
+.staging/ 与嵌套 worktree 都不参与。repo_counts.py、check_normative_force.py
+直接从这里导入 md_files 与 mask_code，三处计数与判定因此不会互相对不上
+（Case C-009 的同型问题）。
 """
 import io
 import os
 import re
+import subprocess
 import sys
 
-SKIP = {".git", ".staging", "node_modules"}   # 与 repo_counts.py 的 SKIP 同步
 NL = chr(10)
 BQ = chr(96)
 
@@ -36,19 +38,16 @@ def slug(heading):
     return re.sub(r"\s+", "-", h.strip()).lower()
 
 
-def collect(root):
-    out = []
-    for cur, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP]
-        for f in files:
-            if f.endswith(".md"):
-                out.append(os.path.join(cur, f))
-    return out
+def md_files(root):
+    out = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "*.md"],
+                         capture_output=True, check=True).stdout.decode("utf-8")
+    return [os.path.join(root, f) for f in out.split("\0")
+            if f and os.path.isfile(os.path.join(root, f))]
 
 
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
-    mds = collect(root)
+    mds = md_files(root)
 
     anchors = {}
     for f in mds:
