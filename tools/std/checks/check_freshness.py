@@ -6,7 +6,8 @@
 
 三态取向（01 §2 N1）：
 - 文档久未更新记 **未定**，不记失败——久未更新可能只是内容稳定，是否过期要人看。
-- 文档没有日期字段记 **失败**——01 §3.2 要求说清"它过期了怎么被发现"，没有日期就发现不了。
+- 文档没有日期字段：项目在 metadata_required 与 metadata_fields 里都声明了（哪些文档要带、字段叫什么）
+  才记 **失败**——01 §3.2 要求说清"它过期了怎么被发现"，没有日期就发现不了；任一处靠工具约定都只记未定（契约 §1.1）。
 - 进行中工作项长期无状态转换记 **失败**，但标题写"需核实"：01 §4.1 说的是超龄触发核实，
   不是自动判违规，处置由负责人定（补进度、转 blocked 或拆分）。
 """
@@ -19,13 +20,13 @@ import subprocess
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     is_tailored_out, item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_list, undetermined_from_exception, work_root, work_root_absent, write_text,
+    read_text, state_list, undetermined_from_exception, unreadable, once, work_root, work_root_absent, write_text,
 )
 
 NAME = "freshness"
@@ -90,11 +91,6 @@ _TRANSITION_HEADINGS = ("状态转换记录", "状态转换", "转换记录", "t
 # 小工具（工作项扫描共用的几件在 stdlib）
 # --------------------------------------------------------------------------
 
-# 日期解析已提到 stdlib：例外登记的到期也要解析同样的形态，留两份必然漂（01 §1 G2）。
-# 本名保留是因为本模块内有多处调用点，改名只会制造无谓的 diff。
-_parse_date = parse_date
-
-
 def _section_body(text, keywords):
     """取标题含关键词的那一节正文（到下一个标题为止）。找不到返回 None。"""
     lines = text.splitlines()
@@ -116,12 +112,14 @@ def _section_body(text, keywords):
     return "\n".join(out)
 
 
-def _git_commit_date(root, rel):
-    """该文件最后一次提交的时间。返回 (date, None) 或 (None, 原因)。"""
-    shallow = shallow_problem(root)
-    if shallow:
-        return None, shallow
-    cmd = ["git", "-C", root, "log", "-1", "--format=%cI", "--", rel]
+def _git_commit_date(root, rel, memo):
+    """该文件最后一次提交的时间。返回 (date, None) 或 (None, 原因)。
+    memo 是一次扫描共用的空列表：浅克隆只探测一次，不每份工作项起一个子进程（C22）。"""
+    if not memo:
+        memo.append(shallow_problem(root))
+    if memo[0]:
+        return None, memo[0]
+    cmd = ["git", "--literal-pathspecs", "-C", root, "log", "-1", "--format=%cI", "--", rel]   # 路径按字面（C02）
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -131,7 +129,7 @@ def _git_commit_date(root, rel):
     s = (out.stdout or "").strip()
     if not s:
         return None, "git log 无输出：该文件没有提交历史"
-    return _parse_date(s)
+    return parse_date(s)
 
 
 def _last_transition(text):
@@ -141,28 +139,43 @@ def _last_transition(text):
     类别 'absent' 表示文件里根本没写，可以退到提交时间；'bad' 表示写了但解析不了，
     按 01 §2 N1 记未定，不退到提交时间去猜。
     """
-    val, name = find_field(text[:HEAD_CHARS] + "\n" + text, _TRANSITION_FIELDS)
+    val, name = find_field(text, _TRANSITION_FIELDS)
     if val:
-        d, err = _parse_date(val)
+        d, err = parse_date(val)
         if d:
             return d, "取自显式字段 %s = %s" % (name, clean(val)), None
         return None, None, ("bad", "字段 %s 的值解析不了（%s）" % (name, err))
 
     block = _section_body(text, _TRANSITION_HEADINGS)
     if block is None:
-        rows = [ln for ln in text.splitlines() if "from" in ln.lower() and "|" in ln]
-        block = "\n".join(rows) if rows else None
-    if block is None:
         return None, None, ("absent", "文件里没有状态转换记录小节，也没有显式转换时间字段")
 
-    found = []
-    for token in re.findall(r"\d{4}-\d{2}-\d{2}", block):
-        d, _err = _parse_date(token)
-        if d:
-            found.append(d)
-    if not found:
-        return None, None, ("absent", "状态转换记录小节里没有可解析的日期")
-    return max(found), "取自状态转换记录里最晚的日期（共 %d 个）" % len(found), None
+    # 取最后一条记录（表格行或列表项）里的第一个日期（C10）。不取全节最大值——小节里的备注、
+    # 计划日期会把停滞的工作项洗成活着；记录是按发生顺序追加的，最后一条就是最后一次转换。
+    # 只认小节里第一段连续的记录行：其后的空行、备注列表、第二张表都不算（R2-3）
+    last, started = None, False
+    for ln in block.splitlines():
+        if not re.match(r"\s*(?:\||[-*+]\s)", ln):
+            if started:
+                break
+            continue
+        started = True
+        for token in re.findall(r"\d{4}-\d{2}-\d{2}", ln):
+            d, _err = parse_date(token)
+            if d:
+                last = d
+                break
+    if last is None:
+        # 有小节却找不到一条带日期的记录：不退到提交时间去猜（01 §2 N1）
+        return None, None, ("bad", "状态转换记录小节里找不到带日期的记录行（表格行或列表项）")
+    return last, "取自状态转换记录的最后一条（%s）" % last.isoformat(), None
+
+
+def _age(today, d):
+    """距基准日几天。晚一天按当天算（C18）：基准日取运行环境本地日期，记录日期按作者时区写，
+    UTC 的机器上读 UTC+8 当天写的日期就是「明天」；晚两天以上才记未定。"""
+    age = (today - d).days
+    return 0 if age == -1 else age
 
 
 def _int_budget(cfg, path, default):
@@ -225,7 +238,10 @@ def scope(cfg):
             "layout.docs_root（当前 %r%s）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
             "距基准日是否超 budgets.stale_days" % (docs_root, "，默认" if dnote else ""),
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
-            "是否超 budgets.work_item_stale_days" % work_root(cfg)[0],
+            "是否超 budgets.work_item_stale_days。最后一次转换取显式转换时间字段，否则取状态转换记录小节"
+            "第一段连续记录行的最后一条，没有该小节才退到 git 提交时间（浅克隆记未定）" % work_root(cfg)[0],
+            "日期晚基准日一天按当天算（基准日是运行环境本地日期，作者可能在更早的时区写当天日期），"
+            "晚两天以上记未定",
         ],
         "not_covered": [
             "L0 合在状态工件（WORK.md 之类）里的工作项不扫：活性巡检只扫工作项目录，目录不在记 SKIP，"
@@ -243,9 +259,12 @@ def scope(cfg):
             "只巡检进行中的工作项；planned / blocked / in_validation 的停滞不看——01 §4.1 里"
             "它们的复查时间是每项自己约定的值，工具读不到那个约定",
             "不核实工作项状态是否属实，只读它自己写的状态字段",
+            "状态转换记录只认小节里第一段连续的表格行或列表项，取最后一条里的第一个日期：按新的在上"
+            "倒序写的记录会取到最旧那条（偏向报超龄）；记录行里不按列区分，occurred_at 空着而别的列写了"
+            "日期时取到那个日期；只有表头、没有记录行的转换表记未定，不退到提交时间",
             "不判断谁该处置超龄工作项，也不代为转 blocked（01 §4.1：巡检只通知负责人核实）",
-            "自检只覆盖显式时间戳分支：git 提交时间回退分支、git 不可用分支与 metadata_fields "
-            "自定义分支不在自检里，它们的正确性未被反例证明",
+            "自检不覆盖 git 不可用的分支与自定义日期字段名（metadata_fields 写成 updated_at 以外的名字）"
+            "的分支，它们的正确性未被反例证明",
         ],
     }
 
@@ -267,13 +286,14 @@ def _run(cfg):
     base = "比较基准日 %s（取自运行时系统日期）" % today.isoformat()
 
     out = []
+    texts = {}   # 工作项目录在文档根之下时，文档巡检读过的工作项留给活性巡检，不读第二遍（C22）
     # 文档部分整组依赖 docs_root：取了默认就在这里统一注明，不在各条 finding 里逐个拼
-    out.extend(note_default(_check_docs(cfg, root, today, base), docs_root_of(cfg)[1]))
-    out.extend(_check_work_items(cfg, root, today, base))
-    return out
+    out.extend(note_default(_check_docs(cfg, root, today, base, texts), docs_root_of(cfg)[1]))
+    out.extend(_check_work_items(cfg, root, today, base, texts))
+    return once(out)            # 工作项在文档根下且读不了时，文档巡检与活性巡检只报一次（R1-10）
 
 
-def _check_docs(cfg, root, today, base):
+def _check_docs(cfg, root, today, base, texts):
     docs_root, dnote = docs_root_of(cfg)
 
     days, used_default, bad = _int_budget(cfg, "budgets.stale_days", _DEFAULT_STALE_DAYS)
@@ -305,7 +325,8 @@ def _check_docs(cfg, root, today, base):
             reason="空集上说不出'全部文档都新鲜'（01 §2 N1：X 为空集时'全部 X 通过'判未定）",
         )]
 
-    out, frozen, unclassified, declared_none, by_convention = [], [], [], [], []
+    wdir = norm_rel(work_root(cfg)[0]).rstrip("/")
+    out, frozen, unclassified, declared_none, by_convention, field_guessed = [], [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -313,8 +334,10 @@ def _check_docs(cfg, root, today, base):
         try:
             text = read_text(os.path.join(root, rel), root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
+        if os.path.dirname(rel) == wdir:
+            texts[rel] = text
 
         value, hit = find_field(text[:HEAD_CHARS], names)
         if value is None or not clean(value):
@@ -336,6 +359,9 @@ def _check_docs(cfg, root, today, base):
             if need == "convention":
                 by_convention.append(rel)
                 continue
+            if names_default:      # 字段名是工具默认，没认出推不出没写（C11，与 layout 同口径）
+                field_guessed.append(rel)
+                continue
             out.append(finding(
                 NAME, FAIL, "缺日期字段：%s" % rel, where="%s:1" % rel,
                 why="01 §3.5 要求重要文档头部带 %s；01 §3.2 要求每份文档答得出"
@@ -344,7 +370,7 @@ def _check_docs(cfg, root, today, base):
             ))
             continue
 
-        d, err = _parse_date(value)
+        d, err = parse_date(value)
         if d is None:
             out.append(finding(
                 NAME, UNDETERMINED, "日期解析不了：%s" % rel, where="%s:1" % rel,
@@ -354,7 +380,7 @@ def _check_docs(cfg, root, today, base):
             ))
             continue
 
-        age = (today - d).days
+        age = _age(today, d)
         if age < 0:
             out.append(finding(
                 NAME, UNDETERMINED, "日期晚于基准日：%s" % rel, where="%s:1" % rel,
@@ -396,6 +422,14 @@ def _check_docs(cfg, root, today, base):
                    "故记未定不判 FAIL。要给出定论，在 project.yaml 写 metadata_required"
                    % " / ".join(sorted(_IMPORTANT_DIRS)),
             why="01 §3.5 元信息要求覆盖六类重要文档；契约 §1.1 约定落空或命中都不产出 FAIL"))
+    if field_guessed:
+        out.append(agg(
+            NAME, UNDETERMINED, "metadata_required 要求带日期，但没认出默认日期字段 %s" % "/".join(names),
+            field_guessed, kind="undated-fields-default",
+            reason="这些文档在 metadata_required 清单内（项目声明），但日期字段名是本工具的默认值、"
+                   "项目没在 metadata_fields 里声明；没认出推不出没写（契约 §1.1）。声明 metadata_fields 之后"
+                   "仍缺才判 FAIL",
+            why="01 §3.5 要求重要文档头部带日期；契约 §1.1 字段名约定落空只记未定"))
     if unclassified:
         # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
@@ -413,7 +447,7 @@ def _check_docs(cfg, root, today, base):
     return out
 
 
-def _check_work_items(cfg, root, today, base):
+def _check_work_items(cfg, root, today, base, texts):
     wroot, wnote = work_root(cfg)
 
     days, used_default, bad = _int_budget(
@@ -434,15 +468,16 @@ def _check_work_items(cfg, root, today, base):
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的工作项", reason=problem,
                         why="契约 §1：依赖不可用记未定")]
 
-    out, frozen, nostatus, other, not_items = [], [], [], [], []
+    out, frozen, nostatus, other, not_items, memo = [], [], [], [], [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
             continue
         try:
-            text = read_text(os.path.join(root, rel), root)
+            text = texts.pop(rel, None)
+            text = read_text(os.path.join(root, rel), root) if text is None else text
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
 
         status = item_status(text)
@@ -458,7 +493,7 @@ def _check_work_items(cfg, root, today, base):
         d, how, err = _last_transition(text)
         used_git = False
         if d is None and err and err[0] == "absent":
-            d, gerr = _git_commit_date(root, rel)
+            d, gerr = _git_commit_date(root, rel, memo)
             if d is None:
                 out.append(finding(
                     NAME, UNDETERMINED, "取不到最后状态转换时间：%s" % rel, where=rel,
@@ -477,7 +512,7 @@ def _check_work_items(cfg, root, today, base):
             ))
             continue
 
-        age = (today - d).days
+        age = _age(today, d)
         caveat = "。注意：%s" % how if used_git else "。%s" % how
         if age < 0:
             out.append(finding(
@@ -548,7 +583,8 @@ def _sample(tmp, doc_text, work_text, declared=True):
     write_text(os.path.join(tmp, "docs", "architecture", "a.md"), doc_text)
     write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
     err = git_track(tmp)
-    return _cfg(tmp, {"metadata_required": ["docs/architecture"]} if declared else None), err
+    return _cfg(tmp, {"metadata_required": ["docs/architecture"], "metadata_fields": ["updated_at"]}
+                if declared else None), err
 
 
 def _sample_unconventional(tmp, work_text, metadata_required=None):
@@ -565,7 +601,7 @@ def _sample_unconventional(tmp, work_text, metadata_required=None):
                "# 数据恢复手册\n\n正文：故障后的数据恢复步骤。\n")
     write_text(os.path.join(tmp, "work", "WI-0001-x.md"), work_text)
     err = git_track(tmp)
-    extra = ({"metadata_required": list(metadata_required)}
+    extra = ({"metadata_required": list(metadata_required), "metadata_fields": ["updated_at"]}
              if metadata_required is not None else None)
     return _cfg(tmp, extra), err
 
@@ -573,7 +609,7 @@ def _sample_unconventional(tmp, work_text, metadata_required=None):
 def selftest():
     """反例：无日期文档 + 停滞 100 天的进行中工作项，须判 FAIL。
     正例：昨天更新的文档 + 昨天刚转换的进行中工作项，须判 PASS。
-    只覆盖显式时间戳分支；git 提交时间回退分支不在自检内（见 scope）。
+    另有转换记录、提交时间回退、浅克隆、metadata 声明等反例；未覆盖的分支见 scope。
     """
     results = []
     today = datetime.date.today()
@@ -707,6 +743,70 @@ def selftest():
             why="契约 §1.1：目录名是工具约定，约定命中或落空都不产出 FAIL",
         ))
 
+    # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；
+    # 有小节却没有带日期的记录记未定，不退到提交时间
+    got = {}
+    for tag, body in (
+            ("note", "## 状态转换记录\n\n| from → to | 时间 |\n|---|---|\n| planned → in_progress | %s |\n\n"
+                     "备注：计划 %s 前完成\n" % (old, fresh)),
+            ("elsewhere", "## 其他\n\n| from | to | %s |\n|---|---|---|\n" % fresh),
+            ("empty", "## 状态转换记录\n\n（无）\n")):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, "updated_at: %s\n" % fresh, "# WI-0001\n\n状态：in_progress\n\n" + body)
+            if not err:   # 退到提交时间的那支按 100 天前提交
+                env = dict(os.environ, GIT_COMMITTER_DATE="%s 12:00:00 +0000" % old,
+                           GIT_AUTHOR_DATE="%s 12:00:00 +0000" % old)
+                subprocess.run(["git", "-C", tmp, "-c", "user.name=a", "-c", "user.email=a@b",
+                                "-c", "commit.gpgsign=false", "commit", "-q", "-m", "s"],
+                               capture_output=True, timeout=60, env=env)
+            got[tag] = [f["status"] for f in run(cfg) if (f.get("where") or "") == "work/WI-0001-x.md"] \
+                if not err else err
+    want = {"note": [FAIL], "elsewhere": [FAIL], "empty": [UNDETERMINED]}
+    results.append(finding(
+        NAME, PASS if got == want else FAIL,
+        "C10：取最后一条转换记录；备注日期与别处的 from 行不洗白停滞工作项，空记录记未定",
+        evidence="实得 %s；应得 %s" % (got, want), why="01 §4.1：活性看最后一次状态转换；01 §2 N1 判不了不猜",
+    ))
+
+    # C18：作者时区比运行环境早一天时，日期写成「明天」不算晚于基准日；晚两天仍记未定
+    got = {}
+    for n in (1, 2):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, "updated_at: %s\n" % (today + datetime.timedelta(days=n)).isoformat(), work_fresh)
+            got[n] = [f["status"] for f in run(cfg) if (f.get("where") or "").startswith("docs/")] if not err else err
+    results.append(finding(
+        NAME, PASS if got == {1: [PASS], 2: [UNDETERMINED]} else FAIL,
+        "C18：日期晚基准日一天按当天算，晚两天记未定",
+        evidence="实得 %s" % (got,), why="基准日是运行环境本地日期，作者可能在更早的时区写当天日期",
+    ))
+
+    # R2-3：转换表之后隔一个空行的备注列表、第二张计划表，不许把停滞工作项洗成活着
+    got = []
+    for tail in ("\n- 备注：计划 %s 复查\n" % fresh, "\n| 计划 | 日期 |\n|---|---|\n| 复查 | %s |\n" % fresh):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            cfg, err = _sample(tmp, "updated_at: %s\n" % fresh,
+                               "# WI-0001\n\n状态：in_progress\n\n## 状态转换记录\n\n| from → to | 时间 |\n"
+                               "|---|---|\n| planned → in_progress | %s |\n" % old + tail)
+            got.append([f["status"] for f in run(cfg) if (f.get("where") or "") == "work/WI-0001-x.md"]
+                       if not err else err)
+    results.append(finding(
+        NAME, PASS if got == [[FAIL], [FAIL]] else FAIL,
+        "R2-3：只认第一段连续的记录行，其后的备注列表与第二张表不算转换记录",
+        evidence="实得 %s" % (got,), why="01 §4.1：活性看最后一次状态转换",
+    ))
+
+    # C11：metadata_required 声明了而 metadata_fields 没声明，无日期文档只记一条聚合未定，不判 FAIL
+    # （与 layout 的 meta-unrecognized 同口径：字段名是工具默认，没认出推不出没写）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, "# 无日期\n\n日期：2026-09-01\n", work_fresh)
+        cfg.pop("metadata_fields", None)
+        got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [(UNDETERMINED, NAME + "/undated-fields-default")] else FAIL,
+        "C11：未声明 metadata_fields 时 metadata_required 命中的无日期文档只记未定",
+        evidence="非通过项 %s" % (got,), why="契约 §1.1 与 §5 metadata_fields：声明后仍缺才判 FAIL",
+    ))
+
     # 反例七（D-123 bug 1）：浅克隆下退到提交时间的工作项须记未定。非浅克隆同一样本判 FAIL，
     # 浅克隆取到的是克隆时刻，旧实现会把它翻成 PASS。
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -738,6 +838,56 @@ def selftest():
             evidence="实得 %s%s" % (got, ("；git 准备失败：%s" % err) if err else ""),
             why="01 §2 N1：浅克隆的提交时间是克隆时刻，据它判活性会把 FAIL 翻成 PASS",
         ))
+
+    # 反例七之二（C02）：工作项文件名带 [ ] 时 git 按通配解读，会取到 WI-0001-a.md 刚才的提交，
+    # 把 100 天前提交、无转换记录的进行中工作项判成活着
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "WI-0001-[a].md"), "# WI-0001\n\n状态：in_progress\n")
+        write_text(os.path.join(tmp, "docs", "architecture", "a.md"), "updated_at: %s\n" % fresh)
+        gid = ["-c", "user.name=a", "-c", "user.email=a@b", "-c", "commit.gpgsign=false"]
+        err = None
+        for when, cmd in ((None, ["git", "-c", "init.defaultBranch=main", "init", "-q", tmp]),
+                          (None, ["git", "-C", tmp] + gid + ["add", "-A"]),
+                          (old, ["git", "-C", tmp] + gid + ["commit", "-q", "-m", "s"]),
+                          (None, ["sh", "-c", "echo x > '%s'" % os.path.join(tmp, "work", "WI-0001-a.md")]),
+                          (None, ["git", "-C", tmp] + gid + ["add", "-A"]),
+                          (fresh, ["git", "-C", tmp] + gid + ["commit", "-q", "-m", "t"])):
+            env = dict(os.environ, GIT_COMMITTER_DATE="%s 12:00:00 +0000" % when,
+                       GIT_AUTHOR_DATE="%s 12:00:00 +0000" % when) if when else None
+            r = subprocess.run(cmd, capture_output=True, timeout=60, env=env)
+            if r.returncode != 0:
+                err = "%s 退出码 %d" % (" ".join(cmd[:4]), r.returncode)
+                break
+        got = [f["status"] for f in run(_cfg(tmp)) if (f.get("where") or "") == "work/WI-0001-[a].md"] \
+            if not err else err
+    results.append(finding(
+        NAME, PASS if got == [FAIL] else FAIL,
+        "反例七之二：文件名带 [ ] 的超龄工作项按字面取提交时间，仍判 FAIL",
+        evidence="实得 %s" % (got,),
+        why="01 §4.1：活性看的是这一份工作项自己的提交，不是被通配到的别的文件",
+    ))
+
+    # C22：工作项目录在文档根之下（缺省形态）时每份工作项只读一遍；浅克隆一次扫描只探测一次
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        for i in (1, 2):
+            write_text(os.path.join(tmp, "docs", "state", "work", "WI-000%d-x.md" % i), "# WI\n\n状态：in_progress\n")
+        err = git_track(tmp)
+        reads, probes = [], []
+        real_read, real_probe = globals()["read_text"], globals()["shallow_problem"]
+        globals()["read_text"] = lambda p, r=None: (reads.append(p), real_read(p, r))[1]
+        globals()["shallow_problem"] = lambda r: (probes.append(r), real_probe(r))[1]
+        try:
+            run({"_root": tmp}) if not err else None
+        finally:
+            globals()["read_text"], globals()["shallow_problem"] = real_read, real_probe
+    ok = (not err) and len(reads) == 2 and len(set(reads)) == 2 and len(probes) == 1
+    results.append(finding(
+        NAME, PASS if ok else FAIL,
+        "C22：工作项目录在文档根下时每份只读一遍，浅克隆只探测一次",
+        evidence="读 %d 次（%d 份），探测 %d 次%s" % (len(reads), len(set(reads)), len(probes),
+                                             ("；git 准备失败：%s" % err) if err else ""),
+        why="一次扫描里同一份文件不重复 I/O，不为每份工作项起子进程",
+    ))
 
     # 反例五之二（D-123 bug 10）：超龄工作项的 FAIL 标题带天数，id 须不随天数变；
     # 聚合未定的标题带份数，id 须不随份数变

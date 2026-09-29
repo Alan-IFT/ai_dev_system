@@ -22,7 +22,7 @@
 
 - **`UNDETERMINED` 永远不能被合并成 `PASS`。** 汇总时三态各自计数，不允许"没有 FAIL 即通过"。退出码另按已登记／未登记分档（见第 9 节「例外登记」）；状态字段、三态计数与逐条列出**不因登记而改变**——登记改变的只有退出码。
 - 对象不存在时，先判**是否适用**：不适用记 `SKIP`（不计入三态，但必须给理由）；适用而对象缺失记 `UNDETERMINED`。
-- **同一事实只由一个检查器报。** 对象缺失这件事归哪条标准条款，就由执行那条的检查器报；以同一对象为输入的其余检查器记 `SKIP`，证据里写明由谁报。否则采用方得为同一件事登记几行，报告的未定数也虚高。现有一例：工作项目录（`layout.work_root`）不在，由 `layout` 按 01 §3.1 报（L1 起的 `work_current` 一项），`evidence`、`freshness` 与 `drift`（判据 4）各记一条 `<检查器>/work-root-absent` 的 `SKIP`；两件共用的解析与这条 `SKIP` 都在 `stdlib`（`work_root` / `work_root_absent`）。另一例是入口文件不在：由 `layout` 按 01 §3.1 的 ★ 入口报，`entry-budget` 记 `entry-budget/entry-absent` 的 `SKIP`。
+- **同一事实只由一个检查器报。** 对象缺失这件事归哪条标准条款，就由执行那条的检查器报；以同一对象为输入的其余检查器记 `SKIP`，证据里写明由谁报。否则采用方得为同一件事登记几行，报告的未定数也虚高。现有一例：工作项目录（`layout.work_root`）不在，由 `layout` 按 01 §3.1 报——项目声明了 `layout.work_root` 而目录不在，任何档都判 `FAIL`（`layout/work-root-absent/<路径>`，声明的落点不成立）；没声明时缺省目录由 L1 起的 `work_current` 一项认，`evidence`、`freshness` 与 `drift`（判据 4）各记一条 `<检查器>/work-root-absent` 的 `SKIP`；两件共用的解析与这条 `SKIP` 都在 `stdlib`（`work_root` / `work_root_absent`）。另一例是入口文件不在：由 `layout` 按 01 §3.1 的 ★ 入口报，`entry-budget` 记 `entry-budget/entry-absent` 的 `SKIP`；入口或其余工件是指向项目之外的符号链接时同理，`layout` 记 `layout/outside-root/<路径>` 未定（不跟随链接判在、也不判缺），`entry-budget` 不读、不列出仓目录，记 `SKIP`（目录在项目内、其中单份文件链到仓外时照列不探测，记 `entry-budget/outside-root/<路径>` 未定）。
 - 检查器自身崩溃、超时、依赖缺失，一律 `UNDETERMINED`，**不得吞掉异常记 PASS**。依据：该项目已发生过"守卫崩溃却报告为漂移"与"退出 0 却跑了 0 个测试"。
 
 `check_all` 的退出码：有任一 `FAIL` → 1；无 FAIL 但有**未登记**的 `UNDETERMINED` → 2；否则 0（全 PASS/SKIP，或全部未定都已登记且未过期）。**调用方不得把 2 当成功。**
@@ -87,11 +87,11 @@ def selftest() -> list[dict]:
 | `cfg["_root"]` | **被扫描项目的根**，`check_all` 的位置参数原样传入，可能是相对路径 | 检查器定位工件一律用它拼路径（`os.path.join(cfg["_root"], rel)`），**不得**用 `os.getcwd()` 或检查器自己的 `__file__` |
 | `cfg["_path"]` | 配置文件的实际路径 | 只用于报告与证据。**它落在 `_root` 之内还是之外**，决定了输出里标"外部配置，不在被扫描项目内"还是"在被扫描项目内"。判据是路径包含关系，不是"绝对还是相对"——`--config` 完全可以指向项目内部的绝对路径，那时标"外部配置"是一句**假的溯源陈述** |
 
-`_path` 在不在项目内由 `check_all.config_outside_root(root, path)` 判，返回 `True`（在外）/ `False`（在内）/ `None`（判不了）。实现是 `abspath(...)` 加带分隔符的前缀比较——带分隔符是因为 `/t/proj` 不该把 `/t/project/x.yaml` 吞成内部；非绝对的 `path` 先接到 `root` 上再归一化，是因为走默认候选路径时 `_path` 本就是相对被扫根的（`governance/project.yaml`），照当前工作目录解析会把项目内的默认配置判成外部。带分隔符前缀比较在入口冒烟 3d) 有断言，相对路径接到 `root` 上在 3e) 有断言。调用点在全部检查跑完之后，归一化出错也不许崩，按判不了返回 `None`。
+`_path` 在不在项目内由 `check_all.config_outside_root(root, path)` 判，返回二元组 `(判定, 原因)`：判定取 `True`（在外）/ `False`（在内）/ `None`（判不了，原因写明为什么）。实现是 `abspath(...)` 加带分隔符的前缀比较——带分隔符是因为 `/t/proj` 不该把 `/t/project/x.yaml` 吞成内部；非绝对的 `path` 先接到 `root` 上再归一化，是因为走默认候选路径时 `_path` 本就是相对被扫根的（`governance/project.yaml`），照当前工作目录解析会把项目内的默认配置判成外部。带分隔符前缀比较在入口冒烟 3d) 有断言，相对路径接到 `root` 上在 3e) 有断言。调用点在全部检查跑完之后，归一化出错也不许崩，按判不了返回 `(None, 原因)`。
 
-这两个键的名字带下划线是为了与项目自己写的配置项区分：**项目的 `project.yaml` 里写 `_root` 或 `_path` 无效**——`load_config` 解析完会原地覆盖它们。
+这两个键的名字带下划线是为了与项目自己写的配置项区分：**项目的 `project.yaml` 里写 `_root` 或 `_path` 整份拒收**（与下段其余下划线键同一条规则），这两个键只由 `load_config` 解析完注入。
 
-除这两个之外，检查器**自己**也可以约定下划线开头的注入口，只在自检里往 `cfg` 里塞、`load_config` 不产生也不覆盖。目前有一个：`check_links` 的 `_links_files`（由 `check_links.selftest` 注入，取代 `git ls-files` 的结果，让自检不碰真实仓库的 git 索引，见第 3 节）。另有一个由 `check_all` 在**全部检查跑完之后**写入的 `_exceptions`（登记册路径、有效行数与过期行数，只给 `render` 打报告首部那一行用，见 §9）——检查器跑的时候它还不存在，不要读它。**这类键不是项目配置项，项目不要写**——`load_config` 不会覆盖它，写了会被检查器当真采信，等于让被检查方自己指定检查范围。新增这类注入口要在本节登记，因为"`cfg` 里都有什么"是契约面，不是实现细节。
+除这两个之外，检查器**自己**也可以约定下划线开头的注入口，只在自检里往 `cfg` 里塞、`load_config` 不产生也不覆盖。目前有一个：`check_links` 的 `_links_files`（由 `check_links.selftest` 注入，取代 `git ls-files` 的结果，让自检不碰真实仓库的 git 索引，见第 3 节）。另有两个由 `check_all` 在**全部检查跑完之后**写入：`_scopes`（各检查器的覆盖边界，在身份封签之内用同一份加载算好，只给 `render` 打印，免得再加载一遍检查器）与 `_exceptions`（登记册路径、有效行数与过期行数，只给 `render` 打报告首部那一行用，见 §9）——检查器跑的时候它们还不存在，不要读。**这类键不是项目配置项**——检查器会当真采信它，写进配置等于让被检查方自己指定检查范围，所以 `load_config` 遇到顶层以 `_` 开头的键**整份拒收**（按解析失败记未定，报行号）；注入口只能由代码往 `cfg` 里塞。新增这类注入口要在本节登记，因为"`cfg` 里都有什么"是契约面，不是实现细节。
 
 `Finding` 的字段：
 
@@ -118,7 +118,7 @@ def selftest() -> list[dict]:
 | 给了 `kind` | `check/kind`，再给 `key` 则接 `/` 与归一化后的 key（首尾空白去掉、内部空白折成 `_`、竖线换成 `｜`） | **判据不变它就不变**：标题怎么改、命中几个文件、超期几天，都不影响它。跨工具版本升级时仍须按 §8 的身份重跑核对 |
 | 没给 `kind` | `check/` + `sha1(title)[:8]` | **只在同一工具身份内稳定**：标题改一个字就换一个 id，对应的登记行随之失效。这是兜底，不是承诺 |
 
-给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定、`derived` 的四条；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
+给 `kind` 的构造点覆盖标题会随命中内容变动的那些判据（`freshness` 的陈旧与超龄工作项、`stdlib.agg` 的全部聚合条（`kind` 必填）、`cross-repo` 的六条、`single-authority` 的溢出／非文档组／数值声明、`links` 的五条未定与两条 FAIL（`missing`、`anchor-missing`；同一文件里同一目标合并成一条，行号进证据）、`derived` 的四条未定与 `behind`（key 为派生物与源）、`header-undeclared`（同一派生物只判一次）两类 FAIL（标题带声明序号），`evidence` 的 `incomplete`、`limits-empty` 与未定 `fields-unrecognized`（key 为文件与条目名；认出的都有值、缺的字段可能在条目里认不出的「标签: 值」行或映射不到的表头列里时记未定，§1.1；没有这种行就是没写，判 FAIL）；另有 `evidence`／`freshness`／`drift` 的 `work-root-absent` 与 `entry-budget` 的 `entry-absent`、`candidate-over`、`doc-over`、`merged-over`，`adoption` 的 `wildcard-allow`，`exception-register` 的 `own-expired`，`stdlib.unreadable` 与 `stdlib.outside_root` 的 `unreadable`／`outside-root`（读不了、出仓的文件是对象的事，不是检查器故障，不落兜底 id；检查器内同一文件只报一次），标题带路径、行数或摘录），**`key` 一律取判据自己的稳定量**（路径、仓名、`数字:量词:名词键` 三元组），不取计数与样本文本。其余构造点用兜底 id。写新检查器时：**标题里会出现数字或摘录的，就必须给 `kind`（能定位到具体对象的再给 `key`）**。
 
 ---
 
@@ -177,7 +177,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 
 **只用块状列表（短横线），不要用 `[a, b]` 这种流式写法**——解析器按"歧义即拒绝"拒收它，本文此前的示例写成流式，照抄会让整份配置解析失败，已改正。唯一接受的流式写法是空列表 `[]`：它没有歧义，且 `metadata_required` 要靠它区分"声明一类都没有"与"没声明"。
 
-上面每个键的类型、是否必填、以及缺了会怎样：
+上面每个键的类型、是否必填、以及缺了会怎样。**写成表中类型以外的形状**（列表键写成标量或映射、映射键写成标量、字符串键——`tier`、`layout.docs_root`、`layout.work_root`、`layout.artifacts.*`、`repos[]`／`derived[]`／`tailoring[]` 的字符串字段——写成列表或映射；`compatibility.policy` 本就可以是映射或列表，不在此列）整份配置按解析失败记未定，报键名与行号——不静默误读，也不让检查器崩溃；值为空与不写同义：
 
 | 键 | 类型 | 必填 | 缺省行为 |
 |---|---|---|---|
@@ -185,7 +185,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `tailoring` | 列表，每项 `check` / `applicable` / `reason` | 否 | 视为没裁剪任何检查。`check` 可写检查器短名，也可写 `layout:<role>` 或裸 `<role>` 单裁一个工件；写了对不上的名字裁剪不生效，记一条未定（`tailoring/unknown-check/<名字>`） |
 | `layout.entry` | 字符串列表 | 否 | `layout` 与 `entry-budget` 共用 `stdlib.entry_files`：先回退到 `layout.artifacts.entry`（同是项目声明，据此照常判 `FAIL`）；两者都没配才按候选 `CONTEXT.md`、`AGENTS.md`、`CLAUDE.md` 的顺序取第一个存在的（同时存在几个也只取第一个，证据列出其余），证据注明来自候选。候选是 §1.1 的工具约定：`layout` 命中记 `PASS`、全不在记一条 ★ 未定，`entry-budget` 在预算内记 `PASS`、超预算记未定（`candidate-over`），声明之后仍超才判 `FAIL`；入口不在由 `layout` 报，`entry-budget` 记 `SKIP`（§1）。`cross-repo` 的入口相关判据仍记 `UNDETERMINED`：它要在每个仓里认同一组入口名，且那几条判据的结论以 `FAIL` 为主，候选来源下只剩通过与未定 |
 | `layout.docs_root` | 字符串 | 否 | 取常量 `docs`（01 §3.1 文档树的根），`freshness`／`drift` 在 `evidence` 里注明用的是默认，`layout` 在覆盖边界里注明（它只拿它给候选路径改基，候选本就是提示，§1.1）。解析只在 `stdlib.docs_root_of` 一处，`layout`／`freshness`／`drift` 与各缺省路径的改基共用 |
-| `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`（01 §3.1；`docs/` 随 `layout.docs_root` 改基，与 `check_layout` 的候选同一规则），并在 `evidence` 里注明用的是默认。它也是 `check_layout` 的 `work_current`（实时状态源）一项在未声明 `layout.artifacts.work_current` 时认的落点——目录不在由 `layout` 报一次，`evidence`／`freshness`／`drift` 记 `SKIP`（§1）。解析只在 `stdlib.work_root` 一处 |
+| `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`（01 §3.1；`docs/` 随 `layout.docs_root` 改基，与 `check_layout` 的候选同一规则），并在 `evidence` 里注明用的是默认。它也是 `check_layout` 的 `work_current`（实时状态源）一项在未声明 `layout.artifacts.work_current` 时认的落点——目录不在由 `layout` 报一次（声明了却不在，任何档判 `FAIL`），`evidence`／`freshness`／`drift` 记 `SKIP`（§1）。解析只在 `stdlib.work_root` 一处 |
 | `layout.artifacts` | 映射，`<role>: 路径` | 否 | 按分档快照里的候选路径找；给了就只认它，不再猜候选。`status` 的候选（`WORK.md`、`docs/state/STATUS.md`，取自模板 L0 树与 01 §3.1）在 `stdlib.STATUS_CANDIDATES`，`check_layout` 与 `check_drift` 共用。**★ 工件（入口/验收/状态）没声明落点时，候选未命中记 `UNDETERMINED` 而不是 `FAIL`**（§1.1）；声明了却不存在才是 `FAIL`。role 名见 `check_layout` 的 `_TIER_ITEMS`（`entry`/`acceptance`/`status`/`playbook`/`failures`/…） |
 | `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
 | `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
@@ -196,13 +196,13 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `budgets.work_item_stale_days` | 正整数 | 否 | 取常量 14 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.duplicate_min_lines` | 整数 ≥2 | 否 | 取常量 3 并注明未校准；写了却不是 ≥2 的整数，整份配置按解析失败记未定（报行号），不取默认 |
 | `budgets.duplicate_min_chars` | 整数 ≥1 | 否 | 取常量 60 并注明未校准；写了却不是 ≥1 的整数，同上 |
-| `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准；未声明时 `layout` 查 ★ 工件头部缺元信息只记未定（`layout/meta-unrecognized`，§1.1），声明后仍缺才判 `FAIL`；写成别的形状（映射、空列表）同样按未配处理。解析只在 `stdlib.date_fields_of` 一处，`layout` 与 `freshness` 共用 |
+| `metadata_fields` | 字符串列表（也接受单个字符串） | 否 | 取常量 `updated_at` 并注明未校准；未声明时 `layout` 查 ★ 工件头部缺元信息只记未定（`layout/meta-unrecognized`，§1.1），`freshness` 对 `metadata_required` 命中的无日期文档也只记一条聚合未定（`freshness/undated-fields-default`），声明后仍缺才判 `FAIL`；写成别的形状（映射、空列表）同样按未配处理。解析只在 `stdlib.date_fields_of` 一处，`layout` 与 `freshness` 共用 |
 | `metadata_required` | 路径前缀列表 | 否 | 见下方专段。给了就**只认这份清单**；显式写空列表 `[]` 即声明项目没有 01 §3.5 那六类文档，无日期文档整轮记一条 `SKIP`；键缺失或值为空时只按目录名约定**分组**，缺日期的无论约定命中与否都**记未定**（§1.1：约定不产出 `FAIL`），不记不适用 |
 | `work_item_done_states` | 字符串列表（大小写不敏感） | 否 | 取常量 `done`/`完成`/`delivered` 并注明未校准 |
 | `work_item_in_progress_states` | 字符串列表 | 否 | 取常量 `in_progress`/`进行中` 并注明未校准 |
 | `derived` | 列表，每项 `artifact` / `source` / `regen` | 否 | `check_derived` 整条记 `SKIP`——不猜哪些文件是生成的 |
-| `repos` | 列表，每项 `name` / `path` / `role`；**`path` 只有 `role: archived` 可省略**（01 §3.8 的 archived 就是"已移出工作区，只在远端"）| 否 | `cross-repo` 记 `SKIP`：未声明或不足两个条目记不适用（单仓项目，01 §3.8）。`role` 取 `system`/`app`/`retired`/`archived`。`archived` 省略 `path` 或 `path` 在本机不存在时，"各仓可定位"一条按定义记 `PASS`，凡需读该仓本地文件的各条（入口、退役仓失效标记、跨仓引用）对它记 `SKIP`；给了 `path` 且目录在则照读照判。`retired` 不享受这条——它仍要求本地有检出可核 |
-| `repos[].former_names` | 字符串列表 | 否 | **不声明就一字不查**——不猜哪个名字是旧名（判据八）。别名与任何在册 `name` 相撞时该项记 `UNDETERMINED` 且不扫描：那种情况下命中的多半是在役引用 |
+| `repos` | 列表，每项 `name` / `path` / `role`；`name` 不得重名（重名时 `cross-repo` 整条记未定）；**`path` 只有 `role: archived` 可省略**（01 §3.8 的 archived 就是"已移出工作区，只在远端"）| 否 | `cross-repo` 记 `SKIP`：未声明或不足两个条目记不适用（单仓项目，01 §3.8）。`role` 取 `system`/`app`/`retired`/`archived`。`archived` 省略 `path` 或 `path` 在本机不存在时，"各仓可定位"一条按定义记 `PASS`，凡需读该仓本地文件的各条（入口、退役仓失效标记、跨仓引用）对它记 `SKIP`；给了 `path` 且目录在则照读照判。`retired` 不享受这条——它仍要求本地有检出可核 |
+| `repos[].former_names` | 字符串列表 | 否 | **不声明就一字不查**——不猜哪个名字是旧名（判据八）。别名与任何在册 `name` 相撞（不分大小写）时该项记 `UNDETERMINED` 且不扫描：那种情况下命中的多半是在役引用 |
 
 **缺配置项时记 `UNDETERMINED` 并写明缺哪一项，不取默认值当事实。** 例外见上表"缺省行为"一列：`budgets` 的全部键（`status_lines`／`work_item_lines`／`handoff_lines`／`module_lines` 四个除外，缺失即该类不判、记 `SKIP`），以及 `layout.docs_root`、`layout.work_root`、`layout.rule_files`、`metadata_fields`、两个 `work_item_*_states`，缺失时取常量兜底而不是记未定；`repos` 与 `derived` 是另一类例外——缺失时整条记 `SKIP`（不适用），既不取默认也不记未定：单仓项目按 01 §3.8「单仓项目记不适用」，未声明派生关系时主从由项目指定、不由检查器推定（01 §3.4）；**取了默认就必须在 `evidence` 里写明"用的是默认值，项目未校准"**，让读报告的人知道这个结论建立在工具的假设上。**被多个检查器读的键，常量缺省只在 `stdlib` 写一处**（01 §1 G2）：同一个键不得被一个检查器取常量兜底、另一个记未定。`check_layout` 按分档快照找候选路径、`stdlib.entry_files` 在 `layout.entry` 未配时找入口候选名，都不算缺省——候选是 §1.1 所说的工具约定（提示），命中只许记通过或未定、未命中只记未定，不当作该键的取值。除这些之外的键缺失一律记 `UNDETERMINED`。
 
@@ -231,7 +231,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 
 按 §1.1，目录名约定**命中也只记未定**：它说明"像"，推不出"这份必须带日期"。未配 `metadata_required` 时，约定命中的缺日期文档汇成一条 `UNDETERMINED`（`freshness/undated-by-convention`），此前判 `FAIL`，与 §1.1 矛盾，已改（D-123）。
 
-未配 `metadata_required` 且目录名约定未命中时，那些缺日期字段的文档**不逐份记 `SKIP`**——`SKIP`（不适用）是确定结论，而"这份文档算不算重要文档"要看内容，按 §7 机械判不了。它们汇总成**整轮一条 `UNDETERMINED`**，证据里列出路径。代价是这类项目的退出码从 0/1 变 2；收益是"这里没看"从报告末尾的不适用堆里挪到了未定区。配了 `metadata_required` 之后，命中记 `FAIL`、未命中记 `SKIP`，两边都是确定结论。写成空列表 `[]` 是"一类都不要求"的声明，无日期文档整轮汇成一条 `SKIP`——**它与不写这个键不是一回事**：空列表是项目的声明，可给确定结论；键缺失或值为空是没声明，只能记未定。声明错了由写下它的人负责，工具不复核。
+未配 `metadata_required` 且目录名约定未命中时，那些缺日期字段的文档**不逐份记 `SKIP`**——`SKIP`（不适用）是确定结论，而"这份文档算不算重要文档"要看内容，按 §7 机械判不了。它们汇总成**整轮一条 `UNDETERMINED`**，证据里列出路径。代价是这类项目的退出码从 0/1 变 2；收益是"这里没看"从报告末尾的不适用堆里挪到了未定区。配了 `metadata_required` 之后，命中记 `FAIL`（日期字段名也须在 `metadata_fields` 声明，否则只记未定，见 §5 表）、未命中记 `SKIP`，两边都是确定结论。写成空列表 `[]` 是"一类都不要求"的声明，无日期文档整轮汇成一条 `SKIP`——**它与不写这个键不是一回事**：空列表是项目的声明，可给确定结论；键缺失或值为空是没声明，只能记未定。声明错了由写下它的人负责，工具不复核。
 
 **只读被扫项目之内的文件。** 读任何文件前按真实位置（跟随符号链接后）判它在不在项目根之下，不在的不读、记 `UNDETERMINED`（`links` 的链接目标同理，`links/outside-root`）；配置里值为项目内路径的键（`layout.entry`、`layout.docs_root`、`layout.work_root`、`layout.artifacts.*`、`layout.frozen`、`layout.rule_files`、`metadata_required`、`derived[].artifact/source`）写了 `..` 段或绝对路径，整份配置按解析失败记未定；`repos[].path` 除外（兄弟仓本来就在项目之外，01 §3.8），但经它读到的文件须落在该仓自己的真实位置之内，越出去记未定；链接目标不在任何声明仓之内的记 `cross-repo/outside-repos` 未定。字面就在项目之外的路径连存在性也不探测。配置解析失败的报错只给路径与行号，不回显文件内容。被扫仓 `.git/config` 里会执行外部程序的配置（`core.fsmonitor`、钩子、textconv、过滤器等）由 `stdlib.scrub_git_env` 与 `filter_env` 一律压掉（`log.showSignature` 也在内，否则 `git log` 会对签名提交调被扫方指定的 gpg 程序）。
 
@@ -290,11 +290,11 @@ tool_identity_files:
 
 **文件位置：配置文件同目录的 `exceptions.md`**（纯文本路径，不是链接：`governance/` 由采用项目自己写，本工具不往交付面里链它）。不带 `--config` 时就是 `<项目根>/governance/exceptions.md`；`--config PATH` 时读 `PATH` 旁边那一份。取不到即**全部未登记**，不回退去别处找。报告首部在「配置 ·」行之后打一行「登记 · <路径>（N 行有效）」或「登记 · 无」；有已过期的行时该行写作「登记 · <路径>（N 行有效，其中 M 行已过期）」，N 仍按本节「一行有效」的定义计，M 只是提醒，不改变 N。
 
-**表头按「包含」匹配第一张 markdown 表**，先命中者为准：`id` / `编号` → 编号，`规则` → 规则，`理由`、`范围`、`批准`、`到期`、`状态` 各对一列。多列命中同一字段时按先命中者取，并记一条不合格。列的顺序、多出来的列（`偏离`、`替代检查`……）都不影响解析。
+**表头按「包含」匹配第一张 markdown 表**，先命中者为准：整格等于 `id`（不区分大小写，按包含会把「Rule ID」「valid until」「Provider」吞成编号列）或含 `编号` → 编号，`规则` → 规则，`理由`、`范围`、`批准`、`到期`、`状态` 各对一列。多列命中同一字段时按先命中者取，并记一条不合格。列的顺序、多出来的列（`偏离`、`替代检查`……）都不影响解析。
 
-**判定顺序写死，先判关闭**：`状态` 格按逗号、分号、顿号、斜杠切段，任一段（去掉首尾的加粗与反引号）以 `关闭` / `已关闭` / `closed` / `done` / `已处理` 开头的行（「没关闭」「not yet closed」「open (to be closed)」不算）不登记、不报过期、不参与有效性校验——它是历史记录，不是生效中的例外。
+**判定顺序写死，先判关闭**：`状态` 格按逗号、分号、顿号、斜杠切段，任一段（去掉首尾的加粗与反引号）以 `关闭` / `已关闭` / `closed` / `done` / `已处理` **整词**开头的行——关闭词后面只许是段尾、空白、加粗或反引号、括号、冒号或句号（「没关闭」「not yet closed」「open (to be closed)」「已处理中」「done? 否」「closed-loop 待复核」都不算）——不登记、不报过期、不参与有效性校验——它是历史记录，不是生效中的例外。
 
-**一行有效要五项齐全**：规则、理由、范围、批准人非空，到期能被解析（`YYYY-MM-DD` 或 ISO8601）。**到期必填**，没有到期的登记就是一键静音。`替代检查`／补偿控制这一列本工具**不校验**——那一列写的是项目自己的补偿措施，机械判不了它是否落实（§7）。到期由工具按**运行日**比较，基准日写进证据；过了期该行自动失效，对应发现回到未登记，并多出一条 `exception-register/expired`。
+**一行有效要五项齐全**：规则、理由、范围、批准人非空，到期能被解析（整格是 `YYYY-MM-DD` 或 ISO8601，「日期 + 任意文字」不算）。**到期必填**，没有到期的登记就是一键静音。`替代检查`／补偿控制这一列本工具**不校验**——那一列写的是项目自己的补偿措施，机械判不了它是否落实（§7）。到期由工具按**运行日**比较，基准日写进证据；过了期该行自动失效，对应发现回到未登记，并多出一条 `exception-register/expired`。
 
 **规则列写的是 Finding id**（报告里每条未定下面那行 `id：…`，直接抄）。比较前去首尾空白、剥首尾反引号，然后**精确相等**才算命中。与项目自己的门号例外（`G6`、`G9` 之类）共用一张表：**规则列不含 `/` 的行本工具不登记、不校验五项**——那是项目的门，不是本工具的发现，拿去匹配只会成批报孤儿。**但它们的到期照判**（[02 §4](../../标准/02-项目架构描述规范.md)：依赖规则的例外「带到期；到期未清理 CI 转红」）：未关闭且到期早于运行日的判 `FAIL`（`exception-register/own-expired/<编号>`，编号为空取规则列），到期写不成日期的汇成一条未定（`exception-register/own-undated`）；未到期的不出发现。规则含 `/` 却匹配不到本次任何**未定**发现（含匹配到 `PASS`／`SKIP`／`FAIL`）的行即为孤儿，出一条 `exception-register/orphan`（判据变了、该条已不是未定，或抄错了，都该清理——留着的死行会在日后该条转回未定时静默复活）。
 

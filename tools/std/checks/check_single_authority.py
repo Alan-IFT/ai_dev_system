@@ -13,11 +13,12 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    guard, FAIL, PASS, SKIP, UNDETERMINED,
+    read_bytes, MAX_READ_BYTES, NotRegular, TooLarge, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, tracked_files,
     undetermined_from_exception,
 )
@@ -41,7 +42,6 @@ _DEFAULT_MIN_LINES = 3
 _DEFAULT_MIN_CHARS = 60
 
 _MAX_FINDINGS_PER_KIND = 30      # 超出部分不静默丢弃，另记一条未定
-_MAX_FILE_BYTES = 2 * 1024 * 1024  # 更大的文件不读，记未定
 _MIN_FILE_EFFECTIVE = 20         # 有效字符少于此数的文件不参与"逐字节相同"判定
 _MAX_BLOCK_LINES = 2000
 
@@ -67,11 +67,15 @@ def is_doc(rel):
 
 
 _RE_HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
-_RE_TABLE_SEP = re.compile(r"^\s*\|?[\s:\-|]+\|[\s:\-|]*$")
+# 表格分隔行：整行只有空白、冒号、短横与竖线，且第 2 个字符起有竖线。原写法 `\|?[\s:\-|]+\|[\s:\-|]*$`
+# 两段量词重叠，一行 6 万个竖线后跟一个别的字要跑 18 秒；拆成整行字符集 + 竖线位置两步，线性
+_RE_TABLE_CHARS = re.compile(r"[\s:\-|]*")
 _RE_HR = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,}|={3,})\s*$")
-_RE_ONLY_LINK = re.compile(r"^\s*(?:[-*+]\s*|\d+[.)]\s*)?(?:\*\*)?\[[^\]]*\]\([^)]*\)(?:\*\*)?\s*[，,。.；;]?\s*$")
+# 行尾 `\s*(?:[，,。.；;]\s*)?$`：原写法 `\s*[…]?\s*$` 两段 `\s*` 隔着可省的标点，长空白后跟一个字就平方级
+_RE_ONLY_LINK = re.compile(r"^\s*(?:[-*+]\s*|\d+[.)]\s*)?(?:\*\*)?\[[^\]]*\]\([^)]*\)(?:\*\*)?\s*(?:[，,。.；;]\s*)?$")
 _RE_BARE_URL = re.compile(r"^\s*(?:[-*+]\s*)?<?https?://\S+>?\s*$")
-_RE_FENCE = re.compile(r"^\s*(```|~~~)")
+# CommonMark 围栏：同一字符连续 3 个以上；闭合须同字符、不短于开围栏、其后只有空白（同 check_drift）
+_RE_FENCE = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 _RE_WS = re.compile(r"\s+")
 
 # 数字 + 量词 + 名词。误报率高，按判据 3 一律记未定。
@@ -90,7 +94,9 @@ _RE_COUNT_CLAIM = re.compile(
 # 序数不是计数：「第 16 个部件」「第 15、16 个部件」说的是位次，不声明有多少。
 # 只看数字前面紧挨着的「第」，或「第 N、」起头的并列序数；「3、16 个文件」
 # 这种不带「第」的并列照常计。反例见 selftest 的「探测三之四」。
-_RE_ORDINAL_PREFIX = re.compile(u"第\\s*(?:[0-9]+\\s*、\\s*)*$")
+# 按行一次 finditer 取各序数前缀的终点，数字起点落在终点上即序数。原写法对每个数值匹配都从行首
+# search 一遍 `…$`，一行几千个「第 12 个」就是平方级
+_RE_ORDINAL_PREFIX = re.compile(u"第\\s*(?:[0-9]+\\s*、\\s*)*")
 
 # 名词只取前两字作键。同一事实在不同句子里后接的字不同（「192 份归档，按季度」
 # 与「192 份归档由资料员保管」），按全长比会漏判。放宽只会多报，而本判据按设计
@@ -104,7 +110,9 @@ _CLAIM_NOUN_KEY = 2
 # 判据 2 用 _RE_ONLY_LINK 挡掉了**整行只有链接**的行，但这些命中都在表格行与
 # 正文句子里（`README.md:37` 是「责任平面：[40 …](…)」），整行判挡不住。
 # 所以按构造挡：把链接整段换成等长空格，同一行里链接之外的数值照常参与判定。
-_RE_MD_LINK = re.compile(r"\[[^\]\n]*\]\([^)\n]*\)")
+# 链接文本不含 `[`、目标不含 `(`：原写法 `\[[^\]\n]*\]\([^)\n]*\)` 对满行 `[` 每个起点都扫到行尾（64KB 6 秒）；
+# 排除之后每个起点只扫到下一个 `[`／`(`，线性（嵌套方括号、目标带圆括号的链接因此不遮，与 check_links 同）
+_RE_MD_LINK = re.compile(r"\[[^\[\]\n]*\]\([^()\n]*\)")
 
 # 一组要出现在几个文件才报。阈值 2 时本仓 31 组里 20 组是"2 个文件"，
 # 其中经人工逐条核对真候选 0 个；N2 点名的"版本号、条数、状态摘要"那一类
@@ -124,7 +132,7 @@ def _is_structural(line):
         return True
     if _RE_HR.match(line):
         return True
-    if _RE_TABLE_SEP.match(line):
+    if _RE_TABLE_CHARS.fullmatch(line) and u"|" in line[1:]:
         return True
     if _RE_ONLY_LINK.match(line):
         return True
@@ -133,16 +141,26 @@ def _is_structural(line):
     return False
 
 
+def _unfenced(text):
+    """产出围栏代码块之外的 (行号, 原文)。反引号围栏的信息串不得含反引号：一行 ```x``` 是行内代码，
+    不开围栏——原先见到 ``` 就翻转，这样一行会让其后全文被当成代码块跳过。"""
+    fence = None
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        m = _RE_FENCE.match(raw)
+        if fence:
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not m.group(2).strip():
+                fence = None
+            continue
+        if m and not (m.group(1)[0] == u"`" and u"`" in m.group(2)):
+            fence = m.group(1)
+            continue
+        yield lineno, raw
+
+
 def significant_lines(text):
     """产出 [(行号, 归一化文本)]：去代码块、空行、纯标点行与结构行。"""
     out = []
-    in_fence = False
-    for lineno, raw in enumerate(text.splitlines(), 1):
-        if _RE_FENCE.match(raw):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
+    for lineno, raw in _unfenced(text):
         s = raw.strip()
         if not s:
             continue
@@ -156,16 +174,7 @@ def significant_lines(text):
 
 def prose_lines(text):
     """产出 [(行号, 原文)]：只去代码块与空行，供数值判据用。"""
-    out = []
-    in_fence = False
-    for lineno, raw in enumerate(text.splitlines(), 1):
-        if _RE_FENCE.match(raw):
-            in_fence = not in_fence
-            continue
-        if in_fence or not raw.strip():
-            continue
-        out.append((lineno, raw))
-    return out
+    return [(lineno, raw) for lineno, raw in _unfenced(text) if raw.strip()]
 
 
 def _declared_derived_artifacts(cfg):
@@ -203,18 +212,17 @@ def _collect(cfg):
             notes["excluded"] += 1
             continue
         path = os.path.join(root, rel)
-        if not os.path.isfile(path):      # 子模块、已删未提交：不是可读的文本对象
-            notes["absent"] += 1
+        try:                              # 直接读：护栏在 read_bytes 里先于任何探测（B15）
+            data = read_bytes(path, root)
+        except TooLarge:
+            notes["skipped_big"] += 1
+            notes["big_paths"].append(rel)
             continue
-        try:
-            size = os.path.getsize(path)
-            if size > _MAX_FILE_BYTES:
-                notes["skipped_big"] += 1
-                notes["big_paths"].append(rel)
-                continue
-            with io.open(guard(root, path), "rb") as fh:
-                data = fh.read()
         except OSError as exc:
+            # 已删未提交、子模块（目录）：不是可读的文本对象。走到 NotRegular 时护栏已过，isdir 不出仓
+            if isinstance(exc, FileNotFoundError) or (isinstance(exc, NotRegular) and os.path.isdir(path)):
+                notes["absent"] += 1
+                continue
             notes["unreadable"] += 1
             notes["unreadable_paths"].append("%s（%s）" % (rel, type(exc).__name__))
             continue
@@ -313,8 +321,9 @@ def _count_claims(files):
     for rel, text, _data in files:
         for lineno, raw in prose_lines(text):
             line = _mask_links(raw)
+            ordinal_ends = {o.end() for o in _RE_ORDINAL_PREFIX.finditer(line)}
             for m in _RE_COUNT_CLAIM.finditer(line):
-                if _RE_ORDINAL_PREFIX.search(line, 0, m.start(1)):
+                if m.start(1) in ordinal_ends:
                     continue
                 num = m.group(1).replace(u",", u"")
                 key = (num, m.group(2), m.group(3)[:_CLAIM_NOUN_KEY])
@@ -346,7 +355,7 @@ def scope(cfg):
             u"不进判据 2、3（判据 1 的逐字节相同仍然看它们）",
             u"不看非文本文件（二进制、含 NUL 或非 UTF-8 的文件）",
             u"不看未被 git 跟踪的文件（未提交、被 .gitignore 排除的一律不看）",
-            u"不看单个大于 %d 字节的文件" % _MAX_FILE_BYTES,
+            u"不看单个大于 %d 字节的文件" % MAX_READ_BYTES,
             u"不判断两处内容是否语义相同，只判文本——换个说法写同一事实抓不到",
             u"不跨仓库比对（跨仓副本归 check_cross_repo）",
             u"不看代码块（``` 围栏之间）里的重复，除非整文件逐字节相同",
@@ -407,7 +416,7 @@ def _run(cfg):
         len(files), notes["excluded"], notes["skipped_binary"], notes["skipped_big"], notes["unreadable"])
     # 没读的文件不是"没有重复"：读不了、超大的各汇一条未定（契约 §1：依赖不可用记未定）
     for key, kind, what in (("unreadable_paths", u"unreadable", u"读不了"),
-                            ("big_paths", u"too-big", u"超过 %d 字节未读" % _MAX_FILE_BYTES)):
+                            ("big_paths", u"too-big", u"超过 %d 字节未读" % MAX_READ_BYTES)):
         paths = notes[key]
         if paths:
             out.append(finding(
@@ -697,6 +706,29 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"反例一之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
+    # 反例一之三（B15）：指向仓外的被跟踪软链接先过护栏，不得先 isfile 探测仓外存在性；记未定。
+    # 已删未提交的文件仍按不在处理，不记未定
+    try:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            os.symlink(os.path.join(outside_dir, "gone.md"), os.path.join(tmp, "ext.md"))
+            cfg = _mkrepo(tmp, {"a.md": _UNIQ_A, "b.md": _UNIQ_B, "deleted.md": _UNIQ_C})
+            os.remove(os.path.join(tmp, "deleted.md"))
+            probed, real_isfile = [], os.path.isfile
+            os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
+            try:
+                got = [(f["status"], f["id"]) for f in run(cfg)]
+            finally:
+                os.path.isfile = real_isfile
+        leak = [p for p in probed if p.endswith("ext.md")]
+        ok = not leak and (UNDETERMINED, NAME + "/unreadable") in got and got.count((UNDETERMINED, NAME + "/unreadable")) == 1
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例一之三：仓外软链接不得被 isfile 探测、记一条未定；已删未提交的文件不记未定",
+            evidence=u"探测 %s；实得 %s" % (leak, got), why=u"契约 §5：字面就在项目之外的路径连存在性也不探测",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例一之三自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
     # 反例二：跨文件重复的实质文本块（两文件本身不相同）
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -862,6 +894,45 @@ def selftest():
     except Exception as exc:  # noqa: BLE001
         results.append(finding(
             NAME, FAIL, u"探测三之五自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 线性（B3）：结构行与序数、链接遮盖的正则曾是平方级，一行 6 万字符的单行文件就能拖住提交闸门
+    # （旧正则下四行合计约 35 秒）。同时钉住结构行的认法不变
+    try:
+        t0 = time.time()
+        _is_structural(u"|" * 60000 + u"x")
+        _is_structural(u"[a](b)" + u" " * 60000 + u"x")
+        _count_claims([(u"l.md", u"第 12 个文件 " * 6000, None)])
+        _mask_links(u"[" * 60000)
+        took = time.time() - t0
+        shapes = [_is_structural(x) for x in (u"|---|:-:|", u" |---", u"||", u"|", u"---",
+                                              u"- [a](b.md)。", u"[a](b)  x")]
+        ok = took < 2 and shapes == [True, True, True, False, True, True, False]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"线性：6 万字符的竖线行、链接后长空白行、满行「第 12 个」与满行 `[` 须在 2 秒内，结构行认法不变",
+            evidence=u"耗时 %.3fs；结构行判定 %s" % (took, shapes),
+            why=u"检查器没有整体超时，一个平方级正则就能拖死提交闸门",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"线性一条自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例二之二（B4）：一行 ```x``` 是行内代码不开围栏，4 反引号外层里的 ``` 不闭合外层——
+    # 旧实现见 ``` 就翻转，其后的重复段落整段被跳过，FAIL 翻成 PASS
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {
+                "x.md": _UNIQ_A + u"\n```x``` 是行内代码。\n\n" + _SHARED,
+                "y.md": _UNIQ_B + u"\n````md\n```\n样例\n```\n````\n\n" + _SHARED,
+            })
+            fails = [f for f in run(cfg) if f["status"] == FAIL]
+        ok = len(fails) == 1 and u"x.md" in fails[0]["title"] and u"y.md" in fails[0]["title"]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例二之二：行内 ```x``` 与外层 4 反引号围栏之后的重复段落仍须判 FAIL",
+            evidence=u"实得 FAIL %s" % [f["title"][:60] for f in fails], why=u"契约 §3 静默失效探测",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例二之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:

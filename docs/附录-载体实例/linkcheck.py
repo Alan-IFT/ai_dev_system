@@ -8,15 +8,18 @@
 报出一批假断链、结论 FAIL——而真实断链是 0（数字与经过见 Case C-016）。
 判据本身很短，但"排除哪些目录"这类前提每次重写都会丢，所以固化下来。
 
-SKIP 与 mask_code 必须与 repo_counts.py、check_normative_force.py 保持一致，
-否则三处计数与判定会互相对不上（Case C-009 的同型问题）。
+扫描面取 git ls-files（已跟踪与已暂存），与 check_all 同口径：未跟踪草稿、
+.staging/ 与嵌套 worktree 都不参与。repo_counts.py、check_normative_force.py
+直接从这里导入 md_files 与 mask_code，三处计数与判定因此不会互相对不上
+（Case C-009 的同型问题）。
 """
 import io
 import os
 import re
+import subprocess
 import sys
+import urllib.parse
 
-SKIP = {".git", ".staging", "node_modules"}   # 与 repo_counts.py 的 SKIP 同步
 NL = chr(10)
 BQ = chr(96)
 
@@ -30,59 +33,85 @@ def mask_code(text):
     return text
 
 
-def slug(heading):
-    h = heading.strip().lstrip("#").strip()
-    h = re.sub(r"[" + BQ + r"*_\[\]()]", "", h)
-    return re.sub(r"\s+", "-", h.strip()).lower()
+# 行内链接：目标可用尖括号包住，后面可跟 "title" 或 'title'
+LINK = re.compile(r"""\[[^\]]*\]\(\s*(?:<([^>\n]*)>|([^)\s]+))(?:\s+(?:"[^"\n]*"|'[^'\n]*'))?\s*\)""")
+EXTERNAL = re.compile(r"^(?:[a-zA-Z][\w+.-]*:|//)")   # 带协议或协议相对的链接不是本地链接
 
 
-def collect(root):
-    out = []
-    for cur, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP]
-        for f in files:
-            if f.endswith(".md"):
-                out.append(os.path.join(cur, f))
-    return out
+def links(text):
+    """已涂白代码的文本里的全部行内链接目标。"""
+    return [a or b for a, b in LINK.findall(text)]
+
+
+def md_files(root):
+    try:
+        out = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "*.md"], capture_output=True,
+                             check=True).stdout.decode("utf-8", "surrogateescape")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("不在 git 工作区（或没有 git），无法取文件清单：%s" % root, file=sys.stderr)
+        sys.exit(2)
+    return [os.path.join(root, f) for f in out.split("\0")
+            if f and os.path.isfile(os.path.join(root, f))]
+
+
+def anchors_of(text):
+    """近似 GitHub 的锚点：<a id> 与标题 slug（重复标题加 -1、-2 后缀）；代码块里的不算。
+    按原始 markdown 算：标题内链接与 HTML、结尾 #、撞名后缀的二次冲突与 GitHub 不一致（仓库工作须知 §2）。"""
+    masked = mask_code(text)
+    found = set(re.findall(r'<a id="([^"]+)"', masked))
+    seen = {}
+    for ml, ln in zip(masked.split(NL), text.split(NL)):
+        if not re.match(r"#{1,6} ", ml):
+            continue
+        s = re.sub(r"[^\w\- ]", "", ln.lstrip("#").strip().lower()).replace(" ", "-")
+        n = seen.get(s, 0)
+        found.add(s if n == 0 else "%s-%d" % (s, n))
+        seen[s] = n + 1
+    return found
 
 
 def main():
+    sys.stdout.reconfigure(errors="backslashreplace")   # 非 UTF-8 文件名照样能报出来
     root = sys.argv[1] if len(sys.argv) > 1 else "."
-    mds = collect(root)
+    md_files(root)   # 不在 git 工作区时在这里一行提示并退出 2
+    # 锚点与"越出仓根"都以仓根为界，不以扫描参数为界：在子目录跑时，指向目录外的链接照样能解析
+    top = subprocess.run(["git", "-C", root, "rev-parse", "--show-toplevel"],
+                         capture_output=True, text=True).stdout.strip()
+    texts = {os.path.abspath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in md_files(top)}
+    anchors = {f: anchors_of(t) for f, t in texts.items()}
+    base = os.path.realpath(root)
+    mds = [f for f in texts if os.path.commonpath([os.path.realpath(f), base]) == base]
 
-    anchors = {}
-    for f in mds:
-        text = io.open(f, encoding="utf-8", errors="replace").read()
-        found = set(re.findall(r'<a id="([^"]+)"', text))
-        for h in re.findall(r"^#{1,6} .*$", text, flags=re.M):
-            found.add(slug(h))
-        anchors[os.path.normpath(f)] = found
-
-    link = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
     total = 0
     bad = []
     for f in mds:
-        text = mask_code(io.open(f, encoding="utf-8", errors="replace").read())
-        for tgt in link.findall(text):
-            if re.match(r"^(https?:|mailto:)", tgt):
+        for tgt in links(mask_code(texts[f])):
+            if EXTERNAL.match(tgt):
                 continue
             total += 1
-            if tgt.startswith("#"):
-                if tgt[1:] not in anchors[os.path.normpath(f)]:
+            path, _, anc = tgt.partition("#")   # 先切再解码：%23 是文件名里的 #，不是锚点
+            path, anc = urllib.parse.unquote(path), urllib.parse.unquote(anc)
+            if path.startswith("/"):
+                bad.append((f, tgt, "绝对路径不当仓内路径"))
+                continue
+            if not path:
+                if anc not in anchors[f]:
                     bad.append((f, tgt, "锚点不存在"))
                 continue
-            path, _, anc = tgt.partition("#")
             p = os.path.normpath(os.path.join(os.path.dirname(f), path))
+            if os.path.commonpath([os.path.realpath(p), top]) != top:
+                bad.append((f, tgt, "越出仓根"))
+                continue
             if not os.path.exists(p):
                 bad.append((f, tgt, "路径不存在"))
                 continue
             # 目录型链接（如 ../归档/参考资料-公众号文章/）没有 README.md 也算通过
             if anc and not os.path.isdir(p):
-                if anc not in anchors.get(os.path.normpath(p), set()):
+                if anc not in anchors.get(os.path.abspath(p), set()):
                     bad.append((f, tgt, "锚点不存在"))
 
     for f, tgt, why in bad:
-        print("BROKEN  %s  ->  %s  (%s)" % (f, tgt, why))
+        print("BROKEN  %s  ->  %s  (%s)" % (os.path.relpath(f), tgt, why))
     print()
     print("markdown %d 个文件 / %d 条本地链接 / %d 条断链" % (len(mds), total, len(bad)))
     print("PASS" if not bad else "FAIL")

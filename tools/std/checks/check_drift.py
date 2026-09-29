@@ -29,12 +29,12 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, docs_root_of, filter_env, finding, in_frozen, is_tailored_out, norm_rel, note_default, read_text,
-    rebase_docs, tracked_files, under, undetermined_from_exception, work_root, work_root_absent,
+    DEFAULT_WORK_ROOT, FAIL, LIST_CAP, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED, read_bytes,
+    cfg_get, docs_root_of, filter_env, finding, in_frozen, inside, outside_root, is_tailored_out, norm_rel, note_default, read_text,
+    WORK_ITEM_NAME, rebase_docs, tracked_files, under, undetermined_from_exception, unreadable, once, work_root, work_root_absent,
     write_text,
 )
 # 表格解析复用 stdlib 的那一份（例外登记册用的也是它）：同一事实一处权威，
@@ -181,20 +181,23 @@ def _blame(root, rel):
 
 
 def _check_dates(cfg, root, files, docs_root):
-    hot, scanned, cand_total = [], 0, 0
+    hot, scanned, cand_total, unread = [], 0, 0, []
     for rel in files:
         if in_frozen(cfg, rel):
             continue
-        scanned += 1
         try:
-            cand = _candidates(read_text(os.path.join(root, rel), root))
-        except OSError as exc:
-            return [undetermined_from_exception(NAME, exc, u"读 %s" % rel)]
+            # 不走 read_text：它把孤立的 \r 归一成 \n，行号就与只认 \n 的 git blame 错位（B14）
+            cand = _candidates(read_bytes(os.path.join(root, rel), root).decode("utf-8", "replace"))
+        except OSError as exc:          # 一份读不了只记它自己，不丢整条判据（B16）
+            unread.append(unreadable(NAME, rel, exc))
+            continue
+        scanned += 1
         if cand:
             hot.append((rel, cand))
             cand_total += len(cand)
+    unread_f = unread
     if scanned == 0:
-        return []                       # 空集上说不出"全部通过"（01 §2 N1）
+        return unread_f                 # 空集上说不出"全部通过"（01 §2 N1）
     def _clean_pass():
         return [finding(
             NAME, PASS,
@@ -208,18 +211,18 @@ def _check_dates(cfg, root, files, docs_root):
                      % (docs_root, _ACT_WINDOW, _PLAN_WINDOW))]
 
     if not hot:
-        return _clean_pass()
+        return unread_f + _clean_pass()
 
     code, text, err = _git(root, ["rev-parse", "--is-shallow-repository"], timeout=60)
     if code is None or code != 0:
-        return [finding(
+        return unread_f + [finding(
             NAME, UNDETERMINED, u"判不了日期：探测不出是不是浅克隆",
             kind="future-date",
             reason=err or u"git rev-parse --is-shallow-repository 退出码 %s" % code,
             why=u"01 §2 N1：依赖不可用记未定，不记通过",
             evidence=u"%s 下有 %d 份文档含候选日期" % (docs_root, len(hot)))]
     if text.strip().lower() == "true":
-        return [finding(
+        return unread_f + [finding(
             NAME, UNDETERMINED, u"浅克隆下判不了日期是否晚于写下它的提交",
             kind="future-date",
             reason=u"浅克隆下 blame 时间不可信：git blame 退出 0，但全部行都归到边界提交、"
@@ -273,7 +276,7 @@ def _check_dates(cfg, root, files, docs_root):
                        % (_ACT_WINDOW, u"/".join(_PAST_ACTS[:4]) + u"…"),
                 why=u"01 §2 N1：判不了的记未定不记通过；词表是工具常量（契约 §1.1），永不 FAIL",
                 evidence=_cap([u"第 %d 行：%s" % (n, note) for n, note in hits])))
-    return out or _clean_pass()
+    return unread_f + (out or _clean_pass())
 
 
 def _parse_day(s):
@@ -293,6 +296,8 @@ def _adr_dir(cfg, root, files, docs_root):
     if declared:
         rel = norm_rel(declared).rstrip("/")
         path = os.path.join(root, rel)
+        if not inside(root, path):      # 先护栏（R1-07）
+            return None, True, outside_root(NAME, rel)
         if os.path.isfile(path):
             rel = os.path.dirname(rel) or "."
             path = os.path.join(root, rel)
@@ -373,7 +378,7 @@ def _check_revision(root, adr_dir, adr_files):
         try:
             hits = _revision_hits(read_text(os.path.join(root, rel), root))
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, u"读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
         if not hits:
             continue
@@ -434,7 +439,7 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
     try:
         table = _first_md_table(read_text(os.path.join(root, index_rel), root))
     except OSError as exc:
-        return [undetermined_from_exception(NAME, exc, u"读 %s" % index_rel)]
+        return [unreadable(NAME, index_rel, exc)]
     id_col = file_col = None
     if table is not None:
         _hdr_lineno, header, _rows = table
@@ -463,8 +468,9 @@ def _check_index(root, adr_dir, adr_files, index_rel, declared):
         adr_id = m.group(0)
         listed.add(adr_id)
         target = _index_target(cells[file_col]) if file_col is not None and file_col < len(cells) else None
-        if target and (os.path.isfile(os.path.join(root, adr_dir, target))
-                       or os.path.isfile(os.path.join(root, target))):
+        # 先护栏：「文件」列写绝对路径或 `..` 时，字面出仓的不碰文件系统（B11）
+        if target and any(inside(root, p) and os.path.isfile(p)
+                          for p in (os.path.join(root, adr_dir, target), os.path.join(root, target))):
             continue
         if adr_id in dir_ids:            # 「文件」列不是可用路径时回落到 <ID>*.md
             continue
@@ -511,6 +517,8 @@ def _check_work_items(cfg, root, files):
     if declared:
         status_rel = norm_rel(declared).rstrip("/")
         status_path = os.path.join(root, status_rel)
+        if not inside(root, status_path):
+            return [outside_root(NAME, status_rel)]
         if not (os.path.isfile(status_path) or os.path.isdir(status_path)):
             return [finding(
                 NAME, UNDETERMINED, u"状态文件不存在：%s" % status_rel, where=status_rel,
@@ -522,7 +530,8 @@ def _check_work_items(cfg, root, files):
         status_rel = None
         cands = [rebase_docs(c, docs_root_of(cfg)[0]) for c in STATUS_CANDIDATES]
         for cand in cands:
-            if os.path.exists(os.path.join(root, cand)):
+            p = os.path.join(root, cand)
+            if not inside(root, p) or os.path.exists(p):   # 出仓的候选不探测，读时记未定
                 status_rel = cand
                 break
         if status_rel is None:
@@ -533,25 +542,27 @@ def _check_work_items(cfg, root, files):
                 why=u"01 §4.1 以工作项为对象；契约 §1.1：候选路径是约定，猜不到不记通过")]
 
     # 状态源是目录（一件一文件即状态源）时，ID 取它直接一层的 *.md，不递归。
-    if os.path.isdir(os.path.join(root, status_rel)):
+    if inside(root, os.path.join(root, status_rel)) and os.path.isdir(os.path.join(root, status_rel)):
         sources = [f for f in files if f.lower().endswith(".md") and os.path.dirname(f) == status_rel]
     else:
         sources = [status_rel]
-    seen = {}
+    seen, unread = {}, []
     inline = set()                     # 状态源文件里自带 work_item_id 字段的工作项
     for src in sources:
         try:
             text = read_text(os.path.join(root, src), root)
-        except OSError as exc:
-            return [undetermined_from_exception(NAME, exc, u"读 %s" % src)]
+        except OSError as exc:          # 一份读不了只记它自己，不丢其余状态源（B16）
+            unread.append(unreadable(NAME, src, exc))
+            continue
         for n, line in enumerate(text.splitlines(), 1):
             for m in _WI_RE.finditer(line):
                 seen.setdefault(m.group(0), u"%s:%d" % (src, n))
             m = _WI_FIELD_RE.match(line) if src == status_rel else None
             if m:
                 inline.add(m.group(1))
+    unread_f = unread
     if not seen:                       # 一个 ID 都没有：无结论，不产条目
-        return []
+        return unread_f
 
     wroot, note = work_root(cfg)
     wroot = norm_rel(wroot).rstrip("/")     # 与 dirname 比较：`work/` 须等于 `work`，`.` 即仓根 ""
@@ -561,18 +572,14 @@ def _check_work_items(cfg, root, files):
     # L0 按模板把工作项写在 WORK.md 里、本就没有这个目录，更不该逐条报"没有文件"。
     absent = work_root_absent(NAME, cfg)
     if absent:
-        return [absent]
+        return unread_f + [absent]
 
     # 只认直接一层：work_root 下的子目录（如 L1 的 work/artifacts/）放的是留证与产物，
     # 文件名以 ID 开头也不是工作项本身。
-    have = set(inline)
-    for rel in _md_under(files, wroot):
-        if os.path.dirname(rel) != wroot:
-            continue
-        base = os.path.basename(rel)
-        for wid in seen:
-            if re.match(re.escape(wid) + r"(?!\d)", base):   # WI-001 不许被 WI-0010-x.md 冒充
-                have.add(wid)
+    # 文件名开头的完整 ID（数字取尽）查集合：WI-001 不许被 WI-0010-x.md 冒充，也不逐 ID 逐文件正则比对
+    have = set(inline) | {m.group(0) for m in (WORK_ITEM_NAME.match(os.path.basename(rel))
+                                               for rel in _md_under(files, wroot)
+                                               if os.path.dirname(rel) == wroot) if m}
 
     out = []
     for wid in sorted(set(seen) - have):
@@ -589,8 +596,8 @@ def _check_work_items(cfg, root, files):
                 u"工件缺失即不得进入该状态",
             evidence=note))
     if out:
-        return out
-    return [finding(
+        return unread_f + out
+    return unread_f + [finding(
         NAME, PASS,
         u"work-item：状态文件列了 %d 个 ID，都有载体（%s 直接一层的文件或状态源里的 work_item_id 字段）"
         % (len(seen), wroot),
@@ -700,7 +707,7 @@ def run(cfg):
         out.extend(_check_work_items(cfg, root, files))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception(NAME, exc, u"核对 STATUS 声明的工作项"))
-    return out
+    return once(out)                    # 同一份文件读不了只报一次，哪条判据先碰到都一样（契约 §1）
 
 
 # --------------------------------------------------------------------------
@@ -854,6 +861,27 @@ def selftest():
                 u"实得 %s" % _ids(res, "adr-index-missing"),
                 why=u"D-5：只认「文件」列、不回落 glob 时，这一行会成为假的 adr-index-missing")
 
+    # ---- 3e（B11）：索引「文件」列写绝对路径或 `..` 出仓时不探测存在性，按缺实物记未定 ----
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp, \
+            tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as outside_dir:
+        for n in ("0008", "0009"):
+            write_text(os.path.join(outside_dir, "ADR-%s.md" % n), u"# 仓外\n")
+        up = os.path.relpath(outside_dir, os.path.join(tmp, "docs", "decisions"))
+        write_text(os.path.join(tmp, "docs", "decisions", "README.md"),
+                   u"| ID | 文件 |\n|---|---|\n| ADR-0008 | %s/ADR-0008.md |\n| ADR-0009 | [x](%s/ADR-0009.md) |\n"
+                   % (outside_dir, up))
+        probed, real_isfile = [], os.path.isfile
+        os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
+        try:
+            res = _check_index(tmp, "docs/decisions", [], "docs/decisions/README.md", True)
+        finally:
+            os.path.isfile = real_isfile
+        leak = [p for p in probed if os.path.realpath(p).startswith(os.path.realpath(outside_dir))]
+        _assert(results, not leak and _ids(res, "adr-index-missing") == [u"drift/adr-index-missing/docs/decisions/README.md"],
+                u"3e 反例：索引「文件」列指向仓外（绝对路径、`..`）不得探测存在性，按缺实物记未定",
+                u"探测仓外 %s；实得 %s" % (leak, [f["id"] for f in res]),
+                why=u"契约 §5：字面就在项目之外的路径连存在性也不探测")
+
     # ---- 3a/3b/3c：索引对账，声明与回退的结论必须不同 ----
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "docs", "decisions", "README.md"),
@@ -994,7 +1022,7 @@ def selftest():
     # SHA-256 仓的 64 位行头照样解析
     for tag, fmt in (("1g", None), ("1h", "sha256")):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            write_text(os.path.join(tmp, "docs", "a.md"), u"# 样本\x0c分页\u2028续\n- 2026-09-22 裁定 X。\n")
+            write_text(os.path.join(tmp, "docs", "a.md"), u"# 样本\x0c分页\u2028续\r孤立回车\n- 2026-09-22 裁定 X。\n")
             err = None
             if fmt:
                 r = subprocess.run(["git", "init", "-q", "--object-format=" + fmt, tmp],
@@ -1006,9 +1034,35 @@ def selftest():
                    if f["id"].startswith((u"drift/future-date", u"drift/blame"))]
             _assert(results, (not err) and got == [(u"drift/future-date/docs/a.md｜2026-09-22", u"docs/a.md:2")],
                     u"%s 反例：%s里写于 09-21 的『2026-09-22 裁定』须报出，行号按 \\n 计为第 2 行"
-                    % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c 与 U+2028 的行"),
+                    % (tag, u"SHA-256 仓" if fmt else u"含 \\x0c、U+2028 与孤立 \\r（B14）的行"),
                     u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
                     why=u"行号或行头对不上时旧实现静默跳过该行，把未来日期漏成通过")
+
+    # 4k（B16）：一份文档或一份状态源读不了（这里用 FIFO：不是常规文件不读），只记它自己一条未定，
+    # 其余文件照判——旧实现遇到第一份读不了就把整条判据换成一条未定
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "docs", "a.md"), u"- 2026-09-22 裁定 X。\n")
+        write_text(os.path.join(tmp, "docs", "items", "a.md"), u"- WI-0007 在做。\n")
+        write_text(os.path.join(tmp, "docs", "state", "work", "WI-0007-a.md"), u"# WI-0007\n")
+        for rel in ("docs/b.md", "docs/items/b.md"):
+            write_text(os.path.join(tmp, rel), u"占位\n")
+        err = _git_commit(tmp)
+        for rel in ("docs/b.md", "docs/items/b.md"):
+            os.remove(os.path.join(tmp, rel))
+            os.mkfifo(os.path.join(tmp, rel))
+        res = run({"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}) \
+            if not err else []
+        got = sorted((f["status"], f["id"]) for f in res
+                     if f["id"].startswith((u"drift/future-date", u"drift/status", u"drift/work-item",
+                                            u"drift/unreadable")))
+        _assert(results, (not err) and got == [
+                    (PASS, u"drift/work-item"),
+                    (UNDETERMINED, u"drift/future-date/docs/a.md｜2026-09-22"),
+                    (UNDETERMINED, u"drift/unreadable/docs/b.md"),
+                    (UNDETERMINED, u"drift/unreadable/docs/items/b.md")],
+                u"4k 反例：一份文档、一份状态源读不了只各记一条未定，其余照判（未来日期照报、工作项照核）",
+                u"实得 %s%s" % (got, (u"；git 准备失败：%s" % err) if err else u""),
+                why=u"01 §2 N1：没读的记未定；读得了的照常判，不因一份读不了整条作废")
 
     # 4j（D-123 bug 5）：WI-001 不许被 WI-0010-x.md 冒充成已有文件
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:

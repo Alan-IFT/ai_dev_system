@@ -10,6 +10,7 @@ import hashlib
 import io
 import os
 import re
+import stat
 import subprocess
 
 # git 跑钩子时给子进程注入的仓库定位变量，取自 `git rev-parse --local-env-vars`（git 自己
@@ -38,6 +39,28 @@ GIT_HARDEN_CONFIG = (
 )
 # GIT_OPTIONAL_LOCKS=0：扫描不刷新、不回写被扫仓的 index（只读扫描不该有写入）。
 GIT_HARDEN_ENV = (("GIT_PAGER", "cat"), ("GIT_TERMINAL_PROMPT", "0"), ("GIT_OPTIONAL_LOCKS", "0"))
+
+
+# GIT_CONFIG_COUNT 注入要 git ≥ 2.31；更老的 git 静默忽略这些变量，上面的加固全部失效。
+GIT_MIN_VERSION = (2, 31)
+
+
+def git_version_problem(out=None):
+    """git 低于 GIT_MIN_VERSION 或认不出版本时返回原因串，否则 None（git 跑不起来也返回 None——
+    那时每个 git 读点各自记未定）。out 只为自检注入 `git version` 的输出。"""
+    if out is None:
+        try:
+            out = subprocess.run(["git", "version"], capture_output=True, text=True,
+                                 encoding="utf-8", timeout=60).stdout
+        except (OSError, subprocess.SubprocessError):
+            return None
+    m = re.search(r"(\d+)\.(\d+)", out or "")
+    if not m:
+        return "认不出 git 版本（%r）；加固配置要 git ≥ %d.%d 才生效" % (((out or "").strip()[:40],) + GIT_MIN_VERSION)
+    if (int(m.group(1)), int(m.group(2))) < GIT_MIN_VERSION:
+        return ("git %s.%s 低于 %d.%d：经 GIT_CONFIG_COUNT 注入的加固（fsmonitor、过滤器、pager 等）"
+                "会被静默忽略，被扫仓配置里的外部程序可能被执行；请升级 git" % ((m.group(1), m.group(2)) + GIT_MIN_VERSION))
+    return None
 
 
 def scrub_git_env():
@@ -174,11 +197,12 @@ def undetermined_from_exception(check, exc, what):
 # 日期
 # --------------------------------------------------------------------------
 
-def parse_date(raw):
+def parse_date(raw, strict=False):
     """支持 YYYY-MM-DD 与 ISO8601。返回 (date, None) 或 (None, 原因)。解析不了不猜。
 
     从 `check_freshness._parse_date` 提上来：新鲜度与例外登记的到期都要解析日期，
     留两份必然漂（01 §1 G2）。`*` 与反引号是 markdown 的加粗/行内代码标记，先剥掉。
+    strict：只收纯日期，不认「日期 + 任意文字」（例外登记的到期，契约 §9）。
     """
     s = str(raw).replace("*", "").replace("`", "").strip()
     if not s:
@@ -192,7 +216,7 @@ def parse_date(raw):
         return datetime.datetime.fromisoformat(t).date(), None
     except ValueError:
         pass
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    m = None if strict else re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
     if m:
         try:
             return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))), None
@@ -227,11 +251,15 @@ def _scalar(raw, lineno):
             "本工具只接受最简子集（缩进映射、短横线列表、纯量），"
             "看不懂即拒绝而不是猜。" % (lineno, s[0])
         )
-    if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+    if s[0] in "\"'":
+        if len(s) < 2 or s[-1] != s[0] or s[0] in s[1:-1]:
+            raise ConfigError("第 %d 行的引号没有成对闭合（或引号里又有同种引号），本解析器不处理" % lineno)
         body = s[1:-1]
         if "\\" in body:
             raise ConfigError("第 %d 行的引号字符串含转义，本解析器不处理" % lineno)
         return body
+    if ": " in s:
+        raise ConfigError("第 %d 行的值里有「: 」：YAML 不收这种写法（`a: b: c`），值里要带冒号请整体加引号" % lineno)
     low = s.lower()
     if low in _SCALAR_TRUE:
         return True
@@ -252,27 +280,28 @@ def _strip_comment(line):
     引号只在值的开头（行首、`:` 或 `- ` 之后）才开启引用：`don't # 注释` 里的撇号是正文，
     不许把后面的注释吞进值里。
     """
-    out, in_q, q = [], False, ""
+    out, in_q, q, last = [], False, "", ""     # last：已收下的最后一个非空白字符（不每次 join，免平方级）
     for i, ch in enumerate(line):
         if in_q:
             out.append(ch)
             if ch == q:
                 in_q = False
-            continue
-        if ch in "\"'":
-            before = "".join(out).rstrip()
-            if not before or before.endswith((":", "-")):
+        elif ch in "\"'":
+            if last in ("", ":", "-"):
                 in_q, q = True, ch
             out.append(ch)
-            continue
-        if ch == "#" and (i == 0 or line[i - 1] in " \t"):
+        elif ch == "#" and (i == 0 or line[i - 1] in " \t"):
             break
-        out.append(ch)
+        else:
+            out.append(ch)
+        if not ch.isspace():
+            last = ch
     return "".join(out).rstrip()
 
 
-# 映射行：键（裸词或整体加引号）后跟冒号，冒号后是空白或行尾——YAML 的写法；`https://x` 不是映射
-_MAP_LINE = re.compile(r"""^(?:"([^"]*)"|'([^']*)'|([^\s"'#:][^:]*?))\s*:(?:\s+(.*)|)$""")
+# 映射行：键（裸词或整体加引号）后跟冒号，冒号后是空白或行尾——YAML 的写法；`https://x` 不是映射。
+# 裸键不带 `\s*` 接冒号（键尾空白由 _split_kv 去掉）：`[^:]*?\s*:` 在长空白行上是平方级回溯。
+_MAP_LINE = re.compile(r"""^(?:"([^"]*)"\s*|'([^']*)'\s*|([^\s"'#:][^:]*)):(?:\s+(.*)|)$""")
 
 
 def _not_kv(body, lineno):
@@ -335,9 +364,11 @@ def parse_yaml_subset(text):
                         k2, v2 = kv2
                         if k2 in item:
                             raise ConfigError("第 %d 行的键 %r 在同一列表项里重复；重复键的取值有歧义" % (n2, k2))
-                        if not v2.strip():
-                            sub, idx = block(idx + 1, child_indent + 2)
-                            item[k2] = sub
+                        if not v2.strip():      # 空值：下一行更深才是子块，否则取 None（与映射分支一致）
+                            if idx + 1 < len(lines) and lines[idx + 1][1] > child_indent:
+                                item[k2], idx = block(idx + 1, lines[idx + 1][1])
+                            else:
+                                item[k2], idx = None, idx + 1
                             continue
                         item[k2] = _scalar(v2, n2)
                         idx += 1
@@ -458,6 +489,12 @@ def _escaping_paths(cfg):
 _DUP_BUDGETS = (("duplicate_min_lines", 2), ("duplicate_min_chars", 1))
 
 
+def _key_line(text, key):
+    """键 key 首次出现的行号（报错定位用，不回显内容）；找不到给 0。"""
+    return next((i for i, ln in enumerate(text.splitlines(), 1)
+                 if re.match(r"""\s*(?:-\s+)?["']?%s["']?\s*:""" % re.escape(key), ln)), 0)
+
+
 def _bad_dup_budgets(cfg, text):
     budgets = cfg.get("budgets")
     if not isinstance(budgets, dict):
@@ -468,17 +505,55 @@ def _bad_dup_budgets(cfg, text):
         v = budgets[key]
         if isinstance(v, int) and not isinstance(v, bool) and v >= low:
             continue
-        line = next((i for i, ln in enumerate(text.splitlines(), 1)
-                     if re.match(r"\s*%s\s*:" % key, ln)), 0)
+        line = _key_line(text, key)
         return "第 %d 行 budgets.%s 须是 ≥%d 的整数；写错不取默认值" % (line, key, low)
+    return None
+
+
+# 配置键的形状（契约 §5 类型表）。写成别的形状不许静默误读——frozen 写成字符串被逐字符迭代、
+# tailoring 写成映射静默不生效、layout.entry: 5 让两个检查器崩溃——整份拒收，报键名与行号。空值＝没写。
+_SHAPES = (("tier", "str"), ("layout.docs_root", "str"), ("layout.work_root", "str"),
+           ("layout", "map"), ("layout.artifacts", "map"), ("budgets", "map"),
+           ("tailoring", "maps"), ("derived", "maps"), ("repos", "maps"),
+           ("layout.frozen", "strs"), ("layout.rule_files", "strs"), ("metadata_required", "strs"),
+           ("layout.entry", "str|strs"), ("metadata_fields", "str|strs"),
+           ("work_item_done_states", "str|strs"), ("work_item_in_progress_states", "str|strs"))
+_SHAPE_NAMES = {"str": "字符串", "map": "映射", "maps": "映射组成的列表", "strs": "字符串列表", "str|strs": "字符串或字符串列表"}
+
+
+def _shape_ok(v, shape):
+    if v is None or (shape == "str|strs" and isinstance(v, str)):
+        return True
+    if shape == "str":
+        return isinstance(v, (str, int, float)) and not isinstance(v, bool)
+    if shape == "map":
+        return isinstance(v, dict)
+    return isinstance(v, list) and all(
+        isinstance(x, dict) if shape == "maps" else
+        isinstance(x, (str, int, float)) and not isinstance(x, bool) for x in v)
+
+
+def _bad_shape(cfg, text):
+    items = [(key, cfg_get(cfg, key), shape) for key, shape in _SHAPES]
+    for lst, subs in (("repos", (("name", "str"), ("path", "str"), ("role", "str"), ("former_names", "strs"))),
+                      ("derived", (("artifact", "str"), ("source", "str"), ("regen", "str"))),
+                      ("tailoring", (("check", "str"), ("reason", "str")))):
+        items += [("%s[%d].%s" % (lst, i, k), r.get(k), shape)
+                  for i, r in enumerate(cfg_get(cfg, lst) or []) if isinstance(r, dict) for k, shape in subs]
+    arts = cfg_get(cfg, "layout.artifacts")
+    items += [("layout.artifacts." + str(k), v, "str|strs" if k == "entry" else "str")
+              for k, v in (arts.items() if isinstance(arts, dict) else ())]
+    for key, v, shape in items:
+        if not _shape_ok(v, shape):
+            return "第 %d 行 %s 须是%s；写成别的形状不猜" % (
+                _key_line(text, key.rsplit(".", 1)[-1]), key, _SHAPE_NAMES[shape])
     return None
 
 
 def _read_config(root, p, shown):
     """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
     try:
-        with io.open(p, encoding="utf-8-sig") as fh:   # 带 BOM 的首键不许读成 \ufeffcompatibility
-            text = fh.read()
+        text = read_bytes(p).decode("utf-8-sig")   # 带 BOM 的首键不许读成 \ufeffcompatibility
         cfg = parse_yaml_subset(text)
     except ConfigError as exc:
         return {}, "%s 无法无歧义解析：%s" % (shown, exc)
@@ -488,7 +563,11 @@ def _read_config(root, p, shown):
         return {}, "%s 读不了：%s" % (shown, type(exc).__name__)
     if not isinstance(cfg, dict):
         return {}, "%s 的顶层不是映射" % shown
-    bad_budget = _bad_dup_budgets(cfg, text)
+    injected = sorted(k for k in cfg if str(k).startswith("_"))
+    if injected:      # 下划线键是代码注入口（契约 §4），写进配置等于让被检查方指定检查范围
+        return {}, "%s 第 %d 行的顶层键以 _ 开头；这类键只由代码注入，项目配置写了整份拒收" % (
+            shown, _key_line(text, injected[0]))
+    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text)
     if bad_budget:
         return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
     bad = _escaping_paths(cfg)
@@ -541,22 +620,24 @@ def load_config(root, config_path=None):
 
 EXCEPTIONS_FILE = "exceptions.md"
 
-# 表头按「包含」匹配，先命中者为准。`id` 不区分大小写。
-_EX_HEADERS = ((u"id", "ex_id"), (u"编号", "ex_id"), (u"规则", "rule"),
+# 表头按「包含」匹配，先命中者为准；`id` 只认整格（不区分大小写）——按包含，「到期 / valid until」
+# 「Rule ID」「Provider」都会被当成编号列，到期或规则列随之丢失。
+_EX_HEADERS = ((u"编号", "ex_id"), (u"规则", "rule"),
                (u"理由", "reason"), (u"范围", "scope"), (u"批准", "approver"),
                (u"到期", "expires"), (u"状态", "status"))
 
-# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**某一段以关闭词开头**才算关闭——
+# 关闭态先判：关闭行不登记、不报过期、不参与有效性校验。**某一段以关闭词整词开头**才算关闭——
 # 含词即关闭会把「没关闭」「not yet closed」「open (to be closed)」这类尚在生效的例外当成历史行放过；
-# 按否定前缀排除又列不全（D-123）。
-_EX_CLOSED = (u"关闭", u"已关闭", u"closed", u"done", u"已处理")
+# 按否定前缀排除又列不全（D-123）；只看前缀又会把「已处理中」「done? 否」「closed-loop 待复核」当成关闭。
+# 关闭词后面只许是段尾、空白、加粗/反引号、括号或冒号、句号。
+_EX_CLOSED_RE = re.compile(u"(?:关闭|已关闭|closed|done|已处理)(?=$|[\\s*`（(【\\[：:。.])")
 
 
 def _ex_closed(status):
-    """按逗号、分号、顿号、斜杠切段，任一段（去首尾加粗与反引号）以关闭词开头即关闭：
-    「**已过期，已处理**（…）」是关闭行，「not yet closed」「open (to be closed)」不是。"""
+    """按逗号、分号、顿号、斜杠切段，任一段（去首尾加粗与反引号）以关闭词整词开头即关闭：
+    「**已过期，已处理**（…）」「已关闭（09-01）」是关闭行，「not yet closed」「已处理中」不是。"""
     for seg in re.split(u"[，,;；、/|]+", status.lower()):
-        if seg.strip().strip(u"*`").strip().startswith(_EX_CLOSED):
+        if _EX_CLOSED_RE.match(seg.strip().strip(u"*`").strip()):
             return True
     return False
 
@@ -605,6 +686,8 @@ def _first_md_table(text):
 
 
 def _ex_field(header_cell):
+    if header_cell.strip().lower() == u"id":
+        return "ex_id"
     for token, field in _EX_HEADERS:
         if token in header_cell or token in header_cell.lower():
             return field
@@ -634,8 +717,7 @@ def load_exceptions(config_dir, root=None):
         guard(base, path)
         if not os.path.isfile(path):
             return [], [], None, []
-        with io.open(path, encoding="utf-8-sig") as fh:
-            text = fh.read()
+        text = read_bytes(path, base).decode("utf-8-sig")
     except (OSError, UnicodeDecodeError) as exc:
         return [], [u"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)], path, []
     table = _first_md_table(text)
@@ -672,13 +754,13 @@ def load_exceptions(config_dir, root=None):
         ex_id, reason, scope = get("ex_id"), get("reason"), get("scope")
         approver, expires_raw = get("approver"), get("expires")
         if u"/" not in rule:                          # 项目自己的例外：只取到期
-            day, err = parse_date(expires_raw)
+            day, err = parse_date(expires_raw, strict=True)
             own.append({"ex_id": ex_id, "rule": rule, "expires": expires_raw, "expires_date": day,
                         "error": err, "lineno": lineno})
             continue
         missing = [n for n, v in ((u"规则", rule), (u"理由", reason),
                                   (u"范围", scope), (u"批准人", approver)) if not v]
-        day, err = parse_date(expires_raw)
+        day, err = parse_date(expires_raw, strict=True)
         if day is None:
             missing.append(u"到期（%s）" % err)
         if missing:
@@ -748,7 +830,38 @@ def embedded_std_rel(root, tool_root=None):
     return rel
 
 
+_LS_MEMO = [None]   # (扫描根的真实路径, {(模式, tool_root): 结果})；None＝没开
+
+
+class scan_memo(object):
+    """run_all 跑检查器那一段开启：扫描根上同一组模式的 `git ls-files` 一次扫描只跑一次。
+
+    只缓存扫描根本身——检查器自检在临时仓里建夹具、改完再列，缓存它们会读到旧列表。
+    退出即恢复外层（自检里嵌套跑的 run_all 各用各的），不跨扫描、不跨嵌套。
+    """
+
+    def __init__(self, root):
+        self.key = os.path.realpath(str(root))
+
+    def __enter__(self):
+        self.prev, _LS_MEMO[0] = _LS_MEMO[0], (self.key, {})
+
+    def __exit__(self, *_exc):
+        _LS_MEMO[0] = self.prev
+
+
 def tracked_files(root, patterns=None, tool_root=None):
+    memo = _LS_MEMO[0]
+    if memo and memo[0] == os.path.realpath(str(root)):
+        key = (tuple(patterns or ()), tool_root)
+        if key not in memo[1]:
+            memo[1][key] = _tracked_files(root, patterns, tool_root)
+        files, problem = memo[1][key]
+        return (None if files is None else list(files)), problem
+    return _tracked_files(root, patterns, tool_root)
+
+
+def _tracked_files(root, patterns=None, tool_root=None):
     """git 跟踪的文件；不在 git 仓库时返回 (None, 原因)。
 
     用 `-z`：git 默认开 core.quotepath，会把非 ASCII 路径输出成
@@ -793,15 +906,65 @@ def shallow_problem(root):
     return None
 
 
-def read_text(path, root=None):
-    """读文本。给了 root 就先判真实位置在不在 root 之内（`guard`），不在抛 OutsideRoot。"""
-    with io.open(guard(root, path) if root is not None else path, encoding="utf-8-sig", errors="replace") as fh:
-        return fh.read()
+# 读被扫项目文件的唯一上限（此前 cross-repo 与 single-authority 各持一份 2MB，read_text 没有上限，
+# 一份 4GB 稀疏文件就能把机器撑爆）。超限抛 TooLarge，各读点照常按 OSError 记未定。
+MAX_READ_BYTES = 2 * 1024 * 1024
+
+
+class TooLarge(OSError):
+    """文件超过 MAX_READ_BYTES，未读。"""
+
+
+class NotRegular(OSError):
+    """不是常规文件（FIFO、设备、socket、目录），未读：FIFO 会让 open/read 永久阻塞。"""
+
+
+def read_bytes(path, root=None, head=None):
+    """读被扫项目文件的唯一入口：护栏 → 非阻塞打开 → 只收常规文件 → 大小上限。
+
+    head=None 时超过 MAX_READ_BYTES 抛 TooLarge；给了 head 就只读前 head 字节、不因体量拒读。
+    给了 root：先按字面、再按真实位置判（与 `guard` 同一规则，字面出仓不碰文件系统），打开后再核
+    一次——真实路径仍是它自己（中间目录没被换成链接）、且与打开的 fd 是同一个文件（st_dev/st_ino，
+    换出去又换回来也拦得下）。O_NOFOLLOW 挡住末段被换成符号链接。每读一份只做 3 次 realpath。
+    """
+    if root is not None and not _under(os.path.abspath(str(path)), os.path.abspath(str(root))):
+        raise OutsideRoot("%s 的真实位置在被扫项目之外（符号链接或 ..），未读" % path)
+    real = os.path.realpath(path)
+    if root is not None and not _under(real, os.path.realpath(str(root))):
+        raise OutsideRoot("%s 的真实位置在被扫项目之外（符号链接或 ..），未读" % path)
+    fd = os.open(real, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise NotRegular("%s 不是常规文件，未读" % path)
+        if root is not None:
+            again = os.stat(real)
+            if os.path.realpath(real) != real or (again.st_dev, again.st_ino) != (st.st_dev, st.st_ino):
+                raise OutsideRoot("%s 在读取期间被换位，未读" % path)
+        if head is None and st.st_size > MAX_READ_BYTES:
+            raise TooLarge("%s 超过 %d 字节，未读" % (path, MAX_READ_BYTES))
+        with os.fdopen(fd, "rb") as fh:
+            fd = None
+            data = fh.read(MAX_READ_BYTES + 1 if head is None else head)
+    finally:
+        if fd is not None:
+            os.close(fd)
+    if head is None and len(data) > MAX_READ_BYTES:     # 读的过程中长大了
+        raise TooLarge("%s 超过 %d 字节，未读" % (path, MAX_READ_BYTES))
+    return data
+
+
+def read_text(path, root=None, head=None):
+    """读文本（UTF-8，解不开的字节替换，行尾归一为 \\n）。走 read_bytes，同一套护栏与上限。"""
+    text = read_bytes(path, root, head).decode("utf-8-sig", "replace")
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def count_lines(path, root=None):
-    with io.open(guard(root, path) if root is not None else path, encoding="utf-8", errors="replace") as fh:
-        return sum(1 for _ in fh)
+    """行数。超过 MAX_READ_BYTES 的文件只数前 MAX_READ_BYTES 字节，得到的是**下界**：下界超预算
+    照判超预算——入口撑过上限不许从确定的 FAIL 变成未定（R1-06）。"""
+    text = read_text(path, root, head=MAX_READ_BYTES)
+    return text.count("\n") + (1 if text and not text.endswith("\n") else 0)
 
 
 def in_frozen(cfg, relpath):
@@ -868,7 +1031,9 @@ def entry_files(cfg):
     if declared:
         return [str(x) for x in ([declared] if isinstance(declared, str) else declared)], ""
     root = cfg.get("_root") or "."
-    hits = [c for c in ENTRY_CANDIDATES if os.path.isfile(os.path.join(root, c))]
+    # 出仓的候选不探测、照算命中（由读它的检查器记 outside-root），结论不随仓外文件在不在而变
+    hits = [c for c in ENTRY_CANDIDATES
+            if not inside(root, os.path.join(root, c)) or os.path.isfile(os.path.join(root, c))]
     note = "未配 layout.entry，按候选 %s 的顺序取第一个存在的" % "、".join(ENTRY_CANDIDATES)
     if not hits:
         return [], note + "：都不存在"
@@ -909,6 +1074,29 @@ def work_root(cfg):
     return rel, "work_root 用的是默认 %s（未配 layout.work_root）" % rel
 
 
+def unreadable(check, rel, exc):
+    """读不了的文件（超限、不是常规文件、出仓、IO 错）：是对象的事，不是检查器故障，不落兜底 id。
+    每个检查器内同一文件只报一次（同一 id，调用方去重）。"""
+    return finding(check, UNDETERMINED, "%s 读不了（%s），依赖它的判据未判" % (rel, type(exc).__name__),
+                   where=rel, kind="unreadable", key=rel,
+                   reason="读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+                   why="01 §2 N1：依赖不可用记未定，不记通过")
+
+
+def once(findings):
+    """同一 id 只留第一条（契约 §1 同一事实只报一次）：一份文件被几条判据读、各自读不了时用。"""
+    seen = set()
+    return [f for f in findings if not (f["id"] in seen or seen.add(f["id"]))]
+
+
+def outside_root(check, rel):
+    """字面在项目内、真实位置出仓的路径：记未定，不判缺失、不探测目标在不在（契约 §5）。"""
+    return finding(check, UNDETERMINED, "%s 的真实位置在被扫项目之外，未读" % rel, where=rel,
+                   kind="outside-root", key=rel,
+                   reason="它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+                   why="契约 §5：只读被扫项目之内的文件")
+
+
 def work_root_absent(check, cfg):
     """工作项目录不在时返回一条 SKIP，在则返回 None。给以工作项为对象的检查器用。
 
@@ -916,13 +1104,15 @@ def work_root_absent(check, cfg):
     evidence / freshness 从前各报一条未定，采用方得为同一件事登记两行。
     """
     rel, note = work_root(cfg)
-    if os.path.isdir(os.path.join(cfg.get("_root") or ".", rel.replace("\\", "/").strip())):
+    root = cfg.get("_root") or "."
+    path = os.path.join(root, rel.replace("\\", "/").strip())
+    if inside(root, path) and os.path.isdir(path):   # 出仓的符号链接也回 SKIP，由 layout 记未定
         return None
     return finding(
         check, SKIP, "本检查只扫工作项目录，它不在：%s" % rel, where=rel, kind="work-root-absent",
-        reason="目录在不在由 layout 报：01 §3.1 的存在性判定归它（L1 起的「实时状态源」"
-               "work_current 一项，未声明 layout.artifacts.work_current 时认的就是这个目录；"
-               "L0 档的工作项按模板合在状态工件里，不要求这个目录）。本检查不再另记一条未定",
+        reason="目录在不在由 layout 报：01 §3.1 的存在性判定归它（声明了 layout.work_root 时任何档"
+               "由 layout 判 FAIL，出仓记未定；没声明时 L1 起由 work_current 认这个缺省目录，L0 不要求它）。"
+               "本检查不再另记一条未定",
         evidence="%s；负责报告的检查器：layout" % note,
     )
 
@@ -987,12 +1177,18 @@ def find_field(text, names):
 
     值以换行、表格竖线或全角空格为界——示例项目把三个字段写在同一行，用全角空格分隔。
     字段名两侧可带加粗、斜体或反引号（`**状态**：done`、`` `status`: done ``）。
+    冒号两侧只认同一行的空白：`状态：` 后面是空行时不许把下一行吞成值——值为空等于没写这个字段。
+    名字前不认 `-`：`build-status: passing` 不是 `status`（列表项 `- status:` 靠空白分隔照认）。
+    只取第一次出现：它的值为空就是缺字段，不往后文找同名字段（R1-05）；冒号后的全角空格照跳过。
+    线性：名字只在行首或空白、`|`、`>` 之后起算，两侧装饰限 4 个——满行 `*` 曾是平方级（R1-01、R2-11）。
     """
     for name in names:
-        pat = r"(?:^|[\s　|*>-])[*_`]*" + re.escape(str(name)) + r"[*_`]*\s*[:：]\s*([^\n　|]*)"
+        pat = (r"(?:^|(?<=[\s　|>]))[*_`]{0,4}" + re.escape(str(name))
+               + r"[*_`]{0,4}[ \t　]*[:：][ \t　]*([^\n　|]*)")
         m = re.search(pat, text, re.M | re.I)
         if m:
-            return m.group(1).strip(), str(name)
+            val = m.group(1).strip()
+            return (val, str(name)) if val else (None, None)
     return None, None
 
 

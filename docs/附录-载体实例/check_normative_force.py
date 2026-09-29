@@ -9,15 +9,21 @@
   C4  决策索引状态列与生效登记表一致
   C5  规范正文中不存在第三处状态值副本
   C6  所有规范文档都声明了 governed_by
+  C7  正文每条原则在追溯账本中有且只有一条记录；账本缺失也算不合规
+  C8  活文档不自行声明语料版本号
+  C9  决策日志的散文生效计数与生效登记表对账
+  C10 散文里的「NN §M」引用指向正文中真实存在的小节
 
-这是 checker，不是 Gate。把它接成阻断需要单独的 Gate 决策（D-018）。
-退出码：0 全部通过；1 存在不合规项；2 输入缺失或无法解析。
+由 pre-commit 挂成提交闸门（Gate 合同见仓库工作须知 §7）。
+退出码：0 全部通过；1 存在不合规项；2 输入缺失或无法解析，或生效规则集为空（UNDETERMINED，D-014 §4）。
 """
 from __future__ import annotations
 import datetime as _dt
 import pathlib
 import re
 import sys
+
+from linkcheck import mask_code as _mask_code, md_files as _md_files  # 扫描面与涂白口径只此一处
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent  # 2026-09-02：脚本移入附录后多一层目录
 LOG = ROOT / "docs" / "决策日志.md"
@@ -69,17 +75,6 @@ def _section(text: str, anchor_or_head: str) -> str:
     start = m.end()
     nxt = re.search(r"^#{2,3} ", text[start:], re.M)
     return text[start:start + nxt.start()] if nxt else text[start:]
-
-
-def _mask_code(text: str) -> str:
-    """把围栏代码块与行内代码替换成等长空白：代码里的引用是举例，不是活引用。"""
-    NL = chr(10)
-    def blank(m):
-        return "".join(c if c == NL else " " for c in m.group(0))
-    fence = chr(96) * 3
-    text = re.sub(fence + ".*?" + fence, blank, text, flags=re.S)
-    text = re.sub(chr(96) + "[^" + chr(96) + NL + "]*" + chr(96), blank, text)
-    return text
 
 
 def _strip(cell: str) -> str:
@@ -141,10 +136,14 @@ def main() -> int:
         if status == "试行":
             exp = _strip(rec.get("expiry", ""))
             m = re.search(r"(\d{4})-(\d{2})-(\d{2})", exp)
-            if not m:
+            try:
+                exp_date = _dt.date(*map(int, m.groups())) if m else None
+            except ValueError:  # 形如 2020-02-30：像日期但不存在，同样是写错了
+                exp_date = None
+            if exp_date is None:
                 findings.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）的 expiry 不是可解析日期：{exp!r}"))
-            elif _dt.date(*map(int, m.groups())) < today:
+            elif exp_date < today:
                 expired_ids.add(did)
                 expired.append(Finding("C3", str(LOG.relative_to(ROOT)), None,
                     f"{did}（试行）已于 {exp} 到期，按 D-014 §6 自动退回「提议」，"
@@ -168,7 +167,10 @@ def main() -> int:
                 f"{did} 使用了未定义的状态值「{status}」"))
 
     # ---- C1 / C5 / C6 逐文档 ----
-    md_files = sorted({p for g in GOVERNED_GLOBS for p in ROOT.glob(g)})
+    # 全部扫描面只取已跟踪（含已暂存）的 .md，与 linkcheck 同口径：未跟踪草稿不参与任何一项
+    tracked = sorted(pathlib.Path(f) for f in _md_files(str(ROOT)))
+    tset = set(tracked)
+    md_files = sorted({p for g in GOVERNED_GLOBS for p in ROOT.glob(g) if p in tset})
     # 上下文合同只进 C5 的扫描面（它是加载入口，一句过期的效力声明在这里最危险），
     # 不进 C6 的 governed_by 要求——它不是规范正文。
     # PROJECT_STATUS、README 与失败 Case 清单刻意不纳入：那里有对历史状态的叙述
@@ -198,7 +200,7 @@ def main() -> int:
                     f"governed_by 未解析出任何 decision_id：{gm.group(1)!r}"))
             for did in refs:
                 if did not in index:
-                    findings.append(Finding("C1", rel, gm.start(),
+                    findings.append(Finding("C1", rel, head[:gm.start()].count("\n") + 1,
                         f"governed_by 引用了决策索引中不存在的 {did}"))
 
         if rel in STATE_COPY_EXEMPT:
@@ -212,9 +214,13 @@ def main() -> int:
 
     # ---- C7：每条原则在追溯记录中有且只有一条对应项（D-014 §9） ----
     ledger_p = ROOT / "docs" / "追溯账本.md"
-    if ledger_p.exists():
+    chapters = [p for p in tracked if re.fullmatch(r"docs/[1-4][0-9]-.*\.md", p.relative_to(ROOT).as_posix())]
+    if chapters and not ledger_p.exists():  # 账本段缺失即为缺陷（上下文合同第 7 项），不得静默跳过
+        findings.append(Finding("C7", "docs/追溯账本.md", None,
+            "追溯账本不存在，正文原则无从对账"))
+    elif chapters:
         ledger = ledger_p.read_text(encoding="utf-8")
-        for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
+        for p in chapters:
             rel = p.relative_to(ROOT).as_posix()
             num = p.name[:2]
             _m = re.search(rf'<a id="ch-{num}"></a>', ledger)
@@ -241,9 +247,9 @@ def main() -> int:
     # ---- C8：语料版本号只允许一处（D-014 §7 的单一副本判据） ----
     VERSION_SNAPSHOT_DIRS = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     ver_re = re.compile(r"^(?:状态|当前版本)[：:]\s*`v\d+\.\d+[-\w]*`", re.M)
-    for p in sorted(ROOT.rglob("*.md")):
+    for p in tracked:
         rel = p.relative_to(ROOT).as_posix()
-        if rel.startswith(".staging/") or any(rel.startswith(d) for d in VERSION_SNAPSHOT_DIRS):
+        if any(rel.startswith(d) for d in VERSION_SNAPSHOT_DIRS):
             continue  # 冻结快照与研究材料保留其被冻结时的版本号
         if rel == "PROJECT_STATUS.md":
             continue  # 唯一权威位置
@@ -267,14 +273,14 @@ def main() -> int:
 
     # ---- C10：散文里的「NN §M」引用须指向正文中真实存在的小节（Case C-003） ----
     body_secs = {}
-    for p in sorted(ROOT.glob("docs/[1-4][0-9]-*.md")):
-        body_secs[p.name[:2]] = set(re.findall(r"^## (\d)\. ", p.read_text(encoding="utf-8"), re.M))
-    LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章", ".staging/")
+    for p in chapters:
+        body_secs[p.name[:2]] = set(re.findall(r"^## (\d+)\. ", p.read_text(encoding="utf-8"), re.M))
+    LIVE_SKIP = ("docs/归档/历史/", "docs/参考资料", "docs/归档/输入材料", "docs/审计记录", "docs/归档/参考资料-公众号文章")
     # 两种引用形态都要认：裸写「21 §6」，以及链接写法「[21 调度与拆分](21-调度与拆分.md) §6」
     BODY_ALT = r"(1[0-2]|2[0-5]|3[0-3]|40)"
-    ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d)(?![\d.])")
-    ref_link = re.compile(r"\]\(\.?/?" + BODY_ALT + r"-[^)]*\)\s*§\s?(\d)(?![\d.])")
-    for p in sorted(ROOT.rglob("*.md")):
+    ref_bare = re.compile(r"(?<![\d.])" + BODY_ALT + r"[ 　]?(?:章[ 　]?)?§\s?(\d+)(?![\d.])")
+    ref_link = re.compile(r"\]\(\.?/?" + BODY_ALT + r"-[^)]*\)\s*§\s?(\d+)(?![\d.])")
+    for p in tracked:
         rel = p.relative_to(ROOT).as_posix()
         if any(rel.startswith(s) for s in LIVE_SKIP): continue
         text = _mask_code(p.read_text(encoding="utf-8"))
@@ -289,7 +295,7 @@ def main() -> int:
             if sec not in body_secs[ch]:
                 ln = text[:mo.start()].count(chr(10)) + 1
                 findings.append(Finding("C10", rel, ln,
-                    f"引用了 {ch} 章的 §{sec}，但该章只有 §" + "/§".join(sorted(body_secs[ch]))))
+                    f"引用了 {ch} 章的 §{sec}，但该章只有 §" + "/§".join(sorted(body_secs[ch], key=int))))
 
     # ---- 报告 ----
     print("D-014 规范效力检查器")
@@ -298,15 +304,17 @@ def main() -> int:
     if expired_ids:
         print(f"  已到期：{len(expired_ids)}（{'、'.join(sorted(expired_ids))}）——不计入生效规则，见下方到期通告")
     if not eff_ids:
-        print("  注意：生效规则集为空。任何『全部规则通过』的判定应计为 UNDETERMINED"
-              "，不得视为 PASS（D-014 §4）。")
+        print("  注意：生效规则集为空，『全部规则通过』不得视为 PASS（D-014 §4）。")
     print()
     if expired:
-        print("到期通告  不计入不合规项，不影响退出码。按 08 §6 已自动退回「提议」，"
+        print("到期通告  不计入不合规项（只在它使生效集变空时退出 2，见上）。按 08 §6 已自动退回「提议」，"
               "须人决定续期或移出生效登记表，并在决策日志留下处置痕迹：")
         for f in expired:
             print("  " + str(f))
         print()
+    if not findings and not eff_ids:
+        print("UNDETERMINED  生效规则集为空，『全部规则通过』不得视为 PASS（D-014 §4）。")
+        return 2
     if not findings:
         print("PASS  未发现不合规项。")
         return 0

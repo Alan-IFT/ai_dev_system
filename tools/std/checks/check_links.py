@@ -16,12 +16,12 @@ import tempfile
 import time
 from urllib.parse import unquote
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, inside, is_tailored_out, read_text, tracked_files,
-    undetermined_from_exception,
+    undetermined_from_exception, unreadable,
 )
 
 NAME = "links"
@@ -37,8 +37,11 @@ _LINK_RE = re.compile(
     r'\(\s*(?:<([^<>\n]+)>|([^()<>\s]+))(?:\s+"[^"]*"|\s+\'[^\']*\')?\s*\)'
 )
 
-# 跳过的协议：契约要求跳过 http/https/mailto，另加几个同样不是本地路径的
-_SKIP_SCHEME_RE = re.compile(r'^(?:https?|mailto|ftp|ftps|tel|sms|data|file|irc|ssh|git):', re.I)
+# 带协议的目标（http:、mailto:、javascript:、vscode: ……）都不是本地路径，一律跳过（RFC 3986 的 scheme 形状）。
+# 至少两个字符：单字母加冒号是 Windows 盘符，归 _WIN_ABS_RE。scheme 不含点、冒号后不是纯行号：
+# `a.py:12`、`Makefile:3` 是「本地路径:行号」，按路径核（R2-9）；tel:、sms: 的值本就是纯数字，照跳过
+_SKIP_SCHEME_RE = re.compile(r'^(?:(?:tel|sms):|[A-Za-z][A-Za-z0-9+-]+:(?!\d+(?::\d+)?$))', re.I)
+_LINE_SUFFIX_RE = re.compile(r':\d+(?::\d+)?$')
 _WIN_ABS_RE = re.compile(r'^[A-Za-z]:[\\/]')
 
 _MD_EXT = (".md", ".markdown")
@@ -74,10 +77,11 @@ def _slug(heading, keep_inner_underscore=False):
     两种都算作可用锚点（`_anchors_of`），宁可少报不误报。
     """
     h = heading.strip()
-    h = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", h)   # 链接取其文字
-    h = re.sub(r"<[^>]+>", "", h)                    # 去内联 HTML
+    # 三处字符类都排除自己的起始符，失败时只扫到下一个起始符：原写法遇满行 `[`、`<` 或长串 `_` 是平方级
+    h = re.sub(r"\[([^\[\]]*)\]\([^()]*\)", r"\1", h)   # 链接取其文字
+    h = re.sub(r"<[^<>]+>", "", h)                    # 去内联 HTML
     if keep_inner_underscore:
-        h = re.sub(r"(?<!\w)_+|_+(?!\w)", "", h)
+        h = re.sub(r"(?<!\w)_+|(?<!_)_+(?!\w)", "", h)
         h = re.sub(r"[" + _BQ + r"*~]", "", h)
     else:
         h = re.sub(r"[" + _BQ + r"*_~]", "", h)          # 去强调标记
@@ -99,10 +103,10 @@ def _atx_title(raw):
 _SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
 
 
-def _titles(text):
-    """按出现顺序给出标题文字：ATX（`# x`）与 setext（下一行是 `===` / `---`）两种。"""
+def _titles(masked):
+    """按出现顺序给出标题文字：ATX（`# x`）与 setext（下一行是 `===` / `---`）两种。入参是涂白后的文本。"""
     prev = ""
-    for line in _mask_code(text).split(_NL):
+    for line in masked.split(_NL):
         m = _HEADING_RE.match(line)
         if m:
             yield _atx_title(m.group(2))
@@ -115,11 +119,11 @@ def _titles(text):
         prev = line
 
 
-def _anchors_of(text):
-    """一份 markdown 里可用的锚点集合。"""
+def _anchors_of(text, masked=None):
+    """一份 markdown 里可用的锚点集合。masked：调用方已涂白的同一份文本，省一次涂白。"""
     found = set(_EXPLICIT_ANCHOR_RE.findall(text))
     seen = {}
-    for title in _titles(text):
+    for title in _titles(_mask_code(text) if masked is None else masked):
         for s in {_slug(title), _slug(title, keep_inner_underscore=True)}:
             if not s:
                 continue
@@ -130,10 +134,14 @@ def _anchors_of(text):
 
 
 class _Cache(object):
-    """目标文件读一次就够：几千份 markdown 上不能对每条链接重读一次文件。"""
+    """目标文件读一次就够：几千份 markdown 上不能对每条链接重读一次文件。
+    扫描对象与链接目标共用这一份（C22）：扫过的对象再被链接时直接取锚点；还没扫到的对象
+    先被当成目标读了，正文留在 pending 里，轮到扫它时取走，不读第二遍。"""
 
-    def __init__(self, root):
+    def __init__(self, root, todo=()):
         self.root = root
+        self.todo = set(todo)     # 还没扫到的扫描对象（normpath）
+        self.pending = {}
         self.exists = {}
         self.isdir = {}
         self.anchors = {}
@@ -158,7 +166,16 @@ class _Cache(object):
             self.errors[key] = "%s: %s" % (type(exc).__name__, exc)
             return None, self.errors[key]
         self.anchors[key] = _anchors_of(text)
+        if key in self.todo:
+            self.pending[key] = text
         return self.anchors[key], None
+
+    def source_text(self, abspath):
+        """取一份扫描对象的正文：先当过目标的从 pending 取走，否则读盘。"""
+        key = os.path.normpath(abspath)
+        self.todo.discard(key)
+        text = self.pending.pop(key, None)
+        return read_text(abspath, self.root) if text is None else text
 
 
 def _markdown_files(cfg):
@@ -229,7 +246,7 @@ def _run(cfg):
             why="契约 §1：适用却没执行的检查记未定，不记通过",
         )]
 
-    cache = _Cache(root)
+    cache = _Cache(root, (os.path.normpath(os.path.join(root, r.replace("/", os.sep))) for r in files))
     out = []
     merged = {}          # Finding id -> [finding, [行号…], 原始 evidence]
     n_links = 0
@@ -238,16 +255,16 @@ def _run(cfg):
     for rel in files:
         abs_src = os.path.join(root, rel.replace("/", os.sep))
         try:
-            text = read_text(abs_src, root)
+            text = cache.source_text(abs_src)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))    # 对象读不了，不是检查器故障（R1-10）
             continue
 
         frozen_note = "该文件在 layout.frozen 归档区，断链照报，是否修由人定" \
             if in_frozen(cfg, rel) else ""
 
         masked = _mask_code(text)
-        src_anchors = None   # 惰性：只有出现 #锚点 才算本文件的锚点
+        src_anchors = cache.anchors[os.path.normpath(abs_src)] = _anchors_of(text, masked)
 
         for lineno, line in enumerate(masked.split(_NL), 1):
             if "](" not in line:
@@ -271,18 +288,18 @@ def _run(cfg):
                     continue
 
                 path_part, _, anchor = target.partition("#")
-                path_part = unquote(path_part)
+                path_part = unquote(path_part.partition("?")[0])   # ?plain=1 之类是查询串，不是文件名的一部分
+                path_part = _LINE_SUFFIX_RE.sub("", path_part)       # `文件:行号` 只核文件（R2-9）
+                if not path_part and not anchor:                     # 只有查询串：指向本页，没什么可核
+                    continue
                 anchor = unquote(anchor)
 
                 # 纯锚点：指向本文件
                 if not path_part:
-                    if src_anchors is None:
-                        src_anchors = _anchors_of(text)
                     if anchor in src_anchors:
                         continue
                     n_bad += 1
-                    _emit_anchor_miss(out, merged, lineno,
-                                      _anchor_miss(rel, where, target, anchor, rel, frozen_note))
+                    _merge(out, merged, lineno, _anchor_miss(rel, where, target, anchor, rel, frozen_note))
                     continue
 
                 root_abs = False
@@ -319,9 +336,9 @@ def _run(cfg):
                 exists, isdir = cache.path_kind(abs_tgt)
                 if not exists:
                     n_bad += 1
-                    out.append(finding(
+                    _merge(out, merged, lineno, finding(
                         NAME, FAIL, "%s 指向不存在的路径：%s" % (rel, target),
-                        where=where,
+                        where=where, kind="missing", key=rel + "|" + target,
                         why="01 §3.4 引用关系的核对方式就是 linkcheck；"
                             "01 §3.2 里 INDEX 过期的发现方式是「指向不存在的路径」",
                         evidence="解析为 %s；%s" % (abs_tgt, frozen_note or "不在归档区"),
@@ -347,8 +364,7 @@ def _run(cfg):
                 if anchor in tgt_anchors:
                     continue
                 n_bad += 1
-                _emit_anchor_miss(out, merged, lineno,
-                                  _anchor_miss(rel, where, target, anchor, path_part, frozen_note))
+                _merge(out, merged, lineno, _anchor_miss(rel, where, target, anchor, path_part, frozen_note))
 
     out.append(finding(
         NAME, PASS,
@@ -366,7 +382,7 @@ def _lines_note(base, lines):
 
 
 def _merge(out, merged, lineno, f):
-    """带 `kind` 的未定三类按 Finding id 合并：同一份文件里同一个链接目标只出一条。
+    """按 Finding id 合并（各条都带 `kind`）：同一份文件里同一个链接目标只出一条。
 
     id 是 `links/<kind>/<文件>｜<目标>`，同一 (文件, 目标) 重复出现只是同一件事被写了
     多遍——出成多条会让登记册要为同一件事写多行，行号一改登记就失效。行号进 evidence。
@@ -383,14 +399,6 @@ def _merge(out, merged, lineno, f):
     prev["evidence"] = _lines_note(base, lines)
 
 
-def _emit_anchor_miss(out, merged, lineno, f):
-    """锚点没匹配上：中文那支（未定，带 kind）合并，ASCII 那支（FAIL）逐处照报。"""
-    if f["status"] == UNDETERMINED:
-        _merge(out, merged, lineno, f)
-    else:
-        out.append(f)
-
-
 def _anchor_miss(src_rel, where, target, anchor, tgt_rel, frozen_note):
     """锚点没匹配上。中文锚点判未定，ASCII 锚点判 FAIL。"""
     if _CJK_RE.search(anchor):
@@ -404,7 +412,7 @@ def _anchor_miss(src_rel, where, target, anchor, tgt_rel, frozen_note):
         )
     return finding(
         NAME, FAIL, "%s 的锚点不存在：%s" % (src_rel, target),
-        where=where,
+        where=where, kind="anchor-missing", key=src_rel + "|" + target,
         why="01 §3.4 引用：B 链接 A 不复制 A，靠 linkcheck 核对；锚点失效即引用失效",
         evidence="目标 %s 里既无 <a id=\"%s\">，也没有能生成该锚点的标题。%s"
                  % (tgt_rel, anchor, frozen_note),
@@ -486,6 +494,49 @@ def selftest():
                 why="契约 §1.1：约定落空只记未定；01 §3.4 引用核对不得误报",
             ))
 
+            # 反例五（C19 C20）：同一缺失文件、同一 ASCII 缺失锚点各写两遍，各只出一条 FAIL、id 带 kind；
+            # ?plain=1 是查询串（b.md 在），javascript:/vscode: 之类带协议的不是本地路径
+            w("b.md", "# b\n")
+            w("a.md", "[x](gone.md)\n[y](gone.md)\n[z](b.md#nope)\n[z](b.md#nope)\n"
+                      "[q](b.md?plain=1) [v](vscode:extension/x) [n](news:comp.lang)"
+                      " [t](tel:10086) [s](sms:10086)\n")
+            got = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
+            want = [(FAIL, "links/anchor-missing/a.md｜b.md#nope"), (FAIL, "links/missing/a.md｜gone.md")]
+            results.append(finding(
+                NAME, PASS if got == want else FAIL,
+                "反例五：同一缺失目标只出一条 FAIL、id 不随行号漂；查询串与带协议的目标不当本地路径",
+                evidence="非通过项 %s；应得 %s" % (got, want),
+                why="契约 §4/§9：id 是登记的地址；01 §3.4 引用核对不得误报",
+            ))
+
+            # C22：互相链接的两份 markdown 各只读一遍（旧写法作为链接目标时再读一遍）
+            w("a.md", "# A\n\n[b](b.md#b)\n")
+            w("b.md", "# B\n\n[a](a.md#a)\n")
+            reads, real_read = [], globals()["read_text"]
+            globals()["read_text"] = lambda p, r=None: (reads.append(os.path.normpath(p)), real_read(p, r))[1]
+            try:
+                got = [f["status"] for f in run({"_root": tmp, "_links_files": ["a.md", "b.md"]})]
+            finally:
+                globals()["read_text"] = real_read
+            results.append(finding(
+                NAME, PASS if got == [PASS] and len(reads) == 2 == len(set(reads)) else FAIL,
+                "C22：互相链接的两份 markdown 各只读一遍",
+                evidence="实得 %s；读 %d 次：%s" % (got, len(reads), [os.path.basename(r) for r in reads]),
+                why="一次扫描里同一份文件不重复 I/O",
+            ))
+
+            # R2-9：`文件:行号` 按本地路径核（文件在则通过、不在判断链），只有查询串的链接不核
+            w("x.py", "print(1)\n")
+            w("a.md", "[t](x.py:12) [m](x.py:3:5) [g](gone.py:10) [q](?plain=1)\n")
+            got = sorted((f["status"], f["id"]) for f in run({"_root": tmp, "_links_files": ["a.md"]})
+                         if f["status"] != PASS)
+            want = [(FAIL, "links/missing/a.md｜gone.py:10")]
+            results.append(finding(
+                NAME, PASS if got == want else FAIL,
+                "R2-9：文件:行号 按本地路径核，只有查询串的链接不当锚点",
+                evidence="非通过项 %s；应得 %s" % (got, want), why="01 §3.4 引用核对不得漏报也不得误报",
+            ))
+
             # 反例三（安全，D-123）：指向项目之外的链接与经符号链接出仓的 markdown 不读、不判断链，记未定；
             # 标题行里一长串空白不许把锚点计算拖成平方级
             with tempfile.TemporaryDirectory() as outside:
@@ -495,8 +546,11 @@ def selftest():
                 os.symlink(secret, os.path.join(tmp, "c.md"))
                 w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x)\n")
                 w("b.md", "# a" + " " * 3000 + "x\n")   # 旧正则下这一行约 12 秒
-                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x) [根](/../x/y.md)\n")
-                cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md"]}
+                # 满行 `[`、`<`、长串词中 `_` 的标题：旧 _slug 下 4 万字符分别约 6.7、1.1、10.4 秒（C03）
+                w("d.md", "# " + "[" * 40000 + "\n# " + "<" * 40000 + "\n# a" + "_" * 40000 + "b\n")
+                w("a.md", "# A\n\n[外](../x/secret.md) [链](c.md#topsecret) [长](b.md#a-x) [根](/../x/y.md)"
+                          " [满](d.md#ab)\n")
+                cfg3 = {"_root": tmp, "_links_files": ["a.md", "b.md", "c.md", "d.md"]}
                 probed, real_exists = [], os.path.exists
                 os.path.exists = lambda p: (probed.append(p), real_exists(p))[1]
                 t0 = time.time()
@@ -514,7 +568,7 @@ def selftest():
                   and not leaked and took < 5)
             results.append(finding(
                 NAME, PASS if ok else FAIL,
-                "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白标题线性",
+                "反例三：项目之外的链接目标与出仓符号链接记未定、不读内容；长空白、满行 [ / < / _ 的标题线性",
                 evidence="非通过项 kind=%s；泄露内容=%s；耗时 %.2fs" % (kinds, leaked, took),
                 why="D-123 安全 2／3：不读项目之外的文件；一个文件不许拖死整次检查",
             ))

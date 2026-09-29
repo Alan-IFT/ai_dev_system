@@ -10,12 +10,12 @@ import os
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
     FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
-    cfg_get, count_lines, docs_root_of, entry_files, finding, in_frozen, is_tailored_out, item_status,
-    read_text, rebase_docs, undetermined_from_exception, work_root,
+    cfg_get, count_lines, docs_root_of, entry_files, finding, in_frozen, inside, is_tailored_out, item_status,
+    read_text, rebase_docs, undetermined_from_exception, unreadable, once, work_root,
 )
 
 NAME = "entry-budget"
@@ -72,7 +72,7 @@ def run(cfg):
     tailored, reason = is_tailored_out(cfg, NAME)
     if tailored:
         return [finding(NAME, SKIP, "项目已裁剪本检查", reason=reason or "project.yaml 未写理由")]
-    return _entry(cfg) + _docs(cfg)
+    return once(_entry(cfg) + _docs(cfg))     # 入口同时是某类文档且读不了时只报一次
 
 
 def _entry(cfg):
@@ -96,13 +96,16 @@ def _entry(cfg):
     out = []
     for rel in entries:
         path = os.path.join(root, str(rel))
+        if not inside(root, path):     # 先判真实位置，不探测项目之外（C16）；由 layout 记未定
+            out.append(_absent("真实位置在被扫项目之外（符号链接出仓），未读", rel))
+            continue
         if not os.path.isfile(path):
             out.append(_absent("来自项目声明（layout.entry／layout.artifacts.entry），文件不在", rel))
             continue
         try:
             n = count_lines(path, root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, str(rel), exc))
             continue
         if n > budget and guessed:
             # 候选是工具约定：它是不是这个项目的入口本工具不猜（契约 §1.1），超了只记未定
@@ -145,10 +148,13 @@ def _absent(note, rel=None):
 # --------------------------------------------------------------------------
 
 def _md_children(root, rel):
-    """目录下直接一层的 *.md（相对路径，排好序）。"""
+    """目录下直接一层的 *.md（相对路径，排好序）。调用方已确认目录本身的真实位置在项目内（C04）。
+    其中指向项目之外的文件照列、不做 isfile（名字是项目里的；探测会跟随链接到仓外，R2-10），
+    计行时记 outside-root 未定。"""
     base = os.path.join(root, rel)
     return sorted("%s/%s" % (rel.rstrip("/"), n) for n in os.listdir(base)
-                  if n.lower().endswith(".md") and os.path.isfile(os.path.join(base, n)))
+                  if n.lower().endswith(".md") and (not inside(root, os.path.join(base, n))
+                                                     or os.path.isfile(os.path.join(base, n))))
 
 
 def _locate(cfg, role):
@@ -158,11 +164,10 @@ def _locate(cfg, role):
     if role == "work_item":
         rel, note = work_root(cfg)
         declared = bool(cfg_get(cfg, "layout.work_root"))
-        if not os.path.isdir(os.path.join(root, rel)):
-            return [], declared, note + "，目录不在", None
-        files = [f for f in _md_children(root, rel)
-                 if item_status(read_text(os.path.join(root, f), root)) is not None]
-        return files, declared, note, None
+        path = os.path.join(root, rel)
+        if not inside(root, path) or not os.path.isdir(path):
+            return [], declared, note + "，目录不在或真实位置在项目之外", None
+        return [f for f in _md_children(root, rel) if _is_item(root, f)], declared, note, None
 
     key = {"status": "status", "handoff": "handoff", "module": "modules"}[role]
     declared = cfg_get(cfg, "layout.artifacts.%s" % key)
@@ -175,6 +180,9 @@ def _locate(cfg, role):
         src = "未声明 layout.artifacts.%s，按候选 %s 找" % (key, "、".join(cands))
     for rel in cands:
         path = os.path.join(root, rel)
+        if not inside(root, path):     # 出仓的符号链接不探测、不列目录（C04）；在不在由 layout 报
+            src += "；%s 的真实位置在项目之外，未读" % rel
+            continue
         if os.path.isfile(path):
             return [rel], bool(declared), src, None
         if os.path.isdir(path):
@@ -187,6 +195,15 @@ def _locate(cfg, role):
                     why=_WHY_DOC % ("STATUS ", 80, _DOC_BUDGETS[0][4]))
             return _md_children(root, rel), bool(declared), src, None
     return [], bool(declared), src + "，不在", None
+
+
+def _is_item(root, rel):
+    """头部带状态字段才算工作项。读不了的（出仓、超限、非常规文件）留下，计行时逐份记未定——
+    一份读不了不许让整类变成一条未定、吞掉别的工作项的 FAIL（C12）。"""
+    try:
+        return item_status(read_text(os.path.join(root, rel), root)) is not None
+    except OSError:
+        return True
 
 
 def _budget(cfg, key, default, label):
@@ -230,10 +247,17 @@ def _docs(cfg):
 
     for rel in sorted(per_file):
         roles = per_file[rel]
+        if not inside(root, os.path.join(root, rel)):   # 护栏在起作用，不是检查器故障（R2-10）
+            out.append(finding(
+                NAME, UNDETERMINED, "%s 的真实位置在被扫项目之外，行数未计" % rel, where=rel,
+                kind="outside-root", key=rel,
+                reason="它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+                why="契约 §5：只读被扫项目之内的文件"))
+            continue
         try:
             n = count_lines(os.path.join(root, rel), root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
         lo = min(r[2] for r in roles)
         hi = max(r[2] for r in roles)
@@ -344,6 +368,32 @@ def selftest():
             cfg["layout"]["artifacts"]["status"] = "w"
             _case("状态声明为目录记 SKIP status-dir", [x for x in _got(cfg, True) if "status" in x[1]],
                   [(SKIP, "entry-budget/status-dir/w")])
+
+        # C04 C12 C16：出仓的符号链接——交接目录链到仓外不列出仓外文件名；工作项目录里一份出仓
+        # 不吞掉另一份的 FAIL；入口链到仓外记 SKIP（layout 记未定），不读
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as out_dir:
+            _w(out_dir, "SECRET-NAME.md", 100)
+            _w(out_dir, "AGENTS.md", 3)
+            os.symlink(out_dir, os.path.join(tmp, "h"))
+            _w(tmp, "w/WI-1.md", 200, u"状态: in_progress\n")
+            os.symlink(os.path.join(out_dir, "SECRET-NAME.md"), os.path.join(tmp, "w", "WI-2.md"))
+            os.symlink(os.path.join(out_dir, "AGENTS.md"), os.path.join(tmp, "AGENTS.md"))
+            cfg = {"_root": tmp, "budgets": {"handoff_lines": 60, "work_item_lines": 150},
+                   "layout": {"work_root": "w", "entry": ["AGENTS.md"], "artifacts": {"handoff": "h"}}}
+            res = _entry(cfg) + _docs(cfg)
+            got = sorted((f["status"], f["id"].split("/")[1] if f["status"] != UNDETERMINED else f["title"])
+                         for f in res if f["status"] != SKIP or "absent" in f["id"])
+            leaked = any("SECRET-NAME" in (f.get("title") or "") + (f.get("evidence") or "") + (f.get("reason") or "")
+                         for f in res)
+            # R2-10：链到仓外不存在的文件（WI-3）同样照列记 outside-root，输出不随仓外存在与否变
+            os.symlink(os.path.join(out_dir, "no-such.md"), os.path.join(tmp, "w", "WI-3.md"))
+            res = _entry(cfg) + _docs(cfg)
+            got = sorted((f["status"], "/".join(f["id"].split("/")[1:])) for f in res
+                         if f["status"] != SKIP or "absent" in f["id"])
+            _case("出仓符号链接：不列仓外文件名、一份出仓不吞掉整类、入口出仓记 SKIP、出仓工作项记 outside-root",
+                  (got, leaked), ([(FAIL, "doc-over/w/WI-1.md"), (SKIP, "entry-absent/AGENTS.md"),
+                                   (SKIP, "handoff-absent"), (UNDETERMINED, "outside-root/w/WI-2.md"),
+                                   (UNDETERMINED, "outside-root/w/WI-3.md")], False))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, "自检自己跑不起来", evidence="%s: %s" % (type(exc).__name__, exc),
                                why="契约 §3：自检崩了，本检查器对目标仓库的结论作废"))

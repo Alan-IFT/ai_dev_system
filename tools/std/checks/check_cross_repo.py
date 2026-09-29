@@ -17,10 +17,10 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    inside, guard, FAIL, PASS, SKIP, UNDETERMINED,
+    inside, outside_root, read_bytes, FAIL, PASS, SKIP, UNDETERMINED,
     cfg_get, finding, in_frozen, is_tailored_out, undetermined_from_exception,
 )
 
@@ -68,7 +68,9 @@ _SKIP_DIRS = {
 # 目标与标题都不含 `(`：原写法 `<?([^)\s>]+)>?[^)]*\)` 两段量词重叠，`](` 连写 8000 次要跑几分钟；
 # 排除 `(` 之后每个起点只扫到下一个 `(`，整体线性（路径里带圆括号的链接因此认不出，与 check_links 同）
 _INLINE_LINK = re.compile(r"\]\(\s*<?([^()\s>]+)>?(?:\s[^()]*)?\)")
-_REF_LINK = re.compile(r"^\s*\[[^\]]+\]:\s*<?([^\s>]+)", re.M)
+# 引用式定义的标签不跨行、行首缩进只认空格与制表符：原写法 `^\s*\[[^\]]+\]:` 的 `\s*` 与 `[^\]]+` 都能跨行，
+# 连续空行或没有 `]` 的 `[` 行让每个行首都扫到文末，192KB 的空行要 30 秒
+_REF_LINK = re.compile(r"^[ \t]*\[[^\]\n]+\]:\s*<?([^\s>]+)", re.M)
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 
 
@@ -76,23 +78,13 @@ _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 # 小工具（stdlib 里没有的一律在本模块实现，不改公共库）
 # --------------------------------------------------------------------------
 
-_MAX_READ_BYTES = 2 * 1024 * 1024
-
-
-def _read(path, root, limit_bytes=_MAX_READ_BYTES):
-    with io.open(guard(root, path), "rb") as fh:
-        raw = fh.read(limit_bytes)
-    return raw.decode("utf-8", "replace")
+def _read(path, root):
+    return read_bytes(path, root).decode("utf-8", "replace")   # 护栏、非常规文件与上限都在 stdlib
 
 
 def _head_lines(path, root, n=_MARKER_HEAD_LINES):
-    out = []
-    with io.open(guard(root, path), "rb") as fh:
-        for i, raw in enumerate(fh):
-            if i >= n:
-                break
-            out.append(raw.decode("utf-8", "replace"))
-    return "".join(out)
+    lines = read_bytes(path, root, head=64 * 1024).decode("utf-8", "replace").split("\n")   # 只要头几行
+    return "".join(ln + "\n" for ln in lines[:n])
 
 
 def _has_invalidation_marker(text):
@@ -114,15 +106,9 @@ def _name_appears(text, name):
 
 
 def _has_status_token(line):
-    """这一行上有没有把仓的状态写出来。只认状态词本身，不解读句意。"""
-    low = line.lower()
-    for t in _STATUS_TOKENS:
-        if t.isascii():
-            if t.lower() in low:
-                return True
-        elif t in line:
-            return True
-    return False
+    """这一行上有没有把仓的状态写出来。只认状态词本身，不解读句意。英文词按独立记号认
+    （子串会让 filesystem 命中 system，B13），中文词按子串。"""
+    return any(_name_appears(line, t) if t.isascii() else t in line for t in _STATUS_TOKENS)
 
 
 def _norm(path):
@@ -175,13 +161,19 @@ def _list_md(repo, known):
 
 
 def _expand_rule_files(repo_abs, patterns):
-    """把 layout.rule_files 的条目展开成实际存在的文件路径。以 / 结尾的按目录递归。"""
-    out, truncated = [], False
+    """把 layout.rule_files 的条目展开成实际存在的文件路径。以 / 结尾的按目录递归。
+
+    返回 (文件, 是否截断, 出仓条目)。条目本身（如顶层 `.claude` 软链接）的真实位置在仓外时
+    不 isdir、不 walk、不列其中文件名，只把条目原样记进出仓条目（B8）。"""
+    out, outside = [], []
     for pat in patterns:
         pat = str(pat).replace("\\", "/").strip()
         if not pat:
             continue
         target = os.path.join(repo_abs, pat.rstrip("/"))
+        if not inside(repo_abs, target):
+            outside.append(pat)
+            continue
         if pat.endswith("/") or os.path.isdir(target):
             if not os.path.isdir(target):
                 continue
@@ -190,7 +182,7 @@ def _expand_rule_files(repo_abs, patterns):
                 for fn in sorted(filenames):
                     out.append(os.path.join(dirpath, fn))
                     if len(out) >= _MAX_RULE_FILES:
-                        return out, True
+                        return out, True, outside
         elif os.path.isfile(target):
             out.append(target)
     # 去重，保序
@@ -200,7 +192,7 @@ def _expand_rule_files(repo_abs, patterns):
         if k not in seen:
             seen.add(k)
             uniq.append(p)
-    return uniq, truncated
+    return uniq, False, outside
 
 
 def _owner_repo(abs_path, repos):
@@ -231,7 +223,7 @@ def _load_repos(cfg):
     if len(raw) < 2:
         return None, "repos 只有 %d 个条目" % len(raw)
     root = cfg.get("_root") or "."
-    repos = []
+    repos, seen = [], {}
     for i, item in enumerate(raw, 1):
         if not isinstance(item, dict):
             return None, "repos 第 %d 项不是映射" % i
@@ -240,6 +232,9 @@ def _load_repos(cfg):
         role = str(item.get("role") or "").strip()
         if not name:
             return None, "repos 第 %d 项缺 name" % i
+        if name in seen:      # 各判据按仓名取入口与登记，同名两仓会被混成一个（B6）
+            return None, "repos 第 %d 项与第 %d 项同名 %r，按仓名定位的判据分不清是哪个仓" % (i, seen[name], name)
+        seen[name] = i
         if not path and role != "archived":
             return None, "repos 第 %d 项缺 path（只有 role: archived 可省略：%s）" % (i, _ARCHIVED_ABSENT)
         abspath = os.path.abspath(os.path.join(root, path)) if path else None
@@ -261,7 +256,7 @@ def _load_repos(cfg):
 def _find_entry(repo, entry_names):
     for nm in entry_names:
         p = os.path.join(repo["_real"], str(nm))
-        if os.path.isfile(p):
+        if not inside(repo["_real"], p) or os.path.isfile(p):   # 出仓的不探测，照返回，由读它处记未定
             return p, str(nm)
     return None, None
 
@@ -472,7 +467,9 @@ def _check_entry_exists(repos, entries, entry_names):
         if not r["_exists"]:
             continue
         path, nm = entries.get(r["name"], (None, None))
-        if path:
+        if path and not inside(r["_real"], path):
+            out.append(outside_root(NAME, "%s/%s" % (r["path"].rstrip("/"), nm)))
+        elif path:
             out.append(finding(
                 NAME, PASS, "仓 %s 有自己的入口：%s" % (r["name"], nm),
                 where="%s/%s" % (r["path"].rstrip("/"), nm),
@@ -555,7 +552,7 @@ def _check_projection(repos, entries):
             if t.startswith("/") or os.path.isabs(t) or _SCHEME.match(t):
                 continue
             nxt = os.path.normpath(os.path.join(os.path.dirname(entry_path), t))
-            if not os.path.isfile(nxt):
+            if not inside(r["_real"], nxt) or not os.path.isfile(nxt):   # 先护栏：出仓的不探测（B7）
                 continue
             followed += 1
             try:
@@ -674,7 +671,7 @@ def _check_retired(cfg, repos, entry_names):
             reason="layout.rule_files = %r" % (patterns,),
             why="01 §3.8'退役仓在停止使用的同一次变更里，其入口与规则文件必须被标为失效或删除'",
         )]
-    patterns = [str(p) for p in patterns] + [str(e) for e in entry_names]
+    patterns = list(dict.fromkeys([str(p) for p in patterns] + [str(e) for e in entry_names]))   # 入口与清单重叠时只列一次
     note = "layout.rule_files 用的是缺省清单 %s（项目未在 project.yaml 里校准）" % _DEFAULT_RULE_FILES \
         if used_default else "layout.rule_files 取自 project.yaml"
 
@@ -690,11 +687,11 @@ def _check_retired(cfg, repos, entry_names):
         if not r["_exists"]:
             continue  # 判据二已记未定
         try:
-            files, truncated = _expand_rule_files(r["_real"], patterns)
+            files, truncated, outside = _expand_rule_files(r["_real"], patterns)
         except OSError as exc:
             out.append(undetermined_from_exception(NAME, exc, "枚举 %s 的规则文件" % r["name"]))
             continue
-        live, unreadable = [], []
+        live, unreadable = [], ["%s（真实位置在该仓之外，未读）" % p for p in outside]
         for p in files:
             try:
                 head = _head_lines(p, r["_real"])
@@ -732,7 +729,7 @@ def _check_retired(cfg, repos, entry_names):
                             len(live), min(len(live), _MAX_LISTED),
                             "、".join(live[:_MAX_LISTED]), note),
             ))
-        else:
+        elif not unreadable and not truncated:    # 有没读的或没扫全的，就说不出"都带"（B8）
             out.append(finding(
                 NAME, PASS, "退役仓 %s 的 %d 份规则文件都带失效标记" % (r["name"], len(files)),
                 where=r["path"],
@@ -757,10 +754,13 @@ def _check_links(repos):
                     "别的仓指向它的引用仍按那些仓自己那一条判",
             ))
     if len(known) < 2:
+        # 其余的仓要么是 archived 本机无检出（按定义不适用），要么 path 不在（判据二已逐仓记未定）：
+        # 再记一条未定就是同一事实报两次（契约 §1，B12）
         out.append(finding(
-            NAME, UNDETERMINED, "本机可读的仓不足两个，跨仓引用判不了",
-            reason="repos 里在本机存在的目录只有 %d 个" % len(known),
-            why="01 §3.8'跨仓引用按契约处理'，验收是跨仓链接可机械检查",
+            NAME, SKIP, "本机可读的仓不足两个，跨仓引用记不适用", kind="too-few-local",
+            reason="repos 里在本机存在的目录只有 %d 个；其余的 archived 无检出按 01 §3.8 不适用，"
+                   "path 不在的已由'各仓可定位'一条逐仓记未定" % len(known),
+            why="01 §3.8'跨仓引用按契约处理'：本机没有第二个仓的文件可比对",
         ))
         return out
 
@@ -773,9 +773,6 @@ def _check_links(repos):
         broken, host_abs, total, unread, outside = [], [], 0, [], []
         for f in mds:
             try:
-                if os.path.getsize(guard(r["_real"], f)) > _MAX_READ_BYTES:   # 先过护栏再取大小
-                    unread.append("%s（超过 %d 字节）" % (os.path.relpath(f, r["_real"]), _MAX_READ_BYTES))
-                    continue
                 text = _read(f, r["_real"])
             except OSError as exc:
                 unread.append("%s（%s）" % (os.path.relpath(f, r["_real"]), type(exc).__name__))
@@ -792,8 +789,6 @@ def _check_links(repos):
                 owner = _owner_repo(resolved, known)
                 if owner is not None and owner["_abs"] == r["_abs"]:
                     continue  # 仍在本仓内，不归本检查器
-                if owner is None and _norm(resolved).startswith(r["_abs"].rstrip("/") + "/"):
-                    continue
                 # 只探测落在某个声明仓真实位置之内的目标：声明仓之外、或经符号链接越出所属仓的，
                 # 不查存在性（那是对项目之外路径的探测），记未定
                 if owner is None or not inside(owner["_real"], resolved):
@@ -868,11 +863,12 @@ def _check_links(repos):
 # 判据八：仓的历史别名还在被别的仓当作现称使用
 # --------------------------------------------------------------------------
 
-def _git_grep(repo_real, needle):
-    """一次子进程召回。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
+def _git_grep(repo_real, needles):
+    """一仓一次子进程召回全部别名。返回 (命中列表, 错误)；命中项为 (相对路径, 行号, 行文)。"""
     # --no-color：全局 color.ui／color.grep=always 时输出带转义码，按冒号切行会全数落空
+    # -z：路径、行号、行文之间用 NUL 分隔。按冒号切时路径里的冒号会错位，frozen 豁免随之失效（B9）
     cmd = ["git", "-C", repo_real, "--no-optional-locks", "-c", "core.quotepath=false",
-           "grep", "--no-color", "-I", "-n", "-F", "-e", needle, "--", "."]
+           "grep", "--no-color", "-I", "-n", "-z", "-F"] + [a for n in needles for a in ("-e", n)] + ["--", "."]
     try:
         p = subprocess.run(cmd, capture_output=True, timeout=120)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -880,13 +876,30 @@ def _git_grep(repo_real, needle):
     if p.returncode not in (0, 1):   # 1 = 一条都没命中，是正常出口
         return None, "git grep 退出码 %d：%s" % (
             p.returncode, (p.stderr or b"").decode("utf-8", "replace").strip()[:160])
-    rows = [ln.split(":", 2) for ln in (p.stdout or b"").decode("utf-8", "replace").splitlines()]
-    return [(h[0].replace("\\", "/"), h[1], h[2].strip()[:120]) for h in rows if len(h) == 3], None
+    return _parse_grep_z((p.stdout or b"").decode("utf-8", "replace"))
+
+
+def _parse_grep_z(out):
+    """`git grep -n -z` 的输出是「路径 NUL 行号 NUL 行文 换行」首尾相接。路径可以含换行（行文不会），
+    所以不能先按换行切：按 NUL 切成记号流，行文与下一条路径之间的第一个换行才是分界（R1-09）。"""
+    if not out:
+        return [], None
+    toks, hits = out.split("\0"), []
+    path = toks[0]
+    for i in range(1, len(toks) - 1, 2):
+        line, _nl, nxt = toks[i + 1].partition("\n")
+        if not toks[i].isdigit():
+            return None, "git grep -z 的输出切不开（第 %d 条命中的行号不是数字）" % len(hits)
+        hits.append((path, toks[i], line.strip()[:120]))   # 反斜杠是文件名的一部分，不改写成 /
+        path = nxt
+    if len(toks) % 2 == 0 or path:
+        return None, "git grep -z 的输出切不开（记号数不成对）"
+    return hits, None
 
 
 def _check_former_names(cfg, repos):
     """未声明 former_names 则一字不查（见 scope）。声明了才召回、才分层。"""
-    out, names, todo = [], set(r["name"] for r in repos), []
+    out, names, todo = [], set(r["name"].lower() for r in repos), []
     for r in repos:
         fn = r["former_names"]
         if fn is None:
@@ -897,7 +910,8 @@ def _check_former_names(cfg, repos):
                                why="01 §3.8'跨仓引用按契约处理'"))
             continue
         for a in [str(x).strip() for x in fn if str(x).strip()]:
-            if a in names:        # ←—— 挡住大批误报的四行，不许省
+            # ←—— 挡住大批误报的四行，不许省。不分大小写：命中行的复核 _name_appears 就不分（B10）
+            if a.lower() in names:
                 out.append(finding(
                     NAME, UNDETERMINED, "仓 %s 的历史别名 %r 与在册仓名相撞，本项不扫描" % (r["name"], a),
                     reason="repos 里已有一个仓就叫 %r：按它召回，命中的是现名的正常引用而不是旧名的死指针" % a,
@@ -907,21 +921,20 @@ def _check_former_names(cfg, repos):
     if not todo:
         return out
     cross, mine, errs = [], [], []
-    for owner, alias in todo:
-        for r in [x for x in repos if x["_is_git"]]:
-            hits, err = _git_grep(r["_real"], alias)
-            if err:
-                errs.append("%s / %s：%s" % (r["name"], alias, err))
+    for r in [x for x in repos if x["_is_git"]]:
+        hits, err = _git_grep(r["_real"], sorted({a for _o, a in todo}))
+        if err:
+            errs.append("%s：%s" % (r["name"], err))
+            continue
+        for rel, no, line in hits:
+            if in_frozen(cfg, rel) or any((m in line) or (m in line.lower()) for m in _RENAME_MARKERS):
                 continue
-            for rel, no, line in hits:
-                if in_frozen(cfg, rel) or not _name_appears(line, alias):
-                    continue
-                if any((m in line) or (m in line.lower()) for m in _RENAME_MARKERS):
-                    continue
-                (mine if r["_abs"] == owner["_abs"] else cross).append(
-                    "%s/%s:%s（%s 的旧名 %s）" % (r["name"], rel, no, owner["name"], alias))
+            for owner, alias in todo:
+                if _name_appears(line, alias):
+                    (mine if r["_abs"] == owner["_abs"] else cross).append(
+                        "%s/%s:%s（%s 的旧名 %s）" % (r["name"], rel, no, owner["name"], alias))
     al = "、".join("%s←%s" % (o["name"], a) for o, a in todo)
-    how = "（逐仓一次 git grep -I -n -F，命中行再过 _name_appears 词边界复核；同行写了 %s 任一改名标记的" \
+    how = "（逐仓一次 git grep -I -n -F 召回全部别名，命中行再过 _name_appears 词边界复核；同行写了 %s 任一改名标记的" \
           "已豁免；layout.frozen 下的路径与根下没有 .git 的仓不扫）" % "/".join(_RENAME_MARKERS)
     if errs:
         out.append(finding(NAME, UNDETERMINED, "有 %d 次历史别名召回没跑成" % len(errs),
@@ -1021,19 +1034,19 @@ def _sample_archived(tmp):
     }
 
 
-def _alias_probe(body, former):
+def _alias_probe(body, former, rel="docs/note.md", frozen=()):
     """判据八的两仓样本，必须是**真** git 仓（git grep 只看索引）。只取判据八那几条。"""
     with tempfile.TemporaryDirectory() as tmp:
         for nm in ("sys", "app"):
             d = os.path.join(tmp, nm)
             _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
             if nm == "app":
-                _mk(os.path.join(d, "docs", "note.md"), body + u"\n")
+                _mk(os.path.join(d, rel), body + u"\n")
             for arg in (["init", "-q"], ["add", "-A"]):
                 subprocess.run(["git", "-C", d, "-c", "core.autocrlf=false", "-c", "core.safecrlf=false"] + arg,
                                capture_output=True, timeout=60)
         got = [f for f in run({
-            "_root": tmp, "layout": {"entry": ["CLAUDE.md"]},
+            "_root": tmp, "layout": {"entry": ["CLAUDE.md"], "frozen": list(frozen)},
             "repos": [{"name": "sys", "path": "sys", "role": "system", "former_names": former},
                       {"name": "app", "path": "app", "role": "app"}],
         }) if u"历史别名" in f["title"]]
@@ -1104,6 +1117,49 @@ def selftest():
                     "把定义允许的状态记成判不了，会逼项目写一条随机器漂移的本机绝对路径）",
             ))
 
+        # repos 重名（B6）：两个仓同名时入口按名字存取会互相覆盖，没入口的那个曾报 PASS；须整条记配置读不出
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _sample(tmp, bad=False)
+            _mk_repo(tmp, "app2")
+            cfg["repos"] = [cfg["repos"][0], {"name": "app", "path": "app2", "role": "app"}, cfg["repos"][1]]
+            res = run(cfg)
+            got = [(f["status"], f["title"]) for f in res]
+            results.append(finding(
+                NAME, PASS if len(got) == 1 and got[0][0] == UNDETERMINED and u"同名" in res[0]["reason"] else FAIL,
+                "repos 两项同名须整条记未定（配置读不出），不得让无入口的那个仓借名报 PASS",
+                evidence="实得 %s" % got[:6],
+                why="契约 §5：取值有歧义时不猜",
+            ))
+
+        # 本机只剩一个仓（B12）：system + archived 无检出是合法配置，不得出未定；另一仓 path 不在时
+        # 只由判据二记一条未定，跨仓引用这一条记不适用，不重复报
+        with tempfile.TemporaryDirectory() as tmp:
+            got = {}
+            for label, second in (("archived", {"name": "arch", "role": "archived"}),
+                                  ("missing", {"name": "app", "path": "nope", "role": "app"})):
+                cfg = _sample_archived(os.path.join(tmp, label))
+                cfg["repos"] = [cfg["repos"][0], second]
+                got[label] = sorted((f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS)
+            und = {k: [i for st, i in v if st == UNDETERMINED] for k, v in got.items()}
+            ok = (und["archived"] == [] and len(und["missing"]) == 1
+                  and all((SKIP, NAME + "/too-few-local") in v for v in got.values()))
+            results.append(finding(
+                NAME, PASS if ok else FAIL,
+                "本机只有一个仓：system+archived 不出未定，path 不在只由判据二报一次，跨仓引用记不适用",
+                evidence="实得 %s" % got,
+                why="契约 §1：同一事实只报一次；01 §3.8 archived 本就不在工作区",
+            ))
+
+        # 状态词按独立记号认（B13）：filesystem、app_system_x 都不是 system
+        got = [_has_status_token(x) for x in (u"app 的 filesystem 说明", u"app（active）", u"app: Archived",
+                                              u"app 已退役", u"app_system_x")]
+        results.append(finding(
+            NAME, PASS if got == [False, True, True, True, False] else FAIL,
+            "登记行的英文状态词按独立记号认，filesystem 不算 system",
+            evidence="实得 %s" % got,
+            why="01 §3.8 要求登记的是状态；子串命中会把只出现名字的行记成已登记（假通过）",
+        ))
+
         for want, title, probes in (
             ([FAIL], "判据八反例：历史别名出现在别的仓里，应判 FAIL",
              [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"])]),
@@ -1113,14 +1169,49 @@ def selftest():
              "判据八收窄反例：同行带改名标记不得报；别名撞在册仓名必须记未定且不扫描",
              [(u"SYS_OLD 已更名为 sys，清单见 ../sys/docs/list.md。", ["SYS_OLD"]),
               (u"现行清单见 app/docs/list.md。", ["app"])]),
+            ([UNDETERMINED], "判据八：别名与在册仓名只差大小写也算相撞，记未定不扫描（B10）",
+             [(u"现行清单见 app/docs/list.md，另有 APPLE。", ["APP"])]),
+            ([PASS], "判据八：路径含冒号的 layout.frozen 目录照样豁免（B9）",
+             [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"], "a:b/note.md", ["a:b"])]),
         ):
-            got = [_alias_probe(b, f) for b, f in probes]
+            got = [_alias_probe(*p) for p in probes]
             results.append(finding(
                 NAME, PASS if [g[0] for g in got] == [[w] for w in want] else FAIL, title,
                 evidence="期望 %s，实得 %s" % (want, "；".join("%s：%s" % g for g in got)),
                 why="契约 §3 静默失效探测：抓不出违规、或对正例误报的检查器，其结论作废；"
                     "契约 §1.1：召回前提不成立时记未定不产 FAIL，豁免只认被检查的那一行、不设清单",
             ))
+
+        # B20：判据八一仓只起一次 git grep 召回全部别名（两仓两别名＝2 次，不是 4 次），命中仍逐别名归属；
+        # 退役仓的扫描清单在入口与 rule_files 重叠时每项只列一次
+        calls, real_grep = [], _git_grep
+        globals()["_git_grep"] = lambda repo, needles: (calls.append(list(needles)), real_grep(repo, needles))[1]
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                for nm in ("sys", "app"):
+                    d = os.path.join(tmp, nm)
+                    _mk(os.path.join(d, "CLAUDE.md"), u"# %s\n\n权威见 [系统仓](../sys/CLAUDE.md)。\n" % nm)
+                    _mk(os.path.join(d, "docs", "n.md"), u"见 SYS_OLD 与 APP_OLD。\n")
+                    for arg in (["init", "-q"], ["add", "-A"]):
+                        subprocess.run(["git", "-C", d] + arg, capture_output=True, timeout=60)
+                got = [f for f in run({"_root": tmp, "layout": {"entry": ["CLAUDE.md"]}, "repos": [
+                    {"name": "sys", "path": "sys", "role": "system", "former_names": ["SYS_OLD"]},
+                    {"name": "app", "path": "app", "role": "app", "former_names": ["APP_OLD"]}]})
+                       if u"历史别名" in f["title"]]
+        finally:
+            globals()["_git_grep"] = real_grep
+        ev = " ".join(f.get("evidence") or "" for f in got)
+        with tempfile.TemporaryDirectory() as tmp:
+            listed = [f.get("evidence") or "" for f in run(_sample(tmp, bad=False)) if u"都带失效标记" in f["title"]]
+        scan = listed[0].split("扫描清单：")[1].split("；")[0].split("、") if listed else []
+        ok = (len(calls) == 2 and u"sys 的旧名 SYS_OLD" in ev and u"app 的旧名 APP_OLD" in ev
+              and scan and len(scan) == len(set(scan)))
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            "判据八一仓一次 git grep、命中逐别名归属；退役仓扫描清单不重复列",
+            evidence="grep 次数 %d；别名命中 %s；扫描清单 %s" % (len(calls), [f["status"] for f in got], scan),
+            why="B20 精简：同一件事只做一次",
+        ))
 
         # id 的区分力（契约 §9）：两个仓各有一处指向绝对路径的引用，两条未定的 id
         # 必须按仓名分开。key 不带仓名的话两条 id 相同，登记一行会把两个仓一起静音。
@@ -1198,15 +1289,55 @@ def selftest():
                 why="D-123 裁定 1/2：repos[].path 豁免只豁免仓本身，不豁免从仓里经符号链接出去",
             ))
 
+        # 第二跳先过护栏（B7）：入口里指向仓外的链接不跟随，也不许先 isfile 探测它存不存在
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            cfg = _sample(tmp, bad=False)
+            secret = os.path.join(outside_dir, "x.md")
+            _mk(secret, u"系统仓 sys\n")
+            _mk(os.path.join(tmp, "app", "CLAUDE.md"),
+                u"# 应用仓\n\n见 [外](%s)。\n" % os.path.relpath(secret, os.path.join(tmp, "app")))
+            probed, real_isfile = [], os.path.isfile
+            os.path.isfile = lambda p: (probed.append(p), real_isfile(p))[1]
+            try:
+                got = [(f["status"], f["title"]) for f in run(cfg) if u"跳" in f["title"]]
+            finally:
+                os.path.isfile = real_isfile
+            leak = [p for p in probed if os.path.realpath(p).startswith(os.path.realpath(outside_dir))]
+            results.append(finding(
+                NAME, PASS if not leak and [g[0] for g in got] == [FAIL] else FAIL,
+                "第二跳不跟随、不探测指向仓外的链接（入口两跳到不了系统仓照判 FAIL）",
+                evidence="探测仓外 %s；实得 %s" % (leak, got),
+                why="契约 §5：字面就在项目之外的路径连存在性也不探测",
+            ))
+
+        # 退役仓规则位置出仓（B8）：顶层 `.claude` 是指向仓外的软链接时不列仓外文件名，也不报"都带失效标记"
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_dir:
+            cfg = _sample(tmp, bad=False)
+            _mk(os.path.join(outside_dir, "TOPSECRET_NAME.md"), u"# 现行规则\n")
+            os.symlink(outside_dir, os.path.join(tmp, "old", ".claude"))
+            got = [f for f in run(cfg) if u"退役仓 old" in f["title"]]
+            text = " ".join("%s %s %s" % (f["title"], f.get("reason"), f.get("evidence")) for f in got)
+            results.append(finding(
+                NAME, PASS if "TOPSECRET_NAME" not in text and [f["status"] for f in got] == [UNDETERMINED]
+                and ".claude/" in text else FAIL,
+                "退役仓规则位置是出仓软链接：只记一条未定（写条目名），不列仓外文件名、不报 PASS",
+                evidence="实得 %s；泄露=%s" % ([(f["status"], f["title"]) for f in got], "TOPSECRET_NAME" in text),
+                why="契约 §5：只读被扫项目之内的文件，报错不回显仓外文件名；01 §2 N1 没读的不记通过",
+            ))
+
         # 线性（D-123 安全 3）：`](` 连写 8000 次曾要跑几分钟，一个文件拖死整次检查与提交闸门
         t0 = time.time()
         _link_targets("](" * 2000)   # 旧正则下约 4 秒
         took = time.time() - t0
-        got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)")
+        t0 = time.time()
+        _link_targets("\n" * 60000 + "[a\n" * 20000)   # B2：旧 _REF_LINK 下约 5 秒
+        took_ref = time.time() - t0
+        got = _link_targets("[a](x.md \"t\") [b](<y.md>) [c](../z.md#h)\n  [d]: w.md\n[e]:\n  <v.md>\n")
         results.append(finding(
-            NAME, PASS if took < 1 and got == ["x.md", "y.md", "../z.md"] else FAIL,
-            "链接抽取对 `](` 连写 2000 次须线性，且照常认出带标题与尖括号的链接",
-            evidence="耗时 %.3fs；抽出 %s" % (took, str(got)[:200]),
+            NAME, PASS if took < 1 and took_ref < 1
+            and got == ["x.md", "y.md", "../z.md", "w.md", "v.md"] else FAIL,
+            "链接抽取对 `](` 连写 2000 次、连续空行与无 `]` 的 `[` 行须线性，且照常认出带标题、尖括号与引用式的链接",
+            evidence="耗时 %.3fs / %.3fs；抽出 %s" % (took, took_ref, str(got)[:200]),
             why="D-123 安全 3：检查器没有整体超时，一个平方级正则就能拖死提交闸门",
         ))
     except Exception as exc:  # noqa: BLE001
