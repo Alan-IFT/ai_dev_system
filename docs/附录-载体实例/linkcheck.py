@@ -73,15 +73,19 @@ def anchors_of(text):
 def main():
     sys.stdout.reconfigure(errors="backslashreplace")   # 非 UTF-8 文件名照样能报出来
     root = sys.argv[1] if len(sys.argv) > 1 else "."
-    mds = md_files(root)
-    texts = {os.path.normpath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in mds}
+    md_files(root)   # 不在 git 工作区时在这里一行提示并退出 2
+    # 锚点与"越出仓根"都以仓根为界，不以扫描参数为界：在子目录跑时，指向目录外的链接照样能解析
+    top = subprocess.run(["git", "-C", root, "rev-parse", "--show-toplevel"],
+                         capture_output=True, text=True).stdout.strip()
+    texts = {os.path.abspath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in md_files(top)}
     anchors = {f: anchors_of(t) for f, t in texts.items()}
+    base = os.path.realpath(root)
+    mds = [f for f in texts if os.path.commonpath([os.path.realpath(f), base]) == base]
 
-    top = os.path.abspath(root)
     total = 0
     bad = []
     for f in mds:
-        for tgt in links(mask_code(texts[os.path.normpath(f)])):
+        for tgt in links(mask_code(texts[f])):
             if EXTERNAL.match(tgt):
                 continue
             total += 1
@@ -91,11 +95,11 @@ def main():
                 bad.append((f, tgt, "绝对路径不当仓内路径"))
                 continue
             if not path:
-                if anc not in anchors[os.path.normpath(f)]:
+                if anc not in anchors[f]:
                     bad.append((f, tgt, "锚点不存在"))
                 continue
             p = os.path.normpath(os.path.join(os.path.dirname(f), path))
-            if os.path.commonpath([os.path.abspath(p), top]) != top:
+            if os.path.commonpath([os.path.realpath(p), top]) != top:
                 bad.append((f, tgt, "越出仓根"))
                 continue
             if not os.path.exists(p):
@@ -103,11 +107,11 @@ def main():
                 continue
             # 目录型链接（如 ../归档/参考资料-公众号文章/）没有 README.md 也算通过
             if anc and not os.path.isdir(p):
-                if anc not in anchors.get(os.path.normpath(p), set()):
+                if anc not in anchors.get(os.path.abspath(p), set()):
                     bad.append((f, tgt, "锚点不存在"))
 
     for f, tgt, why in bad:
-        print("BROKEN  %s  ->  %s  (%s)" % (f, tgt, why))
+        print("BROKEN  %s  ->  %s  (%s)" % (os.path.relpath(f), tgt, why))
     print()
     print("markdown %d 个文件 / %d 条本地链接 / %d 条断链" % (len(mds), total, len(bad)))
     print("PASS" if not bad else "FAIL")
