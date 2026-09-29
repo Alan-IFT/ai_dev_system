@@ -142,8 +142,14 @@ def _label_field(line):
     return None, None
 
 
-def _parse_list_blocks(rows):
-    """加粗条目行（或三级以上小标题）起头的证据条目。"""
+def _parse_list_blocks(rows, whole=True):
+    """加粗条目行（或三级以上小标题）起头的证据条目。
+
+    表格行归 _parse_table_blocks，这里不看（C08：表格格子里的「输出: …」曾被认成字段，
+    凭空多出一条「（整段）」证据判 FAIL）。whole=False 时不把整段兜成一条——同一段里已按
+    字段表认出了条目，零散的「字段: 值」只是说明文字。
+    """
+    rows = [(n, ln) for n, ln in rows if not ln.lstrip().startswith("|")]
     blocks, cur = [], None
     for lineno, ln in rows:
         m = _BLOCK_HEAD.match(ln) or _SUBHEAD.match(ln)
@@ -163,7 +169,7 @@ def _parse_list_blocks(rows):
     if cur:
         blocks.append(cur)
 
-    if not blocks:  # 没有条目行但整段就是一条证据
+    if not blocks and whole:  # 没有条目行但整段就是一条证据
         one = {"name": "（整段）", "line": rows[0][0] if rows else 1, "fields": {},
                "limit_cols": [], "kind": "条目"}
         for lineno, ln in rows:
@@ -359,8 +365,9 @@ def _check_one(rel, text, status, note):
 
     blocks = []
     for _title, _start, rows in sections:
-        blocks.extend(_parse_table_blocks(rows))
-        blocks.extend(_parse_list_blocks(rows))
+        table = _parse_table_blocks(rows)
+        blocks.extend(table)
+        blocks.extend(_parse_list_blocks(rows, whole=not table))
     if not blocks:
         return [finding(
             NAME, UNDETERMINED, "证据段里认不出证据条目：%s" % rel,
@@ -522,6 +529,17 @@ def selftest():
         NAME, PASS if got == [(FAIL, "work/WI-0001-x.md 的证据 E-01 证据六字段不全")] else FAIL,
         "C13：### 小标题起头的证据条目按条目判，同级标题结束证据段",
         evidence="实得 %s" % (got,), why="01 §4.2 六字段；markdown 小标题的层级决定它属于哪一段",
+    ))
+
+    # C08：字段表格子里写「输出: ok」、表下再附一句「输出: 见 artifacts」，不许多出一条「（整段）」证据
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        cfg, err = _sample(tmp, "| 断言 | 原始证据 | 版本 | 范围 | 时间 | 方法 |\n|---|---|---|---|---|---|\n"
+                                "| 导入一致 | 输出: ok | c | d | e | f |\n\n输出: 见 artifacts/e01.txt\n")
+        got = [f["status"] for f in run(cfg)] if not err else err
+    results.append(finding(
+        NAME, PASS if got == [PASS] else FAIL,
+        "C08：字段表写法里格子与表外的「输出: …」不凭空生出「（整段）」证据",
+        evidence="实得 %s" % (got,), why="01 §4.2 六字段；一条证据只判一次",
     ))
 
     # C19：字段表里首格为空的行，id 不随行号漂——上面多一行空白，id 照旧
