@@ -210,7 +210,8 @@ def scope(cfg):
             "有判 FAIL（01 §8 只读）；git 查不了记未定",
             "配置里有没有非空的 compatibility.policy（01 §5.3 必填，不分档），没有判 FAIL",
             "%s 的 permissions.allow 里有没有通配放行项：`Bash`、`Bash(*)`，或命令解释器、脚本运行器、"
-            "包管理器运行命令后面只剩通配（如 `Bash(python3 *)`、`Bash(npm run *)`、`Bash(uv run:*)`），"
+            "包管理器运行命令后面只剩通配（如 `Bash(python3 *)`、`Bash(npm run *)`、`Bash(uv run:*)`；"
+            "中间的选项与 `-X`/`-W` 之类解释器带值选项跳过再看，解释器名带版本号如 `python3.12` 同样认），"
             "以及整类放行 `PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`；有判 FAIL，文件不在记 SKIP"
             % _SETTINGS_REL,
         ],
@@ -372,6 +373,10 @@ _WRAPPERS = {
 # 官方权限文档（2026-09-27 核实）：这些执行包装「不能被前缀规则自动放行」，`Bash(watch *)` 之类在
 # manual 模式下始终询问——规则本身不生效，不算通配放行，整条跳过
 _PROMPT_ALWAYS = frozenset(("watch", "setsid", "ionice", "flock"))
+# 解释器名带版本号（python3.12、node18、lua5.4）按去掉版本号的名字认（B17）
+_VERSION_SUFFIX = re.compile(r"(?<=[a-z])[\d.]+$")
+# 解释器自己的带值选项：值不是脚本，跳过它再看后面还有没有脚本（`python3 -X dev *` 仍是任意代码，B17）
+_INTERP_ARG_OPTS = {"python": ("-X", "-W"), "node": ("-r", "--require", "--import")}
 _ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _DURATION = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")
 
@@ -442,18 +447,20 @@ def _wildcard_allow(rule):
         return [n for n in names if (n.startswith(word) if partial else n == word)]
 
     head = os.path.basename(words[0])
-    if len(words) == 1:
-        interp = name_hits(head, _INTERPRETERS, partial)
-    else:
-        interp = [head] if head in _INTERPRETERS else []
-    if interp and all(w.startswith("-") for w in words[1:]):
+    base = _VERSION_SUFFIX.sub("", head)
+    interp = name_hits(base, _INTERPRETERS, partial) if len(words) == 1 else [head] * (base in _INTERPRETERS)
+    rest, arg_opts = list(words[1:]), _INTERP_ARG_OPTS.get(base, ())
+    while rest and rest[0].startswith("-"):          # 解释器之后只剩选项（及带值选项的值）即通配
+        del rest[:2 if rest[0] in arg_opts else 1]
+    if interp and not rest:
         return "命令解释器 %s 后面是通配" % "/".join(sorted(interp)[:4])
+    # 运行器按非选项词对照（`npx -y *`、`npm run -s *` 与 `npx *` 同样放行任意包，B17）
+    names = [head] + [w for w in words[1:] if not w.startswith("-")]
+    partial = partial and not words[-1].startswith("-")
     for runner in _RUNNERS:
-        if len(runner) < len(words):
-            continue
-        names = [head] + words[1:]
-        if runner[:len(names) - 1] == tuple(names[:-1]) and name_hits(names[-1], [runner[len(names) - 1]], partial):
-            return "运行器 %s 后面是通配" % " ".join(runner[:max(len(words), 1)])
+        if len(runner) >= len(names) and runner[:len(names) - 1] == tuple(names[:-1]) \
+                and name_hits(names[-1], [runner[len(names) - 1]], partial):
+            return "运行器 %s 后面是通配" % " ".join(runner[:len(names)])
     return None
 
 
@@ -677,12 +684,16 @@ def _declarations_selftest(tmp):
             # D-123：`*` 紧贴按名字前缀、引号剥掉、包装命令与变量赋值剥掉再看（官方语义，见 _wildcard_allow）
             "Bash(py*)", "Bash(p*)", "Bash(ba*)", 'Bash(sh -c "*")', "Bash(bash -c '*')", "Bash(env X=1 *)",
             "Bash(sudo -u root *)", "Bash(command bash *)", "Bash(npm r*)", "Bash(timeout 30 python3 *)",
-            "Bash(env -i *)", "Bash(env -u X python3 *)", "Bash(nice -n 5 bash *)"]
+            "Bash(env -i *)", "Bash(env -u X python3 *)", "Bash(nice -n 5 bash *)",
+            # B17：选项跟在运行器后、解释器名带版本号、解释器带值选项
+            "Bash(npx -y *)", "Bash(npm run -s *)", "Bash(python3.12 *)", "Bash(python3 -X dev *)"]
     narrow = ["Read", "Edit", "Bash(git status)", "Bash(npm run test)", "Bash(npm run test:*)",
               "Bash(python3 tools/std/check_all.py *)", "Bash(bash scripts/verify_all.sh:*)", "Bash(git add:*)",
               "mcp__x__y", "Bash(python3)", "Agent(std-reviewer)", "PowerShell(Get-ChildItem *)",
               "Bash(ls*)", "Bash(git log *)", "Bash(npm test *)", "Bash(command -v python3)",
-            "Bash(env -i ls *)", "Bash(sudo -i ls *)", "Bash(setsid *)", "Bash(watch *)", "Bash(flock x *)"]
+            "Bash(env -i ls *)", "Bash(sudo -i ls *)", "Bash(setsid *)", "Bash(watch *)", "Bash(flock x *)",
+            "Bash(python3.12 tools/x.py *)", "Bash(python3 -X dev tools/x.py *)", "Bash(python3 -m pytest *)",
+            "Bash(npx -y prettier --check *)"]
     missed = [r for r in wild if not _wildcard_allow(r)]
     false_hit = [r for r in narrow if _wildcard_allow(r)]
     sdir = os.path.join(tmp, ".claude")
