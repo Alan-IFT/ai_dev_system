@@ -74,7 +74,8 @@ _RE_HR = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,}|={3,})\s*$")
 # 行尾 `\s*(?:[，,。.；;]\s*)?$`：原写法 `\s*[…]?\s*$` 两段 `\s*` 隔着可省的标点，长空白后跟一个字就平方级
 _RE_ONLY_LINK = re.compile(r"^\s*(?:[-*+]\s*|\d+[.)]\s*)?(?:\*\*)?\[[^\]]*\]\([^)]*\)(?:\*\*)?\s*(?:[，,。.；;]\s*)?$")
 _RE_BARE_URL = re.compile(r"^\s*(?:[-*+]\s*)?<?https?://\S+>?\s*$")
-_RE_FENCE = re.compile(r"^\s*(```|~~~)")
+# CommonMark 围栏：同一字符连续 3 个以上；闭合须同字符、不短于开围栏、其后只有空白（同 check_drift）
+_RE_FENCE = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 _RE_WS = re.compile(r"\s+")
 
 # 数字 + 量词 + 名词。误报率高，按判据 3 一律记未定。
@@ -140,16 +141,26 @@ def _is_structural(line):
     return False
 
 
+def _unfenced(text):
+    """产出围栏代码块之外的 (行号, 原文)。反引号围栏的信息串不得含反引号：一行 ```x``` 是行内代码，
+    不开围栏——原先见到 ``` 就翻转，这样一行会让其后全文被当成代码块跳过。"""
+    fence = None
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        m = _RE_FENCE.match(raw)
+        if fence:
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not m.group(2).strip():
+                fence = None
+            continue
+        if m and not (m.group(1)[0] == u"`" and u"`" in m.group(2)):
+            fence = m.group(1)
+            continue
+        yield lineno, raw
+
+
 def significant_lines(text):
     """产出 [(行号, 归一化文本)]：去代码块、空行、纯标点行与结构行。"""
     out = []
-    in_fence = False
-    for lineno, raw in enumerate(text.splitlines(), 1):
-        if _RE_FENCE.match(raw):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
+    for lineno, raw in _unfenced(text):
         s = raw.strip()
         if not s:
             continue
@@ -163,16 +174,7 @@ def significant_lines(text):
 
 def prose_lines(text):
     """产出 [(行号, 原文)]：只去代码块与空行，供数值判据用。"""
-    out = []
-    in_fence = False
-    for lineno, raw in enumerate(text.splitlines(), 1):
-        if _RE_FENCE.match(raw):
-            in_fence = not in_fence
-            continue
-        if in_fence or not raw.strip():
-            continue
-        out.append((lineno, raw))
-    return out
+    return [(lineno, raw) for lineno, raw in _unfenced(text) if raw.strip()]
 
 
 def _declared_derived_artifacts(cfg):
@@ -889,6 +891,24 @@ def selftest():
         ))
     except Exception as exc:  # noqa: BLE001
         results.append(finding(NAME, FAIL, u"线性一条自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
+
+    # 反例二之二（B4）：一行 ```x``` 是行内代码不开围栏，4 反引号外层里的 ``` 不闭合外层——
+    # 旧实现见 ``` 就翻转，其后的重复段落整段被跳过，FAIL 翻成 PASS
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = _mkrepo(tmp, {
+                "x.md": _UNIQ_A + u"\n```x``` 是行内代码。\n\n" + _SHARED,
+                "y.md": _UNIQ_B + u"\n````md\n```\n样例\n```\n````\n\n" + _SHARED,
+            })
+            fails = [f for f in run(cfg) if f["status"] == FAIL]
+        ok = len(fails) == 1 and u"x.md" in fails[0]["title"] and u"y.md" in fails[0]["title"]
+        results.append(finding(
+            NAME, PASS if ok else FAIL,
+            u"反例二之二：行内 ```x``` 与外层 4 反引号围栏之后的重复段落仍须判 FAIL",
+            evidence=u"实得 FAIL %s" % [f["title"][:60] for f in fails], why=u"契约 §3 静默失效探测",
+        ))
+    except Exception as exc:  # noqa: BLE001
+        results.append(finding(NAME, FAIL, u"反例二之二自身出错", evidence=u"%s: %s" % (type(exc).__name__, exc)))
 
     # 正例：三份互不相同、无重复段落与重复数值
     try:
