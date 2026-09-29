@@ -351,7 +351,7 @@ bypassPermissions` 写在项目级或 local 设置里 Claude Code 自身不生�
 
 ## 本仓库自己的采用结果
 
-标准仓自己也是采用者（配置在标准仓自己的 `governance/project.yaml`，不在交付面里）。它唯一的裁剪项是
-`cross-repo`（单仓项目，01 §3.8 记不适用）。唯一一条未定是 `single-authority/count-claim/14:个:部件`，已登记为
-EX-001，所以扫描退出 0。退出 0 不等于全绿：那条仍是未定、仍计数，登记只改了退出码。现状以在标准仓根跑
+标准仓自己也是采用者（配置在标准仓自己的 `governance/project.yaml`，不在交付面里）。裁剪了哪几项、理由是什么，
+见该文件的 `tailoring`——裁剪是登记的不适用，不是修好了。唯一一条未定是 `single-authority/count-claim/14:个:部件`，
+已登记为 EX-001，所以扫描退出 0。退出 0 不等于全绿：那条仍是未定、仍计数，登记只改了退出码。现状以在标准仓根跑
 `python3 tools/std/check_all.py . --no-scope` 为准。
