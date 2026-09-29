@@ -885,7 +885,7 @@ def _git_grep(repo_real, needle):
 
 def _check_former_names(cfg, repos):
     """未声明 former_names 则一字不查（见 scope）。声明了才召回、才分层。"""
-    out, names, todo = [], set(r["name"] for r in repos), []
+    out, names, todo = [], set(r["name"].lower() for r in repos), []
     for r in repos:
         fn = r["former_names"]
         if fn is None:
@@ -896,7 +896,8 @@ def _check_former_names(cfg, repos):
                                why="01 §3.8'跨仓引用按契约处理'"))
             continue
         for a in [str(x).strip() for x in fn if str(x).strip()]:
-            if a in names:        # ←—— 挡住大批误报的四行，不许省
+            # ←—— 挡住大批误报的四行，不许省。不分大小写：命中行的复核 _name_appears 就不分（B10）
+            if a.lower() in names:
                 out.append(finding(
                     NAME, UNDETERMINED, "仓 %s 的历史别名 %r 与在册仓名相撞，本项不扫描" % (r["name"], a),
                     reason="repos 里已有一个仓就叫 %r：按它召回，命中的是现名的正常引用而不是旧名的死指针" % a,
@@ -1126,6 +1127,8 @@ def selftest():
              "判据八收窄反例：同行带改名标记不得报；别名撞在册仓名必须记未定且不扫描",
              [(u"SYS_OLD 已更名为 sys，清单见 ../sys/docs/list.md。", ["SYS_OLD"]),
               (u"现行清单见 app/docs/list.md。", ["app"])]),
+            ([UNDETERMINED], "判据八：别名与在册仓名只差大小写也算相撞，记未定不扫描（B10）",
+             [(u"现行清单见 app/docs/list.md，另有 APPLE。", ["APP"])]),
             ([PASS], "判据八：路径含冒号的 layout.frozen 目录照样豁免（B9）",
              [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"], "a:b/note.md", ["a:b"])]),
         ):
