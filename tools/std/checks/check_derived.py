@@ -92,9 +92,10 @@ def read_header(path, root):
 
 
 def _mentions(low, name):
-    """name 作为整段路径/文件名出现在 low 里：前后不能紧挨文件名字符（C15：`api` 不许命中 `rapid`）。
+    """name 作为整段路径/文件名出现在 low 里：前后不能紧挨文件名字符（C15：`api` 不许命中 `rapid`；
+    R2-8：后面接 `.md`、`.bak` 这类扩展名也不算，句末的句号照认）。
     只按 ASCII 判边界——`权威是src/map.json` 这种中文紧贴的写法照认。"""
-    return bool(name) and re.search(r"(?<![A-Za-z0-9_.-])" + re.escape(name.lower()) + r"(?![A-Za-z0-9_-])",
+    return bool(name) and re.search(r"(?<![A-Za-z0-9_.-])" + re.escape(name.lower()) + r"(?!\.?[A-Za-z0-9_-])",
                                     low) is not None
 
 
@@ -509,10 +510,13 @@ def selftest():
     # 反例六（C15）：源文件名按整段匹配——头部只写了 rapid 的派生物不算指明了源 src/api
     hits = (header_declares(u"<!-- rapid prototype, generated -->", u"src/api"),
             header_declares(u"<!-- 权威是src/map.json -->", u"src/map.json"),
-            header_declares(u"<!-- source: ../map.json. -->", u"src/map.json"))
+            header_declares(u"<!-- source: ../map.json. -->", u"src/map.json"),
+            header_declares(u"<!-- see api.md -->", u"src/api"),
+            header_declares(u"<!-- src/map.json.bak -->", u"src/map.json"))
     results.append(finding(
-        NAME, PASS if hits[0] is None and hits[1] and hits[2] else FAIL,
-        u"反例六：源文件名按路径/词边界匹配，api 不命中 rapid；中文紧贴、句号收尾照认",
+        NAME, PASS if hits[0] is None and hits[1] and hits[2] and hits[3] is None and hits[4] is None else FAIL,
+        u"反例六：源文件名按路径/词边界匹配，api 不命中 rapid、api.md，map.json 不命中 map.json.bak；"
+        u"中文紧贴、句号收尾照认",
         evidence=u"实得 %s" % (hits,), why=u"02 §9.1：指明源要指的是那一个文件",
     ))
 
