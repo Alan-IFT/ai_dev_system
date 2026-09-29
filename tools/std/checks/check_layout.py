@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
     STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
-    inside, is_tailored_out, rebase_docs, undetermined_from_exception,
+    inside, is_tailored_out, rebase_docs, undetermined_from_exception, unreadable,
 )
 
 NAME = "layout"
@@ -361,7 +361,7 @@ def _run(cfg):
         try:
             head = _head(path, root)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "读 %s 的头部" % rel))
+            out.append(unreadable(NAME, rel, exc))
             continue
         # 字段名只有项目在 metadata_fields 里声明过的才算「确定没有」；工具词表（状态字段、
         # 默认日期字段名）没找到只说明不在工具猜的写法里，按契约 §1.1 记未定

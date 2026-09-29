@@ -53,7 +53,7 @@ _load_source("stdlib", os.path.join(HERE, "stdlib.py"), register=True)
 from stdlib import (  # noqa: E402
     FAIL, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     embedded_std_rel, filter_env, finding, scan_memo, finding_id, git_version_problem, load_config, load_exceptions, scrub_git_env,
-    INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root,
+    INTERNAL_ERROR_KIND, tracked_files, undetermined_from_exception, work_root, unreadable as sl_unreadable,
 )
 
 CHECKS_DIR = os.path.join(HERE, "checks")
@@ -586,6 +586,13 @@ def _entry_smoke_selftest():
             if crash["id"] != "layout/internal-error" or got != [None] or not _has(fs, "invalid-rows"):
                 raise AssertionError("⑦ 崩溃未定 %s 登记后应仍未登记并报 invalid-rows，实得 %r"
                                      % (crash["id"], got))
+            #    对照：读不了的文件（unreadable/<路径>）是对象的事，登记照常生效（R126-1）
+            unr = sl_unreadable("evidence", u"work/WI-9.md", OSError("x"))
+            fs, _, _ = _register(target, ok_day, u"| EX-009 | %s | 读不了 | 该文件 | 自检 | %s | active |\n"
+                                 % (unr["id"], ok_day), more=[unr])
+            got = [(f.get("registered") or {}).get("id") for f in fs if f["id"] == unr["id"]]
+            if got != ["EX-009"] or _has(fs, "invalid-rows"):
+                raise AssertionError("⑦ unreadable 未定登记应生效，实得 %r" % (got,))
 
             # ⑧ 到期上限一年：今天 + 365 天仍生效，+ 366 天记不合格、不生效
             edge = (today + datetime.timedelta(days=365)).isoformat()
@@ -657,7 +664,7 @@ def _entry_smoke_selftest():
                  "例外登记五条（有效登记生效／过期不生效且报 expired／"
                  "坏行报 invalid-rows／孤儿行报 orphan 且不报 expired／匹配到 SKIP 的行也报 orphan／"
                  "项目自有例外过期未关闭报 own-expired FAIL（状态「待关闭」不算关闭）、到期不是日期报 own-undated；"
-                 "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows；"
+                 "有过期行时首部标出其中几行已过期；检查器自身出错的未定登记不生效、报 invalid-rows，读不了的文件照常可登记；"
                  "到期恰为今天 + 365 天生效、再晚一天报 invalid-rows）、"
                  "main 两种 argv 退出码合法且有输出",
     ))

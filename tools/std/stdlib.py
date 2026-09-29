@@ -184,7 +184,8 @@ def finding(check, status, title, where=None, why="", reason="", evidence="",
 
 
 # 检查器自身出错（崩溃、自检闸门不过）的 kind。这类未定**不可登记**（契约 §9）：崩溃会顶掉该检查器
-# 本次的全部 FAIL，登记它等于登记 FAIL。load_exceptions 按规则列的第二段认它。
+# （或某条判据）本次的 FAIL，登记它等于登记 FAIL。只用于真正的崩溃：读不了文件用 unreadable，
+# 配置错误给专门 kind。load_exceptions 按规则列的第二段认它。
 INTERNAL_ERROR_KIND = "internal-error"
 
 

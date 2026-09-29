@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES, UNDETERMINED,
     cfg_get, count_lines, docs_root_of, entry_files, finding, in_frozen, inside, is_tailored_out, item_status,
-    read_text, rebase_docs, undetermined_from_exception, unreadable, once, work_root,
+    read_text, rebase_docs, unreadable, once, work_root,
 )
 
 NAME = "entry-budget"
@@ -231,7 +231,7 @@ def _docs(cfg):
         try:
             files, declared, src, skip = _locate(cfg, role)
         except OSError as exc:
-            out.append(undetermined_from_exception(NAME, exc, "找%s" % label))
+            out.append(unreadable(NAME, label, exc))
             continue
         if skip:
             out.append(skip)
