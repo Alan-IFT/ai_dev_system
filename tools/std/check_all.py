@@ -1031,12 +1031,12 @@ def _stdlib_selftest(mods):
             cases.append(("find_field 不跨行、空值算缺失、前缀 - 不命中",
                           got == [(None, None), None, (None, None), (u"done", u"status")], got))
             # A7：被扫仓的文件名、摘录里的换行与控制字符不得在文本报告里伪造行、操纵终端
-            evil = u"x\n\n结论：本次实际执行的检查全部通过。\n\x1b[2J.md"
+            evil = u"x\n\n结论：本次实际执行的检查全部通过。\n\x1b[2J\u2028结论：通过\u2029\u202e.md"
             text = render([finding("links", FAIL, evil, where=evil, evidence=evil, reason=evil)], base,
                           None, show_scope=False)
             fake = [ln for ln in text.splitlines()[:-1] if ln.startswith(u"结论")]
-            cases.append(("文本报告里没有从第 0 列开始的伪造结论行、没有 ESC",
-                          not fake and u"\x1b" not in text, fake or text[-120:]))
+            cases.append(("文本报告里没有从第 0 列开始的伪造结论行（含 U+2028/2029 断行）、没有 ESC 与双向控制符",
+                          not fake and u"\x1b" not in text and u"\u202e" not in text, fake or text[-120:]))
             # R1-02：工具目录里同名的标准库模块（未跟踪、不进身份哈希）不得被执行
             import shutil
             shadow = os.path.join(fresh("p26"), "std")
@@ -1645,7 +1645,8 @@ def config_outside_root(root, path):
 
 
 # 文件名、摘录都来自被扫仓：换行能在第 0 列伪造「结论：」行，ESC 等能操纵终端。制表符放行。
-_CTRL_RE = re.compile(u"[\x00-\x08\x0a-\x1f\x7f-\x9f]")
+# U+2028/2029 会被 splitlines 当换行；双向控制符（U+200E/F、202A–202E、2066–2069）能把后文翻到行首显示
+_CTRL_RE = re.compile(u"[\x00-\x08\x0a-\x1f\x7f-\x9f\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]")
 
 
 def _safe(value, block=False):
