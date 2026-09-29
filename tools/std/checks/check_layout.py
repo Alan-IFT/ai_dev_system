@@ -282,9 +282,9 @@ def _run(cfg):
             continue
 
         override, src_key = overrides.get(role), "layout.artifacts.%s" % role
+        if role == "work_current" and wr and not wr_there and _norm(override or wr) == wr:
+            continue      # 落点就是上面已报的工作项目录（声明的 work_current 与 work_root 同指也算，R2-4）
         if not override and role == "work_current" and wr:
-            if not wr_there:
-                continue      # 上面已报
             override, src_key = wr, "layout.work_root"
         cand_list = [_norm(override)] if override else [
             rebase_docs(c, docs_root) for c in cands
@@ -505,10 +505,11 @@ def selftest():
         # C09：声明了 layout.work_root 而目录不在，L0、L1、以及另行声明了 work_current 时都只报一条 FAIL
         with tempfile.TemporaryDirectory() as tmp:
             got = []
-            for tier, art in (("L0", {}), ("L1", {}), ("L1", {"work_current": "ACCEPTANCE.md"})):
+            for tier, art in (("L0", {}), ("L1", {}), ("L1", {"work_current": "ACCEPTANCE.md"}),
+                              ("L1", {"work_current": "nope/"})):   # 与 work_root 同指（R2-4）
                 res = run({"_root": tmp, "tier": tier, "layout": {"work_root": "nope", "artifacts": art}})
                 got.append([(f["status"], f["id"]) for f in res if "nope" in (f.get("where") or "")])
-        want = [[(FAIL, "layout/work-root-absent/nope")]] * 3
+        want = [[(FAIL, "layout/work-root-absent/nope")]] * 4
         results.append(finding(
             NAME, PASS if got == want else FAIL,
             "C09：声明的工作项目录不在，任何档都由 layout 报且只报一条 FAIL",
