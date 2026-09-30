@@ -1,0 +1,21 @@
+# 判据①（接手可行）受试者记录：NFBY_CMS_FullStack
+
+受试者：Claude Code 子会话，模型 sonnet，2026-09-30，由分析席发起，不带任何背景；工具调用 5 次（harness 计数）。
+被观察仓：/home/alan/Programs/NFBY_CMS_FullStack（当时 HEAD：main c32a0207）。
+回报原文逐字照录，只去掉每行缩进；其中的 路径:行 是受试者自己给的，未经本记录复核的部分见 057 正文 §2.1。
+
+## 提示词（逐字）
+
+你是一次"全新会话接手测试"的受试者。严格只读：不改任何文件、不做任何 git 写操作、不运行任何检查器或测试脚本（只允许 cat/sed/grep/ls/git log/git show 之类只读命令）。
+仓库：/home/alan/Programs/NFBY_CMS_FullStack 。你之前从未见过它，也不要去读仓库以外的任何文件。
+任务：只依赖该仓库，找出 ① 项目当前目标 ② 现状（进行到哪、什么在进行中） ③ 下一步该做什么。从入口文件（CLAUDE.md / AGENTS.md / README 等）开始按它的指引走，不要全仓乱搜。
+返回不超过 12 行：三项各一句答案 + 依据的 路径:行；你读了哪几个文件（按顺序）、大约多少次工具调用；有没有哪项必须问原参与者才能确定（写明哪项、为什么）；入口指引有无断链或与实际不符之处（给 路径:行）。
+
+## 回报（逐字）
+
+① 目标：NFBY CMS 单仓（backend FastAPI+Postgres / frontend React），做业务报表的自动生成、调度、展示与企微推送；部署链已归档、生产待重置后重新上线。依据 README.md:3-4、CLAUDE.md:1-6、CLAUDE.md:55-64。
+② 现状：当前工作项 B-273「非强关联配置迁入数据库」status: in_validation，第 1–7 步（后端、API、前端）已实现并过两轮独立审核，第 8 步预演验收未做。B-227 之后的 B-271/272 也是 in_validation。依据 docs/state/work/B-273-非强关联配置迁入数据库.md:4、:40-59、:63-65。
+③ 下一步：第 8 步预演验收。同步 /data/nfby_cms（pull → uv sync → alembic upgrade head → 前端 build → Alan 重启 web），逐键核库（应为 3 行），验证热生效和残留键 WARNING，通过后 Alan 删 .env 残留行，B-273 转 done。依据 B-273 文件:65 和 :67（复查 2026-10-06）。
+读文件顺序：CLAUDE.md（前 200 行）→ docs/state/work 目录列表 → B-273 工作项 → README.md 前 15 行。约 5 次工具调用。工作项里指向的 runtime-settings-in-db.md 等只核对了存在，没读。
+必须问原参与者的：无硬性阻塞。只有一点不确定：B-273 的第 1–7 步是否已提交。git log 前 12 条没有 B-27x 提交，我只看了提交标题，没查工作区状态。另外「Alan 何时重启预演 web」要由他本人决定。
+入口指引断链或不符：没发现断链，CLAUDE.md:11 要求的 docs/state/work/B-*.md、docs/decisions/README.md、insight-index.md、governance/STANDARD_VERSION 都存在。有两点小不符：一是没有 AGENTS.md，不影响；二是 CLAUDE.md:11 说的「当前工作项」没指明是哪一份，work/ 下有 B-271/272/273 三份都是 in_validation，我按编号最大且 updated_at 最新（2026-09-29）选了 B-273。CLAUDE.md:64 说上线清单在 docs/state/work/，我没逐份核对。
