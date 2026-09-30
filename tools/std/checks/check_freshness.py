@@ -195,7 +195,7 @@ def _note(used_default, name, value):
 # --------------------------------------------------------------------------
 
 def _doc_files(cfg, root):
-    """文档巡检的扫描面：docs_root 与 metadata_required 各前缀下 git 跟踪的 *.md 的并集。
+    """文档巡检的扫描面：docs_root 与 metadata_required 各包含前缀下（减去 ! 排除的）git 跟踪的 *.md 的并集。
 
     只扫 docs_root 时，项目声明在文档根之外的前缀（根下的 ACCEPTANCE.md、L1 的 work/）一条结论都不出，
     而契约 §5 说 metadata_required「给了就只认它」——声明了要查却静默不查（D-131）。
@@ -236,7 +236,7 @@ def _layout_meta_files(cfg, root):
 
 
 def _classify_stats(cfg):
-    """本次扫描面（docs_root 与 metadata_required 前缀）下各分类各有几份。纯按路径算，不读文件内容。
+    """本次扫描面（docs_root 与 metadata_required 包含前缀，减去 ! 排除的）下各分类各有几份。纯按路径算，不读文件内容。
 
     只为把覆盖边界说准：契约 §2 要求写明"没检查什么"，而"有多少份文档根本没被分类"
     正是这个检查器最大的盲区——它此前一个字都没写。取不到时返回 None，不猜。
@@ -272,7 +272,7 @@ def scope(cfg):
                   stats["not_required"], stats["unknown"]))
     return {
         "covered": [
-            "layout.docs_root（当前 %r%s）与 metadata_required 各前缀下 git 跟踪的 *.md：日期字段是否存在、"
+            "layout.docs_root（当前 %r%s）与 metadata_required 各包含前缀下（减去 ! 排除的）git 跟踪的 *.md：日期字段是否存在、"
             "是否可解析、距基准日是否超 budgets.stale_days" % (docs_root, "，默认" if dnote else ""),
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
             "是否超 budgets.work_item_stale_days。最后一次转换取显式转换时间字段，否则取状态转换记录小节"
@@ -885,35 +885,44 @@ def selftest():
     ))
 
     # 反例八之三（D-133）：`!` 排除前缀从包含里减——被排除的无日期无状态文档在文档根内只记一条不适用、
-    # 不进缺日期 FAIL 与缺状态未定（同一事实只报一次），在文档根外不进扫描面；未排除的照判 FAIL
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        write_text(os.path.join(tmp, "docs", "architecture", "index.md"), "# 索引\n")
-        write_text(os.path.join(tmp, "docs", "architecture", "keep.md"), "status: active\n")
-        write_text(os.path.join(tmp, "work", "raw", "r.md"), "# 工具原文\n")
-        cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
-        cfg["metadata_required"] = ["docs/architecture", "work", "!docs/architecture/index.md", "!work/raw/"]
-        res = run(cfg) if not err else []
-        got = {k: [f["status"] for f in res if k in "%s|%s" % (f.get("where"), f.get("evidence"))]
-               for k in ("index.md", "keep.md", "work/raw")} if not err else err
-    results.append(probe(NAME, got == {"index.md": [SKIP], "keep.md": [FAIL], "work/raw": []},
-        "反例八之三：! 排除的文档只记一条不适用、文档根外的不扫，未排除的无日期照判 FAIL",
+    # 不进缺日期 FAIL 与缺状态未定（同一事实只报一次），在文档根外不进扫描面；未排除的照判 FAIL。
+    # 开头带 "./" 的写法（包含与排除）与不带的同判——此前 "./docs" 合法却永远不命中（D-133 记原有缺陷）
+    got = {}
+    for tag, pre in (("plain", ""), ("dot", "./")):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            write_text(os.path.join(tmp, "docs", "architecture", "index.md"), "# 索引\n")
+            write_text(os.path.join(tmp, "docs", "architecture", "keep.md"), "status: active\n")
+            write_text(os.path.join(tmp, "work", "raw", "r.md"), "# 工具原文\n")
+            cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
+            cfg["metadata_required"] = [pre + "docs/architecture", pre + "work",
+                                        "!%sdocs/architecture/index.md" % pre, "!%swork/raw/" % pre]
+            res = run(cfg) if not err else []
+            got[tag] = {k: [f["status"] for f in res if k in "%s|%s" % (f.get("where"), f.get("evidence"))]
+                        for k in ("index.md", "keep.md", "work/raw")} if not err else err
+    want = {"index.md": [SKIP], "keep.md": [FAIL], "work/raw": []}
+    results.append(probe(NAME, got == {"plain": want, "dot": want},
+        "反例八之三：! 排除的文档只记一条不适用、文档根外的不扫，未排除的无日期照判 FAIL；开头带 ./ 的写法同判",
         evidence="实得 %s" % (got,), why="契约 §5：排除是项目声明，从包含里减；契约 §1 同一事实只报一次",
     ))
 
-    # 反例八之四（D-133）：排除前缀写法非法、不落在包含之下、只有排除没有包含，整份拒收并报行号；合法的照收
+    # 反例八之四（D-133）：排除前缀写法非法、不落在包含之下、只有排除没有包含、与包含相同，整份拒收并报行号；
+    # 裸写 ! 被解析器拒收时提示加引号；合法的（含 ./ 起头）照收
+    rej = "第 2 行 metadata_required"
+    cases = (("  - docs\n  - '!'\n", rej), ("  - docs\n  - '!/docs/x'\n", rej), ("  - docs\n  - '!../x'\n", rej),
+             ("  - docs\n  - '!.'\n", rej), ("  - docs\n  - '!./'\n", rej), ("  - docs\n  - '!work/x'\n", rej),
+             ("  - '!docs/x'\n", rej), ("  - docs\n  - '!docs'\n", rej), ("  - docs\n  - '!./docs/'\n", rej),
+             ("  - docs\n  - !docs/x\n", "须加引号"),
+             ("  - docs\n  - '!docs/x'\n", None), ("  - ./docs\n  - '!./docs/x'\n", None))
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         verdict = {}
-        for body in ("  - docs\n  - '!'\n", "  - docs\n  - '!/docs/x'\n", "  - docs\n  - '!../x'\n",
-                     "  - docs\n  - '!.'\n", "  - docs\n  - '!work/x'\n", "  - '!docs/x'\n",
-                     "  - docs\n  - '!docs/x'\n"):
+        for body, want_msg in cases:
             write_text(os.path.join(tmp, "governance", "project.yaml"), "tier: L0\nmetadata_required:\n" + body)
             _c, prob = load_config(tmp)
-            verdict[body] = bool(prob) and "第 2 行 metadata_required" in prob
-    want = dict.fromkeys(verdict, True)
-    want["  - docs\n  - '!docs/x'\n"] = False     # 最后一份合法：落在 docs 之下
-    results.append(probe(NAME, verdict == want,
-        "反例八之四：! 后为空、/ 或 .. 起头、. ，排除不在包含之下，只有排除，均整份拒收；合法排除照收",
-        evidence="拒收与否 %s" % (verdict,), why="契约 §5 写错不猜：排除不存在的范围多半是笔误",
+            verdict[body] = (not prob) if want_msg is None else (bool(prob) and want_msg in prob)
+    results.append(probe(NAME, all(verdict.values()),
+        "反例八之四：! 后为空、/ 或 .. 起头、. 、./ ，排除不在包含之下、只有排除、与包含相同，均整份拒收；"
+        "裸写 ! 提示加引号；合法排除（含 ./ 起头）照收",
+        evidence="符合预期与否 %s" % (verdict,), why="契约 §5 写错不猜：排除不存在的范围多半是笔误",
     ))
 
     # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；

@@ -277,7 +277,8 @@ def _scalar(raw, lineno):
         raise ConfigError(
             "第 %d 行用了本解析器不支持的 YAML 语法 %r。"
             "本工具只接受最简子集（缩进映射、短横线列表、纯量），"
-            "看不懂即拒绝而不是猜。" % (lineno, s[0])
+            "看不懂即拒绝而不是猜。%s" % (lineno, s[0], "metadata_required 的 ! 排除前缀须加引号，如 \"!docs/x\"。"
+                                  if s[0] == "!" else "")
         )
     if s[0] in "\"'":
         if len(s) < 2 or s[-1] != s[0] or s[0] in s[1:-1]:
@@ -592,11 +593,16 @@ def _bad_shape(cfg, text):
 
 
 def _metadata_prefixes(v):
-    """metadata_required 列表拆成（包含前缀, 排除前缀）；`!` 起头的是排除（D-133）。只做写法归一，不校验。"""
+    """metadata_required 列表拆成（包含前缀, 排除前缀）；`!` 起头的是排除（D-133）。
+    只做写法归一（`\\` 改 `/`，开头的 `./` 去掉），不校验。"""
     inc, exc = [], []
     for x in v:
         p = str(x).strip().replace("\\", "/")
-        (exc if p.startswith("!") else inc).append(p[1:].strip() if p.startswith("!") else p)
+        neg = p.startswith("!")
+        p = p[1:].strip() if neg else p
+        while p.startswith("./") and p != "./":     # "./docs" 即 "docs"；单独的 "./" 留给校验拒收
+            p = p[2:]
+        (exc if neg else inc).append(p)
     return inc, exc
 
 
@@ -623,7 +629,8 @@ def _bad_metadata_required(cfg, text):
 
     元素（`!` 排除前缀去掉 `!` 后同）写成空、`.`、`./`，或以 `/`、`..` 起头：没有一种无歧义的读法——
     读成整仓会扫进未冻结的内嵌 `.std/`，读成不命中就把「没看」记成项目声明的「不适用」。
-    排除前缀不落在任何包含前缀之下（多半是笔误，排除不存在的范围也无意义；只有排除没有包含即属此列），同样拒收。
+    排除前缀不落在任何包含前缀之下（多半是笔误，排除不存在的范围也无意义；只有排除没有包含即属此列）、
+    与某条包含前缀相同（等于删掉那条包含），同样拒收。
     """
     v = cfg_get(cfg, "metadata_required")
     if not isinstance(v, list):
@@ -636,6 +643,8 @@ def _bad_metadata_required(cfg, text):
             return "第 %d 行 metadata_required 的元素 %r 不是项目内的路径前缀（空、. 、./ 或以 / 、.. 起头，! 之后同）；不猜整仓还是不命中" % (
                 line, str(x))
     for e in exc:      # 只有排除、没有包含时每条排除都落在包含之外，同由这里拒收
+        if e.strip("/") in [i.strip("/") for i in inc]:
+            return "第 %d 行 metadata_required 的排除前缀 %r 与包含前缀相同，等于删掉那条包含；不猜" % (line, "!" + e)
         if not any(_prefix_hit(e.strip("/"), i) for i in inc):
             return "第 %d 行 metadata_required 的排除前缀 %r 不落在任何包含前缀之下；多半是笔误，不猜" % (line, "!" + e)
     return None
