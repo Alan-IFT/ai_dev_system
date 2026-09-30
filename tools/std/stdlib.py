@@ -1052,6 +1052,10 @@ DEFAULT_WORK_ROOT = "docs/state/work"
 # 模板文件名（templates/PROJECT_STATUS.md）不是落点——PRD.md 落成 ACCEPTANCE.md 也是同一回事。
 STATUS_CANDIDATES = ("WORK.md", "docs/state/STATUS.md")
 
+# ★ 验收工件没在 layout.artifacts.acceptance 声明落点时的候选（模板 L0 的 `ACCEPTANCE.md` 与 01 §3.1 的
+# `docs/product/acceptance/`）。layout 查它的元信息，freshness 据此不重报其状态字段（契约 §1）。
+ACCEPTANCE_CANDIDATES = ("ACCEPTANCE.md", "docs/product/acceptance")
+
 # 会话交接没在 layout.artifacts.handoff 声明落点时的候选：模板 L1 树的 `work/handoff.md` 与
 # 01 §3.1 的 `docs/state/handoff/`。layout（存在性）与 entry-budget（篇幅）共用。
 HANDOFF_CANDIDATES = ("work/handoff.md", "docs/state/handoff")

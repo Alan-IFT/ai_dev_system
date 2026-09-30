@@ -10,6 +10,9 @@
   才记 **失败**——01 §3.2 要求说清"它过期了怎么被发现"，没有日期就发现不了；任一处靠工具约定都只记未定（契约 §1.1）。
 - 进行中工作项长期无状态转换记 **失败**，但标题写"需核实"：01 §4.1 说的是超龄触发核实，
   不是自动判违规，处置由负责人定（补进度、转 blocked 或拆分）。
+- metadata_required 命中的文档头部没认出状态字段记 **未定**（字段名是工具词表，契约 §1.1）。防的是文件名写着
+  「暂缓」、正文已翻盘、头部无状态，读者分不出它现行与否（D-131）；删除条件：采用项目连续一季度复审零命中，
+  且 01 §3.5 的状态要求被移出或合并。
 """
 from __future__ import annotations
 
@@ -24,6 +27,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
+    ACCEPTANCE_CANDIDATES, STATUS_CANDIDATES, STATUS_FIELDS, rebase_docs,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_class, under, unreadable, once, work_root, work_root_absent, write_text,
@@ -213,6 +217,27 @@ def _doc_files(cfg, root):
     return [r for r in files if any(under(r, p) for p in pres)], None
 
 
+def _layout_meta_files(cfg, root):
+    """layout 已查头部元信息的两件 ★ 工件（验收、状态；落点是单份 .md 时）。
+
+    取落点与 layout 同一规则：声明了取声明，没声明取候选里第一个存在的。它们的状态字段由 layout 报
+    （`layout/meta-unrecognized`），这里不重报（契约 §1 同一事实只报一次）。
+    """
+    arts = cfg_get(cfg, "layout.artifacts") or {}
+    arts = arts if isinstance(arts, dict) else {}
+    out = set()
+    for role, cands in (("acceptance", ACCEPTANCE_CANDIDATES), ("status", STATUS_CANDIDATES)):
+        paths = [arts[role]] if arts.get(role) else [rebase_docs(c, docs_root_of(cfg)[0]) for c in cands]
+        for p in paths:
+            p = norm_rel(p).strip("/")
+            full = os.path.join(root, p)
+            if os.path.exists(full):
+                if os.path.isfile(full) and p.lower().endswith(".md"):
+                    out.add(p)
+                break
+    return out
+
+
 def _classify_stats(cfg):
     """本次扫描面（docs_root 与 metadata_required 前缀）下各分类各有几份。纯按路径算，不读文件内容。
 
@@ -255,6 +280,9 @@ def scope(cfg):
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
             "是否超 budgets.work_item_stale_days。最后一次转换取显式转换时间字段，否则取状态转换记录小节"
             "第一段连续记录行的最后一条，没有该小节才退到 git 提交时间（浅克隆记未定）" % work_root(cfg)[0],
+            "metadata_required 命中的文档头部有没有状态字段（stdlib.STATUS_FIELDS）：没认出的汇成一条未定"
+            "（freshness/no-status-field），不判取值是否在 01 §3.5 的四值里；layout 已查的验收、状态工件与"
+            "工作项目录里的 WI-* 不在此列（各由 layout/meta-unrecognized、freshness/no-status 报）",
             "日期晚基准日一天按当天算（基准日是运行环境本地日期，作者可能在更早的时区写当天日期），"
             "晚两天以上记未定",
         ],
@@ -335,7 +363,9 @@ def _check_docs(cfg, root, today, base, texts):
         )]
 
     wdir = norm_rel(work_root(cfg)[0]).rstrip("/")
+    by_layout = _layout_meta_files(cfg, root)
     out, frozen, unclassified, declared_none, by_convention, field_guessed = [], [], [], [], [], []
+    no_status = []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -345,8 +375,14 @@ def _check_docs(cfg, root, today, base, texts):
         except OSError as exc:
             out.append(unreadable(NAME, rel, exc))
             continue
-        if os.path.dirname(rel) == wdir:
+        in_wdir = os.path.dirname(rel) == wdir
+        if in_wdir:
             texts[rel] = text
+        # 01 §3.5 的状态字段：只查项目声明的清单；layout 已查的两件、WI-* 工作项（活性巡检报 no-status）不重报
+        if rel not in by_layout and not (in_wdir and is_work_item_name(rel)) \
+                and _metadata_requirement(cfg, rel) == "required" \
+                and find_field(text[:HEAD_CHARS], STATUS_FIELDS)[0] is None:
+            no_status.append(rel)
 
         value, hit = find_field(text[:HEAD_CHARS], names)
         if value is None or not clean(value):
@@ -439,6 +475,15 @@ def _check_docs(cfg, root, today, base, texts):
                    "项目没在 metadata_fields 里声明；没认出推不出没写（契约 §1.1）。声明 metadata_fields 之后"
                    "仍缺才判 FAIL",
             why="01 §3.5 要求重要文档头部带日期；契约 §1.1 字段名约定落空只记未定"))
+    if no_status:
+        out.append(agg(
+            NAME, UNDETERMINED, "metadata_required 命中的文档头部没认出状态字段", no_status,
+            kind="no-status-field",
+            reason="这些文档在项目声明的 metadata_required 内，但状态字段名是本工具的词表"
+                   "（stdlib.STATUS_FIELDS：%s），没认出推不出没写（契约 §1.1），故记未定不判 FAIL；"
+                   "取值是否在 01 §3.5 的四值里不判。补状态字段、收窄 metadata_required，或登记例外"
+                   % " / ".join(STATUS_FIELDS),
+            why="01 §3.5 要求重要文档头部带 status：没有它，读者分不出这份是现行、草稿还是已被取代（D-131）"))
     if unclassified:
         # 整轮一条，不逐份。逐份 SKIP 会把"没看"混进"不适用"里，而且数量一大就把
         # 真正的 FAIL 淹掉；聚成一条未定，退出码从 0/1 变 2，报告里也留得下路径清单。
@@ -636,7 +681,7 @@ def selftest():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         cfg, err = _sample(
             tmp,
-            "# 一份没有日期的文档\n\n正文。\n",
+            "# 一份没有日期的文档\n\nstatus: active\n\n正文。\n",
             "# WI-0001\n\n状态：**in_progress**\n\n## 状态转换记录\n\n"
             "| from → to | 时间 |\n|---|---|\n| planned → in_progress | %s |\n" % old,
         )
@@ -770,6 +815,35 @@ def selftest():
         evidence="实得 %s" % (got,), why="契约 §5：metadata_required 给了就只认它，声明了要查不能静默不查",
     ))
 
+    # 反例九（D-131）：metadata_required 命中、头部没认出状态字段的文档汇成一条未定（id 不随份数变），不判 FAIL；
+    # 带状态字段的不进；layout 已查的状态工件、活性巡检已报 no-status 的 WI-* 不重报（契约 §1）
+    def _nostatus(extra):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            dated = "updated_at: %s\n" % fresh
+            for i in range(extra):
+                write_text(os.path.join(tmp, "docs", "architecture", "n%d.md" % i), dated)
+            write_text(os.path.join(tmp, "docs", "architecture", "b.md"), "状态：进行中\n" + dated)
+            write_text(os.path.join(tmp, "docs", "architecture", "S.md"), dated)
+            write_text(os.path.join(tmp, "work", "WI-0002-y.md"), dated)
+            cfg, err = _sample(tmp, dated, work_fresh)
+            cfg["metadata_required"] = ["docs/architecture", "work"]
+            cfg["layout"]["artifacts"] = {"status": "docs/architecture/S.md"}
+            if err:
+                return err
+            res = [f for f in run(cfg) if f["status"] != PASS]
+            return [(f["status"], f["id"], f.get("evidence") or f.get("where")) for f in res
+                    if f["id"] != NAME + "/not-work-item" and not (f.get("where") or "").startswith("work/WI-0001")]
+    a, b = _nostatus(0), _nostatus(2)
+    ok = a == [(UNDETERMINED, NAME + "/no-status-field", "docs/architecture/a.md"),
+               (UNDETERMINED, NAME + "/no-status", "work/WI-0002-y.md")] \
+        and isinstance(b, list) and [x[1] for x in b] == [x[1] for x in a]
+    results.append(probe(NAME, ok,
+        "反例九：metadata_required 命中而没认出状态字段的文档记一条聚合未定，带状态的、layout 已查的、"
+        "WI-* 不进；份数变 id 不变",
+        evidence="1 份：%s；3 份：%s" % (a, b),
+        why="01 §3.5 要求头部带 status；状态字段名是工具词表，契约 §1.1 只记未定；契约 §1 同一事实只报一次",
+    ))
+
     # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；
     # 有小节却没有带日期的记录记未定，不退到提交时间
     got = {}
@@ -822,7 +896,7 @@ def selftest():
     # C11：metadata_required 声明了而 metadata_fields 没声明，无日期文档只记一条聚合未定，不判 FAIL
     # （与 layout 的 meta-unrecognized 同口径：字段名是工具默认，没认出推不出没写）
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        cfg, err = _sample(tmp, "# 无日期\n\n日期：2026-09-01\n", work_fresh)
+        cfg, err = _sample(tmp, "# 无日期\n\nstatus: active\n日期：2026-09-01\n", work_fresh)
         cfg.pop("metadata_fields", None)
         got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] != PASS] if not err else err
     results.append(probe(NAME, got == [(UNDETERMINED, NAME + "/undated-fields-default")],
@@ -936,7 +1010,7 @@ def selftest():
         write_text(os.path.join(tmp, "work", "current.md"), "# 当前\n")
         write_text(os.path.join(tmp, "work", "handoff.md"), "# 交接\n")
         write_text(os.path.join(tmp, "work", "WI-0002-y.md"), "# 没写状态\n")
-        cfg, err = _sample(tmp, "updated_at: %s\n" % fresh, work_fresh)
+        cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
         got = [(f["status"], f["id"], f.get("evidence") or "") for f in run(cfg) if f["status"] != PASS] \
             if not err else err
     ok = (not err) and [(st, i) for st, i, _e in got] == [(UNDETERMINED, NAME + "/no-status"),
