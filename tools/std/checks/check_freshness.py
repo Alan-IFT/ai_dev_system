@@ -31,7 +31,7 @@ from stdlib import (  # noqa: E402
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_class, under, unreadable, once, work_root, work_root_absent, write_text,
-    run_guarded, probe, load_config,
+    run_guarded, probe, load_config, metadata_required_hit,
 )
 
 NAME = "freshness"
@@ -56,7 +56,7 @@ def _metadata_requirement(cfg, rel):
     - `"required"`   —— 项目配置 `metadata_required` 命中（项目声明，缺日期可判 FAIL）；
     - `"convention"` —— 项目没配，路径里出现约定的目录名。约定命中只说明"像"，不是项目声明，
       缺日期按契约 §1.1 只记未定；
-    - `"not_required"` —— 项目配了 `metadata_required` 而本文件不在清单内。
+    - `"not_required"` —— 项目配了 `metadata_required` 而本文件不在清单内（含被 `!` 排除的）。
       这是**项目自己的声明**，是确定结论，可以记 SKIP；
     - `"declared_none"` —— 项目把 `metadata_required` 显式写成空列表 `[]`：声明
       本项目没有 01 §3.5 那六类文档。同是项目声明，调用方整轮聚成一条 SKIP；
@@ -69,17 +69,10 @@ def _metadata_requirement(cfg, rel):
     （`docs/架构图`、`docs/审计记录`），两处的目录名约定命中率分别是 0/9 与 0/35。
     原实现把 100% 的未命中输出成 SKIP「不要求元信息」——那是在拿"我没看"冒充"不适用"。
     """
+    hit = metadata_required_hit(cfg, rel)     # 包含／`!` 排除只在 stdlib 一处判（D-133）
+    if hit is not None:
+        return "required" if hit else ("not_required" if cfg_get(cfg, "metadata_required") else "declared_none")
     parts = [p for p in str(rel).replace("\\", "/").split("/") if p]
-    override = cfg_get(cfg, "metadata_required")
-    if isinstance(override, list):
-        if not override:
-            return "declared_none"
-        joined = "/".join(parts)
-        for pre in override:
-            pre = str(pre).replace("\\", "/").strip("/")
-            if pre and (joined == pre or joined.startswith(pre + "/")):
-                return "required"
-        return "not_required"
     if any(seg in _IMPORTANT_DIRS for seg in parts[:-1]):
         return "convention"
     return "unknown"
@@ -889,6 +882,38 @@ def selftest():
     results.append(probe(NAME, ok,
         "反例八之二：layout.frozen 内的前缀不产出失败或未定；metadata_required 写成 ./ 、. 、空、/ 或 .. 起头整份拒收并报行号",
         evidence="归档区 %s；拒收 %s" % (got, rejected), why="01 §3.1 归档区不承担更新义务；契约 §5 写错不猜",
+    ))
+
+    # 反例八之三（D-133）：`!` 排除前缀从包含里减——被排除的无日期无状态文档在文档根内只记一条不适用、
+    # 不进缺日期 FAIL 与缺状态未定（同一事实只报一次），在文档根外不进扫描面；未排除的照判 FAIL
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "docs", "architecture", "index.md"), "# 索引\n")
+        write_text(os.path.join(tmp, "docs", "architecture", "keep.md"), "status: active\n")
+        write_text(os.path.join(tmp, "work", "raw", "r.md"), "# 工具原文\n")
+        cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
+        cfg["metadata_required"] = ["docs/architecture", "work", "!docs/architecture/index.md", "!work/raw/"]
+        res = run(cfg) if not err else []
+        got = {k: [f["status"] for f in res if k in "%s|%s" % (f.get("where"), f.get("evidence"))]
+               for k in ("index.md", "keep.md", "work/raw")} if not err else err
+    results.append(probe(NAME, got == {"index.md": [SKIP], "keep.md": [FAIL], "work/raw": []},
+        "反例八之三：! 排除的文档只记一条不适用、文档根外的不扫，未排除的无日期照判 FAIL",
+        evidence="实得 %s" % (got,), why="契约 §5：排除是项目声明，从包含里减；契约 §1 同一事实只报一次",
+    ))
+
+    # 反例八之四（D-133）：排除前缀写法非法、不落在包含之下、只有排除没有包含，整份拒收并报行号；合法的照收
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        verdict = {}
+        for body in ("  - docs\n  - '!'\n", "  - docs\n  - '!/docs/x'\n", "  - docs\n  - '!../x'\n",
+                     "  - docs\n  - '!.'\n", "  - docs\n  - '!work/x'\n", "  - '!docs/x'\n",
+                     "  - docs\n  - '!docs/x'\n"):
+            write_text(os.path.join(tmp, "governance", "project.yaml"), "tier: L0\nmetadata_required:\n" + body)
+            _c, prob = load_config(tmp)
+            verdict[body] = bool(prob) and "第 2 行 metadata_required" in prob
+    want = dict.fromkeys(verdict, True)
+    want["  - docs\n  - '!docs/x'\n"] = False     # 最后一份合法：落在 docs 之下
+    results.append(probe(NAME, verdict == want,
+        "反例八之四：! 后为空、/ 或 .. 起头、. ，排除不在包含之下，只有排除，均整份拒收；合法排除照收",
+        evidence="拒收与否 %s" % (verdict,), why="契约 §5 写错不猜：排除不存在的范围多半是笔误",
     ))
 
     # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；
