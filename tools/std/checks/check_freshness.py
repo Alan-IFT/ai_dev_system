@@ -301,8 +301,8 @@ def scope(cfg):
             "它们的复查时间是每项自己约定的值，工具读不到那个约定",
             "不核实工作项状态是否属实，只读它自己写的状态字段；状态认不出（不在 stdlib.WORK_ITEM_STATES "
             "的六态别名与 project.yaml 声明的词里）的记未定（freshness/unknown-state），不查活性；"
-            "layout.artifacts 声明的工件与状态属 01 §3.5 文档四值的文件按文档认（stdlib.status_kind），不巡检，"
-            "文档词也认不出的记 freshness/unknown-doc-state",
+            "layout.artifacts 声明的工件状态不属六态时按文档认（stdlib.status_kind）：属 01 §3.5 文档四值的不巡检，"
+            "两表都认不出的记 freshness/unknown-doc-state；未声明的文件写文档四值仍记 unknown-state",
             "状态转换记录只认小节里第一段连续的表格行或列表项，取最后一条里的第一个日期：按新的在上"
             "倒序写的记录会取到最旧那条（偏向报超龄）；记录行里不按列区分，occurred_at 空着而别的列写了"
             "日期时取到那个日期；只有表头、没有记录行的转换表记未定，不退到提交时间",
@@ -616,11 +616,11 @@ def _check_work_items(cfg, root, today, base, texts):
                               "（契约 §1.1）。改用 01 §4.1 的状态词，或在 project.yaml 声明自己的词"))
     if unknown_docs:
         out.append(agg(NAME, UNDETERMINED, "文档状态不在 01 §3.5 词表", unknown_docs, kind="unknown-doc-state",
-                       reason="这些文件是 layout.artifacts 声明的工件，或其状态不属工作项六态，按文档认；"
-                              "文档状态词表是 01 §3.5 四值及别名（stdlib.DOC_STATES），认不出说不清它是否有效（契约 §1.1）"))
+                       reason="这些是 layout.artifacts 声明的工件，状态在工作项六态与 01 §3.5 文档四值"
+                              "（stdlib.DOC_STATES）两表里都认不出，说不清它是否有效（契约 §1.1）"))
     if docs:
         out.append(agg(NAME, SKIP, "工作项目录下的文档不做工作项巡检", docs, kind="document-state",
-                       reason="layout.artifacts 声明的工件、或状态属 01 §3.5 文档四值（stdlib.DOC_STATES）的文件是文档，"
+                       reason="layout.artifacts 声明的工件、状态属 01 §3.5 文档四值（stdlib.DOC_STATES）的是文档，"
                               "不是 01 §4.1 的工作项：不查活性、不查完成证据（stdlib.status_kind，D-134）"))
     if not_items:
         out.append(agg(NAME, SKIP, "工作项目录下既不按 WI-* 命名、也没有状态字段的文件", not_items,

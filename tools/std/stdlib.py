@@ -1326,19 +1326,16 @@ def find_field(text, names):
     return None, None
 
 
-_FRONT_MATTER = re.compile(r"\ufeff?---[ \t]*\n(.*?\n)---[ \t]*(?:\n|$)", re.S)
 _SECTION = re.compile(r"^#{2,6}\s", re.M)
 
 
 def head_of(text):
-    """文件头部区域（D-134）：以 `---` 起头的 YAML 头只取它；否则取到第一个二级及以下标题之前；都不超过 HEAD_CHARS。
+    """文件头部区域（D-134）：取到第一个二级及以下标题之前，不超过 HEAD_CHARS。
 
-    状态字段只从这里读——正文里留下的 `status: active` 字样（如「下次改回 status: active」）不算。
+    状态字段只从这里读——`## 背景` 之类小节里的 `状态：active` 字样不算。YAML 头落在其内：日期写在 YAML、
+    状态写在一级标题下是合法写法，照读；YAML 里有状态时它先出现，find_field 取第一次出现，故不另设 YAML 分支。
     """
     t = text[:HEAD_CHARS]
-    m = _FRONT_MATTER.match(t)
-    if m:
-        return m.group(1)
     m = _SECTION.search(t)
     return t[:m.start()] if m else t
 
@@ -1388,27 +1385,23 @@ def _lead_word(status, words):
 
 
 def status_kind(cfg, rel, status):
-    """带状态字段的文件是工作项还是文档，及其状态归类（D-134，freshness 与 evidence 只此一处分流）。
+    """工作项目录里带状态字段的文件是工作项还是文档，及其状态归类（D-134，freshness 与 evidence 只此一处分流）。
 
     返回 (身份, 归类)：身份是 "work_item" 或 "document"；归类是 01 §4.1 六态之一或 01 §3.5 四值之一，认不出为 None。
     - WI-* 命名，或值属六态/别名/声明词 → 工作项（L1 的 work/current.md 这类声明工件兼作工作项，照巡检）；
-    - 值属 DOC_STATES → 文档；
-    - 两表都认不出：layout.artifacts 声明的工件或工作项目录直接一层之外的文件 → 文档（unknown-doc-state），
-      其余 → 工作项（unknown-state）。两表无交集（声明词撞文档词整份拒收），故前两条不冲突。
+    - 其余的 layout.artifacts 声明工件 → 文档，按 DOC_STATES 判；
+    - 其余（未声明、非六态，含写 active/draft 的 B-* 工作项）→ 工作项、认不出（unknown-state），不静默放过（契约 §1.1）。
+    调用方只传工作项目录直接一层的文件，故不设「目录外」分支。
     """
-    rel = norm_rel(rel)
     item = state_class(cfg, status)
-    doc = _lead_word(status, [(a, c) for c, al in DOC_STATES for a in al])
     if is_work_item_name(rel) or item is not None:
         return "work_item", item
-    if doc is not None:
-        return "document", doc
     arts = cfg_get(cfg, "layout.artifacts") or {}
     declared = set(re.sub(r"^(\./)+", "", norm_rel(v)).rstrip("/")
                    for v in (arts.values() if isinstance(arts, dict) else ()) if isinstance(v, str))
-    wdir = norm_rel(work_root(cfg)[0]).rstrip("/")
-    in_wdir = os.path.dirname(rel) == wdir or (wdir in ("", ".") and "/" not in rel)
-    return ("document", None) if rel in declared or not in_wdir else ("work_item", None)
+    if norm_rel(rel) in declared:
+        return "document", _lead_word(status, [(a, c) for c, al in DOC_STATES for a in al])
+    return "work_item", None
 
 
 def state_class(cfg, status):
