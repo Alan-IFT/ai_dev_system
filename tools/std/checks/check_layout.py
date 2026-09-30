@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 from stdlib import (  # noqa: E402
     read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ACCEPTANCE_CANDIDATES, ENTRY_CANDIDATES, artifact_tailored, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
     STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
-    inside, rebase_docs, undetermined_from_exception, unreadable,
+    inside, item_status, rebase_docs, undetermined_from_exception, unreadable,
     run_guarded, probe,
 )
 
@@ -135,7 +135,9 @@ def _outside(rel, label):
 
 
 def _head(path, root):
-    return "".join(read_text(path, root, head=MAX_READ_BYTES).splitlines(True)[:_META_HEAD_LINES])
+    """返回 (前 _META_HEAD_LINES 行, 读到的全文)：日期字段看前者，状态字段按 stdlib.item_status 的头部划界看后者。"""
+    text = read_text(path, root, head=MAX_READ_BYTES)
+    return "".join(text.splitlines(True)[:_META_HEAD_LINES]), text
 
 
 def _has_field(head, field):
@@ -339,7 +341,7 @@ def _run(cfg):
             continue
         path = os.path.join(root, rel.replace("/", os.sep))
         try:
-            head = _head(path, root)
+            head, text = _head(path, root)
         except OSError as exc:
             out.append(unreadable(NAME, rel, exc))
             continue
@@ -348,7 +350,7 @@ def _run(cfg):
         missing, guessed = [], []
         if not any(_has_field(head, f) for f in date_fields):
             (guessed if used_default_fields else missing).append("日期字段（%s）" % "/".join(date_fields))
-        if not any(_has_field(head, f) for f in STATUS_FIELDS):
+        if item_status(text) is None:   # 状态字段与 freshness/evidence 同一处头部划界（stdlib.head_of，D-134）
             guessed.append("状态字段（%s）" % "/".join(STATUS_FIELDS))
         if guessed and not missing:
             out.append(finding(

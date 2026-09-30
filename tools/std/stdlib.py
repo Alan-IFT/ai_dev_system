@@ -542,6 +542,7 @@ def _bad_dup_budgets(cfg, text):
 def _bad_state_words(cfg, text):
     """work_item_*_states 的声明词与 01 §4.1 六态别名、或两键之间撞词（归到不同态）即整份拒收（R127 R2-2）。"""
     seen = dict((a, c) for c, al in WORK_ITEM_STATES for a in al)
+    seen.update((a, "01 §3.5 文档状态 " + c) for c, al in DOC_STATES for a in al)   # 撞文档状态词同样拒收（D-134）
     for c, key in _DECLARED_STATES:
         for w in state_list(cfg, key, ()):
             if seen.setdefault(w, c) != c:
@@ -1325,9 +1326,28 @@ def find_field(text, names):
     return None, None
 
 
+_FRONT_MATTER = re.compile(r"\ufeff?---[ \t]*\n(.*?\n)---[ \t]*(?:\n|$)", re.S)
+_SECTION = re.compile(r"^#{2,6}\s", re.M)
+
+
+def head_of(text):
+    """文件头部区域（D-134）：以 `---` 起头的 YAML 头里有状态字段时只取它；否则取到第一个二级及以下标题之前
+    （含 YAML 头之后的引导段——日期写在 YAML、状态写在一级标题下是合法写法）；都不超过 HEAD_CHARS。
+
+    状态字段只从这里读——`## 背景` 之类小节里的 `状态：active` 字样不算。YAML 分支不可省：find_field 按字段名
+    顺序（状态→status→state）逐个找，不是取位置上第一次出现，YAML 写 `status:`、正文写 `状态：` 时会读到正文。
+    """
+    t = text[:HEAD_CHARS]
+    m = _FRONT_MATTER.match(t)
+    if m and find_field(m.group(1), STATUS_FIELDS)[0] is not None:
+        return m.group(1)
+    m = _SECTION.search(t)
+    return t[:m.start()] if m else t
+
+
 def item_status(text):
-    """工作项头部的状态值（去装饰、去括注、小写）；没有状态字段返回 None。"""
-    raw, _hit = find_field(text[:HEAD_CHARS], STATUS_FIELDS)
+    """头部区域（head_of）的状态值（去装饰、去括注、小写）；没有状态字段返回 None。"""
+    raw, _hit = find_field(head_of(text), STATUS_FIELDS)
     return None if raw is None else re.split(r"[（(]", clean(raw))[0].strip().lower()
 
 
@@ -1350,6 +1370,44 @@ WORK_ITEM_STATES = (
 )
 _DECLARED_STATES = (("done", "work_item_done_states"), ("in_progress", "work_item_in_progress_states"))
 
+# 01 §3.5 文档状态四值 → 别名（小写），唯一一份。与 WORK_ITEM_STATES 不得有交集（自检断言），
+# 项目声明的 work_item_*_states 撞上它同样整份拒收（_bad_state_words）。
+DOC_STATES = (
+    ("draft", ("draft", "草稿")),
+    ("active", ("active", "现行", "有效")),
+    ("superseded", ("superseded", "已取代", "已被取代")),
+    ("retired", ("retired", "已退役", "退役")),
+)
+
+
+def _lead_word(status, words):
+    """status 开头的状态词归到哪一类：别名之后是结尾或非字母数字即命中，长别名优先；认不出返回 None。"""
+    s = (status or "").strip()
+    for word, c in sorted(words, key=lambda x: -len(x[0])):
+        if s.startswith(word) and (len(s) == len(word) or not (s[len(word)].isalnum() or s[len(word)] == "_")):
+            return c
+    return None
+
+
+def status_kind(cfg, rel, status):
+    """工作项目录里带状态字段的文件是工作项还是文档，及其状态归类（D-134，freshness 与 evidence 只此一处分流）。
+
+    返回 (身份, 归类)：身份是 "work_item" 或 "document"；归类是 01 §4.1 六态之一或 01 §3.5 四值之一，认不出为 None。
+    - WI-* 命名，或值属六态/别名/声明词 → 工作项（L1 的 work/current.md 这类声明工件兼作工作项，照巡检）；
+    - 其余的 layout.artifacts 声明工件 → 文档，按 DOC_STATES 判；
+    - 其余（未声明、非六态，含写 active/draft 的 B-* 工作项）→ 工作项、认不出（unknown-state），不静默放过（契约 §1.1）。
+    调用方只传工作项目录直接一层的文件，故不设「目录外」分支。
+    """
+    item = state_class(cfg, status)
+    if is_work_item_name(rel) or item is not None:
+        return "work_item", item
+    arts = cfg_get(cfg, "layout.artifacts") or {}
+    declared = set(re.sub(r"^(\./)+", "", norm_rel(v)).rstrip("/")
+                   for v in (arts.values() if isinstance(arts, dict) else ()) if isinstance(v, str))
+    if norm_rel(rel) in declared:
+        return "document", _lead_word(status, [(a, c) for c, al in DOC_STATES for a in al])
+    return "work_item", None
+
 
 def state_class(cfg, status):
     """工作项状态值归到 01 §4.1 六态之一，认不出返回 None（D-127）。
@@ -1361,11 +1419,7 @@ def state_class(cfg, status):
     """
     words = [(a, c) for c, al in WORK_ITEM_STATES for a in al]
     words += [(w, c) for c, key in _DECLARED_STATES for w in state_list(cfg, key, ())]
-    s = (status or "").strip()
-    for word, c in sorted(words, key=lambda x: -len(x[0])):
-        if s.startswith(word) and (len(s) == len(word) or not (s[len(word)].isalnum() or s[len(word)] == "_")):
-            return c
-    return None
+    return _lead_word(status, words)
 
 
 def agg(check, status, title, paths, reason, why="", *, kind):

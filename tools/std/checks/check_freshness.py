@@ -30,7 +30,7 @@ from stdlib import (  # noqa: E402
     ACCEPTANCE_CANDIDATES, STATUS_CANDIDATES, STATUS_FIELDS, rebase_docs, artifact_tailored, is_tailored_out,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_class, under, unreadable, once, work_root, work_root_absent, write_text,
+    read_text, status_kind, under, unreadable, once, work_root, work_root_absent, write_text,
     run_guarded, probe, load_config, metadata_required_hit,
 )
 
@@ -300,7 +300,9 @@ def scope(cfg):
             "只巡检进行中的工作项；planned / blocked / in_validation 的停滞不看——01 §4.1 里"
             "它们的复查时间是每项自己约定的值，工具读不到那个约定",
             "不核实工作项状态是否属实，只读它自己写的状态字段；状态认不出（不在 stdlib.WORK_ITEM_STATES "
-            "的六态别名与 project.yaml 声明的词里）的记未定（freshness/unknown-state），不查活性",
+            "的六态别名与 project.yaml 声明的词里）的记未定（freshness/unknown-state），不查活性；"
+            "layout.artifacts 声明的工件状态不属六态时按文档认（stdlib.status_kind）：属 01 §3.5 文档四值的不巡检，"
+            "两表都认不出的记 freshness/unknown-doc-state；未声明的文件写文档四值仍记 unknown-state",
             "状态转换记录只认小节里第一段连续的表格行或列表项，取最后一条里的第一个日期：按新的在上"
             "倒序写的记录会取到最旧那条（偏向报超龄）；记录行里不按列区分，occurred_at 空着而别的列写了"
             "日期时取到那个日期；只有表头、没有记录行的转换表记未定，不退到提交时间",
@@ -379,7 +381,7 @@ def _check_docs(cfg, root, today, base, texts):
         # 01 §3.5 的状态字段：只查项目声明的清单；layout 已查的两件、WI-* 工作项（活性巡检报 no-status）不重报
         if rel not in by_layout and not (in_wdir and is_work_item_name(rel)) \
                 and _metadata_requirement(cfg, rel) == "required" \
-                and find_field(text[:HEAD_CHARS], STATUS_FIELDS)[0] is None:
+                and item_status(text) is None:
             no_status.append(rel)
 
         value, hit = find_field(text[:HEAD_CHARS], names)
@@ -521,6 +523,7 @@ def _check_work_items(cfg, root, today, base, texts):
                         why="契约 §1：依赖不可用记未定")]
 
     out, frozen, nostatus, unknown, other, not_items, memo = [], [], [], [], [], [], []
+    docs, unknown_docs = [], []
     for rel in files:
         if in_frozen(cfg, rel):
             frozen.append(rel)
@@ -535,12 +538,15 @@ def _check_work_items(cfg, root, today, base, texts):
         status = item_status(text)
         if status is None:
             # 工作项按 01 §3.2 的 `WI-*` 命名认；不带这个名字又读不到状态的（样板 L1 的 current.md、
-            # handoff.md、README 之类）不是工作项。带状态字段的照样算工作项（它自己声明了状态）
+            # handoff.md、README 之类）不是工作项。带状态字段的是工作项还是文档由 stdlib.status_kind 判
             (nostatus if is_work_item_name(rel) else not_items).append(rel)
             continue
-        cls = state_class(cfg, status)
+        kind, cls = status_kind(cfg, rel, status)   # 工作项还是文档，只在 stdlib 一处分（D-134）
         if cls is None:
-            unknown.append("%s（%s）" % (rel, status or "空"))
+            (unknown_docs if kind == "document" else unknown).append("%s（%s）" % (rel, status or "空"))
+            continue
+        if kind == "document":
+            docs.append("%s（%s）" % (rel, status))
             continue
         if cls != "in_progress":
             other.append("%s（%s）" % (rel, status or "空"))
@@ -608,6 +614,14 @@ def _check_work_items(cfg, root, today, base, texts):
                               "work_item_*_states；"
                               "认不出就说不清它是进行中还是完成，超龄与完成证据两道检查本次都没查"
                               "（契约 §1.1）。改用 01 §4.1 的状态词，或在 project.yaml 声明自己的词"))
+    if unknown_docs:
+        out.append(agg(NAME, UNDETERMINED, "文档状态不在 01 §3.5 词表", unknown_docs, kind="unknown-doc-state",
+                       reason="这些是 layout.artifacts 声明的工件，状态在工作项六态与 01 §3.5 文档四值"
+                              "（stdlib.DOC_STATES）两表里都认不出，说不清它是否有效（契约 §1.1）"))
+    if docs:
+        out.append(agg(NAME, SKIP, "工作项目录下的文档不做工作项巡检", docs, kind="document-state",
+                       reason="layout.artifacts 声明的工件、状态属 01 §3.5 文档四值（stdlib.DOC_STATES）的是文档，"
+                              "不是 01 §4.1 的工作项：不查活性、不查完成证据（stdlib.status_kind，D-134）"))
     if not_items:
         out.append(agg(NAME, SKIP, "工作项目录下既不按 WI-* 命名、也没有状态字段的文件", not_items,
                        kind="not-work-item",
