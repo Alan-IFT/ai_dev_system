@@ -277,7 +277,8 @@ def _scalar(raw, lineno):
         raise ConfigError(
             "第 %d 行用了本解析器不支持的 YAML 语法 %r。"
             "本工具只接受最简子集（缩进映射、短横线列表、纯量），"
-            "看不懂即拒绝而不是猜。" % (lineno, s[0])
+            "看不懂即拒绝而不是猜。%s" % (lineno, s[0], "以 ! 起头的值须加引号（例如 metadata_required 的排除前缀写 \"!docs/x\"）。"
+                                  if s[0] == "!" else "")
         )
     if s[0] in "\"'":
         if len(s) < 2 or s[-1] != s[0] or s[0] in s[1:-1]:
@@ -591,18 +592,61 @@ def _bad_shape(cfg, text):
     return None
 
 
-def _bad_metadata_required(cfg, text):
-    """metadata_required 的元素写成空、`.`、`./`，或以 `/`、`..` 起头，整份拒收（D-131）。
+def _metadata_prefixes(v):
+    """metadata_required 列表拆成（包含前缀, 排除前缀）；`!` 起头的是排除（D-133）。
+    只做写法归一（`\\` 改 `/`，开头的 `./` 去掉），不校验。"""
+    inc, exc = [], []
+    for x in v:
+        p = str(x).strip().replace("\\", "/")
+        neg = p.startswith("!")
+        p = p[1:].strip() if neg else p
+        while p.startswith("./") and p != "./":     # "./docs" 即 "docs"；单独的 "./" 留给校验拒收
+            p = p[2:]
+        (exc if neg else inc).append(p)
+    return inc, exc
 
-    这些写法没有一种无歧义的读法：读成整仓会扫进未冻结的内嵌 `.std/`，读成不命中就把「没看」
-    记成项目声明的「不适用」，两种都是静默误读。与 duplicate_* 写错同口径：不猜，报键名与行号。
+
+def _prefix_hit(rel, pre):
+    pre = pre.strip("/")
+    return bool(pre) and (rel == pre or rel.startswith(pre + "/"))
+
+
+def metadata_required_hit(cfg, rel):
+    """rel 是否在项目声明的 metadata_required 之内；全仓只此一处判定（D-133）。
+
+    未配（不是列表）返回 None；配了返回：命中任一包含前缀、且不命中任何 `!` 排除前缀。
     """
     v = cfg_get(cfg, "metadata_required")
-    for x in v if isinstance(v, list) else ():
-        p = str(x).strip().replace("\\", "/")
+    if not isinstance(v, list):
+        return None
+    inc, exc = _metadata_prefixes(v)
+    rel = "/".join(x for x in str(rel).replace("\\", "/").split("/") if x)
+    return any(_prefix_hit(rel, p) for p in inc) and not any(_prefix_hit(rel, p) for p in exc)
+
+
+def _bad_metadata_required(cfg, text):
+    """metadata_required 写错整份拒收，报键名与行号，与 duplicate_* 写错同口径（D-131、D-133）。
+
+    元素（`!` 排除前缀去掉 `!` 后同）写成空、`.`、`./`，或以 `/`、`..` 起头：没有一种无歧义的读法——
+    读成整仓会扫进未冻结的内嵌 `.std/`，读成不命中就把「没看」记成项目声明的「不适用」。
+    排除前缀不落在任何包含前缀之下（多半是笔误，排除不存在的范围也无意义；只有排除没有包含即属此列）、
+    与某条包含前缀相同（等于删掉那条包含），同样拒收。
+    """
+    v = cfg_get(cfg, "metadata_required")
+    if not isinstance(v, list):
+        return None
+    line = _key_line(text, "metadata_required")
+    inc, exc = _metadata_prefixes(v)
+    for x in v:
+        p = sum(_metadata_prefixes([x]), [])[0]
         if p in ("", ".", "./") or p.startswith("/") or p.startswith(".."):
-            return "第 %d 行 metadata_required 的元素 %r 不是项目内的路径前缀（空、. 、./ 或以 / 、.. 起头）；不猜整仓还是不命中" % (
-                _key_line(text, "metadata_required"), str(x))
+            return "第 %d 行 metadata_required 的元素 %r 不是项目内的路径前缀（空、. 、./ 或以 / 、.. 起头，! 之后同）；不猜整仓还是不命中" % (
+                line, str(x))
+    for e in exc:      # 只有排除、没有包含时每条排除都落在包含之外，同由这里拒收
+        if e.strip("/") in [i.strip("/") for i in inc]:
+            return "第 %d 行 metadata_required 的排除前缀 %r 与包含前缀相同，等于删掉那条包含；不猜" % (line, "!" + e)
+        if not any(_prefix_hit(e.strip("/"), i) for i in inc):
+            return "第 %d 行 metadata_required 的排除前缀 %r 不落在任何包含前缀之下；多半是笔误，不猜" % (line, "!" + e)
     return None
 
 
