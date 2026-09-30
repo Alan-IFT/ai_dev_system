@@ -18,7 +18,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 放末尾：不遮住标准库
 
 from stdlib import (  # noqa: E402
-    read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ENTRY_CANDIDATES, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
+    read_text, MAX_READ_BYTES, DEFAULT_WORK_ROOT, ACCEPTANCE_CANDIDATES, ENTRY_CANDIDATES, artifact_tailored, FAIL, HANDOFF_CANDIDATES, PASS, SKIP, STATUS_CANDIDATES,
     STATUS_FIELDS, UNDETERMINED, cfg_get, date_fields_of, docs_root_of, entry_files, find_field, finding,
     inside, rebase_docs, undetermined_from_exception, unreadable,
     run_guarded, probe,
@@ -64,7 +64,7 @@ _SNAPSHOT_DATE = "2026-09-10"
 _TIER_ITEMS = {
     "L0": [
         ("entry", "入口", True, "file", list(ENTRY_CANDIDATES)),
-        ("acceptance", "验收", True, "any", ["ACCEPTANCE.md", "docs/product/acceptance"]),
+        ("acceptance", "验收", True, "any", list(ACCEPTANCE_CANDIDATES)),
         ("status", "状态", True, "any", list(STATUS_CANDIDATES)),
         ("playbook", "方法与坑", False, "any", ["PLAYBOOK.md", "docs/knowledge/PLAYBOOK.md"]),
         ("failures", "失败清单", False, "any", ["FAILURES.md", "docs/knowledge/FAILURES.md"]),
@@ -122,20 +122,6 @@ def _tier_items(tier):
     for t in _TIER_ORDER[: _TIER_ORDER.index(tier) + 1]:
         items.extend(_TIER_ITEMS[t])
     return items
-
-
-def _artifact_tailored(cfg, role):
-    """项目是否在 tailoring 里登记了这个工件不适用。
-
-    接受 `check: layout:<role>` 与 `check: <role>` 两种写法。
-    """
-    keys = ("%s:%s" % (NAME, role), role)
-    for item in cfg_get(cfg, "tailoring", []) or []:
-        if not isinstance(item, dict):
-            continue
-        if str(item.get("check")) in keys and item.get("applicable") is False:
-            return True, (str(item.get("reason") or "").strip() or None)
-    return False, None
 
 
 def _outside(rel, label):
@@ -241,7 +227,7 @@ def _run(cfg):
         ))
 
     for role, label, star, kind, cands in _tier_items(tier):
-        skipped, sreason = _artifact_tailored(cfg, role)
+        skipped, sreason = artifact_tailored(cfg, role)
         if skipped:
             out.append(finding(
                 NAME, SKIP, "%s（%s）已登记为不适用" % (label, role),

@@ -591,6 +591,21 @@ def _bad_shape(cfg, text):
     return None
 
 
+def _bad_metadata_required(cfg, text):
+    """metadata_required 的元素写成空、`.`、`./`，或以 `/`、`..` 起头，整份拒收（D-131）。
+
+    这些写法没有一种无歧义的读法：读成整仓会扫进未冻结的内嵌 `.std/`，读成不命中就把「没看」
+    记成项目声明的「不适用」，两种都是静默误读。与 duplicate_* 写错同口径：不猜，报键名与行号。
+    """
+    v = cfg_get(cfg, "metadata_required")
+    for x in v if isinstance(v, list) else ():
+        p = str(x).strip().replace("\\", "/")
+        if p in ("", ".", "./") or p.startswith("/") or p.startswith(".."):
+            return "第 %d 行 metadata_required 的元素 %r 不是项目内的路径前缀（空、. 、./ 或以 / 、.. 起头）；不猜整仓还是不命中" % (
+                _key_line(text, "metadata_required"), str(x))
+    return None
+
+
 def _read_config(root, p, shown):
     """读并解析一份配置。返回 (cfg, problem)；报错只给路径与行号，不回显文件内容。"""
     try:
@@ -608,7 +623,8 @@ def _read_config(root, p, shown):
     if injected:      # 下划线键是代码注入口（契约 §4），写进配置等于让被检查方指定检查范围
         return {}, "%s 第 %d 行的顶层键以 _ 开头；这类键只由代码注入，项目配置写了整份拒收" % (
             shown, _key_line(text, injected[0]))
-    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text) or _bad_state_words(cfg, text)
+    bad_budget = _bad_shape(cfg, text) or _bad_dup_budgets(cfg, text) or _bad_state_words(cfg, text) \
+        or _bad_metadata_required(cfg, text)
     if bad_budget:
         return {}, "%s 无法无歧义解析：%s" % (shown, bad_budget)
     bad = _escaping_paths(cfg)
@@ -847,6 +863,21 @@ def is_tailored_out(cfg, check_name):
     return False, None
 
 
+def artifact_tailored(cfg, role):
+    """项目是否在 tailoring 里登记了 layout 的这个工件不适用。返回 (是否裁剪, 理由)。
+
+    接受 `check: layout:<role>` 与 `check: <role>` 两种写法。layout 据它跳过该工件，
+    freshness 据它判断该工件的元信息是否已由 layout 报（D-131）。
+    """
+    keys = ("layout:%s" % role, role)
+    for item in cfg_get(cfg, "tailoring", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("check")) in keys and item.get("applicable") is False:
+            return True, (str(item.get("reason") or "").strip() or None)
+    return False, None
+
+
 def date_fields_of(cfg):
     """文档日期字段名：`metadata_fields`（字符串列表，也接受单个字符串）。返回 (名字列表, 是否用的默认值)。"""
     raw = cfg_get(cfg, "metadata_fields")
@@ -1051,6 +1082,10 @@ DEFAULT_WORK_ROOT = "docs/state/work"
 # templates/文件树与落地路径.md §2 的 L0 摆法 `WORK.md`，与 01 §3.1 的 `docs/state/STATUS.md`。
 # 模板文件名（templates/PROJECT_STATUS.md）不是落点——PRD.md 落成 ACCEPTANCE.md 也是同一回事。
 STATUS_CANDIDATES = ("WORK.md", "docs/state/STATUS.md")
+
+# ★ 验收工件没在 layout.artifacts.acceptance 声明落点时的候选（模板 L0 的 `ACCEPTANCE.md` 与 01 §3.1 的
+# `docs/product/acceptance/`）。layout 查它的元信息，freshness 据此不重报其状态字段（契约 §1）。
+ACCEPTANCE_CANDIDATES = ("ACCEPTANCE.md", "docs/product/acceptance")
 
 # 会话交接没在 layout.artifacts.handoff 声明落点时的候选：模板 L1 树的 `work/handoff.md` 与
 # 01 §3.1 的 `docs/state/handoff/`。layout（存在性）与 entry-budget（篇幅）共用。

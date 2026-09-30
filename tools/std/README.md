@@ -92,8 +92,8 @@
 要在 pull 之后手改——`check_adoption` 以内嵌方式运行时比对这两个值，不一致判 FAIL；实际跑的是哪份代码
 由 CONTRACT.md §8 的身份哈希钉住。这就是它与无版本手工拷贝的区别：后者停在拷贝当天、照旧报 PASS，结论
 已不可信。`.std/` 是只读内嵌（01 §3.8 与[试点通过条件](../../标准/覆盖与采用检查.md#pilot-exit)第 3 条已把
-"两份 + 同步机制"判为待删对象），项目不得在里面改标准——改了就是第二处权威，处置是把改动合并回标准仓
-再 `pull`，不是就地同步。
+"两份 + 同步机制"判为待删对象），项目不得在里面改标准——改了就是第二处权威，处置是先撤掉改动、要保留的向上游报告（01 §8），
+修复发布后再 `pull`，不是就地同步。
 
 配置字段的语义见 CONTRACT.md §5，实例见交付面内的
 [示例项目 `governance/project.yaml`](../../标准/示例项目-连锁零售中台/governance/project.yaml)——照实文件抄，本文不另立字段表；
@@ -117,8 +117,8 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   不写的话 `adoption` 记一条未定。
 - **升级**：先跑 `git log --oneline -- .std` 查越界——路径过滤下这条命令只会列出 merge 提交（squash
   提交的内容落在仓根、不在 `.std/` 下，路径过滤看不到它）；每次 add/pull 各贡献 1 条 merge 提交，
-  条数 = 取用 1 次 + 升级次数，多出来的任何一条就是项目在 `.std/` 里改了标准，先把改动合并回标准仓
-  或撤掉再 pull：同一行上游也改了 git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移
+  条数 = 取用 1 次 + 升级次数，多出来的任何一条就是项目在 `.std/` 里改了标准，先撤掉改动、要保留的
+  向上游报告（01 §8），修复发布后再 pull：同一行上游也改了 git 会报冲突，**上游没改的行 pull 会静默保留本地改动**，这种漂移
   只有 log 能看见。**工作区须干净**——`git subtree` 的 ensure_clean 对已跟踪文件的改动直接 die，
   有改动先 `git stash push`，pull 完再 `git stash pop`。确认干净后
   `git subtree pull --prefix=.std <remote> main --squash`。换上游地址（如从私有仓换到公开仓）
@@ -133,7 +133,9 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   支是线性的，两者都是完整的升级差异。读完差异再改 `governance/STANDARD_VERSION`（值取
   `.std/标准/README.md` 第 3 行），**在 pull 之后改，不要先改再 pull**：pull 认的是当前 `.std/`
   的内容，先改版本号只会让文件和记录对不上。
-- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：先在 main 上跑
+- **发布**（标准仓维护者按这几步手工执行，**不写发布脚本**）：先过一遍公开仓 open issues——每条进标准仓的
+  失败 Case 清单或决策，或回复不处理的理由；本次发布修掉的，在 issue 里写 tag 名后关闭（外部回报没有别的
+  接收点，不看就等于没报）→ 在 main 上跑
   `python3 tools/std/check_all.py --selftest` 与 `python3 tools/std/check_all.py . --no-scope`，都退出 0
   才继续——跨检查器反例只在 `--selftest` 里跑、不在提交路径上，绕过钩子进来的内容也要在这里再判一次 → 在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
@@ -145,6 +147,8 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   命令取的也是这个地址）：`git push https://github.com/Alan-IFT/ai-dev-std.git release:main --follow-tags`；
   `--follow-tags` 只推带注解的 tag，用 `git tag <tag>` 打的轻量 tag 不在其中，那就分两条：
   `git push <公开仓> release:main && git push <公开仓> <tag>`。本仓 main 含不可公开的脚手架，只推 `release`，不推 main。
+- **报告标准或工具的问题**：到公开仓提 issue（`https://github.com/Alan-IFT/ai-dev-std/issues`），写采用的修订号、
+  定位和最小复现；项目侧怎么记见 [01 §8](../../标准/01-项目管理标准.md#adoption)。
 
 **执行层由采用项目自己接**，标准不发**生效的**钩子、流水线或 agent 侧配置——它们随宿主工具变，
 上游给一份就会过期成第二处权威；`templates/` 里的 agent、skill 文件是供复制的载体实例，拷进项目的
