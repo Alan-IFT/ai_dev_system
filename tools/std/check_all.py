@@ -888,9 +888,11 @@ def _shared_fact_selftest(mods):
         decl = {"layout": {"work_root": "work", "artifacts": {"handoff": "work/h.md", "status": "work/WI-009-s.md"}}}
         unit = [sk(decl, "work/h.md", "retired"), sk(decl, "work/h.md", "wibble"), sk(decl, "work/x.md", "retired"), sk(decl, "work/WI-009-s.md", "retired"),
                 sl.item_status(u"---\nupdated_at: x\n---\n\n# t\n\n## 记录\n\nstatus: active\n"), sl.item_status(u"# t\n\n状态：done\n\n## 记录\n\nstatus: active\n"),
+                sl.item_status(u"---\nstatus: superseded\n---\n\n# t\n\n状态：进行中\n"),
+                sl.item_status(u"---\nstate: done\n---\n\n# t\n\n> 旧稿 status: in_progress\n"),
                 sl.item_status(u"# t\n\n## 记录\n\nstatus: active\n"),
                 set(a for _c, al in sl.WORK_ITEM_STATES for a in al) & set(a for _c, al in sl.DOC_STATES for a in al)]
-        want_unit = [("document", "retired"), ("document", None), ("work_item", None), ("work_item", None), None, "done", None, set()]
+        want_unit = [("document", "retired"), ("document", None), ("work_item", None), ("work_item", None), None, "done", "superseded", "done", None, set()]
         out.append(probe("shared-fact", sorted(got_f) == sorted(want_f) and unit == want_unit,
             "文档状态与工作项状态分流：声明工件写文档四值不当工作项，B-* 工作项照判，二级标题下的状态字样不读",
             why="01 §3.5 文档状态与 01 §4.1 工作项六态是两套词表（D-134）；契约 §1.1：认不出记未定",

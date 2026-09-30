@@ -1326,16 +1326,21 @@ def find_field(text, names):
     return None, None
 
 
+_FRONT_MATTER = re.compile(r"\ufeff?---[ \t]*\n(.*?\n)---[ \t]*(?:\n|$)", re.S)
 _SECTION = re.compile(r"^#{2,6}\s", re.M)
 
 
 def head_of(text):
-    """文件头部区域（D-134）：取到第一个二级及以下标题之前，不超过 HEAD_CHARS。
+    """文件头部区域（D-134）：以 `---` 起头的 YAML 头里有状态字段时只取它；否则取到第一个二级及以下标题之前
+    （含 YAML 头之后的引导段——日期写在 YAML、状态写在一级标题下是合法写法）；都不超过 HEAD_CHARS。
 
-    状态字段只从这里读——`## 背景` 之类小节里的 `状态：active` 字样不算。YAML 头落在其内：日期写在 YAML、
-    状态写在一级标题下是合法写法，照读；YAML 里有状态时它先出现，find_field 取第一次出现，故不另设 YAML 分支。
+    状态字段只从这里读——`## 背景` 之类小节里的 `状态：active` 字样不算。YAML 分支不可省：find_field 按字段名
+    顺序（状态→status→state）逐个找，不是取位置上第一次出现，YAML 写 `status:`、正文写 `状态：` 时会读到正文。
     """
     t = text[:HEAD_CHARS]
+    m = _FRONT_MATTER.match(t)
+    if m and find_field(m.group(1), STATUS_FIELDS)[0] is not None:
+        return m.group(1)
     m = _SECTION.search(t)
     return t[:m.start()] if m else t
 
