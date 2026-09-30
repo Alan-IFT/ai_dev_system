@@ -26,7 +26,7 @@ from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
-    read_text, state_class, unreadable, once, work_root, work_root_absent, write_text,
+    read_text, state_class, under, unreadable, once, work_root, work_root_absent, write_text,
     run_guarded, probe,
 )
 
@@ -197,16 +197,31 @@ def _note(used_default, name, value):
 # 契约接口
 # --------------------------------------------------------------------------
 
+def _doc_files(cfg, root):
+    """文档巡检的扫描面：docs_root 与 metadata_required 各前缀下 git 跟踪的 *.md 的并集。
+
+    只扫 docs_root 时，项目声明在文档根之外的前缀（根下的 ACCEPTANCE.md、L1 的 work/）一条结论都不出，
+    而契约 §5 说 metadata_required「给了就只认它」——声明了要查却静默不查（D-131）。
+    """
+    files, problem = markdown_under(root, "")
+    if problem:
+        return None, problem
+    pres = [docs_root_of(cfg)[0]]
+    override = cfg_get(cfg, "metadata_required")
+    if isinstance(override, list):
+        pres += [str(p).replace("\\", "/").strip("/") for p in override if str(p).strip("/ ")]
+    return [r for r in files if any(under(r, p) for p in pres)], None
+
+
 def _classify_stats(cfg):
-    """本次 docs_root 下各分类各有几份。纯按路径算，不读文件内容。
+    """本次扫描面（docs_root 与 metadata_required 前缀）下各分类各有几份。纯按路径算，不读文件内容。
 
     只为把覆盖边界说准：契约 §2 要求写明"没检查什么"，而"有多少份文档根本没被分类"
     正是这个检查器最大的盲区——它此前一个字都没写。取不到时返回 None，不猜。
     """
-    docs_root = docs_root_of(cfg)[0]
     root = cfg.get("_root") or "."
     try:
-        files, problem = markdown_under(root, docs_root)
+        files, problem = _doc_files(cfg, root)
     except Exception:  # noqa: BLE001  覆盖边界不该把主流程带崩
         return None
     if problem or files is None:
@@ -235,8 +250,8 @@ def scope(cfg):
                   stats["not_required"], stats["unknown"]))
     return {
         "covered": [
-            "layout.docs_root（当前 %r%s）下 git 跟踪的 *.md：日期字段是否存在、是否可解析、"
-            "距基准日是否超 budgets.stale_days" % (docs_root, "，默认" if dnote else ""),
+            "layout.docs_root（当前 %r%s）与 metadata_required 各前缀下 git 跟踪的 *.md：日期字段是否存在、"
+            "是否可解析、距基准日是否超 budgets.stale_days" % (docs_root, "，默认" if dnote else ""),
             "layout.work_root（当前 %r）下状态为进行中的工作项：最后一次状态转换距基准日"
             "是否超 budgets.work_item_stale_days。最后一次转换取显式转换时间字段，否则取状态转换记录小节"
             "第一段连续记录行的最后一条，没有该小节才退到 git 提交时间（浅克隆记未定）" % work_root(cfg)[0],
@@ -309,7 +324,7 @@ def _check_docs(cfg, root, today, base, texts):
             why="01 §3.1：文档树是约定的位置，位置不成立则新鲜度无从判起",
         )]
 
-    files, problem = markdown_under(root, docs_root)
+    files, problem = _doc_files(cfg, root)
     if problem:
         return [finding(NAME, UNDETERMINED, "列不出 git 跟踪的文档", reason=problem,
                         why="契约 §1：依赖不可用记未定，不记通过")]
@@ -738,6 +753,22 @@ def selftest():
             evidence="实得 %s%s" % ([(f["status"], f["id"]) for f in res], ("；git 准备失败：%s" % err) if err else ""),
             why="契约 §1.1：目录名是工具约定，约定命中或落空都不产出 FAIL",
         ))
+
+    # 反例八（D-131）：metadata_required 前缀在 docs_root 之外（L1 的 work/）时照样扫——
+    # 无日期判 FAIL、有日期判 PASS；修前这两份一条结论都不出
+    got = {}
+    for tag, body in (("undated", "# 留证\n\n状态：active\n"),
+                      ("dated", "状态：active\nupdated_at: %s\n" % fresh)):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            write_text(os.path.join(tmp, "work", "artifacts", "x.md"), body)
+            cfg, err = _sample(tmp, "状态：active\nupdated_at: %s\n" % fresh, work_fresh)
+            cfg["metadata_required"] = ["docs/architecture", "work"]
+            got[tag] = [f["status"] for f in run(cfg) if (f.get("where") or "").startswith("work/artifacts/x.md")] \
+                if not err else err
+    results.append(probe(NAME, got == {"undated": [FAIL], "dated": [PASS]},
+        "反例八：docs_root 之外的 metadata_required 前缀照扫，无日期判 FAIL、有日期判 PASS",
+        evidence="实得 %s" % (got,), why="契约 §5：metadata_required 给了就只认它，声明了要查不能静默不查",
+    ))
 
     # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；
     # 有小节却没有带日期的记录记未定，不退到提交时间
