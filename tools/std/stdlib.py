@@ -277,7 +277,7 @@ def _scalar(raw, lineno):
         raise ConfigError(
             "第 %d 行用了本解析器不支持的 YAML 语法 %r。"
             "本工具只接受最简子集（缩进映射、短横线列表、纯量），"
-            "看不懂即拒绝而不是猜。%s" % (lineno, s[0], "metadata_required 的 ! 排除前缀须加引号，如 \"!docs/x\"。"
+            "看不懂即拒绝而不是猜。%s" % (lineno, s[0], "以 ! 起头的值须加引号（例如 metadata_required 的排除前缀写 \"!docs/x\"）。"
                                   if s[0] == "!" else "")
         )
     if s[0] in "\"'":
