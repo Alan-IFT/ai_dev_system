@@ -180,10 +180,10 @@ def _embedded_readonly(root, embedded_rel):
             where=where, why=why,
             evidence="`git status --porcelain --untracked-files=no -- %s` 输出为空" % embedded_rel)
     return finding(
-        NAME, FAIL, "%s 只读，改标准走合并回标准仓再 subtree pull" % where,
+        NAME, FAIL, "%s 只读，改标准走向上游报告（01 §8）、修复发布后再 subtree pull" % where,
         where=where, kind="embedded-modified",
         reason="%s 下有 %d 个已跟踪文件被改动（已暂存或未暂存）；先移出如 `git stash push -- %s`"
-               "（不丢内容），要改标准就把改动合并回标准仓再 subtree pull"
+               "（不丢内容），要改标准就向上游报告（01 §8），修复发布后再 subtree pull"
                % (where, len(lines), embedded_rel),
         why=why,
         evidence="`git status --porcelain --untracked-files=no -- %s`：\n%s"

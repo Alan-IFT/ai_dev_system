@@ -27,7 +27,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     is_work_item_name, work_items, shallow_problem, FAIL, HEAD_CHARS, PASS, SKIP, UNDETERMINED,
-    ACCEPTANCE_CANDIDATES, STATUS_CANDIDATES, STATUS_FIELDS, rebase_docs,
+    ACCEPTANCE_CANDIDATES, STATUS_CANDIDATES, STATUS_FIELDS, rebase_docs, artifact_tailored, is_tailored_out,
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_class, under, unreadable, once, work_root, work_root_absent, write_text,
@@ -206,27 +206,31 @@ def _doc_files(cfg, root):
 
     只扫 docs_root 时，项目声明在文档根之外的前缀（根下的 ACCEPTANCE.md、L1 的 work/）一条结论都不出，
     而契约 §5 说 metadata_required「给了就只认它」——声明了要查却静默不查（D-131）。
+    并集的后一半由 _metadata_requirement 一处判定：`.`、`./` 在那里不命中任何文件，这里也就不把它读成整仓
+    （否则会扫进未冻结的内嵌 `.std/`）。
     """
     files, problem = markdown_under(root, "")
     if problem:
         return None, problem
-    pres = [docs_root_of(cfg)[0]]
-    override = cfg_get(cfg, "metadata_required")
-    if isinstance(override, list):
-        pres += [str(p).replace("\\", "/").strip("/") for p in override if str(p).strip("/ ")]
-    return [r for r in files if any(under(r, p) for p in pres)], None
+    docs_root = docs_root_of(cfg)[0]
+    return [r for r in files if under(r, docs_root) or _metadata_requirement(cfg, r) == "required"], None
 
 
 def _layout_meta_files(cfg, root):
     """layout 已查头部元信息的两件 ★ 工件（验收、状态；落点是单份 .md 时）。
 
-    取落点与 layout 同一规则：声明了取声明，没声明取候选里第一个存在的。它们的状态字段由 layout 报
-    （`layout/meta-unrecognized`），这里不重报（契约 §1 同一事实只报一次）。
+    取落点与 layout 同一规则：声明了取声明，没声明取候选里第一个存在的。它们缺日期、缺状态字段由 layout 报
+    （`layout/meta-unrecognized` 或「头部缺元信息」），这里不重报（契约 §1 同一事实只报一次）。
+    layout 整个被裁、或该工件在 tailoring 里登记为不适用时 layout 不查，这里照报。
     """
+    if is_tailored_out(cfg, "layout")[0]:
+        return set()
     arts = cfg_get(cfg, "layout.artifacts") or {}
     arts = arts if isinstance(arts, dict) else {}
     out = set()
     for role, cands in (("acceptance", ACCEPTANCE_CANDIDATES), ("status", STATUS_CANDIDATES)):
+        if artifact_tailored(cfg, role)[0]:
+            continue
         paths = [arts[role]] if arts.get(role) else [rebase_docs(c, docs_root_of(cfg)[0]) for c in cands]
         for p in paths:
             p = norm_rel(p).strip("/")
@@ -282,7 +286,8 @@ def scope(cfg):
             "第一段连续记录行的最后一条，没有该小节才退到 git 提交时间（浅克隆记未定）" % work_root(cfg)[0],
             "metadata_required 命中的文档头部有没有状态字段（stdlib.STATUS_FIELDS）：没认出的汇成一条未定"
             "（freshness/no-status-field），不判取值是否在 01 §3.5 的四值里；layout 已查的验收、状态工件与"
-            "工作项目录里的 WI-* 不在此列（各由 layout/meta-unrecognized、freshness/no-status 报）",
+            "工作项目录里的 WI-* 不在此列（各由 layout、freshness/no-status 报；layout 已查的两件缺日期也不重报，"
+            "layout 被裁或该工件在 tailoring 里登记不适用时照报）",
             "日期晚基准日一天按当天算（基准日是运行环境本地日期，作者可能在更早的时区写当天日期），"
             "晚两天以上记未定",
         ],
@@ -386,6 +391,8 @@ def _check_docs(cfg, root, today, base, texts):
 
         value, hit = find_field(text[:HEAD_CHARS], names)
         if value is None or not clean(value):
+            if rel in by_layout:   # layout 已查这件的日期字段（契约 §1）；解析不了、超期 layout 不判，照下文走
+                continue
             need = _metadata_requirement(cfg, rel)
             if need == "not_required":
                 out.append(finding(
@@ -823,10 +830,13 @@ def selftest():
             for i in range(extra):
                 write_text(os.path.join(tmp, "docs", "architecture", "n%d.md" % i), dated)
             write_text(os.path.join(tmp, "docs", "architecture", "b.md"), "状态：进行中\n" + dated)
-            write_text(os.path.join(tmp, "docs", "architecture", "S.md"), dated)
+            write_text(os.path.join(tmp, "docs", "architecture", "S.md"), "# 声明的状态工件，缺日期也缺状态\n")
+            write_text(os.path.join(tmp, "docs", "architecture", "late.md"),
+                       dated + "x" * HEAD_CHARS + "\nstatus: active\n")
+            write_text(os.path.join(tmp, "ACCEPTANCE.md"), dated)     # 验收走候选路径，未声明落点
             write_text(os.path.join(tmp, "work", "WI-0002-y.md"), dated)
             cfg, err = _sample(tmp, dated, work_fresh)
-            cfg["metadata_required"] = ["docs/architecture", "work"]
+            cfg["metadata_required"] = ["docs/architecture", "work", "ACCEPTANCE.md"]
             cfg["layout"]["artifacts"] = {"status": "docs/architecture/S.md"}
             if err:
                 return err
@@ -834,14 +844,42 @@ def selftest():
             return [(f["status"], f["id"], f.get("evidence") or f.get("where")) for f in res
                     if f["id"] != NAME + "/not-work-item" and not (f.get("where") or "").startswith("work/WI-0001")]
     a, b = _nostatus(0), _nostatus(2)
-    ok = a == [(UNDETERMINED, NAME + "/no-status-field", "docs/architecture/a.md"),
+    ok = a == [(UNDETERMINED, NAME + "/no-status-field", "docs/architecture/a.md；docs/architecture/late.md"),
                (UNDETERMINED, NAME + "/no-status", "work/WI-0002-y.md")] \
         and isinstance(b, list) and [x[1] for x in b] == [x[1] for x in a]
     results.append(probe(NAME, ok,
-        "反例九：metadata_required 命中而没认出状态字段的文档记一条聚合未定，带状态的、layout 已查的、"
-        "WI-* 不进；份数变 id 不变",
+        "反例九：metadata_required 命中而没认出状态字段的文档记一条聚合未定，状态字段只认头部；带状态的、"
+        "layout 已查的（声明落点与候选路径两种，缺日期也不重报）、WI-* 不进；份数变 id 不变",
         evidence="1 份：%s；3 份：%s" % (a, b),
         why="01 §3.5 要求头部带 status；状态字段名是工具词表，契约 §1.1 只记未定；契约 §1 同一事实只报一次",
+    ))
+
+    # 反例九之二（D-131）：验收工件在 tailoring 里登记为不适用时 layout 不查它，缺状态字段改由这里报（仍只一次）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "ACCEPTANCE.md"), "updated_at: %s\n" % fresh)
+        cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
+        cfg["metadata_required"] = ["docs/architecture", "ACCEPTANCE.md"]
+        cfg["tailoring"] = [{"check": "layout:acceptance", "applicable": False, "reason": "样本"}]
+        got = [(f["id"], f.get("evidence")) for f in run(cfg) if f["status"] != PASS] if not err else err
+    results.append(probe(NAME, got == [(NAME + "/no-status-field", "ACCEPTANCE.md")],
+        "反例九之二：验收工件被 tailoring 裁掉时，它缺状态字段由 freshness 报一条未定",
+        evidence="非通过项 %s" % (got,), why="契约 §1：layout 不查的，不能因以为它查了而谁都不报",
+    ))
+
+    # 反例八之二（D-131）：落在 layout.frozen 内的前缀、写成 "./" 的前缀都不产出结论——
+    # 前者是归档区，后者不读成整仓（否则扫进未冻结的内嵌 .std/）
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        write_text(os.path.join(tmp, "work", "old", "y.md"), "# 归档\n")
+        write_text(os.path.join(tmp, ".std", "标准", "x.md"), "# 上游\nupdated_at: 2019-01-01\n")
+        cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
+        cfg["metadata_required"] = ["docs/architecture", "work", "./"]
+        cfg["layout"]["frozen"] = ["work/old"]
+        got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] in (FAIL, UNDETERMINED)
+               and ("work/old" in "%s%s" % (f.get("where"), f.get("evidence")) or ".std" in "%s%s" % (f.get("where"), f.get("evidence")))] \
+            if not err else err
+    results.append(probe(NAME, got == [],
+        "反例八之二：layout.frozen 内的前缀与写成 ./ 的前缀都不产出失败或未定",
+        evidence="实得 %s" % (got,), why="01 §3.1 归档区不承担更新义务；契约 §5 前缀的归一只在一处",
     ))
 
     # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；

@@ -847,6 +847,21 @@ def is_tailored_out(cfg, check_name):
     return False, None
 
 
+def artifact_tailored(cfg, role):
+    """项目是否在 tailoring 里登记了 layout 的这个工件不适用。返回 (是否裁剪, 理由)。
+
+    接受 `check: layout:<role>` 与 `check: <role>` 两种写法。layout 据它跳过该工件，
+    freshness 据它判断该工件的元信息是否已由 layout 报（D-131）。
+    """
+    keys = ("layout:%s" % role, role)
+    for item in cfg_get(cfg, "tailoring", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("check")) in keys and item.get("applicable") is False:
+            return True, (str(item.get("reason") or "").strip() or None)
+    return False, None
+
+
 def date_fields_of(cfg):
     """文档日期字段名：`metadata_fields`（字符串列表，也接受单个字符串）。返回 (名字列表, 是否用的默认值)。"""
     raw = cfg_get(cfg, "metadata_fields")
