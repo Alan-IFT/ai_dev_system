@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 
 
 from stdlib import (  # noqa: E402
     work_items, FAIL, PASS, SKIP, UNDETERMINED,
-    agg, clean, finding, git_track, in_frozen, is_tailored_out, item_status, state_class,
+    agg, clean, finding, git_track, in_frozen, is_tailored_out, item_status, status_kind,
     read_text, state_list, unreadable, work_root, work_root_absent, write_text,
     run_guarded, probe,
 )
@@ -353,7 +353,9 @@ def _run(cfg):
             # 读不到状态：是不是工作项、要不要报 no-status 都由 freshness 判一次（契约 §1 同一事实只报一次），
             # 这里静默跳过
             continue
-        cls = state_class(cfg, status)
+        kind, cls = status_kind(cfg, rel, status)   # 文档（D-134）不是工作项，不查完成证据，由 freshness 报一次
+        if kind == "document":
+            continue
         if cls is None:
             # freshness 被裁剪或该件落在 frozen（freshness 不读它的状态）时由本检查器报，否则指向 freshness
             (unknown_here if fresh_off or in_frozen(cfg, rel) else unknown).append(

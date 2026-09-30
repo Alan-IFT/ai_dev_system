@@ -842,6 +842,47 @@ def _shared_fact_selftest(mods):
             why="01 §1 G2：进行中/完成的认法一处权威；契约 §1.1：约定落空只记未定，不当'非进行中/非完成'"
                 "静默放过；契约 §1：同一事实只报一次",
             evidence="实得 %r；应得 %r" % (got_e, want_e)))
+
+        # F：文档状态与工作项状态分流（D-134，stdlib.status_kind 一处）。声明工件写 01 §3.5 的 superseded
+        #    不再记 unknown-state；B-* 命名的工作项照按六态巡检、查完成证据；目录内属文档四值的按文档；
+        #    声明工件写六态的（L1 的 current.md 兼作工作项）照按工作项判；认不出的声明工件记 unknown-doc-state；状态只从头部区域读，正文残留的 status 字样不算。
+        old = u"---\nupdated_at: 2026-09-01\n---\n\n# 交接\n\n> 下次改回 `status: active`。\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            _repo(tmp, {"work/handoff.md": u"---\nstatus: superseded\nupdated_at: 2026-09-01\n---\n\n# 交接\n",
+                        "work/current.md": u"# 当前\n\n状态：wibble\n",
+                        "work/B-1-a.md": u"# B\n\nstatus: in_progress\n\n## 状态转换记录\n\n- a → b | 2020-01-01\n",
+                        "work/B-2-b.md": u"# B\n\nstatus: done\n",
+                        "work/B-3-c.md": u"# B\n\nstatus: retired\n",
+                        "work/B-4-d.md": u"# B\n\nstatus: wibble\n",
+                        "work/B-5-e.md": old, "work/WI-001-f.md": u"# WI\n\nstatus: retired\n",
+                        "docs/r.md": u"# r\n", "work/now.md": u"# 现状\n\nstatus: planned\n"})
+            cfg = {"_root": tmp, "tier": "L1", "metadata_required": ["work/B-5-e.md"], "layout": {"work_root": "work", "artifacts": {
+                "handoff": "work/handoff.md", "work_current": "./work/current.md", "status": "work/now.md"}}}
+            got_f = sorted((f["check"] if re.fullmatch(r"[a-z-]+/[0-9a-f]{8}", f["id"]) else f["id"], f["status"], " ".join(sorted(set(re.findall(r"work/[\w-]+\.md", "%s %s" % (
+                                f["where"] or "", f["evidence"] or ""))))))
+                           for n in ("freshness", "evidence") for f in by[n].run(cfg)
+                           if "work/" in "%s %s" % (f["where"] or "", f["evidence"] or ""))
+        want_f = [("evidence/no-evidence-section/work/B-2-b.md", UNDETERMINED, "work/B-2-b.md"),
+                  ("evidence/not-done", SKIP, "work/B-1-a.md work/now.md"),
+                  ("freshness/document-state", SKIP, "work/B-3-c.md work/handoff.md"),
+                  ("freshness/not-work-item", SKIP, "work/B-5-e.md"),
+                  ("freshness/unknown-doc-state", UNDETERMINED, "work/current.md"),
+                  ("freshness/unknown-state", UNDETERMINED, "work/B-4-d.md work/WI-001-f.md"),
+                  ("freshness/no-status-field", UNDETERMINED, "work/B-5-e.md"), ("freshness", PASS, "work/B-5-e.md"),
+                  ("freshness/work-item-stale/work/B-1-a.md", FAIL, "work/B-1-a.md"),
+                  ("evidence/unknown-state-by-freshness", SKIP, "work/B-4-d.md work/WI-001-f.md"),
+                  ("freshness/not-in-progress", SKIP, "work/B-2-b.md work/now.md")]
+        import stdlib as sl
+        sk = sl.status_kind
+        unit = [sk({}, "docs/x.md", "retired"), sk({}, "docs/x.md", "wibble"), sk({"layout": {"work_root": "work"}}, "work/x.md", "wibble"),
+                sl.item_status(old), sl.item_status(u"# t\n\n状态：done\n\n## 记录\n\nstatus: active\n"),
+                sl.item_status(u"# t\n\n## 记录\n\nstatus: active\n"),
+                set(a for _c, al in sl.WORK_ITEM_STATES for a in al) & set(a for _c, al in sl.DOC_STATES for a in al)]
+        want_unit = [("document", "retired"), ("document", None), ("work_item", None), None, "done", None, set()]
+        out.append(probe("shared-fact", sorted(got_f) == sorted(want_f) and unit == want_unit,
+            "文档状态与工作项状态分流：声明工件与文档四值不当工作项，B-* 工作项照判，正文残留状态字样不读",
+            why="01 §3.5 文档状态与 01 §4.1 工作项六态是两套词表（D-134）；契约 §1.1：认不出记未定",
+            evidence="实得 %r / %r；应得 %r / %r" % (sorted(got_f), unit, sorted(want_f), want_unit)))
     except Exception as exc:  # noqa: BLE001
         out.append(undetermined_from_exception("shared-fact", exc, "跑跨检查器自检"))
     return out
@@ -1083,6 +1124,7 @@ def _stdlib_selftest(mods):
                     ("p37", u"tier: L1\nwork_item_done_states:\n  - 验证中\n", u"第 2 行 work_item_done_states 的「验证中」"),
                     ("p38", u"tier: L1\nwork_item_in_progress_states: done\n",
                      u"第 2 行 work_item_in_progress_states 的「done」"),
+                    ("p41", u"tier: L1\nwork_item_done_states: 已取代\n", u"第 2 行 work_item_done_states 的「已取代」"),
                     ("p39", u"tier: L1\nwork_item_done_states: closed\nwork_item_in_progress_states: Closed\n",
                      u"第 3 行 work_item_in_progress_states 的「closed」")):
                 cfg, prob = load(fresh(tag), body)
