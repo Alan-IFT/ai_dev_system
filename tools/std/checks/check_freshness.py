@@ -31,7 +31,7 @@ from stdlib import (  # noqa: E402
     agg, cfg_get, clean, date_fields_of, docs_root_of, find_field, finding, git_track, in_frozen,
     item_status, markdown_under, norm_rel, note_default, parse_date, parse_yaml_subset,
     read_text, state_class, under, unreadable, once, work_root, work_root_absent, write_text,
-    run_guarded, probe,
+    run_guarded, probe, load_config,
 )
 
 NAME = "freshness"
@@ -206,8 +206,8 @@ def _doc_files(cfg, root):
 
     只扫 docs_root 时，项目声明在文档根之外的前缀（根下的 ACCEPTANCE.md、L1 的 work/）一条结论都不出，
     而契约 §5 说 metadata_required「给了就只认它」——声明了要查却静默不查（D-131）。
-    并集的后一半由 _metadata_requirement 一处判定：`.`、`./` 在那里不命中任何文件，这里也就不把它读成整仓
-    （否则会扫进未冻结的内嵌 `.std/`）。
+    并集的后一半由 _metadata_requirement 一处判定；`.`、`./`、空与 `/`、`..` 起头的元素在读配置时整份拒收
+    （stdlib._bad_metadata_required），到不了这里。
     """
     files, problem = markdown_under(root, "")
     if problem:
@@ -854,32 +854,41 @@ def selftest():
         why="01 §3.5 要求头部带 status；状态字段名是工具词表，契约 §1.1 只记未定；契约 §1 同一事实只报一次",
     ))
 
-    # 反例九之二（D-131）：验收工件在 tailoring 里登记为不适用时 layout 不查它，缺状态字段改由这里报（仍只一次）
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        write_text(os.path.join(tmp, "ACCEPTANCE.md"), "updated_at: %s\n" % fresh)
-        cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
-        cfg["metadata_required"] = ["docs/architecture", "ACCEPTANCE.md"]
-        cfg["tailoring"] = [{"check": "layout:acceptance", "applicable": False, "reason": "样本"}]
-        got = [(f["id"], f.get("evidence")) for f in run(cfg) if f["status"] != PASS] if not err else err
-    results.append(probe(NAME, got == [(NAME + "/no-status-field", "ACCEPTANCE.md")],
-        "反例九之二：验收工件被 tailoring 裁掉时，它缺状态字段由 freshness 报一条未定",
+    # 反例九之二（D-131）：验收工件在 tailoring 里登记为不适用、或 layout 整个被裁时 layout 不查它，
+    # 缺状态字段改由这里报（仍只一次）
+    got = {}
+    for tag in ("layout:acceptance", "layout"):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            write_text(os.path.join(tmp, "ACCEPTANCE.md"), "updated_at: %s\n" % fresh)
+            cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
+            cfg["metadata_required"] = ["docs/architecture", "ACCEPTANCE.md"]
+            cfg["tailoring"] = [{"check": tag, "applicable": False, "reason": "样本"}]
+            got[tag] = [(f["id"], f.get("evidence")) for f in run(cfg) if f["status"] != PASS] if not err else err
+    want = [(NAME + "/no-status-field", "ACCEPTANCE.md")]
+    results.append(probe(NAME, got == {"layout:acceptance": want, "layout": want},
+        "反例九之二：验收工件被 tailoring 裁掉、或 layout 整个被裁时，它缺状态字段由 freshness 报一条未定",
         evidence="非通过项 %s" % (got,), why="契约 §1：layout 不查的，不能因以为它查了而谁都不报",
     ))
 
-    # 反例八之二（D-131）：落在 layout.frozen 内的前缀、写成 "./" 的前缀都不产出结论——
-    # 前者是归档区，后者不读成整仓（否则扫进未冻结的内嵌 .std/）
+    # 反例八之二（D-131）：落在 layout.frozen 内的前缀不产出结论（归档区）；metadata_required 写成
+    # "./"、"."、空或以 / 、.. 起头时整份配置拒收并报行号——不猜整仓（会扫进内嵌 .std/）也不当不命中（拿没看冒充不适用）
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "work", "old", "y.md"), "# 归档\n")
-        write_text(os.path.join(tmp, ".std", "标准", "x.md"), "# 上游\nupdated_at: 2019-01-01\n")
         cfg, err = _sample(tmp, "status: active\nupdated_at: %s\n" % fresh, work_fresh)
-        cfg["metadata_required"] = ["docs/architecture", "work", "./"]
+        cfg["metadata_required"] = ["docs/architecture", "work"]
         cfg["layout"]["frozen"] = ["work/old"]
         got = [(f["status"], f["id"]) for f in run(cfg) if f["status"] in (FAIL, UNDETERMINED)
-               and ("work/old" in "%s%s" % (f.get("where"), f.get("evidence")) or ".std" in "%s%s" % (f.get("where"), f.get("evidence")))] \
-            if not err else err
-    results.append(probe(NAME, got == [],
-        "反例八之二：layout.frozen 内的前缀与写成 ./ 的前缀都不产出失败或未定",
-        evidence="实得 %s" % (got,), why="01 §3.1 归档区不承担更新义务；契约 §5 前缀的归一只在一处",
+               and "work/old" in "%s%s" % (f.get("where"), f.get("evidence"))] if not err else err
+        rejected = {}
+        for v in ('"./"', '"."', '""', "/abs", "../x"):
+            write_text(os.path.join(tmp, "governance", "project.yaml"),
+                       "tier: L0\nmetadata_required:\n  - docs\n  - %s\n" % v)
+            _c, prob = load_config(tmp)
+            rejected[v] = bool(prob) and "第 2 行 metadata_required" in prob
+    ok = got == [] and all(rejected.values())
+    results.append(probe(NAME, ok,
+        "反例八之二：layout.frozen 内的前缀不产出失败或未定；metadata_required 写成 ./ 、. 、空、/ 或 .. 起头整份拒收并报行号",
+        evidence="归档区 %s；拒收 %s" % (got, rejected), why="01 §3.1 归档区不承担更新义务；契约 §5 写错不猜",
     ))
 
     # C10：取最后一条转换记录的日期——小节里的备注日期、全文别处的 from|…| 行都不算；
