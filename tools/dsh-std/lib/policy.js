@@ -97,17 +97,26 @@ function isStateFile(p, root, base) {
 // 词法：一遍扫描，产出子命令段、内嵌命令、解析问题
 // ---------------------------------------------------------------------------
 
+/**
+ * 方言：转义字符不同。bash 用反斜杠（`\"` 转义引号，`"a\"` 引号没闭合）；PowerShell 用反引号，**反斜杠只是普通字符**
+ * （`"C:\x\"` 是合法的、引号已闭合——Windows 路径以 `\` 结尾很常见，按 bash 规则会误判成引号不配对）。
+ * 内嵌命令（`bash -c "…"`）会切换成 bash 方言，`pwsh -Command "…"`、`iex` 切换成 PowerShell 方言。
+ */
+function escChars(dialect) { return dialect === 'bash' ? '\\' : '`' }
+function dialectOf(toolName) { return toolName === 'bash' ? 'bash' : 'ps' }
+
 function lastCh(s) { return s.length === 0 ? '' : s[s.length - 1] }
 function isWsCh(c) { return c === ' ' || c === '\t' || c === '\r' || c === '\n' || c === '\u00a0' || c === '\u3000' }
 
 /** 从 s[i]（是 `(`）起读到配对的 `)`，跳过引号内的括号。返回 {inner, end} 或 null。 */
-function readParen(s, i) {
+function readParen(s, i, dialect) {
+  const E = escChars(dialect)
   let depth = 0
   let q = null
   for (let k = i; k < s.length; k++) {
     const c = s[k]
     if (q) {
-      if (c === '\\' && q === '"') { k++; continue }
+      if (c === E && q === '"') { k++; continue }
       if (c === q) q = null
       continue
     }
@@ -119,9 +128,10 @@ function readParen(s, i) {
 }
 
 /** 从 s[i]（是反引号）起读到下一个未转义的反引号。返回 {inner, end} 或 null。 */
-function readBacktick(s, i) {
+function readBacktick(s, i, dialect) {
+  const E = escChars(dialect)
   for (let k = i + 1; k < s.length; k++) {
-    if (s[k] === '\\') { k++; continue }
+    if (s[k] === E) { k++; continue }
     if (s[k] === '`') return { inner: s.slice(i + 1, k), end: k + 1 }
   }
   return null
@@ -135,7 +145,8 @@ function readBacktick(s, i) {
  * 同时处理：引号内的转义引号（`\"`、`` `" ``）、行注释（词首 `#`）、`<# … #>` 块注释、here 文档（`<<EOF`）与 PowerShell here-string（`@' … '@`）——
  * 它们的**正文是数据，不是命令**，剥掉后再判；续行（行尾 `\` 或反引号）。线性，无回溯。
  */
-export function lex(cmd) {
+export function lex(cmd, dialect = 'ps') {
+  const E = escChars(dialect)
   const segs = []
   const subs = []          // [{ text, at }]：at 是它出现时已切出的段数——它属于**当前正在读**的那一段（下标 at）
   let cur = ''
@@ -155,15 +166,14 @@ export function lex(cmd) {
       continue
     }
     if (q === '"') {
-      if (c === '\\' && i + 1 < n) { cur += c + cmd[i + 1]; i += 2; continue }              // \" \\ （bash）
-      if (c === '`' && cmd[i + 1] === '"') { cur += c + '"'; i += 2; continue }              // `" （PowerShell）
+      if (c === E && i + 1 < n && (dialect === 'bash' || cmd[i + 1] === '"' || cmd[i + 1] === '`' || cmd[i + 1] === '$')) { cur += c + cmd[i + 1]; i += 2; continue }   // bash: \" \\；PowerShell: `" ``  `$
       if (c === '$' && cmd[i + 1] === '(') {
-        const r = readParen(cmd, i + 1)
+        const r = readParen(cmd, i + 1, dialect)
         if (!r) { problem = '命令替换 $( 没有配对的 )'; break }
         subs.push({ text: r.inner, at: segs.length }); cur += ' '; i = r.end; continue
       }
-      if (c === '`') {
-        const r = readBacktick(cmd, i)
+      if (c === '`' && dialect === 'bash') {
+        const r = readBacktick(cmd, i, dialect)
         if (r) { subs.push({ text: r.inner, at: segs.length }); cur += ' '; i = r.end; continue }
       }
       cur += c; i++
@@ -173,20 +183,25 @@ export function lex(cmd) {
 
     // ——— 未引号状态 ———
     // 续行
-    if ((c === '\\' || c === '`') && (cmd[i + 1] === '\n' || (cmd[i + 1] === '\r' && cmd[i + 2] === '\n'))) {
+    if (c === E && (cmd[i + 1] === '\n' || (cmd[i + 1] === '\r' && cmd[i + 2] === '\n'))) {
       cur += ' '; i += cmd[i + 1] === '\r' ? 3 : 2; continue
     }
     // 转义的引号：不开启引号
-    if ((c === '\\' || c === '`') && (cmd[i + 1] === '"' || cmd[i + 1] === "'")) { cur += c + cmd[i + 1]; i += 2; continue }
+    if (c === E && (cmd[i + 1] === '"' || cmd[i + 1] === "'")) { cur += c + cmd[i + 1]; i += 2; continue }
     // 反引号命令替换（bash）／转义（PowerShell）：成对则抽取内部，不成对当普通字符
     if (c === '`') {
-      const r = readBacktick(cmd, i)
-      if (r) { subs.push({ text: r.inner, at: segs.length }); cur += ' '; i = r.end; continue }
+      if (dialect === 'bash') {
+        const r = readBacktick(cmd, i, dialect)
+        if (r) { subs.push({ text: r.inner, at: segs.length }); cur += ' '; i = r.end; continue }
+        cur += c; i++; continue
+      }
+      // PowerShell：反引号转义下一个字符（`n、`t、`$ 等），连同下一个字符一起当作普通内容
+      if (i + 1 < n) { cur += c + cmd[i + 1]; i += 2; continue }
       cur += c; i++; continue
     }
     // 命令替换 $( … )、进程替换 <( … ) >( … )
     if ((c === '$' || c === '<' || c === '>') && cmd[i + 1] === '(' && !(c === '>' && lastCh(cur) === '>')) {
-      const r = readParen(cmd, i + 1)
+      const r = readParen(cmd, i + 1, dialect)
       if (!r) { problem = '命令替换或进程替换的 ( 没有配对的 )'; break }
       subs.push({ text: r.inner, at: segs.length }); cur += ' '; i = r.end; continue
     }
@@ -296,7 +311,8 @@ export function lex(cmd) {
 export function splitCommands(cmd) { return lex(cmd).segs }
 
 /** 一段子命令切词：空白分隔，引号包住的算一个词（去引号；双引号内的转义引号保留成引号字符）。 */
-export function tokenize(seg) {
+export function tokenize(seg, dialect = 'ps') {
+  const E = escChars(dialect)
   const toks = []
   let cur = ''
   let q = null
@@ -304,12 +320,12 @@ export function tokenize(seg) {
   for (let i = 0; i < seg.length; i++) {
     const c = seg[i]
     if (q === '"') {
-      if ((c === '\\' || c === '`') && (seg[i + 1] === '"' || (c === '\\' && seg[i + 1] === '\\'))) { cur += seg[i + 1]; i++; continue }
+      if (c === E && (seg[i + 1] === '"' || (dialect === 'bash' && seg[i + 1] === '\\') || (dialect === 'ps' && seg[i + 1] === '`'))) { cur += seg[i + 1]; i++; continue }
       if (c === '"') { q = null; continue }
       cur += c; continue
     }
     if (q === "'") { if (c === "'") q = null; else cur += c; continue }
-    if ((c === '\\' || c === '`') && (seg[i + 1] === '"' || seg[i + 1] === "'")) { cur += seg[i + 1]; i++; has = true; continue }
+    if (c === E && (seg[i + 1] === '"' || seg[i + 1] === "'")) { cur += seg[i + 1]; i++; has = true; continue }
     if (c === '"' || c === "'") { q = c; has = true; continue }
     if (isWsCh(c)) { if (has || cur) toks.push(cur); cur = ''; has = false; continue }
     cur += c; has = true
@@ -322,18 +338,19 @@ export function tokenize(seg) {
  * 取一段命令里**引号外**的重定向目标词。识别 `>`、`>>`、`>|`、`>&`，前缀可以是数字或 `&`，`>` 前可以紧贴别的词（`echo x>f`），
  * 也可以在命令之前（`>f echo x`）。目标是 `>` 之后的下一个词（可紧贴，也可隔空白）。线性扫描。
  */
-export function redirectTargets(seg) {
+export function redirectTargets(seg, dialect = 'ps') {
+  const E = escChars(dialect)
   const out = []
   let q = null
   for (let i = 0; i < seg.length; i++) {
     const c = seg[i]
     if (q === '"') {
-      if (c === '\\' || (c === '`' && seg[i + 1] === '"')) { i++; continue }
+      if (c === E && (dialect === 'bash' || seg[i + 1] === '"' || seg[i + 1] === '`')) { i++; continue }
       if (c === '"') q = null
       continue
     }
     if (q === "'") { if (c === "'") q = null; continue }
-    if ((c === '\\' || c === '`') && (seg[i + 1] === '"' || seg[i + 1] === "'")) { i++; continue }
+    if (c === E && (seg[i + 1] === '"' || seg[i + 1] === "'")) { i++; continue }
     if (c === '"' || c === "'") { q = c; continue }
     if (c !== '>') continue
     let j = i + 1
@@ -426,23 +443,24 @@ const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'fish', 'pwsh', 'pow
 /**
  * 把整条命令当字符串参数交给别的 shell 的包装：`bash -c "…"`（含 `-lc`、`-ec`、`-cx` 等选项簇）、`cmd /c "…"`（含 `/k`）、
  * `powershell -c`／`-Command`（含参数缩写 `-com` `-comm`…）、`iex "…"`、`Invoke-Expression`、`eval`。取出那段字符串，作为内嵌命令再判一次。
- * 没有这种包装返回 null。
+ * 没有这种包装返回 null；否则返回 {text, dialect}，dialect 决定内嵌串用哪种转义规则解析。
  */
 export function innerCommand(toks) {
   if (toks.length < 2) return null
   const w = toks[0].toLowerCase().replace(/^.*[\\/]/, '').replace(/\.exe$/, '')
-  if (['iex', 'invoke-expression', 'eval'].includes(w)) return toks.slice(1).join(' ')
+  if (w === 'eval') return { text: toks.slice(1).join(' '), dialect: 'bash' }
+  if (['iex', 'invoke-expression'].includes(w)) return { text: toks.slice(1).join(' '), dialect: 'ps' }
   if (['bash', 'sh', 'zsh', 'dash', 'ksh', 'fish'].includes(w)) {
     const k = toks.findIndex((x, i) => i > 0 && /^-[A-Za-z]*c[A-Za-z]*$/.test(x))
-    return k > 0 && toks[k + 1] !== undefined ? toks[k + 1] : null
+    return k > 0 && toks[k + 1] !== undefined ? { text: toks[k + 1], dialect: 'bash' } : null
   }
   if (w === 'cmd') {
     const k = toks.findIndex((x, i) => i > 0 && /^\/[ckCK]$/.test(x))
-    return k > 0 ? toks.slice(k + 1).join(' ') : null
+    return k > 0 ? { text: toks.slice(k + 1).join(' '), dialect: 'ps' } : null   // cmd 没有对应方言，PowerShell 规则（反斜杠不转义）更贴近
   }
   if (w === 'powershell' || w === 'pwsh') {
     const k = toks.findIndex((x, i) => i > 0 && /^-c(o(m(m(a(n(d)?)?)?)?)?)?$/i.test(x))
-    return k > 0 ? toks.slice(k + 1).join(' ') : null
+    return k > 0 ? { text: toks.slice(k + 1).join(' '), dialect: 'ps' } : null
   }
   return null
 }
@@ -552,8 +570,8 @@ const ANY_TOKEN_ASK = [
 // ---------------------------------------------------------------------------
 
 /** 一段子命令里是否有「写动词」：写重定向（目标不是描述符/空设备），或首词是写命令/git 改工作区子命令。 */
-function segHasWrite(seg, toks, countRedirect = true) {
-  if (countRedirect && redirectTargets(seg).some((tg) => !isNullTarget(tg))) return true
+function segHasWrite(seg, toks, countRedirect = true, dialect = 'ps') {
+  if (countRedirect && redirectTargets(seg, dialect).some((tg) => !isNullTarget(tg))) return true
   if (toks.length === 0) return false
   const verb = toks[0].toLowerCase().replace(/^.*[\\/]/, '').replace(/\.exe$/, '')
   // sed 无 -i、tar 只列、unzip 只列：不写
@@ -665,7 +683,7 @@ export function decide(exec, opts) {
     if (cmd.length > MAX_CMD) {
       return { kind: 'ask', reason: `命令超过 ${MAX_CMD} 字符，守卫不分析，按未定处理，先问人` }
     }
-    return judgeShell(cmd, root, 0, baseRoot(root))
+    return judgeShell(cmd, root, 0, baseRoot(root), dialectOf(name))
   }
 
   return { kind: 'allow' }
@@ -676,9 +694,9 @@ export function decide(exec, opts) {
  * cwd0 是虚拟工作目录（绝对路径），`cd` 会更新它，相对路径按它解析。
  * 返回 {kind, reason}。
  */
-function judgeShell(cmd, root, depth, cwd0) {
+function judgeShell(cmd, root, depth, cwd0, dialect) {
   if (depth > MAX_DEPTH) return { kind: 'ask', reason: '命令嵌套了太多层（shell 包装、命令替换），守卫不再往里看，先问人' }
-  const lexed = lex(cmd)
+  const lexed = lex(cmd, dialect)
   if (lexed.problem) return { kind: 'ask', reason: `命令里有守卫解析不了的形状（${lexed.problem}），先问人` }
   const r = baseRoot(root)
   let cwd = cwd0
@@ -687,17 +705,17 @@ function judgeShell(cmd, root, depth, cwd0) {
   const subsBySeg = new Map()
   for (const s of lexed.subs) { if (!subsBySeg.has(s.at)) subsBySeg.set(s.at, []); subsBySeg.get(s.at).push(s.text) }
   // 命令替换的求值点在它所在的子命令：用到那一点的虚拟 cwd（`cd tools; echo $(rm dsh-std/…)`）
-  const judgeSubs = (idx) => { for (const text of subsBySeg.get(idx) || []) inner = stricter(inner, judgeShell(text, root, depth + 1, cwd)) }
+  const judgeSubs = (idx) => { for (const text of subsBySeg.get(idx) || []) inner = stricter(inner, judgeShell(text, root, depth + 1, cwd, dialect)) }
 
   for (let segIdx = 0; segIdx < lexed.segs.length; segIdx++) {
     const rawSeg = lexed.segs[segIdx]
     judgeSubs(segIdx)
     const seg = rawSeg.replace(/[()]/g, ' ')                  // 括号当空白：`(rm -rf .std)`、`cp x (AGENTS.md)`
-    const rawToks = tokenize(seg)
+    const rawToks = tokenize(seg, dialect)
     const toks = stripPrefix(rawToks)
     if (toks.length === 0) {
       // 只有重定向的段（`> .std/a`、`>.std/a echo` 拆出来的）也要判
-      for (const tg of redirectTargets(seg)) {
+      for (const tg of redirectTargets(seg, dialect)) {
         if (isNullTarget(tg)) continue
         const hit = stdHit(tg, root, cwd, r)
         if (hit === 'sure') return { kind: 'deny', reason: '命令把输出重定向到内嵌标准目录 .std/（01 §8 只读）。请把目标改到别处' }
@@ -710,7 +728,7 @@ function judgeShell(cmd, root, depth, cwd0) {
 
     // 内嵌命令：bash -c "…"、iex "…"、eval '…'
     const innerCmd = innerCommand(toks)
-    if (innerCmd !== null) inner = stricter(inner, judgeShell(innerCmd, root, depth + 1, cwd))
+    if (innerCmd !== null) inner = stricter(inner, judgeShell(innerCmd.text, root, depth + 1, cwd, innerCmd.dialect))
     const opaque = opaqueShell(toks)
     if (opaque && !ask) ask = opaque
 
@@ -724,7 +742,7 @@ function judgeShell(cmd, root, depth, cwd0) {
     }
 
     // 1) 重定向目标：按虚拟 cwd 解析后落在 .std —— deny（命令串层面唯一的 deny 来源）；仅按项目根才落在 .std —— ask
-    for (const tg of redirectTargets(seg)) {
+    for (const tg of redirectTargets(seg, dialect)) {
       if (isNullTarget(tg)) continue
       const hit = stdHit(tg, root, cwd, r)
       if (hit === 'sure') return { kind: 'deny', reason: '命令把输出重定向到内嵌标准目录 .std/（01 §8 只读）。请把目标改到别处' }
@@ -734,7 +752,7 @@ function judgeShell(cmd, root, depth, cwd0) {
     }
 
     // 「写类命令且参数里有 .std／受保护路径」只看命令本身的写动词；重定向到别处不算（重定向目标由上面单独判）
-    const writes = segHasWrite(seg, toks, false)
+    const writes = segHasWrite(seg, toks, false, dialect)
     const verb = toks[0].toLowerCase().replace(/^.*[\\/]/, '').replace(/\.exe$/, '')
     if (writes) {
       // 2) 写类命令：虚拟 cwd 在 .std 或受保护目录里；参数里有 .std／受保护路径
@@ -765,7 +783,7 @@ function judgeShell(cmd, root, depth, cwd0) {
     if (!ask && (DELETERS.has(verb) || verb === 'find') && toks.slice(1).some((t) => candidates(t).some((c) => isStateFile(c, root, cwd)))) {
       if (verb !== 'find' || toks.some((x) => x === '-delete')) ask = '删除、移走或清空状态入口 / 失败清单（01 §5.5）'
     }
-    if (!ask && redirectTargets(seg).some((tg) => isStateFile(tg, root, cwd))) ask = '重定向会清空或覆盖状态入口 / 失败清单（01 §5.5）'
+    if (!ask && redirectTargets(seg, dialect).some((tg) => isStateFile(tg, root, cwd))) ask = '重定向会清空或覆盖状态入口 / 失败清单（01 §5.5）'
     // 复制/下载覆盖状态文件等于清空重写：目标（最后一个非选项词）是状态入口/失败清单也问
     if (!ask && ['cp', 'copy', 'copy-item', 'cpi', 'curl', 'wget', 'iwr', 'invoke-webrequest', 'irm', 'invoke-restmethod', 'rsync', 'install', 'dd', 'tee', 'tee-object'].includes(verb)) {
       const cands = toks.slice(1).flatMap((x) => candidates(x))
