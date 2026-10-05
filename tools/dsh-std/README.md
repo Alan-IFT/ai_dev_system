@@ -112,7 +112,7 @@ pnpm add link:D:/Programs/AI辅助开发规范及工作流确定/tools/dsh-std
 
 **这次观察的局限（不要读多）：**
 
-- **`git tag` 那一条看到的是「被拒」，不是「弹出审批」。** 该会话的审批策略是 `never`，按 `dsh-user-approval` 的语义，`never` 会在应答者运行之前确定性拒绝所有 `ask`。所以这次只能证明 `ask` 被采纳并转成了拒绝；**「ask → 弹窗 → 人批准 → 放行」这条路径没有被验证**，需要在审批策略为 `ask` 的会话里另测。
+- **`git tag` 那一条看到的是「被拒」，不是「弹出审批」。** 该会话的审批策略是 `never`，按 `dsh-user-approval` 的语义，`never` 会在应答者运行之前确定性拒绝所有 `ask`。这足以证明本插件的职责：**返回 `{kind:'ask'}`，并被 DSH 采纳**。此后「弹窗 → 人批准 → 放行」是 DSH 自带审批链（`dsh-user-approval`）的功能，**不是本插件的代码，也不在本插件的验证范围内**——不重复验证 DSH 已有的功能（2026-10-05 Alan 明确指出）。
 - 测了 `pwsh`、`write`、`edit` 三个工具名；`bash` 没测（本机是 Windows，没有这个工具）。
 - 没测子 agent（subagent）里是否继承该守卫。
 - 只测了本机一台、一个 profile、一次装法。
@@ -125,7 +125,6 @@ pnpm add link:D:/Programs/AI辅助开发规范及工作流确定/tools/dsh-std
 
 **仍未验证（记未定，不折算为通过）：**
 
-- **审批策略为 `ask` 时的弹窗与批准后放行**（见上）。
 - **与其它订阅 `tools/pre-execute` 的包（`dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs`）的先后顺序与 `ask` 叠加效果**：本会话里这些包也在 profile 里，没有观察到冲突，但没有专门测。
 - **`Config` 降级后 `enabled`／`root` 能否生效**。
 - **`bash` 工具名；子 agent 是否继承；POSIX 上的行为。**

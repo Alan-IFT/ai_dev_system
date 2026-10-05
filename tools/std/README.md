@@ -139,8 +139,8 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
   `python3 tools/std/check_all.py --selftest` 与 `python3 tools/std/check_all.py . --no-scope`，都退出 0
   才继续——跨检查器反例只在 `--selftest` 里跑、不在提交路径上，绕过钩子进来的内容也要在这里再判一次 → 在 main 上
   `git worktree add ../release release`（首次加 `-b release`，从空开始）→ 在该 worktree 里
-  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std LICENSE LICENSE-DOCS` → 写／更新根
-  `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交）→
+  `git rm -r -q .`（首次跳过）→ `git checkout main -- 标准 templates tools/std tools/dsh-std LICENSE LICENSE-DOCS` → 写／更新根
+  `README.md`（说明本分支是 main 的发布产物、含哪几个目录、对应哪个 main 提交；`tools/dsh-std/` 是 DSH 插件，D-135 起属交付面）→
   `git commit -m "release <tag>：来自 main <sha>"` → `git tag <tag>` → push 分支与 tag。
   每次发布提交接在上一次之上，不用 orphan 重建——重建会让两个 tag 间的 diff 不再是升级差异。
   **push 时同时推到公开仓**（`release` 分支在公开仓里就是它的 `main`，采用项目按上面「取用」那条
@@ -214,7 +214,7 @@ worktree 里接这个钩子会写坏仓库（垃圾提交、`core.bare=true`）�
   [03](../../标准/03-Agent信息获取与上下文管理.md) §8.2 重建后重核 HEAD），不另造会话启动钩子；
   本仓未验证 DSH 有等价的「恢复后注入」事件，记未定。
 
-**已验证**（2026-10-05，本机一个 profile、一个会话）：插件被 DSH 加载，`write`／`edit`／`pwsh` 下 deny 与 ask 的返回值被采纳。**未验证**（记未定，不折算为通过）：审批策略为 `ask` 时的弹窗与批准后放行、子 agent 是否继承、`Config` 降级后配置字段是否生效；
+**已验证**（2026-10-05，本机一个 profile、一个会话）：插件被 DSH 加载，`write`／`edit`／`pwsh` 下 deny 与 ask 的返回值被采纳。**未验证**（记未定，不折算为通过）：子 agent 是否继承、`Config` 降级后配置字段是否生效；
 与同样订阅 `tools/pre-execute` 的其它包的先后顺序没有实测。第一次装上后要做一次真跑，步骤见插件 README。
 
 **盲区**（都不记为已受控，按 [01 §5.5](../../标准/01-项目管理标准.md#controlled-actions)）：
