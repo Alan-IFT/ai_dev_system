@@ -46,7 +46,7 @@ last_status_change：2026-10-04（受支持宿主收为 DeepSeek Harness 一家�
 
 ## 下一步
 
-**D-135 的收尾（先做）**：①`tools/dsh-std/` 在真实 DSH 会话里装上并真跑一次（写 `.std/x.md` 应被拒、`git tag x` 应弹审批），装法见插件 README；②提交闸门已改为兼容 Windows（`.githooks/pre-commit` 按「跑得通」选 `python3`／`python`／DSH 自带 Python，路径含空格与中文已实测，找不到则失败关闭；改钩子经 Alan 2026-10-05 同意），本机已能通过，**但还没在真实 `git commit` 上走过一遍**，第一次提交时观察；③NFBY_CMS_FullStack 按 DSH 接法迁移（它按 D-115 装过旧接法，需自己的工作项）。
+**D-135 的收尾（先做）**：①`tools/dsh-std/` **已装进本机 profile 并真跑过（2026-10-05）**：写 `.std/`、重定向到 `.std/`、`git tag`、改 `AGENTS.md` 都被拒；**还没验证**审批策略为 `ask` 时的弹窗与批准后放行、子 agent 是否继承；②提交闸门已改为兼容 Windows（`.githooks/pre-commit` 按「跑得通」选 `python3`／`python`／DSH 自带 Python，路径含空格与中文已实测，找不到则失败关闭；改钩子经 Alan 2026-10-05 同意），本机已能通过，**但还没在真实 `git commit` 上走过一遍**，第一次提交时观察；③NFBY_CMS_FullStack 按 DSH 接法迁移（它按 D-115 装过旧接法，需自己的工作项）。
 
 当前工作：在两轮资料补充基础上，按用户确认的评审建议加入[反馈跨任务生效演练](标准/示例项目-连锁零售中台/反馈跨任务生效演练.md)，专项范围与检查见[完善记录](docs/审计记录/本轮完善记录.md#feedback-exercise)。下一步由采用项目选有原始证据的一条关键旅程试用，按[试点通过条件](标准/覆盖与采用检查.md#pilot-exit)及适用的反馈演练取证，验证执行效果与维护成本；尚未运行的分支保留未定。后续资料按真实缺口选取，研究正文的待裁事项仍只由决策索引管理。[D-057](docs/决策日志.md#effective-register) 于 2027-02-17 复审时，一并复核 [D-061](docs/决策日志.md#decision-index) 的六组跨章边界。2026-09-09 另追加一轮 OpenAI/Anthropic 官方近半年文章专项（管理/运维/上下文三方向共 13 张卡 M-21~25、O-16~20、C-20~22，落进 01/02/03/04），见[完善记录·追加专项](docs/审计记录/本轮完善记录.md#addendum-2026-09)。
 

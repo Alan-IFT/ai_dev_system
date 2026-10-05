@@ -99,7 +99,7 @@ WX-29 §5.2 曾以 S1 二手材料登记过一条冲突。**本次读一手包�
 
 **读源码顺带得到的另外几条事实**（都进了插件设计）：`tools/pre-execute` 返回 `allow／deny／ask`，`ask` 经 `dsh-user-approval`，应答缺席即拒绝（`serviceAsk`）；**`tools/pre-execute` 不能改写参数**（dsh-tools README「Known Limitations」）；内置写类工具是 `write`／`edit`（参数 `file_path`），shell 是 `pwsh`（Windows）或 `bash`（POSIX），参数 `command`；`dsh-hooks-claude-code` 的 `PreToolUse` 实现正是订阅 `tools/pre-execute` 后把外部命令的输出翻成 deny／ask——即桥接与原生插件落在同一个缝上，差别只在判定逻辑是外部进程还是进程内代码。
 
-**仍未知（不猜）：** 插件在真实会话里是否被调用；与同订阅 `tools/pre-execute` 的 `dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs` 的先后顺序；子 agent 是否继承全局守卫。
+**2026-10-05 更新**：插件已在本机真实会话里被调用（见 `tools/dsh-std/README` 的实测表）。**仍未知（不猜）：** 本插件与同样订阅 `tools/pre-execute` 的 `dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs` 的先后顺序；子 agent 是否继承全局守卫。
 
 ## 7. 本表其它不回答的问题
 

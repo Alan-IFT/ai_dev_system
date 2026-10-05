@@ -95,14 +95,49 @@ pnpm add link:D:/Programs/AI辅助开发规范及工作流确定/tools/dsh-std
 | 内置工具名与路径参数：`read`／`write`／`edit` 用 `file_path`，`pwsh`／`bash` 用 `command` | `dsh-tool-fs`、`dsh-tool-pwsh`、`dsh-tool-bash` |
 | 插件以 profile bundle 装入，bundle 补丁文件为 `cordis.patch.yml` 的 `insert` 列表 | `dsh-plugin-manager` README、社区包 `dsh-user-prompt` 的写法 |
 
-**未验证（记未定，不折算为通过）：**
+**已在真实 DSH 会话里验证过的（2026-10-05，DSH 0.2.0-rc.2，本机 `desktop` profile，装法见上）：**
 
-- **本插件被 DSH 真实调用时的瀑布合并语义**：本插件自己合并「下游决定」与「本插件判定」取最严，但 `tools/pre-execute` 作为 waterfall，DSH 是否还会再合并、顺序如何，没有实测。
-- `package.json` 没有别的已装包都带的 `manifestVersion`／`compatibility` 字段；缺它是否影响加载未知。`peerDependencies` 里的版本范围也未对 DSH 内置包核实。
+装上后，**在我（执行这次安装的会话）自己正在运行的会话里，没有重启就观察到了守卫生效**。我没有查证这是 DSH 的 HMR 热重组、还是别的机制（例如每次工具调用时重新读取 profile），所以不要据此断言「改 profile 一定热生效」——换一台机器或换一种启动方式可能需要重启。实测：
 
-- 插件**没有在真实 DSH 会话里加载过**：单测用假 `ctx` 验证接线（条数跑 `node --test test/policy.test.js test/regress.test.js` 现取，不在此抄；做过变异验证），这证明判定逻辑与监听注册，不证明 DSH 真会调用它。第一次装上后要做一次真跑：让 agent 写 `.std/x.md`，应见 `Error: 内嵌标准目录 .std/ 只读…`；让它执行 `git tag x`，应弹出审批。
-- 其它包（如 `dsh-workspace-changes`、`dsh-experimental-auto-review`）也订阅了 `tools/pre-execute`，**与本插件的先后顺序没有实测**。本插件先 `await next()` 再收紧，所以不会盖掉别人的 deny，但顺序对 `ask` 的叠加效果未测。
+| 动作 | 观察到的 |
+|---|---|
+| `write` 工具写 `.std/x.md` | 被拒，错误信息正是本插件的 deny 文案「内嵌标准目录 .std/ 只读（01 §8）…」；文件没有落盘，`.std` 目录也没被创建 |
+| `pwsh` 工具执行 `echo … > .std/redir.txt` | 被拒，文案「命令把输出重定向到内嵌标准目录 .std/…」；文件没有落盘 |
+| `edit` 工具改 `.std/y.md` | 被拒，同样是 deny 文案；没有落盘 |
+| `edit` 工具改受保护文件 `AGENTS.md` | **被拒：`the user rejected tool "edit"`**（`never` 策略下 `ask` 的结果）；文件没有被改 |
+| `pwsh` 工具执行普通命令（`Get-ChildItem …`） | 照常放行 |
+| `pwsh` 工具执行 `git tag <名字>` | **被拒：`the user rejected tool "pwsh"`**，tag 没有创建（`.git/refs/tags` 里无该名字） |
+
+这四条证明：**插件确实被 DSH 加载、`tools/pre-execute` 监听确实被调用、deny 与 ask 的返回值被 DSH 采纳**。
+
+**这次观察的局限（不要读多）：**
+
+- **`git tag` 那一条看到的是「被拒」，不是「弹出审批」。** 该会话的审批策略是 `never`，按 `dsh-user-approval` 的语义，`never` 会在应答者运行之前确定性拒绝所有 `ask`。所以这次只能证明 `ask` 被采纳并转成了拒绝；**「ask → 弹窗 → 人批准 → 放行」这条路径没有被验证**，需要在审批策略为 `ask` 的会话里另测。
+- 测了 `pwsh`、`write`、`edit` 三个工具名；`bash` 没测（本机是 Windows，没有这个工具）。
+- 没测子 agent（subagent）里是否继承该守卫。
+- 只测了本机一台、一个 profile、一次装法。
+
+**装法里实际踩到的事实（读源码 + 实测）：**
+
+- `pnpm add link:<路径>` 会把插件以符号链接装进 `node_modules`；Node 解析符号链接的**真实路径**，所以插件里 `require('@deepseek-ai/schemastery')` 从插件目录往上找，**找不到** profile 里的那份——`Config` 因此降级为 `undefined`（插件设计上允许降级，不会挡住启动；本机已装的另一个本地包 `dsh-user-preferences` 同样如此）。`enabled`／`root` 两个配置字段**是否仍被 DSH 传给 `apply`，没有验证**（本次装好后没有写任何 `config`，走的是默认值）。要写 `root`，先确认它真的传到了：在 `apply` 里临时打印 `config`。
+- `pnpm add` 的输出里出现过 `Packages: -2`。逐项核对：`package.json` 只多了 `dsh-std` 一行依赖，`pnpm-lock.yaml` 只多了 `dsh-std` 的条目，**profile 声明的其余依赖在 `node_modules` 里都还在**，没有误伤。
+- `package.json` 没有别的已装包带的 `manifestVersion`／`compatibility` 字段，**不影响加载**（上面的实测就是在没有它的情况下加载成功的）。
+
+**仍未验证（记未定，不折算为通过）：**
+
+- **审批策略为 `ask` 时的弹窗与批准后放行**（见上）。
+- **与其它订阅 `tools/pre-execute` 的包（`dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs`）的先后顺序与 `ask` 叠加效果**：本会话里这些包也在 profile 里，没有观察到冲突，但没有专门测。
+- **`Config` 降级后 `enabled`／`root` 能否生效**。
+- **`bash` 工具名；子 agent 是否继承；POSIX 上的行为。**
 - 单测的三个路径用例按平台分支写（Windows 与 POSIX 各一组路径），只在 Windows 上跑过。
+
+**回退（把守卫从 profile 里摘掉）：**
+
+```text
+# 备份在 %USERPROFILE%\.dsh\profiles\desktop-backup-before-dsh-std-<时间戳>\
+# 方式一：从备份还原 package.json 与 pnpm-lock.yaml，再 pnpm install
+# 方式二：手动 —— 删 package.json 里 dependencies 的 "dsh-std" 一行与 dsh.profile.bundles 里的 "dsh-std"，再 pnpm install
+```
 
 ## 自检
 
