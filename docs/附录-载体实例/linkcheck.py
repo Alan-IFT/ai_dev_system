@@ -75,8 +75,9 @@ def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     md_files(root)   # 不在 git 工作区时在这里一行提示并退出 2
     # 锚点与"越出仓根"都以仓根为界，不以扫描参数为界：在子目录跑时，指向目录外的链接照样能解析
-    top = subprocess.run(["git", "-C", root, "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True).stdout.strip()
+    # git 在 Windows 上返回正斜杠路径（D:/x），下面的 commonpath 比较要同一种写法，先规整
+    top = os.path.normpath(subprocess.run(["git", "-C", root, "rev-parse", "--show-toplevel"],
+                                          capture_output=True, text=True).stdout.strip())
     texts = {os.path.abspath(f): io.open(f, encoding="utf-8", errors="replace").read() for f in md_files(top)}
     anchors = {f: anchors_of(t) for f, t in texts.items()}
     base = os.path.realpath(root)

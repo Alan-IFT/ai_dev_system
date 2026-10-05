@@ -1018,6 +1018,10 @@ def selftest():
 
     # 4k（B16）：一份文档或一份状态源读不了（这里用 FIFO：不是常规文件不读），只记它自己一条未定，
     # 其余文件照判——旧实现遇到第一份读不了就把整条判据换成一条未定
+    # 「读不了」的夹具：POSIX 用 FIFO；Windows 的 os 没有 mkfifo，改让一个目录占住这条已跟踪文件的路径。
+    # 被测的是 _check_dates 里 `except OSError` 之后「只记这一份自己的 unreadable、其余照判」这条路径，两种夹具都走它；
+    # **但目录占位不经过 stdlib.read_bytes 的 S_ISREG／NotRegular 那一行**（对目录 os.open 直接抛 PermissionError），
+    # 所以 FIFO「不阻塞、判为非常规文件」只在 POSIX 上被验证。
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         write_text(os.path.join(tmp, "docs", "a.md"), u"- 2026-09-22 裁定 X。\n")
         write_text(os.path.join(tmp, "docs", "items", "a.md"), u"- WI-0007 在做。\n")
@@ -1027,7 +1031,7 @@ def selftest():
         err = git_track(tmp, _COMMIT_DATE)
         for rel in ("docs/b.md", "docs/items/b.md"):
             os.remove(os.path.join(tmp, rel))
-            os.mkfifo(os.path.join(tmp, rel))
+            (os.mkfifo if hasattr(os, "mkfifo") else os.mkdir)(os.path.join(tmp, rel))
         res = run({"_root": tmp, "layout": {"docs_root": "docs", "artifacts": {"status": "docs/items"}}}) \
             if not err else []
         got = sorted((f["status"], f["id"]) for f in res

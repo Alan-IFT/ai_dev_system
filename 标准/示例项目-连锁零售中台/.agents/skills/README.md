@@ -1,6 +1,6 @@
 # 方法库（skills）
 
-`.agents/skills/<name>/SKILL.md`，Claude Code 经 `.claude/skills` 符号链接读同一目录。**description 常驻，正文命中才读。** 只有人能写；新增须绑 F- 与删除条件。预算 20 个，现 11。
+`.agents/skills/<name>/SKILL.md`，DSH 按 rank 200 自动扫描这个目录。**description 常驻，正文命中才读。** 只有人能写；新增须绑 F- 与删除条件。预算 20 个，现 11。
 
 | skill | description（常驻的那一句） | 来源 |
 |---|---|---|

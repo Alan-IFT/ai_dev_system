@@ -18,7 +18,8 @@ FAIL——两边都是被扫项目里的文件，比的是记录与实物。标�
 某个宿主工具的钩子里，git 钩子、CI 与 Agent 的提交前钩子只要调 `check_all` 就同样受益。
 
 另判项目级声明的两处：01 §5.3「`project.yaml` 的 `compatibility.policy` 必填」，与 01 §5.5 审批
-疲劳段「能执行任意代码的通配放行项……不作为免审批项保留」（只读入库的 `.claude/settings.json`）。
+疲劳段「能执行任意代码的通配放行项……不作为免审批项保留」。D-135 起主判据记 SKIP（见 `_allowlist_skip`）；
+下面的 `_settings_allow` 仍读旧宿主的 `.claude/settings.json`，只供旧项目接回与反例自检使用。
 
 本模块只用标准库。
 """
@@ -212,13 +213,6 @@ def scope(cfg):
             "有判 FAIL（01 §8 只读）；git 查不了记未定",
             "配置里有没有非空的 compatibility.policy（01 §5.3 必填，不分档），没有判 FAIL",
             "tailoring 裁掉本检查时，内嵌目录只读与 compatibility.policy 两项不可裁剪、照判，其余记 SKIP",
-            "%s 的 permissions.allow 里有没有通配放行项：`Bash`、`Bash(*)`，或命令解释器、脚本运行器、"
-            "包管理器运行命令后面只剩通配（如 `Bash(python3 *)`、`Bash(npm run *)`、`Bash(uv run:*)`；"
-            "中间的选项与登记过的带值选项（python -X/-W、node -r/--require/--import/--loader、perl -I、"
-            "npm --prefix、uv --with）跳过再看，运行器后跟解释器同样认，解释器名带版本号如 `python3.12` 同样认），"
-            "以及整类放行 `PowerShell`、`PowerShell(*)`、`Monitor`、`Agent`；有判 FAIL，文件不在记 SKIP；"
-            "通配前出现未登记的选项、其后的词又不像脚本路径时判不了，记未定（wildcard-unsure）"
-            % _SETTINGS_REL,
         ],
         "not_covered": [
             "不验证读到的版本值背后的 tag 是否真实存在——核实它要联网或读被扫项目之外的 git 元数据，本工具两样都不做",
@@ -238,16 +232,9 @@ def scope(cfg):
             "内嵌目录只读：不看未跟踪文件（新建而未 git add 的），不看已提交进历史的改动"
             "——后者用 `git log --oneline -- .std` 查（见 tools/std/README「升级」）；非内嵌运行不判",
             "compatibility.policy 只判有没有，不判写得对不对、是否覆盖数据/接口/配置/旧客户端四项（契约 §7）",
-            "免审批清单只读入库的 %s：不读 .claude/settings.local.json（不入库，内容因人因机器而异，"
-            "同一提交在不同机器上会得出不同结论，CI 也看不到）与用户级设置，那里的通配放行项本检查看不见；"
-            "不读别的宿主工具的清单；只判 Bash 规则，不判 MCP、WebFetch 等其他工具的放行范围；"
-            "解释器与运行器按一份固定清单认，清单外能执行任意代码的命令（如 `git *` 经别名、`make` 之外的"
-            "任务运行器）认不出；不判清单每项有没有加入理由、加入人与复审条件（01 §5.5 同段的另一半）"
-            % _SETTINGS_REL,
-            "不判 permissions.defaultMode：bypassPermissions 写在项目级或 local 设置里 Claude Code 自身不生效"
-            "（官方 settings 文档），交给宿主处理",
-            "auto 模式下 Claude Code 自己就会丢弃这类通配放行规则；本检查的增量在 manual、acceptEdits 等"
-            "会照单放行的模式下",
+            "免审批清单（01 §5.5 审批疲劳段）本宿主无对象，不判（D-135）：DeepSeek Harness 的审批策略是会话级旋钮，"
+            "没有项目级入库的逐条放行清单可读；未判不等于没有通配放行项。通配判定的纯函数 _wildcard_allow 仍在，"
+            "为有对象的宿主或旧项目接回而留",
         ],
     }
 
@@ -260,7 +247,7 @@ def run(cfg, tool_root=None):
         return ([finding(NAME, SKIP, "项目已裁剪本检查（内嵌目录只读与 compatibility.policy 不可裁剪，照判）",
                          reason=reason or "project.yaml 未写理由")]
                 + _readonly_findings(root, embedded_std_rel(root, tool_root)) + [_compatibility(cfg)])
-    return _version(cfg, root, tool_root) + [_compatibility(cfg)] + _settings_allow(root)
+    return _version(cfg, root, tool_root) + [_compatibility(cfg)] + [_allowlist_skip()]
 
 
 def _version(cfg, root, tool_root):
@@ -504,6 +491,20 @@ def _wildcard_allow(rule):
                 and kept[0] != "--" and runner[1] in kept[1:] and not scripty(kept):
             return UNDETERMINED, "运行器 %s 的动词前有未登记的选项 %s" % (head, kept[0])
     return None
+
+
+def _allowlist_skip():
+    """免审批清单判据（01 §5.5 审批疲劳段）：D-135 起记 SKIP，不再读任何宿主的设置文件。
+
+    原先读 Claude Code 的 .claude/settings.json；该宿主已不再支持。DeepSeek Harness 的审批策略是会话级旋钮
+    （ask／never），没有「项目级、入库、逐条放行通配规则」的清单文件可读，所以本检查在受支持宿主上没有对象。
+    记 SKIP 而不是 PASS：没读到不等于没有通配放行项（01 §5.5），也不留一个永远读不到东西、却看起来在判的检查。
+    下面的 _settings_allow／_wildcard_allow 保留为纯函数，供有对象的宿主或旧项目接回。"""
+    return finding(
+        NAME, SKIP, "免审批清单判据本宿主无对象，未判", kind="settings-absent",
+        reason="D-135：受支持宿主是 DeepSeek Harness，其审批策略是会话级旋钮，没有项目级入库的逐条放行清单可读；"
+               "原读取的 Claude Code .claude/settings.json 已不在支持范围。未判不等于没有通配放行项，按 01 §5.5 记未判",
+        why="01 §5.5 审批疲劳段：能执行任意代码的通配放行项不作为免审批项保留")
 
 
 def _settings_allow(root):

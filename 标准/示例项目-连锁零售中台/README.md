@@ -7,8 +7,8 @@
 - **业务**：为一家连锁超市（门店规模见 [vision.md](docs/product/vision.md)）提供商品主数据、供应商与采购、门店库存、价格促销、POS 对接、会员积分、供应商结算、批量导入导出、报表。
 - **规模**：14 个模块，模块化单体 + 1 个已拆出的部署单元（POS 网关）；PostgreSQL 16 / Redis / RabbitMQ；Python 3.12（FastAPI）后端，TypeScript/React 前端；两个环境（staging、prod）。
 - **时间**：2025-03-03 启动，2025-06-02 首发（12 家店），2026-09-07（"现在"）跑到第 18 个月，v2.4.0 在线。
-- **人**：前 11 个月一人（Zhao）+ Claude Code；2026-03 起四人，其中一人用 Codex、一人用 Cursor。
-- **AI 工具**：Claude Code 为主宿主；Codex 做独立验证会话；Cursor 由新成员使用。
+- **人**：前 11 个月一人（Zhao）+ DSH；2026-03 起四人，其中一人用 Codex、一人用 Cursor。
+- **AI 工具**：DeepSeek Harness（DSH）为主宿主；Codex 做独立验证会话；Cursor 由新成员使用。
 
 ## 怎么读这个示例
 
@@ -17,7 +17,7 @@
 | 18 个月里每个月发生了什么、文档怎么变、**旧做法会在哪一步死掉** | [维护时间线.md](维护时间线.md) |
 | 一次高影响任务（契约破坏性变更）从开到关的每一步读什么写什么 | [一次任务的完整走法.md](一次任务的完整走法.md) |
 | 一条反馈怎样进入后续任务，怎样验证、收窄或撤销 | [反馈跨任务生效演练.md](反馈跨任务生效演练.md)；待执行计划，含重复提醒、误归类和检查器停跑分支 |
-| 工具入口长什么样 | [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) |
+| 工具入口长什么样 | [AGENTS.md](AGENTS.md) |
 | 项目配置、闸门、例外 | [governance/](governance/project.yaml) |
 | 文档地图 | [docs/INDEX.md](docs/INDEX.md) |
 | 系统全景、模块、依赖、契约、不变量 | [docs/architecture/](docs/architecture/overview.md) |
@@ -35,7 +35,6 @@
 retail-core/
 ├─ 反馈跨任务生效演练.md             教学计划，不改变下列历史工件
 ├─ AGENTS.md                       工具入口与唯一加载合同
-├─ CLAUDE.md                       @AGENTS.md
 ├─ governance/
 │  ├─ project.yaml                 档次、路径、预算、元信息范围（检查器读的唯一配置）
 │  ├─ GATES.md                     G1–G8 + 项目自加的 G9–G13，及它们用的命令

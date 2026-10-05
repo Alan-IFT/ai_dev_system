@@ -134,7 +134,6 @@ tailoring:                          # 裁剪：不适用的部分与理由
     reason: 单仓项目
 layout:
   entry:                            # 入口文件，受行数预算约束
-    - CLAUDE.md
     - AGENTS.md
   docs_root: docs
   work_root: docs/state/work        # 工作项目录
@@ -143,7 +142,7 @@ layout:
   frozen:                           # 只读归档区，不参与新鲜度与更新义务
     - docs/features
   rule_files:                       # 退役仓里"会被当成现行规则读入"的位置
-    - .claude/
+    - .agents/
     - AGENTS.md
 budgets:                             # 参数，项目可改；默认见 01 §3.7
   entry_lines: 150
@@ -186,7 +185,7 @@ repos:                               # 多仓系统，见 01 §3.8；单仓省�
 | `layout.work_root` | 字符串 | 否 | 取常量 `docs/state/work`（01 §3.1；`docs/` 随 `layout.docs_root` 改基，与 `check_layout` 的候选同一规则），并在 `evidence` 里注明用的是默认。它也是 `check_layout` 的 `work_current`（实时状态源）一项在未声明 `layout.artifacts.work_current` 时认的落点——目录不在由 `layout` 报一次（声明了却不在，任何档判 `FAIL`），`evidence`／`freshness`／`drift` 记 `SKIP`（§1）。解析只在 `stdlib.work_root` 一处 |
 | `layout.artifacts` | 映射，`<role>: 路径` | 否 | 按分档快照里的候选路径找；给了就只认它，不再猜候选。`status` 的候选（`WORK.md`、`docs/state/STATUS.md`，取自模板 L0 树与 01 §3.1）在 `stdlib.STATUS_CANDIDATES`，`check_layout` 与 `check_drift` 共用。**★ 工件（入口/验收/状态）没声明落点时，候选未命中记 `UNDETERMINED` 而不是 `FAIL`**（§1.1）；声明了却不存在才是 `FAIL`。role 名见 `check_layout` 的 `_TIER_ITEMS`（`entry`/`acceptance`/`status`/`playbook`/`failures`/…） |
 | `layout.frozen` | 路径前缀列表 | 否 | 视为没有只读归档区，全仓都承担更新义务 |
-| `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
+| `layout.rule_files` | 路径/前缀列表，以 `/` 结尾按目录递归 | 否 | 取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`（后两个与 `.claude/` 是**兼容候选名**：覆盖按旧模板或旧宿主落地的退役仓，不表示支持旧宿主，D-135），并在 `evidence` 里注明用的是缺省清单。只有 `cross-repo` 判退役仓时用它 |
 | `budgets.entry_lines` | 正整数 | 否 | 取 01 §3.7 默认 150 并注明未校准；不是正整数记 `UNDETERMINED` |
 | `budgets.status_lines` / `work_item_lines` / `handoff_lines` / `module_lines` | 正整数 | 否 | 缺失即该类不判，记 `SKIP`（`budget-undeclared/<键>`）——01 §3.7 的 80 / 150 / 60 / 200 是参考值，不取来当门槛；不是正整数记 `UNDETERMINED`（`budget-invalid/<键>`）。对象见下方「01 §3.7」一节 |
 | `compatibility.policy` | 非空（字符串、映射或列表） | **是**（01 §5.3） | `check_adoption` 判 `FAIL`（`adoption/compatibility-policy`）。只判有没有，不判内容；写成指向项目里权威位置的指针也算 |

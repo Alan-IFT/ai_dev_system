@@ -1027,6 +1027,7 @@ def _stdlib_selftest(mods):
         return sl.load_config(tmp)
 
     cases = []
+    _skipped = []   # 本平台造不出夹具、如实记 SKIP 的断言（Windows 上的文件名限制等）
     try:
         with tempfile.TemporaryDirectory() as base:
             def fresh(tag):
@@ -1074,9 +1075,16 @@ def _stdlib_selftest(mods):
                 except OSError as exc:
                     return type(exc).__name__
             fifo = os.path.join(proj, "fifo.md")
-            os.mkfifo(fifo)
-            got = _try(lambda: sl.read_text(fifo, proj))
-            cases.append(("FIFO 不读、不阻塞（NotRegular）", got == "NotRegular", got))
+            # Windows 没有 FIFO，目录占位**不等价**：对目录 os.open 直接抛 PermissionError，走不到 S_ISREG 判定，
+            # 即测的不是同一条分支。所以不换夹具，如实记 SKIP（本平台未验证）；该断言只能在 POSIX 上验证。
+            if hasattr(os, "mkfifo"):
+                os.mkfifo(fifo)
+                got = _try(lambda: sl.read_text(fifo, proj))
+                cases.append(("FIFO 不读、不阻塞（NotRegular）", got == "NotRegular", got))
+            else:
+                _skipped.append(finding("stdlib", SKIP, "stdlib：FIFO 不读、不阻塞（NotRegular）（未跑）",
+                                        reason="本平台（Windows）没有 FIFO；目录占位走的是另一条分支（PermissionError），不等价，故不换夹具；"
+                                               "该断言只能在 POSIX 上验证，本次未验证，不折算为通过"))
             big = os.path.join(proj, "big.md")
             with open(big, "wb") as fh:
                 fh.truncate(sl.MAX_READ_BYTES + 1)          # 稀疏文件，不占盘
@@ -1188,7 +1196,7 @@ def _stdlib_selftest(mods):
             git_track(proj)
             for fp in fifos:                                 # git 不收 FIFO：先跟踪常规文件，再换成 FIFO
                 os.remove(fp)
-                os.mkfifo(fp)
+                (os.mkfifo if hasattr(os, "mkfifo") else os.mkdir)(fp)   # 同上：Windows 无 mkfifo，目录占位
             write_text(os.path.join(proj, "CLAUDE.md"), u"x\n")
             os.chmod(os.path.join(proj, "CLAUDE.md"), 0)     # entry-budget 先判 isfile，FIFO 进不来；用无读权限
             cfg_u = {"_root": proj, "tier": "L0", "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs",
@@ -1198,7 +1206,7 @@ def _stdlib_selftest(mods):
                 u"读不了" in f["title"] or u"自身出错" in f["title"]))
             cases.append(("读不了的文件记 unreadable，不落兜底 id，检查器内同一文件只报一次", got == [
                 "drift/unreadable/docs/decisions/0001-a.md"] + (["entry-budget/unreadable/CLAUDE.md"]
-                                                              if os.geteuid() else []), got))   # root 无视权限位
+                                                              if (hasattr(os, "geteuid") and os.geteuid()) else []), got))   # root 无视权限位；Windows 的 chmod(0) 不生效，同样读得了——**期望值因此按平台放宽**（Windows 上不期望 entry-budget 报 unreadable），这一条在 Windows 上是弱化的，只有 POSIX 上验证了原断言
             # R1-S2-03：freshness 与 links 读不了的文件同样记 unreadable/<路径>，同一文件只报一次
             proj = fresh("p36")
             wi = os.path.join(proj, "docs", "state", "work", "WI-001-x.md")
@@ -1206,7 +1214,7 @@ def _stdlib_selftest(mods):
             write_text(wi, u"# WI-001\n\n状态：in_progress\n")
             git_track(proj)
             os.remove(wi)
-            os.mkfifo(wi)
+            (os.mkfifo if hasattr(os, "mkfifo") else os.mkdir)(wi)
             cfg_u = {"_root": proj, "tier": "L1", "layout": {"entry": ["CLAUDE.md"], "docs_root": "docs"}}
             fs = [f for n in ("freshness", "links") for f in by_name[n].run(cfg_u)]
             got = sorted(f["id"] for f in fs if f["status"] == UNDETERMINED and (
@@ -1217,16 +1225,24 @@ def _stdlib_selftest(mods):
             # R1-09：路径含换行的 git grep 命中按 -z 记号流切，路径不被截成换行后的那半段
             proj = fresh("p34")
             #          R1-S2：文件名里的反斜杠也照原样，archive\x.md 不得被改写成 archive/x.md 冒充 frozen 豁免
-            for name in (u"src\narchive.md", u"archive\\x.md"):
-                write_text(os.path.join(proj, name), u"见 OldName 仓\n")
-            git_track(proj)
-            got = dict((n, m) for n, m, _e in mods if m is not None)["cross-repo"]._git_grep(proj, ["OldName"])
-            got = (sorted(got[0] or []), got[1])
-            cases.append(("git grep 命中的路径含换行或反斜杠时照原样取回", got == (sorted([
-                (u"src\narchive.md", "1", u"见 OldName 仓"), (u"archive\\x.md", "1", u"见 OldName 仓")]), None), got))
+            # Windows 的文件名不许含换行与反斜杠：被测对象就是这两种字符本身，没有等价夹具。如实记 SKIP（本平台未验证），
+            # 不当通过；该断言只能在 POSIX 上验证。
+            if os.name == "nt":
+                _skipped.append(finding("stdlib", SKIP, "stdlib：git grep 命中的路径含换行或反斜杠时照原样取回（未跑）",
+                                    reason="本平台（Windows）文件名不能含换行与反斜杠，造不出夹具；该断言只能在 POSIX 上验证，"
+                                           "本次未验证，不折算为通过"))
+            else:
+                for name in (u"src\narchive.md", u"archive\\x.md"):
+                    write_text(os.path.join(proj, name), u"见 OldName 仓\n")
+                git_track(proj)
+                got = dict((n, m) for n, m, _e in mods if m is not None)["cross-repo"]._git_grep(proj, ["OldName"])
+                got = (sorted(got[0] or []), got[1])
+                cases.append(("git grep 命中的路径含换行或反斜杠时照原样取回", got == (sorted([
+                    (u"src\narchive.md", "1", u"见 OldName 仓"), (u"archive\\x.md", "1", u"见 OldName 仓")]), None), got))
             # R1-07：护栏在任何 isfile/isdir/exists 之前——出仓软链接的目标在不在，结论都一样（不探测仓外）
             proj, outd = fresh("p33"), fresh("p33-out")
-            links = {"governance/STANDARD_VERSION": "sv", ".claude/settings.json": "set.json",
+            # D-135：adoption 不再读 .claude/settings.json（免审批清单判据记 SKIP），该链接已无对象，从用例里去掉
+            links = {"governance/STANDARD_VERSION": "sv",
                      "AGENTS.md": "agents.md", "dec": "dec", "st.md": "st.md"}
             for rel, tgt in links.items():
                 os.makedirs(os.path.dirname(os.path.join(proj, rel)) or proj, exist_ok=True)
@@ -1242,12 +1258,12 @@ def _stdlib_selftest(mods):
                         by_name["cross-repo"]._find_entry({"_real": proj}, ["AGENTS.md"])[1])
             absent = _probe()
             os.makedirs(os.path.join(outd, "dec"))
-            for tgt in ("sv", "set.json", "agents.md", "st.md"):
+            for tgt in ("sv", "agents.md", "st.md"):
                 write_text(os.path.join(outd, tgt), u"x\n")
             present = _probe()
             outs = sorted(i for _s, i in absent[0] if "/outside-root/" in i)
             cases.append(("出仓软链接：目标在不在结论一致，且记 outside-root",
-                          absent == present and len(outs) == 4, (outs, [x for x in absent[0] if x not in present[0]])))
+                          absent == present and len(outs) == 3, (outs, [x for x in absent[0] if x not in present[0]])))
             # R1-06：已声明入口撑过读取上限，照数行（下界）判超预算 FAIL，不落未定
             proj = fresh("p32")
             write_text(os.path.join(proj, "CLAUDE.md"), u"x\n" * (sl.MAX_READ_BYTES // 2 + 10))
@@ -1328,27 +1344,38 @@ def _stdlib_selftest(mods):
             cases.append(("检查器 sys.exit(0) 在自检与运行两处都应转未定",
                           got == [[UNDETERMINED], [UNDETERMINED]], got))
             # bug 6：非 UTF-8 文件名进了发现时，--json 写到严格 UTF-8 的输出不崩
+            # Windows 的文件系统以 UTF-16 存名，造不出「非 UTF-8 文件名」：被测对象就是这种名字本身，没有等价夹具。
+            # 如实记 SKIP（本平台未验证），不当通过；该断言只能在 POSIX 上验证。
+            # 后面的 A18／C22 用例复用 proj 与 cfg_p，所以两个分支都先建好它们；Windows 分支的夹具仓里没有非 UTF-8 名字的文件。
             proj = fresh("p9")
             write_text(os.path.join(proj, "CLAUDE.md"), _SMOKE_ENTRY)
-            with open(os.path.join(os.fsencode(proj), b"\xff\xfe.md"), "wb") as fh:
-                fh.write(b"# x\n\n[a](nope.md)\n")
-            subprocess.run(["git", "-C", proj, "-c", "init.defaultBranch=main", "init", "-q"],
-                           capture_output=True, timeout=60)
-            subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
             cfg_p = os.path.join(base, "p9.yaml")
             write_text(cfg_p, _SMOKE_CONFIG)
-            r = subprocess.run([sys.executable, os.path.join(HERE, "check_all.py"), proj, "--config", cfg_p,
-                                "--json"], capture_output=True, timeout=300,
-                               env=dict(os.environ, PYTHONIOENCODING="utf-8:strict"))
-            try:
-                got = json.loads(r.stdout.decode("utf-8", "replace"))
-                parsed = isinstance(got, list) and not any(
-                    u"检查器自身出错" in (f.get("title") or "") for f in got)
-            except ValueError:
-                parsed = False
-            cases.append(("非 UTF-8 文件名时各检查器不崩、--json 不崩且输出可解析",
-                          parsed and r.returncode in (0, 1, 2),
-                          "退出码 %d；%s" % (r.returncode, (r.stderr or b"").decode("utf-8", "replace")[-160:])))
+            if os.name == "nt":
+                _skipped.append(finding("stdlib", SKIP, "stdlib：非 UTF-8 文件名时各检查器不崩、--json 不崩且输出可解析（未跑）",
+                                        reason="本平台（Windows）文件名按 UTF-16 存放，造不出非 UTF-8 文件名；该断言只能在 POSIX 上验证，"
+                                               "本次未验证，不折算为通过"))
+                subprocess.run(["git", "-C", proj, "-c", "init.defaultBranch=main", "init", "-q"],
+                               capture_output=True, timeout=60)
+                subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+            else:
+                with open(os.path.join(os.fsencode(proj), b"\xff\xfe.md"), "wb") as fh:
+                    fh.write(b"# x\n\n[a](nope.md)\n")
+                subprocess.run(["git", "-C", proj, "-c", "init.defaultBranch=main", "init", "-q"],
+                               capture_output=True, timeout=60)
+                subprocess.run(["git", "-C", proj, "add", "-A"], capture_output=True, timeout=60)
+                r = subprocess.run([sys.executable, os.path.join(HERE, "check_all.py"), proj, "--config", cfg_p,
+                                    "--json"], capture_output=True, timeout=300,
+                                   env=dict(os.environ, PYTHONIOENCODING="utf-8:strict"))
+                try:
+                    got = json.loads(r.stdout.decode("utf-8", "replace"))
+                    parsed = isinstance(got, list) and not any(
+                        u"检查器自身出错" in (f.get("title") or "") for f in got)
+                except ValueError:
+                    parsed = False
+                cases.append(("非 UTF-8 文件名时各检查器不崩、--json 不崩且输出可解析",
+                              parsed and r.returncode in (0, 1, 2),
+                              "退出码 %d；%s" % (r.returncode, (r.stderr or b"").decode("utf-8", "replace")[-160:])))
             # A18／C22：一次扫描只加载一遍检查器（覆盖边界复用封签内那份），扫描根上同一组模式的
             #           git ls-files 只跑一次；缓存只限扫描根，退出即关
             seen = {"discover": 0, "ls": []}
@@ -1495,7 +1522,7 @@ def _stdlib_selftest(mods):
         core.append(finding("stdlib", PASS if got == want else FAIL, "stdlib：" + title,
                             why="契约 §3：断言外壳被改坏时，经它出的断言会整批跟着变绿",
                             evidence="期望 %s，实得 %s" % (want, got)))
-    return core + [probe("stdlib", ok, "stdlib：" + title,
+    return core + _skipped + [probe("stdlib", ok, "stdlib：" + title,
                          why="契约 §1／§5：读不了、越界、歧义一律记未定，不猜不崩", evidence=str(ev or ""))
                    for title, ok, ev in cases]
 

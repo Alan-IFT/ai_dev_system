@@ -6,7 +6,7 @@ governed_by：D-014、D-020、D-108
 ## 0. 口径与来源
 
 - **来源等级：V1 一手。** 全部内容读自本机实际安装 `~/.dsh/profiles/node_modules/@deepseek-ai/`（231 个包）与 `~/.dsh/profiles/web/`，不是转述。
-- **测量时点：2026-09-04。DSH 版本 `@deepseek-ai/dsh@0.1.2-rc.1`。**
+- **测量时点：2026-09-04（§1–§5）；2026-10-04 对 §6 做了补查（本机 DSH 0.2.0-rc.2，读 `app.asar` 内 `@deepseek-ai/*` 包源码与 README）。** §1–§5 的 0.1.2-rc.1 读数**未对 0.2.0-rc.2 复核**，版本已前进一档，按过期风险对待。
 - **本表必然过期。** DSH 处于 rc 阶段，WX-29 记载其 README 自称 developer preview 且"必有破坏性变更"。过期处置见[载体过期登记](载体过期登记.md)。
 - **读文档，未运行。** 下表全部条目来自各包 README 的 `## Use this package` 契约段与 config 表，**没有一条经过实机运行验证**。按 [30 §2 P1](../30-验证与测试.md)，"文档这么写"与"运行时确实如此"是两回事：本表的每一行都是**结论 + 成立条件（该包 0.1.2-rc.1 的 README 契约段属实）**，运行验证是空缺，不得折算为已验证。
 
@@ -66,18 +66,18 @@ tools/result           只观察，结果已冻结
 
 **空缺三 · 全表未经运行验证。** 见 §0 末段。本表可信度到"README 契约段属实"为止。
 
-## 4. D-020 §5 硬性检验：DSH 提供的是第二种机制类型
+## 4. D-020 §5 检验：DSH 一家，对照栏仅作历史参照（D-135）
 
-[09 §5](../09-跨工具通用性.md) 要求一条语义能在**至少两种机制类型不同**的载体上落地。DSH 与 Claude Code 在同一语义上的机制类型对照：
+[09 §5](../09-跨工具通用性.md) 要求一条语义能在**至少两种互不相同的机制类型**上落地。**2026-10-04（D-135）起本仓只支持 DSH，该检验改为「同一宿主内机制类型互异」，跨工具一项记未定。**下表「Claude Code 形态」一列是 2026-09-04 的历史参照，该宿主已不受支持，不再充当第二载体的证据：
 
-| 语义 | Claude Code 形态 | DSH 形态 | 是否两种类型 |
+| 语义 | Claude Code 形态（历史参照） | DSH 形态 | 是否两种类型 |
 |---|---|---|---|
 | 动作前拦截 | 外部进程钩子（`PreToolUse` 调外部命令，读结构化返回） | 进程内类型化事件 + 同步单调守卫 | **是** |
 | 检查器自检 | 外部脚本，须由某处显式调用 | `ctx.invariants` 包自有伴生件，随组合自动运行 | **是** |
 | 常驻指令 | 提示词前缀型（CLAUDE.md 拼入） | 持久基线消息 + 字节预算裁剪并告知模型 | **是** |
 | 状态 | 独立状态工件（TodoWrite / 计划文件） | 日志投影型，无第二份存储 | **是** |
 
-**一个必须说清的坑**：DSH 的 `dsh-hooks-claude-code` 能直接跑 Claude Code 的 `hooks.json`。**走这条桥接落地不算第二种机制类型**——那是同一份 hooks.json 换了个宿主执行。要满足 D-020 §5，必须写**原生 Cordis 插件**（`ctx.tools.guard()` / `ctx.invariants`）。桥接只能用作迁移期的过渡，不能用作通用性的证据。
+**一个必须说清的坑**：DSH 的 `dsh-hooks-claude-code` 能直接跑 Claude Code 格式的 `hooks.json`。**走这条桥接落地不算原生执行层**——那是同一份外部钩子换了个宿主执行，且保留了已退出支持的格式依赖。本仓的执行层是原生 Cordis 插件 [`tools/dsh-std/`](../../tools/dsh-std/README.md)（订阅 `tools/pre-execute`），**没有走桥**。桥接只能用作迁移期的过渡。
 
 ## 5. 一处冲突：一手证实，待裁
 
@@ -89,10 +89,20 @@ WX-29 §5.2 曾以 S1 二手材料登记过一条冲突。**本次读一手包�
 
 **DSH 一侧的答案是清楚的**：真正的权限边界在 `dsh-sandbox-policy` 的 `mode` 与 `dsh-user-approval` 的 `policy` 两条旋钮上，`restrict` 属上下文可见性层。**本规范一侧没有这个区分**——D-027 没有把"工具可见性限制"与"权限限制"分成两类语义。**这是落地 DSH 必须先裁的一条，待 Alan 裁决。**
 
-## 6. 本表不回答的问题
+## 6. 三项原未定的查证结果（2026-10-04，DSH 0.2.0-rc.2，读包源码与 README，V1 一手；**仍未实机运行**）
 
-- `ctx.tools.guard()` 能否从**项目本地**文件注册（决定落地是项目级还是 profile 级）——未查证；
-- 守卫是全局还是 per-agent 作用域——未查证；
-- `dsh-invariants` 的伴生件能否由项目侧（而非 npm 包）提供——未查证。
+原写「写第一个插件前必须查的三条，现在记为未定，不猜」。本轮写了插件（[`tools/dsh-std/`](../../tools/dsh-std/README.md)），先查了：
 
-以上三条是写第一个插件前必须查的，**现在记为未定，不猜**。
+1. **`ctx.tools.guard()` 能否从项目本地文件注册？** 能，但不是「放进项目目录就生效」。插件是 Cordis 包，经 profile 装入：profile 的 `package.json` 依赖加 `dsh.profile.bundles`（插件管理页也能选），包带一个 `cordis.patch.yml` 的 `insert` 列表（社区包 `dsh-user-prompt` 即此形态）；`cordis-plugin-loader` 另支持 `name: './plugins/example'` 这种路径形态的条目。**所以守卫属于宿主 profile，不属于项目仓**——采用项目的仓里不放它，这与上一代接法把配置写进项目 `.claude/settings.json` 不同。
+2. **守卫是全局还是 per-agent 作用域？** 两者都有：`dsh-tools` 源码注释原文——「A plain-context guard applies globally; one registered through `agent.ctx` applies only to that agent.」本插件订阅的是 `tools/pre-execute`（普通 context，全局）。子 agent 是否继承该订阅、与 `restrict()` 的关系**没实测**。
+3. **`dsh-invariants` 的伴生件能否由项目侧（而非 npm 包）提供？** 文档答案是：伴生件是「随包发的 `./invariant` 入口」，注册名必须是包的**确切 npm 名**，`verify-package-invariants` 脚本机械校验接线。**项目侧单写一个伴生件没有文档支持的路径**；本插件因此不用 `ctx.invariants`，只靠单测与变异验证。这一条的结论是「文档未提供」，不是「实测不行」。
+
+**读源码顺带得到的另外几条事实**（都进了插件设计）：`tools/pre-execute` 返回 `allow／deny／ask`，`ask` 经 `dsh-user-approval`，应答缺席即拒绝（`serviceAsk`）；**`tools/pre-execute` 不能改写参数**（dsh-tools README「Known Limitations」）；内置写类工具是 `write`／`edit`（参数 `file_path`），shell 是 `pwsh`（Windows）或 `bash`（POSIX），参数 `command`；`dsh-hooks-claude-code` 的 `PreToolUse` 实现正是订阅 `tools/pre-execute` 后把外部命令的输出翻成 deny／ask——即桥接与原生插件落在同一个缝上，差别只在判定逻辑是外部进程还是进程内代码。
+
+**仍未知（不猜）：** 插件在真实会话里是否被调用；与同订阅 `tools/pre-execute` 的 `dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs` 的先后顺序；子 agent 是否继承全局守卫。
+
+## 7. 本表其它不回答的问题
+
+- §1–§5 对 0.2.0-rc.2 的复核（版本已从 0.1.2-rc.1 前进，包数与 README 契约段可能已变）；
+- `dsh-agent-instructions` 是否剥 YAML 头（读包文档是原文注入，未实机验证，所以入口合同头仍写正文行，见 [D-135](../决策日志.md#decision-index)）；
+- 「恢复或压缩后注入当前工作项」在 DSH 上有没有等价的会话事件——`agent/created` 事件存在（`dsh-hooks-claude-code` 用它实现 SessionStart），但本仓没有用它做注入，也没有验证。

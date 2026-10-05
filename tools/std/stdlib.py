@@ -31,9 +31,14 @@ GIT_LOCAL_ENV = (
 # clean 过滤器都会跑）。经 GIT_CONFIG_COUNT 注入的是命令行级配置（git ≥ 2.31），优先级高于
 # 任何配置文件，一处设好全部子进程生效。过滤器的驱动名是被扫方起的，这里列不全，
 # 会读工作区的调用（blame、status）另经 `filter_env` 按仓逐个置空。
+#
+# 取值里不放空串：Windows 上 `os.environ[k] = ""` 不会传给子进程（POSIX 上会），丢了一个
+# GIT_CONFIG_VALUE_n 而 COUNT 不变，git 就报「missing config value」整条命令失败。
+# 所以这四项用 `true`（命令名；调用时该程序不存在或什么都不做即安全，且不是被扫方可控的字符串）代替空串，
+# 语义同样是「不执行被扫方指定的程序」。diff.external 此处只是防御：本工具不调用 git diff。
 GIT_HARDEN_CONFIG = (
-    ("core.fsmonitor", "false"), ("core.hooksPath", "/dev/null"), ("core.sshCommand", ""),
-    ("core.gitProxy", ""), ("core.askPass", ""), ("diff.external", ""), ("core.pager", "cat"),
+    ("core.fsmonitor", "false"), ("core.hooksPath", os.devnull), ("core.sshCommand", "true"),
+    ("core.gitProxy", "true"), ("core.askPass", "true"), ("diff.external", "true"), ("core.pager", "cat"),
     # log.showSignature=true 时 `git log` 会对签名提交调 gpg.program（被扫方可指定任意程序）
     ("log.showSignature", "false"),
 )
@@ -1137,8 +1142,8 @@ ACCEPTANCE_CANDIDATES = ("ACCEPTANCE.md", "docs/product/acceptance")
 HANDOFF_CANDIDATES = ("work/handoff.md", "docs/state/handoff")
 
 # ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。`AGENTS.md` 是模板 L0 树的入口，
-# `CLAUDE.md` 是 Claude Code 默认读的文件名，`CONTEXT.md` 不在现行树里、保留它是兼容按旧模板
-# 落地的项目（删了它们的入口会无故变未定）。
+# `CLAUDE.md` 与 `CONTEXT.md` 都不在现行树里：它们是**兼容候选名**——保留是为了按旧模板落地的项目
+# （含曾按旧宿主接法落地的）入口不会无故变未定，不表示支持该宿主（D-135：受支持宿主只有 DeepSeek Harness）。
 ENTRY_CANDIDATES = ("CONTEXT.md", "AGENTS.md", "CLAUDE.md")
 
 

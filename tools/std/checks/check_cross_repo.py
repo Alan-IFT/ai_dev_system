@@ -1173,6 +1173,14 @@ def selftest():
             ([PASS], "判据八：路径含冒号的 layout.frozen 目录照样豁免（B9）",
              [(u"现行清单见 SYS_OLD/docs/list.md。", ["SYS_OLD"], "a:b/note.md", ["a:b"])]),
         ):
+            # Windows 的文件名不许含冒号；被测的是「frozen 目录路径里有特殊字符也照样豁免」这条分支，
+            # 换成该平台合法的特殊字符（`@`）同样走它，所以在 Windows 上换名跑、不跳过。
+            # **收窄**：这样跑不再覆盖「冒号本身会不会让按冒号切分的实现错位」这一具体回归——该字符在 Windows 上造不出，
+            # 这一点只能在 POSIX 上验证，本次未验证（独立审查指出原注释没写这句）。
+            if os.name == "nt":
+                probes = [tuple(x.replace(":", "@") if i >= 2 and isinstance(x, str) else
+                                [y.replace(":", "@") for y in x] if i >= 2 else x
+                                for i, x in enumerate(p)) for p in probes]
             got = [_alias_probe(*p) for p in probes]
             results.append(probe(NAME, [g[0] for g in got] == [[w] for w in want], title,
                 evidence="期望 %s，实得 %s" % (want, "；".join("%s：%s" % g for g in got)),

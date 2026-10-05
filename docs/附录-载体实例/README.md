@@ -18,7 +18,7 @@ governed_by：D-014、D-020
 | [`载体过期登记.md`](载体过期登记.md) | 09 §7 载体过期不得迫使正文修订 | 无 | 本表存在的目的就是记录失效（第四轮新增） |
 | [`仓库工作须知.md`](仓库工作须知.md) | 无（不对应任何语义要求，纯操作说明） | 本仓库的目录结构、Python 环境、git 行为、当前计数 | 是。换一个仓库整份重写 |
 | [`repo_counts.py`](repo_counts.py) | 会漂移的计数不该手抄（Case C-005、C-009 的处置） | Markdown 文件 + 目录结构 + Python 运行环境 | 是。计数口径随载体变化，换一种存储方式即重写 |
-| `check_normative_force.py` | 效力标注可机械校验（D-014 §9） | Markdown 文件 + 文件头 `governed_by:` + Git 仓库 + Python 运行环境 | 是。codex 的 AGENTS.md、Claude Code 的 `.claude/rules/`、copilot instructions 各有各的载体，此脚本全部不适用 |
+| `check_normative_force.py` | 效力标注可机械校验（D-014 §9） | Markdown 文件 + 文件头 `governed_by:` + Git 仓库 + Python 运行环境 | 是。各工具的入口与规则载体（入口文件、规则目录、IDE 指令配置）各不相同，此脚本全部不适用 |
 
 ## 处置说明
 
