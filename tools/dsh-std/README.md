@@ -34,30 +34,51 @@ pnpm add link:D:/Programs/AI辅助开发规范及工作流确定/tools/dsh-std
 
 ## 怎么判
 
-**经过三轮独立审查，这一节的设计已经改过两次。** 第一版用跨整串的正则，被实测出立方级 ReDoS 与大量 deny 误报；第二版按词法切子命令后逐段判，仍有「哪个词是写目标」的启发式两个方向都出错。现在的取舍是：**deny 只给两件不需要猜的事实，其余一律交给人（ask）**。
+**判定核心经过四轮独立审查，设计改过三次。** 第一版是跨整串的正则（实测立方级 ReDoS、大量 deny 误报）；第二版按词法切子命令（仍被转义引号、命令替换、heredoc、括号与控制流绕过）；现在是**一遍手写词法扫描 + 逐段判**。取舍始终是：**deny 只给两件不需要猜的字面事实，其余交给人（ask），解析不了的形状整条 ask、不静默放行。**
 
-shell 命令先按未被引号包住的 `; && || | &` 与换行**切成子命令**（词首的 `#` 注释整段丢弃，反斜杠转义的引号不开引号，`>|` `>&` 里的 `|` `&` 不是分隔符），再逐段**切词**判。**不用跨整串的 `.*?` 正则**：实测旧写法在 8000 字符的 `git push ` 串上耗时 3.3 秒、2 万字符 13 秒；现在同样输入是毫秒级（数字会随机器变，要看就跑 `test/regress.test.js` 的性能用例）。命令超过 `MAX_CMD`（8192 字符）不分析，直接 ask——**代价**：长的 heredoc、长 `python -c`、长提交信息会一律被问一次，这是有意的取舍（宁可多问，不让超长命令成为绕过通道）。
+### 词法（`lex`，线性，无回溯正则）
 
-- **deny 只有两个来源**：①`write`／`edit` 的路径参数落在 `.std/` 之下；②shell 命令里**引号外**的重定向目标词是 `.std/` 下的路径（`> x`、`>> x`、`word>x`、`2>x`、`>| x`、`>&x`）。判据都是不需要猜的字面事实。
-- **ask**：①命令里出现 `.std` 且这一段有写动词（写类命令名、`git` 改工作区的子命令、`cd .std` 之后的写），写目标不猜，交给人判（实测证明启发式判目标会把读取判成 deny，deny 人批准不了）；②`git` 受控子命令（先跳过 `-C dir`／`-c k=v`／`--git-dir` 等带值全局选项再取子命令，按词判断）；③`--no-ve*`、`hooksPath` 在任何词里出现；④删除/移走/清空状态入口与失败清单；⑤写入口合同、入口指令、提交钩子、插件自身。
-- **只读用法不问**：`sed` 无 `-i`、`tar -t`、`unzip -l/-p/-t`、`git reset`（默认 mixed）、`git restore --staged`、`git apply --check`、`2>&1`／`2>$null`／`>/dev/null` 这类不写文件的重定向。
-- **前缀包装先剥再判**：`env X=1`、`sudo`、`command`、`timeout 5`、`xargs`、`VAR=val` 前缀。**把命令当字符串交给别的 shell 的包装取内嵌串再判一次**（`bash -c`、`sh -c`、`cmd /c`、`powershell -c`、`pwsh -Command`、`iex`、`Invoke-Expression`），最多往里看 2 层，再深一律 ask。
-- 路径比较在 Windows 上忽略大小写、段尾点与空格、`\\?\` 前缀、NTFS 备用数据流后缀（`AGENTS.md::$DATA`）。
+按未被引号包住的 `; && || | |& &` 与换行**切子命令**；同时：
+
+- **转义引号**（bash 的 `\"`、PowerShell 的 `` `" ``）在引号内外都不开关引号；双引号内的 `$( )` 与反引号**照样抽取**；
+- **命令替换** `$( )`、反引号对、进程替换 `<( )` `>( )` 里的命令**抽出来递归判**（继承外层虚拟 cwd）；
+- **here 文档**（`<<EOF`、`<<-EOF`、`<<'EOF'`）与 **PowerShell here-string**（`@'…'@`、`@"…"@`）的**正文是数据**，不当命令判；正文里写 `> .std/x` 不会被 deny；
+- 词首的 `#` 行注释与 `<# … #>` 块注释丢弃（`a#b`、`url#frag`、`$#` 不是注释）；词首的 `{ }` 当分隔（脚本块、`foreach(){}`、`if … then … fi`、`for … do … done` 的控制词也被剥掉），词中的 `${x}`、`{a,b}` 是普通字符；
+- **解析不了的形状整条 ask**：引号不配对、here 文档/here-string 没有终止符、块注释不闭合、正文含命令替换（未加引号的终止符）、命令替换的括号不配对、嵌套超过 2 层、命令超过 8192 字符。
+
+### deny（只有两个来源）
+
+1. `write`／`edit` 的路径参数落在 `.std/` 之下（Windows 上忽略大小写、段尾点与空格、`\\?\` 前缀、`.//` 与 `./`、NTFS 备用数据流后缀）；
+2. shell 命令里**引号外的重定向目标词**按**虚拟 cwd**（`cd` 会更新它）解析后落在 `.std/` 下：`> x`、`>> x`、`word>x`、`>|x`、`>&x`、`2>x`、`1>x`、`>.std/a echo x`（重定向在命令前）。目标是文件描述符或 `$null`/`nul`/`/dev/null` 的不算。
+
+按**项目根**才落在 `.std/`、按虚拟 cwd 不落（`cd other; echo x > .std/a`）的是 ask，不是 deny——`cd` 可能没生效，也可能目标其实是 `other/.std`。
+
+### ask
+
+- **带 `.std` 的写类命令**：命令有写动词（PowerShell 全名与别名、cmd 内置、常见 POSIX 写命令、`git` 改工作区的子命令、`find -delete/-exec`），且参数里有 `.std`（含 `-Path:.std`、`of=.std`、`--output=.std`、`-o.std/a` 紧贴、逗号列表、括号、`.std/$f` 取静态前缀）、或虚拟 cwd 就在 `.std` 里。**写目标不猜**，交给人。
+- **受控 git 动作**（先跳过 `-C dir`／`-c k=v`／`--git-dir` 等带值全局选项再取子命令）：`reset --hard/--keep/--merge`、强推（`-f`、`--force*`、`+refspec`、`:refspec`）、删/镜像远端引用、推标签（`--tags`、`--follow-tags`、`refs/tags/`、`v1.0`/日期式的单个 tag）、推公开仓与 `release`（含 `x:release`、`refs/heads/…:refs/heads/release`）、推以地址写出的远端、`tag`、`branch -d/-D/-f/-m/-M`、`update-ref -d/--delete`、`filter-branch`、`worktree remove`、`rm`、`clean`、`commit -n`、改 `core.hooksPath`、`-c alias.*` 注入；`git.exe`／`git.cmd`／绝对路径同样识别；`Start-Process git -ArgumentList "push","-f"` 展平后判。`--no-ve*` 与 `hookspath` 在任何词里出现都问。
+- **前缀包装先剥再判**：`env`（含 `-u X`、`--`）、`sudo`（含 `-u user`、`--`）、`doas`、`command`、`time`、`nohup`、`nice`（含 `-n 5`）、`stdbuf`、`timeout`（含 `-s KILL 5`）、`xargs`（含 `-I {}`）、`busybox`、`exec`、`start`/`call`/`Start-Process`、`VAR=val` 前缀、`if/then/do/!` 等控制词。
+- **把命令当字符串交给别的 shell 的包装取内嵌串再判**：`bash/sh/zsh/dash/ksh/fish -c`（含 `-lc`、`-ec`、`-cx` 选项簇）、`cmd /c` `/k`、`powershell`/`pwsh -c`／`-Command`（含参数缩写 `-com`…）、`iex`、`Invoke-Expression`、`eval`；最多 2 层。**`-EncodedCommand`、管道喂给裸解释器（`echo … | bash`）、裸 `bash`/`pwsh`/`cmd` 一律 ask**（守卫看不见内容）。
+- **删除/移走/清空状态入口与失败清单**（`rm`、`unlink`、`shred`、`truncate`、`mv`、`Set-Content`、`> PROJECT_STATUS.md`、`find … -delete`），以及 `cp/curl/wget/dd/tee…` 覆盖它们；**通配符**（`rm .st*`、`rm AGENTS*`、`rm -r .*`、`PROJECT_STATUS.*`）可能匹配 `.std`／状态文件／受保护文件时也问（`rm *.log`、`rm build/*` 不问）。
+- **写入口合同、入口指令、提交钩子、守卫自身**：写工具按路径判；shell 按「写动词 + 参数路径」判，并按虚拟 cwd 解析（`cd tools; rm dsh-std/lib/policy.js`、`cd .githooks && echo x > pre-commit`）。
+
+### 只读用法不问
+
+`sed` 无 `-i`、`tar -t`、`unzip -l/-p/-t`、`git reset`（默认 mixed）、`git restore --staged`、`git rm --cached`、`git apply --check`、`find` 无 `-delete/-exec`、`2>&1`／`2>$null`／`>/dev/null`、`command -v git`、`bash build.sh`、`pwsh -File x.ps1`、`bash -c "ls -la"`。
 
 ## 盲区（读源码与单测得出，不是实测得出）
 
-下面这些**仍然是 allow（放行）**，都是审查者或我实测过的。它们的共同点是：要拦住就得做真正的 shell 解析，那超出一个预过滤的合理范围；兜底是提交前的 `check_all`（`adoption/embedded-modified`）与 git 钩子。
+下面这些**仍然是 allow（放行）**，都是审查者或我实测过的。它们的共同点是：要拦住就得做真正的 shell 解析与数据流分析，超出一个预过滤的合理范围；兜底是提交前的 `check_all`（`adoption/embedded-modified`）与 git 钩子。**这不是穷尽清单，是已知清单。**
 
-- **解释器子进程里的写**：`python -c "open('.std/x','w')"`、`node -e`、`[IO.File]::WriteAllText`。
-- **脚本块与循环里的写**：`& { Set-Content .std/a x }`、`Get-ChildItem | % { Set-Content .std/a $_ }`、`foreach(...){ Set-Content .std/$f x }`——切词不进 `{ }`。
-- **变量与路径展开**：`echo x > $PWD/.std/a`、`cp a ~/proj/.std/a`、`$env:PWD/.std/a`、变量拼接（`$d='.st'+'d'`）、通配符。
-- **`find -exec`、`xargs` 之外的间接执行**（`find . -exec rm {} ;` 放行；`xargs` 已按前缀包装剥掉）。
-- **保护文件的段尾点**：shell 里 `echo x > AGENTS.md.` 放行（写工具路径参数会规整段尾点，shell 命令串不会）。
-- **写动词表是有限的**：重定向、PowerShell 全名与别名、cmd 内置、常见 POSIX 写命令、`git` 的几个改工作区子命令。表外（`mklink`、`attrib`、`icacls`、`chmod`、`perl -pi` 等）看不见。短名（`STD~1`）与符号链接不解析。
-- **切子命令是词法，不是真的 shell 解析**：子 shell 的深层嵌套、here-string、复杂引号转义可能判偏。
-- 只认工具名 `write`／`edit`／`pwsh`／`bash`。其它会写文件的工具（笔记本编辑、补丁应用等，名字未查证）不在判定内，**默认放行**。
+- **解释器子进程里的写**：`python -c "open('.std/x','w')"`、`node -e`、`[IO.File]::WriteAllText`、`perl -pi`、脚本文件里的写（`bash build.sh`、`pwsh -File x.ps1`、`source x.sh`、`. ./x.sh`——每个脚本都问会让人疲劳，所以只问「没给命令串也没给脚本的」）。
+- **管道目标与间接执行**：`ls .std | xargs rm`、`Get-ChildItem .std | Remove-Item`（命令本身不带 `.std`，`.std` 在管道上游）。
+- **变量、`~`、环境变量路径**：`echo x > $PWD/.std/a`、`cp a ~/proj/.std/a`、`$env:PWD/.std/a`、`$f="AGENTS.md"; Set-Content $f x`、`x=git; $x tag y`、`alias g=git; g tag x`。含变量的词只取变量之前的静态前缀。
+- **git 的非受控写路径**：`git add .std`、`git clone x .std`、`git submodule update --init .std`、`git subtree add --prefix=.std …`；`git push public main`（别名远端，只认 `ai-dev-std` 字面与地址形态）。
+- **写动词表是有限的**：表外（`mklink`、`attrib`、`icacls`、`chmod`、`Move-ItemProperty` 等）看不见；短名（`STD~1`）、符号链接、零宽字符插进路径不解析。
+- **词法不是真 shell**：PowerShell 的 `-f` 格式化运算符、`switch` 的块、`trap`、嵌套 here 文档、`cmd` 的 `^` 转义、`bash` 的算术/数组展开里的命令，可能判偏。
+- 只认工具名 `write`／`edit`／`pwsh`／`bash`。其它会写文件的工具（笔记本编辑、补丁应用等，名字未查证）**默认放行**。
 
-**会多问的（不是漏，是取舍）**：`ask` 按词判断，分不出读写——`git tag` 只列标签也会问（列标签改用 `git show-ref --tags`）；`git branch -m/-M` 改名会问；`cp AGENTS.md AGENTS.bak` 只是读入口文件也会问（因为命令里有受保护位置与写命令）；`git push` 到整段是 `release` 或 `x:release` 的分支会问（`feature/release-notes` 不会）；`git push origin v1.0` 这类版本号式或日期式的单个 tag 会问。
+**会多问的（不是漏，是取舍）**：`git tag` 一律问（含 `git tag --list`、`git tag --help`；列标签改用 `git show-ref --tags`）；**任意位置出现 `git` 词都按 git 命令判**，所以 `echo git tag` 也会被问（`grep "git tag"`、`git log --grep=tag`、提交信息里的 `tag` 字样因为 `git` 词后面的子命令不是 `tag` 或整句在引号里，不问）；`git branch -m/-M` 改名；`cp AGENTS.md AGENTS.bak` 只是读入口文件但命令里有受保护路径与写命令；`cp .std/a out`、`Copy-Item -Path .std\x -Destination out`、`mv .std/a out` 读取 `.std` 的写类命令；`git push` 到整段是 `release` 的分支（`feature/release-notes` 不会）；`git push origin v1.0` 版本号式单个 tag；超过 8192 字符的命令（长 heredoc、长 `python -c`、长提交信息）；裸 `bash`/`pwsh`；`echo … | bash`。
 
 - `commitMessageProblem` 目前**没有调用方**（提交信息由 `.githooks/commit-msg` 查），不要当作已生效的检查。
 - 不覆盖不经 DSH 的动作：人在终端手敲、IDE 里点的提交，只剩 git 钩子这一层（标准仓 `docs/附录-载体实例/仓库工作须知.md` §7）。

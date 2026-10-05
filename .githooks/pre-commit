@@ -20,16 +20,16 @@ if [ -z "$PY" ]; then
 fi
 export PYTHONUTF8=1
 fail=0
-# 每道检查是 脚本路径 + 参数，分开传；$PY 永远带引号
-for gate in "tools/std/check_all.py|. --no-scope" "docs/附录-载体实例/linkcheck.py|" "docs/附录-载体实例/check_normative_force.py|"; do
-  script=${gate%%|*}
-  gargs=${gate#*|}
-  # gargs 里只有 `. --no-scope` 这种不含空格的固定参数，故允许不加引号展开
-  # shellcheck disable=SC2086
-  out=$("$PY" "$script" $gargs 2>&1); rc=$?
-  [ $rc -eq 0 ] && continue
-  printf '%s\n' "$out"; echo "提交闸门：$script 未通过（退出 $rc）" >&2
+# 三道检查逐条写出，不用分隔符切字符串（路径里出现 | 或空格都不会被拆错）；$PY 永远带引号。
+run_gate() {
+  out=$("$PY" "$@" 2>&1); rc=$?
+  [ $rc -eq 0 ] && return 0
+  printf '%s\n' "$out"; echo "提交闸门：$1 未通过（退出 $rc）" >&2
   [ $rc -gt $fail ] && fail=$rc
-done
+  return 0
+}
+run_gate tools/std/check_all.py . --no-scope
+run_gate docs/附录-载体实例/linkcheck.py
+run_gate docs/附录-载体实例/check_normative_force.py
 [ $fail -eq 0 ] && echo "提交闸门：三道通过"
 exit $fail

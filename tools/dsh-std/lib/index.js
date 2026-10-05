@@ -10,6 +10,7 @@
 // 写法对照一手来源：@deepseek-ai/dsh-hooks-claude-code 的 `ctx.on('tools/pre-execute', async (exec, next) => …)`；
 // 该监听返回 deny／ask 或 `next()`。**本插件不使用 `ctx.tools.guard()`**（早先的决策记录曾这样写，已更正）。
 
+import { createRequire } from 'node:module'
 import { decide } from './policy.js'
 
 /** Cordis 插件名。 */
@@ -18,8 +19,27 @@ export const name = 'dsh-std'
 /** 不依赖任何服务：tools/pre-execute 是 ctx 上的事件，缺 tools 服务时 on 不会触发，也不会崩。 */
 export const inject = []
 
-/** 配置：enabled 总开关；root 是项目根（缺省取会话工作目录，再缺省取进程 cwd；会话在子目录开时仍可能判偏，建议写上）。 */
-export const Config = { enabled: true }
+/**
+ * 配置 schema：enabled 总开关；root 是项目根（缺省取会话工作目录，再缺省取进程 cwd；会话在子目录开时仍可能判偏，建议写上）。
+ * 写法照本机已装的本地包 dsh-user-preferences：用 @deepseek-ai/schemastery 惰性构造 schema，解析不到就不导出 Config（undefined），
+ * 不因此挡住启动。**未实机验证 DSH 会不会剥掉 Config 里没声明的字段**——所以 root 声明在 schema 里。
+ */
+function buildConfig() {
+  try {
+    const require = createRequire(import.meta.url)
+    const z = require('@deepseek-ai/schemastery')
+    const schema = z?.default ?? z
+    if (typeof schema?.object !== 'function') return undefined
+    return schema.object({
+      enabled: schema.boolean().default(true),
+      root: schema.string().default(''),
+    })
+  } catch {
+    return undefined
+  }
+}
+
+export const Config = buildConfig()
 
 /** 判定的严重度：deny 最严，其次 ask，最后 allow。合并时取最严的一个。 */
 const RANK = { allow: 0, ask: 1, deny: 2 }

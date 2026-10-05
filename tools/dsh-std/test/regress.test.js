@@ -480,3 +480,201 @@ test('2> 与 &> 重定向到 .std => deny', () => {
 })
 test('touch 写 .std => 被拦', () => assert.notEqual(decide(sh('touch .std/a'), { root: ROOT }).kind, 'allow'))
 test('touch 写别处 => allow', () => assert.equal(decide(sh('touch docs/a.md'), { root: ROOT }).kind, 'allow'))
+
+// ===========================================================================
+// 第四轮审查（词法重写后）列出的缺口与单测逃逸，逐条固化。
+// 本轮设计：解析不了的形状整条 ask（引号不配对、here 文档无终止符、块注释不闭合、here 文档正文含命令替换、嵌套过深）；
+// 命令替换/反引号/进程替换抽出来递归判；here 文档与 here-string 正文当数据；cd 维护虚拟 cwd；glob 与受保护路径按词判。
+// ===========================================================================
+const askOrDeny = (cmd) => assert.notEqual(decide(sh(cmd), { root: ROOT }).kind, 'allow', cmd)
+const isAllow = (cmd) => assert.equal(decide(sh(cmd), { root: ROOT }).kind, 'allow', cmd)
+const isDeny = (cmd) => assert.equal(decide(sh(cmd), { root: ROOT }).kind, 'deny', cmd)
+
+for (const [t1, c] of [
+  ['bash 转义引号后的 git push -f', 'echo "a\\"b"; git push -f'],
+  ['commit -m 里转义引号后的 git push -f', 'git commit -m "fix \\"x\\" y\\""; git push -f'],
+  ['PowerShell 反引号转义引号后的 git push -f', 'echo "a`"b"; git push -f'],
+]) test(`转义引号（审查四）：${t1}`, () => askOrDeny(c))
+test('转义引号后的重定向 .std 仍是 deny', () => isDeny('echo "a\\"b" > .std/x'))
+
+for (const [t1, c] of [
+  ['双引号内 $()', 'echo "$(git tag x)"'],
+  ['反引号命令替换', 'echo `git push -f`'],
+  ['赋值里的反引号', 'x=`git tag x`'],
+  ['进程替换 <()', 'diff <(git tag x) b'],
+  ['词中的 $()', 'echo $(git push -f)'],
+]) test(`命令替换（审查四）：${t1}`, () => askOrDeny(c))
+
+for (const [t1, c] of [
+  ['括号包住的 rm .std', '(rm -rf .std)'],
+  ['$( ) 包住 rm .std', '$(rm .std/a)'],
+  ['花括号块', '{ rm .std/a }'],
+  ['if then', 'if true; then rm .std/a; fi'],
+  ['for do（静态路径）', 'for f in a; do rm .std/a; done'],
+  ['for do（含变量，取静态前缀）', 'for f in a; do rm .std/$f; done'],
+  ['! 取反', '! rm .std/a'],
+  ['& { } 脚本块', '& { rm .std/a }'],
+  ['括号里的 cp', '(cp a .std/b)'],
+  ['括号里改入口指令', '(rm AGENTS.md)'],
+  ['管道到 % { }', 'Get-ChildItem | % { Set-Content .std/a $_ }'],
+  ['foreach(){}', 'foreach($f in 1){ Set-Content .std/$f x }'],
+]) test(`括号与控制流（审查四）：${t1}`, () => askOrDeny(c))
+
+test('heredoc 里的撇号不吞掉 heredoc 之后的命令', () => askOrDeny("cat <<EOF\ndon't\nEOF\ngit push -f"))
+test('cmd /c 里的撇号不开引号', () => askOrDeny('cmd /c "echo don\'t & git push -f"'))
+test('heredoc 正文含「> .std」是数据，不是重定向 => 不 deny', () => assert.notEqual(decide(sh('cat > out.md <<EOF\nuse x > .std/y\nEOF'), { root: ROOT }).kind, 'deny'))
+test('PowerShell here-string 正文含「> .std」是数据 => 不 deny', () => assert.notEqual(decide(sh("Set-Content out.md @'\nit's here\nRedirect > .std/a\n'@"), { root: ROOT }).kind, 'deny'))
+test('heredoc 正文是普通文字 => allow', () => isAllow('cat > notes.md <<EOF\nhello\nworld\nEOF'))
+test('python - <<PY 正文 => allow', () => isAllow('python - <<PY\nprint("x")\nPY'))
+test('heredoc 没有终止符 => ask（解析不了不放行）', () => assert.equal(decide(sh('cat <<EOF\nhello'), { root: ROOT }).kind, 'ask'))
+test('heredoc 正文含命令替换（未加引号的终止符）=> ask', () => assert.equal(decide(sh('cat <<EOF\n$(git push -f)\nEOF'), { root: ROOT }).kind, 'ask'))
+test('引号不配对 => ask（不静默放行）', () => assert.equal(decide(sh('echo "abc'), { root: ROOT }).kind, 'ask'))
+test('块注释不闭合 => ask', () => assert.equal(decide(sh('<# oops git status'), { root: ROOT }).kind, 'ask'))
+test('块注释里的命令不当命令：<# git push -f #> ls => allow', () => isAllow('<# git push -f #> ls'))
+test('块注释后接真命令仍被判：<# it\'s #> git push -f => ask', () => askOrDeny("<# it's #> git push -f"))
+
+for (const [t1, c] of [
+  ['pwsh 参数缩写 -com', 'pwsh -com "git tag x"'],
+  ['bash -cx 选项簇', 'bash -cx "git tag x"'],
+  ['bash -lc', 'bash -lc "git tag x"'],
+  ['bash --login -c', 'bash --login -c "git tag x"'],
+  ['cmd /k', 'cmd /k "git tag x"'],
+  ['powershell -NoProfile -Command', 'powershell -NoProfile -Command "git tag x"'],
+  ['eval', "eval 'git tag x'"],
+  ['管道喂给 bash', 'echo "git tag x" | bash'],
+  ['-EncodedCommand（看不见内容）', 'powershell -EncodedCommand AAAA'],
+  ['裸 bash', 'bash'],
+  ['裸 pwsh', 'pwsh'],
+]) test(`内嵌与解释器（审查四）：${t1} => 被拦`, () => askOrDeny(c))
+for (const [t1, c] of [['bash 跑脚本文件', 'bash build.sh'], ['pwsh -File', 'pwsh -File x.ps1'], ['bash --version', 'bash --version'], ['bash -c 无害内嵌', 'bash -c "ls -la"'], ['cmd /c dir', 'cmd /c dir']]) {
+  test(`内嵌与解释器放行：${t1} => allow`, () => isAllow(c))
+}
+
+for (const [t1, c] of [
+  ['sudo -u 带值', 'sudo -u x rm .std/a'],
+  ['env -u 带值', 'env -u X rm .std/a'],
+  ['timeout -s 带值', 'timeout -s KILL 5 rm .std/a'],
+  ['xargs -I {} 带值', 'xargs -I {} rm .std/{}'],
+  ['busybox 前缀', 'busybox rm .std/a'],
+  ['sudo -- 分隔', 'sudo -- rm .std/a'],
+  ['sudo -u 删状态文件', 'sudo -u user rm PROJECT_STATUS.md'],
+]) test(`前缀包装（审查四）：${t1} => 被拦`, () => askOrDeny(c))
+test('command -v git 只是查询：allow', () => isAllow('command -v git'))
+test('time ./build.sh：allow', () => isAllow('time ./build.sh'))
+test('timeout 5 ping x：allow', () => isAllow('timeout 5 ping x'))
+
+for (const [t1, c] of [
+  ['find .std -delete', 'find .std -delete'],
+  ['find .std -exec rm', 'find .std -exec rm {} ;'],
+]) test(`find（审查四）：${t1} => 被拦`, () => askOrDeny(c))
+test('find 只读 => allow', () => isAllow('find . -name "*.py"'))
+
+for (const [t1, c] of [
+  ['cd .std; cd sub; rm a', 'cd .std; cd sub; rm a'],
+  ['cd tools 后写守卫自身', 'cd tools; rm dsh-std/lib/policy.js'],
+  ['cd .githooks 后写钩子', 'cd .githooks; rm pre-commit'],
+  ['cd .githooks && echo > pre-commit', 'cd .githooks && echo x > pre-commit'],
+  ['cd tools/dsh-std 后写', 'cd tools/dsh-std; rm lib/policy.js'],
+]) test(`cd 追踪（审查四）：${t1} => 被拦`, () => askOrDeny(c))
+test('cd .std 后重定向到相对路径 => deny（虚拟 cwd 解析）', () => isDeny('cd .std; echo x > a.txt'))
+test('cd other 后重定向到 .std 目录名 => 不 deny（目标是 other/.std，只可能 ask）', () => assert.notEqual(decide(sh('cd other; echo x > .std/a'), { root: ROOT }).kind, 'deny'))
+test('cd .. 复位后写别处 => allow', () => isAllow('cd .std; cd ..; ls > out.txt'))
+test('cd 变量目标复位到项目根而不是沿用旧 cwd', () => isAllow('cd .std; cd $HOME; echo x > a.txt'))
+
+for (const [t1, c] of [
+  ['tools/./dsh-std', 'rm tools/./dsh-std/lib/policy.js'],
+  ['tools//dsh-std', 'cp x tools//dsh-std/a'],
+  ['tools/sub/../dsh-std', 'echo x > tools/sub/../dsh-std/a'],
+  ['AGENTS.md. 段尾点', 'rm AGENTS.md.'],
+  ['tools/dsh-std. 段尾点', 'rm tools/dsh-std.'],
+]) winOnly(`路径规整（审查四）：${t1} => ask`, () => askOrDeny(c))
+
+for (const [t1, c] of [
+  ['rm .st*', 'rm .st*'],
+  ['rm AGENTS*', 'rm AGENTS*'],
+  ['rm -r .*', 'rm -r .*'],
+  ['Remove-Item PROJECT_STATUS.*', 'Remove-Item PROJECT_STATUS.*'],
+]) test(`通配（审查四）：${t1} => ask`, () => askOrDeny(c))
+test('通配不误报：rm *.log => allow', () => isAllow('rm *.log'))
+test('通配不误报：rm build/* => allow', () => isAllow('rm -rf build/*'))
+
+for (const [t1, c] of [
+  ['dd of=AGENTS.md', 'dd of=AGENTS.md'],
+  ['-Path: 冒号紧贴', 'Set-Content -Path:AGENTS.md x'],
+  ['括号路径', 'cp x (AGENTS.md)'],
+  ['unlink 状态入口', 'unlink PROJECT_STATUS.md'],
+  ['cp 覆盖状态入口', 'cp x PROJECT_STATUS.md'],
+  ['find -delete 状态入口', 'find . -name PROJECT_STATUS.md -delete'],
+  ['curl --output=', 'curl --output=AGENTS.md x'],
+  ['tar --file=', 'tar --file=AGENTS.md -c x'],
+  ['逗号前缀', 'cp x ,AGENTS.md'],
+]) test(`受保护文件（审查四）：${t1} => ask`, () => askOrDeny(c))
+
+for (const [t1, c] of [
+  ['-c alias 注入', 'git -c alias.x="push -f" x'],
+  ['--follow-tags', 'git push --follow-tags'],
+  ['按版本 tag', 'git push origin v2'],
+  ['update-ref --delete', 'git update-ref --delete refs/heads/x'],
+  ['Start-Process -ArgumentList', 'Start-Process git -ArgumentList "push","-f"'],
+  ['git.cmd', 'git.cmd tag x'],
+]) test(`git（审查四）：${t1} => ask`, () => askOrDeny(c))
+
+for (const [t1, c] of [
+  ['1> 重定向', 'echo x 1> .std/a'], ['3> 重定向', 'echo x 3> .std/a'], ['命令前的重定向', '>.std/a echo x'],
+  ['双引号目标', 'echo x > ".std/a"'], ['单引号目标', "echo x > '.std/a'"], ['多重重定向最后落在 .std', 'a>b>.std/c'],
+]) test(`重定向形态（审查四）：${t1} => deny`, () => isDeny(c))
+
+// —— 逃逸变异对应的用例（审查四点名）——
+test('cmd /k 内嵌被剥：cmd /k "git tag x" => ask', () => askOrDeny('cmd /k "git tag x"'))
+test('行注释只在词首：a#b 与 url#frag 不吞后续', () => { isAllow('echo a#b'); isAllow('curl https://e.com/x#frag') })
+test('行注释吞到行尾：# 后的命令不判（注释就是注释）', () => isAllow('ls # git push -f'))
+test('注释换行后的下一行仍判：# c\ngit push -f => ask', () => askOrDeny('# c\ngit push -f'))
+test('sed -i 视为写：sed -i s/a/b/ AGENTS.md => ask', () => askOrDeny('sed -i s/a/b/ AGENTS.md'))
+test('sed 无 -i 不写：sed -n 1p AGENTS.md => allow', () => isAllow('sed -n 1p AGENTS.md'))
+test('stricter 排序：deny 与 ask 同命令 => deny', () => isDeny('git tag x; echo y > .std/a'))
+test('stricter 排序：内嵌 deny 与外层 ask => deny', () => isDeny('git tag x; bash -c "echo y > .std/a"'))
+test('删除状态入口失败清单：rm 失败Case清单.md => ask', () => askOrDeny('rm 失败Case清单.md'))
+test('--force-with-lease => ask', () => askOrDeny('git push --force-with-lease origin main'))
+test('--force-with-lease=ref => ask', () => askOrDeny('git push --force-with-lease=main origin main'))
+test('time 作前缀被剥：time git push -f => ask', () => askOrDeny('time git push -f'))
+test('CRLF 续行：git reset \\\r\n --hard => ask', () => askOrDeny('git reset \\\r\n --hard'))
+test('重定向目标词在 < 处终止：echo x > .std/a < in.txt => deny', () => isDeny('echo x > .std/a < in.txt'))
+
+// —— 不抛异常：任意形态的输入 ——
+test('decide 对奇怪入参不抛：opts 为 null / root 非字符串', () => {
+  for (const o of [null, undefined, { root: 5 }, { root: {} }, { root: '' }, 'x', 7]) {
+    const d = decide(sh('ls'), o)
+    assert.ok(['allow', 'ask', 'deny'].includes(d.kind))
+  }
+})
+test('decide 对奇怪命令不抛：NUL、孤立代理项、超长', () => {
+  for (const c of ['a\u0000b', 'x\ud800y', 'é'.repeat(5000), '\u00a0\u3000 ls', 'ls\u200b; git tag x']) {
+    const d = decide(sh(c), { root: ROOT })
+    assert.ok(['allow', 'ask', 'deny'].includes(d.kind))
+  }
+})
+
+// —— 第二批：对新词法做变异验证时逃逸的盲区（X04 X07 X09 X14 X28 X29 X30）——
+test('进程替换 >( )：把内容喂给 git push -f 的子命令 => ask', () => askOrDeny('echo x | tee >(git push -f)'))
+test('进程替换 <( ) 里写 .std 的重定向也被抽出判：cat <(echo x > .std/a) => deny', () => isDeny('cat <(echo x > .std/a)'))
+test('here-string 正文是数据：里面写 git push -f 不算命令 => allow', () => isAllow("Set-Content notes.md @'\ngit push -f\n'@"))
+test('here-string 正文是数据：里面写重定向 .std 不算 => 不 deny', () => assert.notEqual(decide(sh("Set-Content notes.md @'\necho x > .std/a\n'@"), { root: ROOT }).kind, 'deny'))
+test('双引号 here-string 正文含 $( => ask（不解析）', () => assert.equal(decide(sh('Set-Content n.md @"\n$(git push -f)\n"@'), { root: ROOT }).kind, 'ask'))
+test('here-string 没有终止符 => ask', () => assert.equal(decide(sh("Set-Content n.md @'\nabc"), { root: ROOT }).kind, 'ask'))
+test('词首 } 分隔：`{ ls }; git push -f` => ask（} 之后的命令被看见）', () => askOrDeny('{ ls }; git push -f'))
+test('词首 } 分隔：`if true; then ls; fi` 的 fi 前后不吞', () => askOrDeny('if true; then ls; fi; git tag x'))
+test('花括号不在词首时是普通字符：echo ${x} 与 .std/{a,b} 的 { 不当分隔', () => { isAllow('echo ${HOME}'); isAllow('echo {a,b}') })
+test('前缀 -- 分隔符：sudo -- git push -f => ask（-- 之后才是命令）', () => askOrDeny('sudo -- git push -f'))
+test('前缀 -- 分隔符：env -- rm .std/a => 被拦', () => askOrDeny('env -- rm .std/a'))
+test('timeout 的时长只在 timeout 后第一个位置词：timeout 5 git push -f => ask', () => askOrDeny('timeout 5 git push -f'))
+test('重定向目标 cd 之后「按项目根才落在 .std」是 ask：cd other; echo x > .std/a => ask 而不是 allow', () => assert.equal(decide(sh('cd other; echo x > .std/a'), { root: ROOT }).kind, 'ask'))
+test('重定向目标 cd 之后「按项目根才落在 .std」：cd sub; echo x > .std/a => ask', () => assert.equal(decide(sh('cd sub; echo x > .std/a'), { root: ROOT }).kind, 'ask'))
+test('嵌套深度边界：恰好 2 层的内嵌命令照常分析（git status 放行）', () => isAllow('bash -c "bash -c \'git status\'"'))
+test('嵌套深度边界：3 层一律 ask（哪怕里面只是 ls）', () => assert.equal(decide(sh('bash -c "bash -c \'bash -c \\"ls\\"\'"'), { root: ROOT }).kind, 'ask'))
+test('嵌套深度边界：命令替换也受深度限制，$( $( $( ls ) ) ) 一律 ask', () => assert.equal(decide(sh('echo $(echo $(echo $(ls)))'), { root: ROOT }).kind, 'ask'))
+test('命令替换里的 cd 继承外层虚拟 cwd：cd .std; echo $(echo x > a) => 被拦', () => askOrDeny('cd .std; echo $(echo x > a)'))
+test('命令替换内的路径按外层 cwd 解析而不是项目根：cd tools; echo $(rm dsh-std/lib/policy.js) => 被拦', () => askOrDeny('cd tools; echo $(rm dsh-std/lib/policy.js)'))
+
+// X07 在专门构造的输入下才有区分力：here-string 正文里有未配对的撇号。不识别 here-string 时会误开引号 => 误 ask。
+test('here-string 正文含未配对撇号是数据 => allow（不能因引号错位误问）', () => isAllow("Set-Content n.md @'\nit's fine\n'@"))
+test('here-string 正文含未配对双引号是数据 => allow', () => isAllow('Set-Content n.md @\'\nsay "hi\n\'@'))
