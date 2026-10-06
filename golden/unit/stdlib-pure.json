@@ -1395,6 +1395,89 @@
    }
   },
   {
+   "input": "__proto__: x\n",
+   "input_len": 13,
+   "result": {
+    "ok": {
+     "__proto__": "x"
+    }
+   }
+  },
+  {
+   "input": "__proto__:\n  a: 1\n",
+   "input_len": 18,
+   "result": {
+    "ok": {
+     "__proto__": {
+      "a": 1
+     }
+    }
+   }
+  },
+  {
+   "input": "a:\n  __proto__: 1\n",
+   "input_len": 18,
+   "result": {
+    "ok": {
+     "a": {
+      "__proto__": 1
+     }
+    }
+   }
+  },
+  {
+   "input": "- __proto__: 1\n  b: 2\n",
+   "input_len": 22,
+   "result": {
+    "ok": [
+     {
+      "__proto__": 1,
+      "b": 2
+     }
+    ]
+   }
+  },
+  {
+   "input": "- b: 2\n  __proto__: 1\n",
+   "input_len": 22,
+   "result": {
+    "ok": [
+     {
+      "__proto__": 1,
+      "b": 2
+     }
+    ]
+   }
+  },
+  {
+   "input": "constructor: 1\ntoString: 2\nhasOwnProperty: 3\nvalueOf: 4\n",
+   "input_len": 56,
+   "result": {
+    "ok": {
+     "constructor": 1,
+     "hasOwnProperty": 3,
+     "toString": 2,
+     "valueOf": 4
+    }
+   }
+  },
+  {
+   "input": "__proto__: 1\n__proto__: 2\n",
+   "input_len": 26,
+   "result": {
+    "message": "第 2 行的键 '__proto__' 重复；重复键的取值有歧义",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "a:\n  - __proto__: x\n    __proto__: y\n",
+   "input_len": 37,
+   "result": {
+    "message": "第 3 行的键 '__proto__' 在同一列表项里重复；重复键的取值有歧义",
+    "raised": "ConfigError"
+   }
+  },
+  {
    "input": "<长输入 len=1448495 sha1-prefix=efa98b291b>",
    "input_len": 1448495,
    "result": {

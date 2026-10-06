@@ -124,6 +124,14 @@ function splitKv(body: string, lineno: number): [string, string] | null {
   return [key, m[4] ?? '']
 }
 
+/**
+ * 在映射上建一个**自有数据属性**。键是被扫方写的任意字符串，包括 `__proto__`：直接 `obj[k] = v` 在 JS 里对 `__proto__` 会改原型（值是对象时）或被静默吞掉（值是标量时），
+ * 而 Python 的 dict 里它只是普通键。`defineProperty` 不走 setter，保证「读到什么键就存什么键」。
+ */
+function put(obj: { [k: string]: YamlValue }, k: string, v: YamlValue): void {
+  Object.defineProperty(obj, k, { value: v, enumerable: true, writable: true, configurable: true })
+}
+
 interface Line {
   n: number
   indent: number
@@ -179,15 +187,15 @@ export function parseYamlSubset(text: string): YamlValue {
               // 空值：下一行更深才是子块，否则取 None（与映射分支一致）
               if (idx + 1 < lines.length && lines[idx + 1]!.indent > childIndent) {
                 const [sub, ni] = block(idx + 1, lines[idx + 1]!.indent, depth + 1)
-                item[k2] = sub
+                put(item, k2, sub)
                 idx = ni
               } else {
-                item[k2] = null
+                put(item, k2, null)
                 idx++
               }
               continue
             }
-            item[k2] = scalar(v2, n2)
+            put(item, k2, scalar(v2, n2))
             idx++
           }
           items.push(item)
@@ -214,16 +222,16 @@ export function parseYamlSubset(text: string): YamlValue {
       const [k, v] = kv
       if (Object.hasOwn(mapping, k)) throw new ConfigError(`第 ${n} 行的键 ${pyRepr(k)} 重复；重复键的取值有歧义`)
       if (pyStrip(v)) {
-        mapping[k] = scalar(v, n)
+        put(mapping, k, scalar(v, n))
         idx++
         continue
       }
       if (idx + 1 < lines.length && lines[idx + 1]!.indent > indent) {
         const [sub, ni] = block(idx + 1, lines[idx + 1]!.indent, depth + 1)
-        mapping[k] = sub
+        put(mapping, k, sub)
         idx = ni
       } else {
-        mapping[k] = null
+        put(mapping, k, null)
         idx++
       }
     }

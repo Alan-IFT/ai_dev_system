@@ -52,6 +52,9 @@ YAML_INPUTS = [
     # BOM 与全角空格出现在值里、键里、行首（Python 的 strip 保留 U+FEFF 但去 U+3000，设计 §12.6 D6）
     "tier: \ufeffL1\n", "a: \ufeff\n", "\u3000a: 1\n", "a:\u3000b\n", "a: \u3000\n", "a:\u00a0b\n", "a: b\u3000\n", "- \ufeffx\n", "-\u3000x\n",
     "a\u2028b: 1\n", "a: 1\u2028b: 2\n", "a: 1\x85b: 2\n", "a: 1\x1cb: 2\n", "a: 1\vb: 2\n", "a: 1\fb: 2\n", "a: 1\rb: 2\n",
+    # JS 特有的坑：键是被扫方写的任意字符串，`__proto__` 在 JS 里直接赋值会改原型或被吞掉，Python 的 dict 里它只是普通键
+    "__proto__: x\n", "__proto__:\n  a: 1\n", "a:\n  __proto__: 1\n", "- __proto__: 1\n  b: 2\n", "- b: 2\n  __proto__: 1\n",
+    "constructor: 1\ntoString: 2\nhasOwnProperty: 3\nvalueOf: 4\n", "__proto__: 1\n__proto__: 2\n", "a:\n  - __proto__: x\n    __proto__: y\n",
 ]
 # 深嵌套与极长行（性能与递归上限）
 YAML_INPUTS.append("".join("%sk%d:\n" % ("  " * i, i) for i in range(1200)) + "  " * 1200 + "v: 1\n")

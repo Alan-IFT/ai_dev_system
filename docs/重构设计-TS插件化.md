@@ -227,7 +227,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/yaml.ts`（严格 YAML 子集解析器）、`core/dates.ts`（`parseDate`，D1）
     - [x] `core/fs.ts`（受限读取：`inside`/`guard`/`readBytes`/`readText`/`countLines`）
     - [x] `core/git.ts`（git 子进程环境加固：`hardenedEnv`、`filterEnv`、`gitVersionProblem`、`shallowProblem`；`tracked_files` 因依赖 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 废弃）与 `scan_memo`，**推迟到 `check_all` 汇总层迁**）
-    - [ ] `core/config.ts`（加载与路径护栏）、`core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、状态词、工作项）
+    - [x] `core/config.ts`（配置加载与校验）、`core/cfg.ts`（`cfgGet`、状态词表、`leadWord`、`stateClass`）、`core/utf8.ts`（首个无效序列起点）
+    - [ ] `core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、工件落点、工作项）
   - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
@@ -353,6 +354,19 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **变异验证 30 条：29 条被抓住，1 条如实标 `unobservable`，0 条没被抓住；Windows 与 Ubuntu 结论相同（这次没有出现两平台不同的变异）。** 首轮 31 条里有 5 条没被抓住：`G9`（`hardenedEnv` 偷写 `process.env`）——**DSH 会话里 `GIT_PAGER` 本来就是 `cat`，写入 `cat` 前后看不出差别**，改用哨兵值才能区分；`F9`、`F10`（需要「有过滤器」「名字自己带点」的仓才有差别）；`F1` 是我写的等价变异（`Set` 还是 `Set`），删除；`H1`（浅克隆判断不认大小写）真实 git 只输出小写，无可观察差异，如实标注。
 - **范围收窄的一个决定**：`tracked_files` 不在这一块迁。它调用 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 要废弃）与 `scan_memo`（`run_all` 的缓存上下文）。迁它时才能决定「内嵌判定」是直接删还是保留成空实现——放到 `check_all` 汇总层，那时才清楚全局怎么用它。
 
+### 12.11 `core/config.ts` 完成时量出来的事
+
+- **证据**：对 Python 版 `load_config` 的黄金样本（`golden/unit/stdlib-config.json`）逐条一致，含**精确的报错信息**——104 条用例（接受 30、拒收 74）、6 条原始字节、7 种文件布局、4 个真实仓已提交的 `project.yaml`。UTF-8 首个无效序列的起点对着 Python 的 `UnicodeDecodeError.start` **穷举 406,900 个序列**（25 个边界字节 × 长度 1 到 4）逐一致，样本只存规格与 sha256，TS 侧重新枚举后比哈希。
+- **变异验证 78 条：Windows 77 抓住 + 1 条仅 POSIX（`C6`，Ubuntu 上抓住），Ubuntu 上 78 条全部抓住。** 首轮 77 条里 **16 条没被抓住或无效**，分类处理：
+  1. **黄金样本盲区，补了输入**（占大头）：`derived` 的 `source`、`tailoring` 子项、`layout.artifacts.entry` 允许列表、`metadata_required` 的 `././docs`、行号定位认引号键与列表项首键（`- key:`）、键名里的正则元字符（`.` `(` `[` `*` `+` `?`）。
+  2. **纵深防御，改成复合变异**：`C55`（拒收时返回半成品 `cfg`）被 `loadConfig` 的 `if (problem) return [{}, problem]` 兜住——内层返回半成品、外层清空，外部不可观察；`C27`（布尔当整数）被「字面必须是整数」第二道挡住。改成两层同时去掉。
+  3. **直接断言补缺**：`leadWord` 的「长别名优先」（短别名排前面时要取长的）、数字也算字母数字（阿拉伯数字、带圈数字 ②）、等长别名保持原顺序；符号链接指向仓外的配置文件拒读。
+  4. **平台相关**：`C6`（越界检查不认盘符）在 Windows 上被 `isAbsolute` 先挡住，不可观察；标 `posixOnly`，Ubuntu 上验证。
+  5. **变异本身写错**：`C15`（编译不过）、`U1`（锚点对不上），已修。
+- **一个 JS 特有的真实缺陷，是在写测试之前就想到、验证后确认的**：YAML 里的键是**被扫方写的任意字符串**，`__proto__: x` 在 JS 里直接赋值会**静默吞掉**（标量）或**改掉对象原型**（值是对象），而 Python 的 `dict` 里它只是普通键。我在 `yaml.ts` 里用 `Object.defineProperty` 建自有属性，并补了 8 条 `__proto__`、`constructor`、`toString` 的黄金样本与变异 `Y16`。**这类 JS 与 Python 语义差异不会出现在「对 Python 黄金样本逐条一致」之外，除非主动想到它们——黄金样本只能证明样本里有的。**
+- **两个我自己犯的错**：①第一次写黄金样本脚本时命令被拒，我用 `write` 工具重写；脚本里**两次生成逐字节不同**，查出是 `--config` 指向项目之外时 `_path` 是含随机临时目录名的绝对路径，已归一为 `<CONFIG_PATH>` 并另记 `path_key_is_abs`（它本身是契约的一部分：外部配置记绝对路径、项目内记相对路径）。②变异清单追加时，第一次用「替换文本锚点」去改 `make_unit.py`，**锚点没匹配上，整个脚本中止，黄金样本与变异清单都没改**，而我紧接着看到的「152 条」「29 条」其实是**旧值**——差点把它当成新结果。以后追加变异一律用 JSON 读写。
+- **一个收紧**：`readConfig` 里最初 `catch` 了「任何 `Error`」并记成「读不了」，这会把**检查器自己的程序错误**伪装成「配置读不了」。Python 只捕获 `OSError`；TS 版改成只吞本模块的拒读类与带 errno `code` 的系统错误，其余向外抛，变异 `C56` 与对应测试钉住。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -401,6 +415,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/config.ts`/`cfg.ts`/`utf8.ts` 完成，记 §12.11 | 104 条配置用例含精确报错信息逐条一致；UTF-8 起点穷举 406900 个序列；变异 78 条 Ubuntu 全抓住；发现并堵住 `__proto__` 键的 JS 特有缺陷；首轮 16 条变异没抓住按五类处理 |
 | 2026-10-06 | `core/git.ts` 完成，记 §12.10，新增 D9；`tracked_files` 推迟到汇总层 | 用恶意仓验证行为（先跑对照组证明外部程序确会被执行）；30 条变异 29 抓住、1 标未验证；textconv 的防线在调用方而非本模块，写进头注释防迁移时丢失 |
 | 2026-10-06 | 记 §12.9：fs 在 Ubuntu 上的验证；新增 `scripts/verify-ubuntu.ps1` 与仅 POSIX 变异 P1/P2 | 同一条变异在两个平台结论不同，查出是断言写在了会因偶然原因失败的位置；Windows 上本来就空的三道防线在 Linux 上补了验证 |
 | 2026-10-06 | `core/fs.ts` 完成，记 §12.8，新增 D7/D8 | 对 190 条夹具型黄金样本逐条一致；变异 20 条，16 抓住、4 如实标未验证、0 漏；`mutate.mjs` 新增复合变异与 `unobservable` 标注 |

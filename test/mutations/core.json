@@ -168,6 +168,13 @@
   "to": "\\x85\\u2029]/)"
  },
  {
+  "id": "Y16",
+  "title": "映射赋值退回直接 obj[k] = v（__proto__ 会改原型或被吞掉）",
+  "file": "src/core/yaml.ts",
+  "from": "  Object.defineProperty(obj, k, { value: v, enumerable: true, writable: true, configurable: true })",
+  "to": "  obj[k] = v"
+ },
+ {
   "id": "T1",
   "title": "闰年判断去掉 400 规则",
   "file": "src/core/dates.ts",

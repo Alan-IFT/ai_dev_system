@@ -1,0 +1,565 @@
+[
+ {
+  "id": "C1",
+  "title": "不拒下划线键",
+  "file": "src/core/config.ts",
+  "from": "const injected = Object.keys(cfg).filter((k) => k.startsWith('_')).sort()",
+  "to": "const injected: string[] = []"
+ },
+ {
+  "id": "C2",
+  "title": "下划线键只认第一个字符之外（改成 startsWith('__')）",
+  "file": "src/core/config.ts",
+  "from": "k.startsWith('_')).sort()",
+  "to": "k.startsWith('__')).sort()"
+ },
+ {
+  "id": "C3",
+  "title": "顶层是列表也放过",
+  "file": "src/core/config.ts",
+  "from": "if (cfg === null || typeof cfg !== 'object' || Array.isArray(cfg)) return",
+  "to": "if (cfg === null || typeof cfg !== 'object') return"
+ },
+ {
+  "id": "C4",
+  "title": "不做路径越界检查",
+  "file": "src/core/config.ts",
+  "from": "if (bad.length) return [{}, `${shown} 里",
+  "to": "if (false) return [{}, `${shown} 里"
+ },
+ {
+  "id": "C5",
+  "title": "越界检查少反斜杠归一",
+  "file": "src/core/config.ts",
+  "from": "const p = pyStrip(v).replaceAll('\\\\', '/')",
+  "to": "const p = pyStrip(v)"
+ },
+ {
+  "id": "C6",
+  "title": "【仅 POSIX】越界检查不认盘符（Windows 上 isAbsolute 已挡住盘符路径）",
+  "file": "src/core/config.ts",
+  "from": "isPosixOrWinAbs(p) || /^[A-Za-z]:\\//.test(p) || p.split('/').includes('..')",
+  "to": "isPosixOrWinAbs(p) || p.split('/').includes('..')",
+  "posixOnly": true
+ },
+ {
+  "id": "C7",
+  "title": "越界检查把含 .. 的名字也拒（a..b）",
+  "file": "src/core/config.ts",
+  "from": "p.split('/').includes('..')",
+  "to": "p.includes('..')"
+ },
+ {
+  "id": "C8",
+  "title": "越界检查不看 metadata_required",
+  "file": "src/core/config.ts",
+  "from": "'layout.rule_files', 'metadata_required'] as const",
+  "to": "'layout.rule_files'] as const"
+ },
+ {
+  "id": "C9",
+  "title": "越界检查不看 derived 的 source",
+  "file": "src/core/config.ts",
+  "from": "for (const k of ['artifact', 'source'])",
+  "to": "for (const k of ['artifact'])"
+ },
+ {
+  "id": "C10",
+  "title": "越界检查不看 layout.artifacts",
+  "file": "src/core/config.ts",
+  "from": "if (arts && typeof arts === 'object' && !Array.isArray(arts)) for (const [k, v] of Object.entries(arts)) vals.push(['layout.artifacts.' + k, v])",
+  "to": ""
+ },
+ {
+  "id": "C11",
+  "title": "BOM 不去",
+  "file": "src/core/config.ts",
+  "from": "const body = raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf ? raw.subarray(3) : raw",
+  "to": "const body = raw"
+ },
+ {
+  "id": "C12",
+  "title": "BOM 去两个",
+  "file": "src/core/config.ts",
+  "from": "const body = raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf ? raw.subarray(3) : raw",
+  "to": "let body = raw; while (body.length >= 3 && body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf) body = body.subarray(3)"
+ },
+ {
+  "id": "C13",
+  "title": "非 UTF-8 不拒（宽松解码）",
+  "file": "src/core/config.ts",
+  "from": "if (bad >= 0) return [{}, `${shown} 不是 UTF-8 编码",
+  "to": "if (false) return [{}, `${shown} 不是 UTF-8 编码"
+ },
+ {
+  "id": "C14",
+  "title": "非 UTF-8 的字节偏移少 1",
+  "file": "src/core/config.ts",
+  "from": "（第 ${bad} 字节起解不开）",
+  "to": "（第 ${bad + 1} 字节起解不开）"
+ },
+ {
+  "id": "C15",
+  "title": "解析失败的信息回显行内容",
+  "file": "src/core/config.ts",
+  "from": "return [{}, `${shown} 无法无歧义解析：${e.message}`]",
+  "to": "return [{}, `${shown} 无法无歧义解析：${e.message}：${text!}`]"
+ },
+ {
+  "id": "C16",
+  "title": "形状：布尔也算字符串",
+  "file": "src/core/config.ts",
+  "from": "const isScalarStrNum = (x: unknown): boolean => typeof x === 'string' || typeof x === 'number'",
+  "to": "const isScalarStrNum = (x: unknown): boolean => typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean'"
+ },
+ {
+  "id": "C17",
+  "title": "形状：str|strs 不接受单个字符串",
+  "file": "src/core/config.ts",
+  "from": "(shape === 'str|strs' && typeof v === 'string')",
+  "to": "false"
+ },
+ {
+  "id": "C18",
+  "title": "形状：空值也拒",
+  "file": "src/core/config.ts",
+  "from": "if (v === null || v === undefined || (shape",
+  "to": "if (v === undefined || (shape"
+ },
+ {
+  "id": "C19",
+  "title": "形状：不检查 tailoring 子项",
+  "file": "src/core/config.ts",
+  "from": "['tailoring', [['check', 'str'], ['reason', 'str']]],",
+  "to": "['tailoring', []],"
+ },
+ {
+  "id": "C20",
+  "title": "形状：不检查 repos.former_names",
+  "file": "src/core/config.ts",
+  "from": "['role', 'str'], ['former_names', 'strs']]],",
+  "to": "['role', 'str']]],"
+ },
+ {
+  "id": "C21",
+  "title": "形状：不检查 layout.artifacts 的子项",
+  "file": "src/core/config.ts",
+  "from": "if (isMap(arts)) for (const [k, v] of Object.entries(arts as object)) items.push",
+  "to": "if (false) for (const [k, v] of Object.entries(arts as object)) items.push"
+ },
+ {
+  "id": "C22",
+  "title": "形状：layout.artifacts.entry 不允许列表",
+  "file": "src/core/config.ts",
+  "from": "k === 'entry' ? 'str|strs' : 'str'",
+  "to": "'str'"
+ },
+ {
+  "id": "C23",
+  "title": "形状：行号取键全名而不是最后一段",
+  "file": "src/core/config.ts",
+  "from": "const last = key.slice(key.lastIndexOf('.') + 1)",
+  "to": "const last = key"
+ },
+ {
+  "id": "C24",
+  "title": "预算：下限 duplicate_min_lines 改成 1",
+  "file": "src/core/config.ts",
+  "from": "['duplicate_min_lines', 2]",
+  "to": "['duplicate_min_lines', 1]"
+ },
+ {
+  "id": "C25",
+  "title": "预算：下限 duplicate_min_chars 改成 0",
+  "file": "src/core/config.ts",
+  "from": "['duplicate_min_chars', 1]",
+  "to": "['duplicate_min_chars', 0]"
+ },
+ {
+  "id": "C26",
+  "title": "预算：2.0 当整数",
+  "file": "src/core/config.ts",
+  "from": "if (typeof v === 'number' && kinds.isInt(['budgets', key]) && v >= low) continue",
+  "to": "if (typeof v === 'number' && Number.isInteger(v) && v >= low) continue"
+ },
+ {
+  "id": "C28",
+  "title": "预算：下限用 > 而不是 >=",
+  "file": "src/core/config.ts",
+  "from": "kinds.isInt(['budgets', key]) && v >= low) continue",
+  "to": "kinds.isInt(['budgets', key]) && v > low) continue"
+ },
+ {
+  "id": "C29",
+  "title": "预算：不查 budgets",
+  "file": "src/core/config.ts",
+  "from": "?? badDupBudgets(c, text, numKinds(text)) ??",
+  "to": "?? "
+ },
+ {
+  "id": "C30",
+  "title": "撞词：不查文档状态词",
+  "file": "src/core/config.ts",
+  "from": "for (const [c, al] of DOC_STATES) for (const a of al) seen.set(a, '01 §3.5 文档状态 ' + c)",
+  "to": ""
+ },
+ {
+  "id": "C31",
+  "title": "撞词：不查六态别名",
+  "file": "src/core/config.ts",
+  "from": "for (const [c, al] of WORK_ITEM_STATES) for (const a of al) seen.set(a, c)",
+  "to": ""
+ },
+ {
+  "id": "C32",
+  "title": "撞词：两个声明键之间不查（setdefault 改成覆盖）",
+  "file": "src/core/config.ts",
+  "from": "if (!seen.has(w)) seen.set(w, c)\n      if (seen.get(w) !== c) {",
+  "to": "if (seen.get(w) === undefined) seen.set(w, c)\n      if (false) {"
+ },
+ {
+  "id": "C33",
+  "title": "撞词：不查整份",
+  "file": "src/core/config.ts",
+  "from": "?? badStateWords(c, text) ??",
+  "to": "?? "
+ },
+ {
+  "id": "C34",
+  "title": "metadata：不查整份",
+  "file": "src/core/config.ts",
+  "from": "?? badMetadataRequired(c, text)",
+  "to": ""
+ },
+ {
+  "id": "C35",
+  "title": "metadata：. 不拒",
+  "file": "src/core/config.ts",
+  "from": "if (p === '' || p === '.' || p === './' ||",
+  "to": "if (p === '' || p === './' ||"
+ },
+ {
+  "id": "C36",
+  "title": "metadata：空串不拒",
+  "file": "src/core/config.ts",
+  "from": "if (p === '' || p === '.'",
+  "to": "if (p === '.'"
+ },
+ {
+  "id": "C37",
+  "title": "metadata：.. 起头不拒",
+  "file": "src/core/config.ts",
+  "from": "|| p.startsWith('..')) {\n      return `第 ${line} 行 metadata_required 的元素",
+  "to": ") {\n      return `第 ${line} 行 metadata_required 的元素"
+ },
+ {
+  "id": "C38",
+  "title": "metadata：/ 起头不拒",
+  "file": "src/core/config.ts",
+  "from": "p === './' || p.startsWith('/') ||",
+  "to": "p === './' ||"
+ },
+ {
+  "id": "C39",
+  "title": "metadata：排除与包含相同不拒",
+  "file": "src/core/config.ts",
+  "from": "if (inc.map(stripSlashes).includes(stripSlashes(e))) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "C40",
+  "title": "metadata：排除不落在包含之下不拒",
+  "file": "src/core/config.ts",
+  "from": "if (!inc.some((i) => prefixHit(stripSlashes(e), i))) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "C41",
+  "title": "metadata：排除前缀按纯字符串前缀判（archive2 误判为 archive 之下）",
+  "file": "src/core/config.ts",
+  "from": "return p !== '' && (rel === p || rel.startsWith(p + '/'))",
+  "to": "return p !== '' && (rel === p || rel.startsWith(p))"
+ },
+ {
+  "id": "C42",
+  "title": "metadata：排除不生效",
+  "file": "src/core/config.ts",
+  "from": "return inc.some((p) => prefixHit(r, p)) && !exc.some((p) => prefixHit(r, p))",
+  "to": "return inc.some((p) => prefixHit(r, p))"
+ },
+ {
+  "id": "C43",
+  "title": "metadata：不去开头的 ./",
+  "file": "src/core/config.ts",
+  "from": "while (p.startsWith('./') && p !== './') p = p.slice(2)",
+  "to": ""
+ },
+ {
+  "id": "C44",
+  "title": "metadata：只去一个 ./（././docs）",
+  "file": "src/core/config.ts",
+  "from": "while (p.startsWith('./') && p !== './') p = p.slice(2)",
+  "to": "if (p.startsWith('./') && p !== './') p = p.slice(2)"
+ },
+ {
+  "id": "C45",
+  "title": "metadata：反斜杠不归一",
+  "file": "src/core/config.ts",
+  "from": "let p = pyStrip(pyStr(x)).replaceAll('\\\\', '/')",
+  "to": "let p = pyStrip(pyStr(x))"
+ },
+ {
+  "id": "C46",
+  "title": "metadata：! 之后不去空白",
+  "file": "src/core/config.ts",
+  "from": "if (neg) p = pyStrip(p.slice(1))",
+  "to": "if (neg) p = p.slice(1)"
+ },
+ {
+  "id": "C47",
+  "title": "metadata：前缀斜杠只去一侧",
+  "file": "src/core/config.ts",
+  "from": "return s.replace(/^\\/+|\\/+$/g, '')",
+  "to": "return s.replace(/\\/+$/g, '')"
+ },
+ {
+  "id": "C48",
+  "title": "metadata：不是列表时按未配以外处理（字符串当列表）",
+  "file": "src/core/config.ts",
+  "from": "const v = cfgGet(cfg, 'metadata_required')\n  if (!Array.isArray(v)) return null\n  const [inc, exc] = metadataPrefixes(v)\n  const r = String(rel)",
+  "to": "const v0 = cfgGet(cfg, 'metadata_required')\n  const v = typeof v0 === 'string' ? [v0] : v0\n  if (!Array.isArray(v)) return null\n  const [inc, exc] = metadataPrefixes(v)\n  const r = String(rel)"
+ },
+ {
+  "id": "C49",
+  "title": "加载：外部配置不存在也回退去找项目内的",
+  "file": "src/core/config.ts",
+  "from": "if (!isFile(p)) return [{}, `指定的外部配置 ${p} 不存在",
+  "to": "if (false) return [{}, `指定的外部配置 ${p} 不存在"
+ },
+ {
+  "id": "C50",
+  "title": "加载：外部配置不记绝对路径（改成相对）",
+  "file": "src/core/config.ts",
+  "from": "    cfg._path = p\n    cfg._root = root\n    return [cfg, null]\n  }\n  for",
+  "to": "    cfg._path = 'governance/project.yaml'\n    cfg._root = root\n    return [cfg, null]\n  }\n  for"
+ },
+ {
+  "id": "C51",
+  "title": "加载：不判真实位置（符号链接出仓可读）",
+  "file": "src/core/config.ts",
+  "from": "if (!inside(root, p)) return [{}, `${rel} 的真实位置在被扫项目之外（符号链接），未读`]",
+  "to": ""
+ },
+ {
+  "id": "C52",
+  "title": "加载：yaml 是目录时不继续找 yml",
+  "file": "src/core/config.ts",
+  "from": "if (!isFile(p)) continue\n      const [cfg, problem] = readConfig(p, rel)",
+  "to": "if (!isFile(p)) return [{}, `${rel} 不是文件`]\n      const [cfg, problem] = readConfig(p, rel)"
+ },
+ {
+  "id": "C53",
+  "title": "加载：候选顺序颠倒（yml 优先）",
+  "file": "src/core/config.ts",
+  "from": "export const CONFIG_CANDIDATES = ['governance/project.yaml', 'governance/project.yml'] as const",
+  "to": "export const CONFIG_CANDIDATES = ['governance/project.yml', 'governance/project.yaml'] as const"
+ },
+ {
+  "id": "C54",
+  "title": "加载：没找到时的信息少候选名",
+  "file": "src/core/config.ts",
+  "from": "`未找到 ${CONFIG_CANDIDATES.join(' 或 ')}；本工具不猜项目布局`",
+  "to": "`未找到配置；本工具不猜项目布局`"
+ },
+ {
+  "id": "K1",
+  "title": "keyLine：不认引号包着的键",
+  "file": "src/core/config.ts",
+  "from": "[${PY_WHITESPACE}]*(?:-[${PY_WHITESPACE}]+)?[\"']?${esc}[\"']?[${PY_WHITESPACE}]*:`)",
+  "to": "[${PY_WHITESPACE}]*(?:-[${PY_WHITESPACE}]+)?${esc}[${PY_WHITESPACE}]*:`)"
+ },
+ {
+  "id": "K2",
+  "title": "keyLine：不认列表项里的键",
+  "file": "src/core/config.ts",
+  "from": "(?:-[${PY_WHITESPACE}]+)?[\"']?${esc}",
+  "to": "[\"']?${esc}"
+ },
+ {
+  "id": "K3",
+  "title": "keyLine：行号从 0 起",
+  "file": "src/core/config.ts",
+  "from": "if (re.test(lines[i]!)) return i + 1",
+  "to": "if (re.test(lines[i]!)) return i"
+ },
+ {
+  "id": "K4",
+  "title": "keyLine：键名不转义（点号当通配）",
+  "file": "src/core/config.ts",
+  "from": "const esc = key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')",
+  "to": "const esc = key"
+ },
+ {
+  "id": "S1",
+  "title": "stateList：空串不取默认",
+  "file": "src/core/cfg.ts",
+  "from": "if (!pyTruthy(states)) states = [...dflt]",
+  "to": "if (states === null || states === undefined) states = [...dflt]"
+ },
+ {
+  "id": "S2",
+  "title": "stateList：不转小写",
+  "file": "src/core/cfg.ts",
+  "from": "out.push(t.toLowerCase())",
+  "to": "out.push(t)"
+ },
+ {
+  "id": "S3",
+  "title": "leadWord：短别名优先（不按长度降序）",
+  "file": "src/core/cfg.ts",
+  "from": "const sorted = [...words].sort((a, b) => b[0].length - a[0].length)",
+  "to": "const sorted = [...words]"
+ },
+ {
+  "id": "S4",
+  "title": "leadWord：别名后是字母也命中",
+  "file": "src/core/cfg.ts",
+  "from": "!(/^[\\p{L}\\p{N}]$/u.test(s[word.length]!) || s[word.length] === '_')",
+  "to": "true"
+ },
+ {
+  "id": "S5",
+  "title": "leadWord：下划线不算单词字符",
+  "file": "src/core/cfg.ts",
+  "from": "|| s[word.length] === '_'))",
+  "to": "))"
+ },
+ {
+  "id": "S6",
+  "title": "leadWord：数字不算字母数字",
+  "file": "src/core/cfg.ts",
+  "from": "/^[\\p{L}\\p{N}]$/u.test(s[word.length]!)",
+  "to": "/^\\p{L}$/u.test(s[word.length]!)"
+ },
+ {
+  "id": "S7",
+  "title": "stateClass：声明词替换缺省而不是并入",
+  "file": "src/core/cfg.ts",
+  "from": "for (const [c, al] of WORK_ITEM_STATES) for (const a of al) words.push([a, c])\n  for (const [c, key] of DECLARED_STATES)",
+  "to": "for (const [c, key] of DECLARED_STATES)"
+ },
+ {
+  "id": "S8",
+  "title": "cfgGet：继承来的键也取（不用 hasOwn）",
+  "file": "src/core/cfg.ts",
+  "from": "!Object.hasOwn(cur as object, part)) return dflt",
+  "to": "!(part in (cur as object))) return dflt"
+ },
+ {
+  "id": "S9",
+  "title": "cfgGet：列表也往下取",
+  "file": "src/core/cfg.ts",
+  "from": "if (cur === null || typeof cur !== 'object' || Array.isArray(cur) ||",
+  "to": "if (cur === null || typeof cur !== 'object' ||"
+ },
+ {
+  "id": "U1",
+  "title": "utf8：C0 当合法起始字节",
+  "file": "src/core/utf8.ts",
+  "from": "if (c >= 0xc2 && c <= 0xdf) need = 1",
+  "to": "if (c >= 0xc0 && c <= 0xdf) need = 1"
+ },
+ {
+  "id": "U2",
+  "title": "utf8：E0 后不限制 A0..BF（过长编码放行）",
+  "file": "src/core/utf8.ts",
+  "from": "else if (c === 0xe0) { need = 2; lo = 0xa0 }",
+  "to": "else if (c === 0xe0) { need = 2 }"
+ },
+ {
+  "id": "U3",
+  "title": "utf8：ED 后不排除代理（A0..BF 放行）",
+  "file": "src/core/utf8.ts",
+  "from": "else if (c === 0xed) { need = 2; hi = 0x9f }",
+  "to": "else if (c === 0xed) { need = 2 }"
+ },
+ {
+  "id": "U4",
+  "title": "utf8：F4 后不限制 8F（超出 U+10FFFF 放行）",
+  "file": "src/core/utf8.ts",
+  "from": "else if (c === 0xf4) { need = 3; hi = 0x8f }",
+  "to": "else if (c === 0xf4) { need = 3 }"
+ },
+ {
+  "id": "U5",
+  "title": "utf8：F0 后不限制 90（过长编码放行）",
+  "file": "src/core/utf8.ts",
+  "from": "else if (c === 0xf0) { need = 3; lo = 0x90 }",
+  "to": "else if (c === 0xf0) { need = 3 }"
+ },
+ {
+  "id": "U6",
+  "title": "utf8：F5 当合法起始",
+  "file": "src/core/utf8.ts",
+  "from": "else if (c >= 0xf1 && c <= 0xf3) need = 3",
+  "to": "else if (c >= 0xf1 && c <= 0xf5) need = 3"
+ },
+ {
+  "id": "U7",
+  "title": "utf8：被截断时不报",
+  "file": "src/core/utf8.ts",
+  "from": "if (x === undefined) return i                         // 被截断",
+  "to": "if (x === undefined) return -1"
+ },
+ {
+  "id": "U8",
+  "title": "utf8：后继字节不合规时报后继位置而不是序列起点",
+  "file": "src/core/utf8.ts",
+  "from": "if (x < l || x > h) return i                          // 后继字节不合规：整个序列自起点起无效",
+  "to": "if (x < l || x > h) return i + k"
+ },
+ {
+  "id": "U9",
+  "title": "utf8：80..BF 当起始字节放行",
+  "file": "src/core/utf8.ts",
+  "from": "else return i                                           // 80..C1、F5..FF：不能作起始字节",
+  "to": "else { i++; continue }"
+ },
+ {
+  "id": "C55+",
+  "title": "拒收时 cfg 不清空：readConfig 返回半成品，且 loadConfig 也不再兜底清空（两道同时去掉）",
+  "file": "src/core/config.ts",
+  "multi": [
+   {
+    "from": "if (bad.length) return [{}, `${shown} 里",
+    "to": "if (bad.length) return [c, `${shown} 里"
+   },
+   {
+    "from": "    if (problem) return [{}, problem]\n    cfg._path = p",
+    "to": "    if (problem) return [cfg, problem]\n    cfg._path = p"
+   },
+   {
+    "from": "      if (problem) return [{}, problem]\n      cfg._path = rel",
+    "to": "      if (problem) return [cfg, problem]\n      cfg._path = rel"
+   }
+  ]
+ },
+ {
+  "id": "C27+",
+  "title": "预算：布尔当整数——kinds.isInt 与 typeof 两道同时放宽",
+  "file": "src/core/config.ts",
+  "multi": [
+   {
+    "from": "if (typeof v === 'number' && kinds.isInt(['budgets', key]) && v >= low) continue",
+    "to": "if ((typeof v === 'number' || typeof v === 'boolean') && Number(v) >= low) continue"
+   }
+  ]
+ },
+ {
+  "id": "C56",
+  "title": "读配置时任何 Error 都吞成「读不了」（程序错误被伪装）",
+  "file": "src/core/config.ts",
+  "from": "if (isReadRefusal(e) || typeof (e as NodeJS.ErrnoException).code === 'string') return",
+  "to": "if (e instanceof Error) return"
+ }
+]
