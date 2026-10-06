@@ -219,7 +219,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 1-d `lib/` 与 `src/` 一致性校验：脚本四种变异都符合预期（改 src 不构建→1、手改 lib→1、lib 多出过期文件→1、缺 tsc→2 即「没跑成不当通过」）；已接进 `.githooks/pre-commit` 作第四道，三种行为实测（全绿 0、不一致拦下、找不到 node 失败关闭 127）
   - [x] 1-e **`lib/` 提交进 git**——`755e7ad`，经新的第四道钩子；提交前核暂存清单时发现一份已在磁盘删除的 `tsconfig.test.json` 还在索引里，已移除，没进历史
   - [x] 1-f 守卫测试在 **Ubuntu 24.04 容器**里全过：用 Node **22.19.0**（`engines` 下限）与 **24.21.0** 各跑一遍——`pnpm install --frozen-lockfile`、`tsc` 构建、`check-lib-sync` 退出 0、构建后 `git status` 为空（lib 与提交一致）、`node --test "test/*.test.mjs"` 471 条、0 失败、22 条跳过（只在 Windows 成立的路径语义，跳过不算通过）
-  - [ ] 1-g **真实 DSH 里从 git 地址经安装通道装入，守卫生效**（阶段 1 的硬性验收；需要临时 profile，不碰用户真实 profile）
+  - [x] 1-g **真实 DSH 里从 git 地址经 DSH 自己的安装通道装入，守卫生效**（2026-10-06，提交 `fac60ca`）。做法与范围见 §12.3；**未覆盖的两项**（`ask` 的真实批准流程、桌面版 Plugins 页的点击安装）在 §12.3 逐条写明，不算已验证
   - [ ] 1-h 新路径保护：守卫要保护 `src/guard/`、`lib/`、`standard/`（改守卫的人不应由守卫放行；现在 `tools/dsh-std/` 的保护是旧位置）
 - [ ] 阶段 2：检查器迁移
   - [ ] core　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
@@ -255,6 +255,27 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 现行文档 | 16 | 48 | 0 |
 | 其它 | 1 | 1 | 0 |
 
+### 12.3 1-g 的验证做法、证据与未覆盖的部分
+
+**做法（全程隔离，没碰用户真实的 `~/.dsh`）**：`DSH_HOME` 指向一个全新的临时目录；用 DSH 自带的 `dsh.cmd` 命令行（`--profile e2e --from-default-profile headless` 建 profile，`dsh plugin --profile e2e add <git 地址>` 装插件）；起 `dsh --profile e2e`（headless）。这条路径与桌面版 Plugins 页走的是同一个 `plugin-manager` 安装通道。
+
+| 实测 | 结果 |
+|---|---|
+| `dsh plugin add git+ssh://git@github.com/Alan-IFT/ai_dev_system.git#fac60cae…` | 退出 0；profile 的 `package.json` 写入 `"ai-dev-std": "github:Alan-IFT/ai_dev_system#fac60cae…"`，`dsh.profile.bundles` 自动追加 `ai-dev-std` |
+| 装到的包内容 | 只有 `lib/`（6 个文件）、`cordis.patch.yml`、`package.json`、`README.md`、`LICENSE`，**没有** `src/ test/ docs/ tools/ 标准/ templates/ golden/ scripts/`——`files` 白名单生效 |
+| `dsh --profile e2e --dump-config` | 合并后的配置里有 `# == ai-dev-std`、`id: ai-dev-std`、`name: ai-dev-std`、`config: {enabled: true, root: ''}` |
+| 在真实 `tools/pre-execute` 管线里（探针插件直接调 `ctx.tools.execute`，不经模型，所以不需要模型凭据）写 `.std/x.md` | **被守卫 deny**，错误文本是守卫的「内嵌标准目录 .std/ 只读」；磁盘上**没有**该文件 |
+| 同上，`edit` 一个 `.std/` 内文件 | 被 deny |
+| 同上，写普通文件 `ok.txt` | **放行**，文件落盘（说明不是「什么都拦」） |
+
+**没有覆盖的（诚实标明）**
+1. **`ask` 的真实批准流程**：`pwsh` 的调用（含 `git push --force` 与写 `.std/`）得到的是「`tool "pwsh" requires approval, but the call has no agent to route it through`」——**这是 DSH 因为我的探针调用没有 agent 而在守卫之前/之外拒绝的**，不是守卫的判定，所以这两条**不能算守卫生效的证据**。`ask` 要有 agent 与审批通道才会走到，本次未验证。（单测里 `ask` 的判定逻辑 471 条覆盖，但那是判定核心，不是 DSH 里的端到端。）
+2. **桌面版 Plugins 页的点击安装**：我用的是同一个 `plugin-manager` 的命令行入口，没有真的在桌面 GUI 里点。
+3. **会话工作目录推导项目根**（`exec.agent.session.header.cwd`）：探针调用没有 agent，所以守卫走的是 `root` 配置（空）→ 进程 cwd 的回落路径；「取会话 cwd」那条分支没被这次覆盖。我把探针的工作目录设成了测试项目，所以 `.std/` 判定落在了正确的项目里，但这只证明回落路径。
+4. **模型调用**：隔离 home 没有 API 凭据，启动在「挂载完成之后」因 `MISSING_CREDENTIAL` 退出 1；这不影响上面的结论（探针在挂载后、模型调用前就已跑完并落盘），但意味着**没有走过一次完整的 agent 回合**。
+
+**一个意外的发现**：工具是**渐进注册**的——在 `apply` 里同步取 `ctx.tools.schemas()` 得 0 个，下一个微任务 6 个，`setTimeout 0` 后 24 个（含 `write`、`pwsh`）。写探针时因此踩了三次坑（`inactive context`、`unknown tool "write"`）。这对守卫**没有影响**（守卫挂的是 `tools/pre-execute` 事件，不在 `apply` 里调用工具），但说明**以后任何在 `apply` 里直接用工具的代码都要等就绪**。
+
 ### 12.2 阶段 1 里量出来的、设计时没预见的事（做的时候才发现）
 
 - **一次测量假象，差点被当成真失败**：第一次在 Node 22.19 上跑 `node --test "test/*.test.mjs" | head -12`，退出码是 7，看起来像「22.19 不支持 glob 或测试失败」。不是——是我自己用管道接了 `head`，`head` 提前关管道，`node` 收到 SIGPIPE。去掉管道、重定向到文件后，22.19 上 glob 形式退出 0、471 条、0 失败。**规矩：验证命令不要接会提前退出的管道**，退出码要在没有管道的情况下取。
@@ -273,6 +294,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | 阶段 1 的 1-g 完成并记 §12.3 | 从 git 地址经 DSH 自己的 plugin add 通道装入隔离 profile，守卫在真实 pre-execute 管线里拦下 `.std/` 写入、放行普通写入；`ask` 的真实批准流程、桌面 GUI 点击安装、会话 cwd 取根、完整 agent 回合四项未覆盖，逐条写明 |
 | 2026-10-06 | 阶段 1 分项 1-a 到 1-d 完成，新增 §12.2 | 守卫迁 TS 并行为不变（471 条逐项一致）；`lib/` 一致性校验与第四道钩子；§12.2 记下做的时候才发现的事 |
 | 2026-10-06 | Q3 实测定案，新增 §4.1；Q1 暂定 A | 做阶段 1 前先验证整个设计风险最大的假设（钩子能否找到插件提供的命令）；Alan 未回复 Q1，按推荐先推进并标明可逆 |
 | 2026-10-06 | 阶段 0 完成；新增 §12.1 记真实口径 | 样本口径（钉提交、只比 id/status/where/registered）与「selftest 探针大量调私有函数」这两点是做的时候才量出来的，必须写进设计，否则阶段 2 会按错的假设去迁 |
