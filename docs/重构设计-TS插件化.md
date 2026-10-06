@@ -129,6 +129,10 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 3. 迁移顺序（依赖序）：`core`（stdlib）→ `entry_budget` → `layout` → `links` → `freshness` → `drift` → `derived` → `evidence` → `adoption` → `single_authority` → `cross_repo` → `check_all` 汇总。每迁完一个，**单独跑通对比再迁下一个**。
 4. `--selftest` 里的**变异验证**（故意改坏判据看检查器是否报错）是质量保障的核心，**必须迁**，不能为了省事丢掉。
 5. 全部对齐后才删 Python 版（§7 阶段 4），中间任何时候都能回退。
+6. **每个迁完的单元的测试，必须经 `scripts/mutate.mjs` 的变异验证后才算守住了它的性质**（2026-10-06 加，缘由见 §12.16–§12.18）：
+   - 「对真实仓/黄金样本的整份比对」只是**额外的一道**，不是唯一的一道。它在样本平台以外会被跳过，也只覆盖样本里碰巧有的输入；**每个判据必须有自己的、不依赖外部数据的直接断言**，期望值先在 Python 版上实测再写。
+   - 变异首轮没抓住的，只有四种处置：补输入（盲区）、标 `unobservable` 并写明理由（真实入口走不到，且行为与 Python 一致）、删除（等价变异）、标 `posixOnly`/`winOnly`（只在一个平台可观察）。**不许因为「难写」而放过**。
+   - **两个平台（Windows 与 Ubuntu 容器）都要跑**：已有三次（`lexists`、`glob` 的 `G32`、`layout` 的 `D5/D6`）只在 Linux 上红。
 
 **迁移时直接不带过去的（废弃技术栈）**：
 - `check_adoption` 里读 `.claude/settings.json` 的 `_settings_allow`、`_wildcard_allow` 及其自检（约 200 行）与对应 finding id：`wildcard-allow`、`wildcard-unsure`、`no-wildcard-allow`、`settings-invalid`、`settings-absent`；
@@ -233,8 +237,9 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/shell.ts`（检查器公共外壳：`runGuarded`、`undeterminedFromException`、`probe`、`probeCrashed`、`unreadable`、`outsideRoot`、`once`、`agg`、`workRootAbsent`——每个检查器都用，所以先于任何检查器迁）
     - [x] `core/fixture.ts`（自检夹具：`writeText`、`writeFiles`、`gitFixture`、`gitTrack`——所有检查器的 selftest 共用）
     - [x] `core/glob.ts`（路径通配，只实现 layout 用到的子集；§12.17）
+    - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
     - [ ] `core/tracked.ts`（只剩 `tracked_files`、`scan_memo`、`markdown_under`、`work_items`：它们依赖 `.std/` 内嵌机制（阶段 4 废弃）与扫描缓存，推迟到汇总层；其余外壳函数已在 `shell.ts`）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[ ] layout　[ ] links　[ ] freshness　[ ] drift
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -441,6 +446,15 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **D16（平台差异）**：Python 的 `glob` 在 Windows 上经 `fnmatch` 的 `normcase`（小写）比较，所以 `Check_c.py` 匹配 `check_*.py`；POSIX 上区分。本实现 Windows 上带 `i` 标志、其它平台不带，**两个平台都与「在该平台上跑 Python」一致**。
 - **刻意不收的**：模式 `/` 与 `//`（指向文件系统根，与扫描根无关，Python 的结论是偶然的）、`**` 递归、`{a,b}` 花括号（Python 的 glob 也不支持）。
 
+### 12.18 第二个检查器 `layout`
+
+- **证据**：4 个真实仓 finding 逐条一致（各仓条数 9、10、10、10）；`selftest` 探针 10 条的 `(id, status)` 集合与黄金样本完全相同；变异 89 条，**Windows 与 Ubuntu 都是 87 抓住 + 2 条如实标 `unobservable` + 0 漏**；全量测试 Ubuntu 720 条 0 败。
+- **为它补的 core**：`core/glob.ts`（§12.17）；`splitLinesPy` 增 `keepends` 参数（`layout` 取头部 40 行用 `splitlines(True)`；对 158 条输入含 11 种行终止符逐条核对，19 条变异全抓住）；`exists`（Python 的 `os.path.exists`）并入 `core/fs.ts`——要点是**任何文件类型都算存在**，不能写成 `isFile || isDir`（那会把 FIFO 判成不存在），这条在 Linux 上用真实 `mkfifo` 验证。
+- **变异首轮 93 条里 30 条没抓住**。分类：测试没覆盖的输入补 24 条（元信息头部边界 40/41 行、`\f` 作行终止符、超 2 MiB 文件、状态在 YAML 第 45 行、清单判据 `memory`/入口/`eval`、`work_root` 规范化、多个候选都在取第一个……每条的期望值都**先在 Python 版上实测**再写）；等价变异 4 条删除（`D2` glob 命中的是 `.py` 所以 `.md` 条件恒假；`N5` 入口 role 不属于 acceptance/status；`O2` 空串在两边都是假；`D27` 把 `${META_HEAD_LINES}` 换成字面 40，值相同）；**真实入口走不到的 2 条标 `unobservable`**（`R2`、`R3`：`load_config` 对 `layout.artifacts` 写成非映射整份拒收，直接调 `run()` 时非映射值上取属性得 `undefined`，与「当作没声明」结果相同）。
+- **Ubuntu 又暴露两个只在 Linux 上红的盲区（D5、D6）**：「acceptance 文件缺元信息也判」与「目录 SKIP 只对 acceptance、status 报」。在 Windows 上它们被 4 个真实仓的比对**顺带**抓住——而那条测试在 Linux 上整条跳过（没有这四个仓）。补了不依赖真实仓的直接断言。**这是本轮第三次出现同一个模式**（§12.16 的 `lexists`、§12.17 的 `G32`、这里的 `D5/D6`）：**凡是靠「对真实仓/样本平台的整份比对」才被抓住的性质，在别的平台就没人守。** 以后写测试时，真实仓比对只当「额外的一道」，每个判据必须有自己的、不依赖外部数据的断言——这条我打算记进设计文档的验证口径一节（见下）。
+- **一个我自己指出来的毛病**：写 `selftest` 对应断言时，我再次写出一段绕弯的表达式（`mk() && (() => {...})()`），发现后立即重写成两步。三个轮次里同一个毛病出现四次，说明「写完问一句：把实现改错它会红吗」这个办法对我并不自动生效——**真正管用的是变异验证本身**（它每次都在兜底），而不是我的自觉。因此本仓的验证口径应当是：**没有变异验证通过的测试，不算守住了那条性质。**
+- **探针脚本是一次性的，用完删除**：我为查 Python 的真实行为写了 `golden/_probe_layout.py`，没进提交，已删（只删自己建的）。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -493,6 +507,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | **第二个检查器 `layout` 迁完**，记 §12.18；`splitLinesPy` 增 `keepends`；`exists` 并入 `core/fs.ts` | 4 个真实仓逐条一致、selftest 10 条集合相同、变异 89 条两平台 0 漏（87 抓住 + 2 如实标注）；Ubuntu 再次暴露「靠真实仓比对才被抓住的性质在 Linux 上没人守」（第三次同类），补了直接断言；探针脚本用完即删 |
 | 2026-10-06 | `core/glob.ts` 完成，记 §12.17（含 D16）；为 `layout` 的 `glob` 判据补的 core，刻意只实现子集 | 对 Python 样本逐条一致；变异 29 条两平台 0 漏；写断言时三次写出非断言的东西、一次写反期望，已记入教训；「样本平台以外被跳过」的测试守不住别的平台，补了独立断言 |
 | 2026-10-06 | **第一个检查器 `entry_budget` 迁完**，记 §12.16；新增 `golden-compare.mjs`、`golden-selftest.mjs`、`core/fixture.ts`；`isFile`/`isDir`/`lexists` 统一进 `core/fs.ts`；新增 D15 | 4 个真实仓逐条一致、selftest 10 条集合相同、变异 62 条两平台 0 漏；自检暴露 `realpathLoose` 对断链的缺口（`core/fs` 的黄金样本盲区）；路径谓词样本在 Windows 与 Linux 上有 85 条不同 |
 | 2026-10-06 | 新增 `scripts/check-py-semantics.mjs` 与 `test/py-semantics.test.mjs`，记 §12.15；**未接入 pre-commit（该编辑被拒绝，待 Alan 决定）** | 把 D4、D5、D6、D13 变成机械检查；首次运行在现有源码上抓到 5 处，全部改成显式写法；检查脚本自己有变异测试 |

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""路径谓词（os.path.isfile / isdir / lexists）的单元黄金样本：在**真实夹具**上对各种写法的路径记 Python 的结论。
+"""路径谓词（os.path.isfile / isdir / lexists / exists）的单元黄金样本：在**真实夹具**上对各种写法的路径记 Python 的结论。
 
 起因：entry_budget 迁移时发现，路径带尾斜杠的**普通文件**（`S.md/`），Python 的 `os.path.isfile` 为 False，Node 的 `statSync(...).isFile()` 在 Windows 上为 True。
 `isFile`/`isDir` 当时在 5 个文件里各写了一份、都直接用 Node 的行为——这违反「同一事实只一处」，也让这个差异无处统一修。
@@ -46,7 +46,7 @@ def main():
                 rel = n + s
                 p = os.path.join(tmp, rel.replace("/", os.sep)) if "\\" not in rel else os.path.join(tmp, rel)
                 # 路径原文按「相对夹具」记；不含临时目录
-                out["cases"].append({"rel": rel, "isfile": os.path.isfile(p), "isdir": os.path.isdir(p), "lexists": os.path.lexists(p)})
+                out["cases"].append({"rel": rel, "isfile": os.path.isfile(p), "isdir": os.path.isdir(p), "lexists": os.path.lexists(p), "exists": os.path.exists(p)})
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     path = os.path.join(HERE, "unit", "pathpred.json")

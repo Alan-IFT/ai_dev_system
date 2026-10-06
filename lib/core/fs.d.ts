@@ -36,6 +36,11 @@ export declare function realpathLoose(p: string, hops?: number): string;
  */
 export declare function isFile(p: string): boolean;
 export declare function isDir(p: string): boolean;
+/**
+ * 与 Python 的 `os.path.exists` 同义：跟随符号链接（断链为假）；**任何文件类型都算存在**（FIFO、设备、socket 也是）。
+ * 不能写成 `isFile || isDir`——那会把 FIFO 判成不存在，而 Python 判存在。带尾分隔符的路径同 `isFile`：Python 要求它指向目录。
+ */
+export declare function exists(p: string): boolean;
 /** 与 Python 的 `os.path.lexists` 同义：不跟随符号链接，断链也算存在。 */
 export declare function lexists(p: string): boolean;
 /**

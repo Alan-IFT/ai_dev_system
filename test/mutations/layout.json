@@ -1,0 +1,627 @@
+[
+ {
+  "id": "A1",
+  "title": "tier：不转大写",
+  "file": "src/checks/layout.ts",
+  "from": "pyStrip(pyStr(tierRaw)).toUpperCase() : ''",
+  "to": "pyStrip(pyStr(tierRaw)) : ''"
+ },
+ {
+  "id": "A2",
+  "title": "tier：不去空白",
+  "file": "src/checks/layout.ts",
+  "from": "pyStrip(pyStr(tierRaw)).toUpperCase() : ''",
+  "to": "pyStr(tierRaw).toUpperCase() : ''"
+ },
+ {
+  "id": "A3",
+  "title": "tier：用 trim（U+FEFF 被去）",
+  "file": "src/checks/layout.ts",
+  "from": "pyStrip(pyStr(tierRaw)).toUpperCase() : ''",
+  "to": "pyStr(tierRaw).trim().toUpperCase() : ''"
+ },
+ {
+  "id": "A4",
+  "title": "tier：null 也当成 'NULL' 字符串（应当没声明）",
+  "file": "src/checks/layout.ts",
+  "from": "tierRaw !== undefined && tierRaw !== null ? pyStrip",
+  "to": "tierRaw !== undefined ? pyStrip"
+ },
+ {
+  "id": "A5",
+  "title": "tier 不认识时不记未定而继续",
+  "file": "src/checks/layout.ts",
+  "from": "if (!(TIER_ORDER as readonly string[]).includes(tier)) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "A6",
+  "title": "tier 不认识的标题不带 repr（直接写值）",
+  "file": "src/checks/layout.ts",
+  "from": "`tier 取值 ${pyReprStr(tier)} 不是 L0/L1/L2/L3`",
+  "to": "`tier 取值 ${tier} 不是 L0/L1/L2/L3`"
+ },
+ {
+  "id": "A7",
+  "title": "repr：含单引号不改用双引号",
+  "file": "src/checks/layout.ts",
+  "from": "(s.includes(\"'\") && !s.includes('\"') ? `\"${s}\"` : ",
+  "to": "(false ? `\"${s}\"` : "
+ },
+ {
+  "id": "A8",
+  "title": "未声明 tier 的 evidence 不写缺 tier",
+  "file": "src/checks/layout.ts",
+  "from": "evidence: `governance/project.yaml 缺 tier；分档定义见 ${TEMPLATE_SOURCE}`,",
+  "to": "evidence: '',"
+ },
+ {
+  "id": "T1",
+  "title": "档位累加：L1 不含 L0 的项",
+  "file": "src/checks/layout.ts",
+  "from": "TIER_ORDER.slice(0, TIER_ORDER.indexOf(tier as (typeof TIER_ORDER)[number]) + 1)",
+  "to": "TIER_ORDER.slice(TIER_ORDER.indexOf(tier as (typeof TIER_ORDER)[number]), TIER_ORDER.indexOf(tier as (typeof TIER_ORDER)[number]) + 1)"
+ },
+ {
+  "id": "T2",
+  "title": "档位累加：少算一档（L2 只到 L1）",
+  "file": "src/checks/layout.ts",
+  "from": "TIER_ORDER.indexOf(tier as (typeof TIER_ORDER)[number]) + 1)) items.push",
+  "to": "TIER_ORDER.indexOf(tier as (typeof TIER_ORDER)[number]))) items.push"
+ },
+ {
+  "id": "T3",
+  "title": "清单：L0 少 failures",
+  "file": "src/checks/layout.ts",
+  "from": "    ['failures', '失败清单', false, 'any', ['FAILURES.md', 'docs/knowledge/FAILURES.md']],\n",
+  "to": ""
+ },
+ {
+  "id": "T4",
+  "title": "清单：memory 判据 dir 改 any",
+  "file": "src/checks/layout.ts",
+  "from": "['memory', '记忆候选池', false, 'dir',",
+  "to": "['memory', '记忆候选池', false, 'any',"
+ },
+ {
+  "id": "T5",
+  "title": "清单：work_artifacts 判据 dir 改 any",
+  "file": "src/checks/layout.ts",
+  "from": "['work_artifacts', '工具原文落点', false, 'dir',",
+  "to": "['work_artifacts', '工具原文落点', false, 'any',"
+ },
+ {
+  "id": "T6",
+  "title": "清单：★ 标记丢掉（验收不再是 ★）",
+  "file": "src/checks/layout.ts",
+  "from": "['acceptance', '验收', true, 'any',",
+  "to": "['acceptance', '验收', false, 'any',"
+ },
+ {
+  "id": "T7",
+  "title": "清单：入口判据 file 改 any",
+  "file": "src/checks/layout.ts",
+  "from": "['entry', '入口', true, 'file',",
+  "to": "['entry', '入口', true, 'any',"
+ },
+ {
+  "id": "T8",
+  "title": "清单：checkers 的 glob 候选少一种",
+  "file": "src/checks/layout.ts",
+  "from": "['tools/check_*.py', 'tools/*/check_*.py', 'tools/*/checks/check_*.py']",
+  "to": "['tools/check_*.py', 'tools/*/check_*.py']"
+ },
+ {
+  "id": "T9",
+  "title": "清单：eval 候选改名",
+  "file": "src/checks/layout.ts",
+  "from": "['eval/manifest.md', 'eval']",
+  "to": "['eval/manifest.md', 'evals']"
+ },
+ {
+  "id": "E1",
+  "title": "存在性：dir 判据也认文件",
+  "file": "src/checks/layout.ts",
+  "from": "  if (kind === 'dir') return isDir(path)",
+  "to": "  if (kind === 'dir') return pathExists(path)"
+ },
+ {
+  "id": "E2",
+  "title": "存在性：file 判据也认目录",
+  "file": "src/checks/layout.ts",
+  "from": "  if (kind === 'file') return isFile(path)",
+  "to": "  if (kind === 'file') return pathExists(path)"
+ },
+ {
+  "id": "E3",
+  "title": "存在性：any 判据不认目录（改成 isFile）",
+  "file": "src/checks/layout.ts",
+  "from": "  return pathExists(path)\n}",
+  "to": "  return isFile(path)\n}"
+ },
+ {
+  "id": "E4",
+  "title": "存在性：出仓不返回 null（继续探测）",
+  "file": "src/checks/layout.ts",
+  "from": "  if (!inside(root, path)) return null\n",
+  "to": ""
+ },
+ {
+  "id": "E5",
+  "title": "存在性：glob 命中不过滤出仓",
+  "file": "src/checks/layout.ts",
+  "from": "globAny(root, rel, (p) => inside(root, join(root, p)))",
+  "to": "globAny(root, rel, () => true)"
+ },
+ {
+  "id": "W1",
+  "title": "work_root：不判存在（声明了也当在）",
+  "file": "src/checks/layout.ts",
+  "from": "const wrThere = wr ? exists(root, wr, 'dir') : true",
+  "to": "const wrThere = true"
+ },
+ {
+  "id": "W2",
+  "title": "work_root：判据 dir 改 any（文件也算在）",
+  "file": "src/checks/layout.ts",
+  "from": "const wrThere = wr ? exists(root, wr, 'dir') : true",
+  "to": "const wrThere = wr ? exists(root, wr, 'any') : true"
+ },
+ {
+  "id": "W3",
+  "title": "work_root 不在时记未定而不是 FAIL",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, FAIL, `layout.work_root 声明的工作项目录不在：${wr}`, {",
+  "to": "out.push(finding(NAME, UNDETERMINED, `layout.work_root 声明的工作项目录不在：${wr}`, { reason: 'x',"
+ },
+ {
+  "id": "W4",
+  "title": "work_root 的 kind 改名（id 变）",
+  "file": "src/checks/layout.ts",
+  "from": "where: wr, kind: 'work-root-absent', key: wr,",
+  "to": "where: wr, kind: 'work_root_absent', key: wr,"
+ },
+ {
+  "id": "W5",
+  "title": "work_root 的 key 丢掉",
+  "file": "src/checks/layout.ts",
+  "from": "where: wr, kind: 'work-root-absent', key: wr,",
+  "to": "where: wr, kind: 'work-root-absent',"
+ },
+ {
+  "id": "W6",
+  "title": "work_root 出仓不记 outside-root",
+  "file": "src/checks/layout.ts",
+  "from": "  if (wrThere === null) {\n    out.push(outside(wr, '工作项目录'))\n  } else if (!wrThere) {",
+  "to": "  if (false) {\n  } else if (!wrThere) {"
+ },
+ {
+  "id": "W7",
+  "title": "work_current 在 work_root 不在时仍另报",
+  "file": "src/checks/layout.ts",
+  "from": "if (role === 'work_current' && wr && !wrThere && normPath(override ?? wr) === wr) continue",
+  "to": "if (false) continue"
+ },
+ {
+  "id": "W8",
+  "title": "work_current 同指判据只看 override 不看缺省",
+  "file": "src/checks/layout.ts",
+  "from": "normPath(override ?? wr) === wr) continue",
+  "to": "normPath(override ?? '') === wr) continue"
+ },
+ {
+  "id": "W9",
+  "title": "work_current 未声明时不取 work_root",
+  "file": "src/checks/layout.ts",
+  "from": "if (!override && role === 'work_current' && wr) { override = wr; srcKey = 'layout.work_root' }",
+  "to": ""
+ },
+ {
+  "id": "W10",
+  "title": "work_root 值不去尾斜杠",
+  "file": "src/checks/layout.ts",
+  "from": "const normPath = (p: unknown): string => pyStrip(pyStr(p).replaceAll('\\\\', '/')).replace(/\\/+$/, '')",
+  "to": "const normPath = (p: unknown): string => pyStrip(pyStr(p).replaceAll('\\\\', '/'))"
+ },
+ {
+  "id": "W11",
+  "title": "路径规范化：反斜杠不换",
+  "file": "src/checks/layout.ts",
+  "from": "const normPath = (p: unknown): string => pyStrip(pyStr(p).replaceAll('\\\\', '/')).replace(/\\/+$/, '')",
+  "to": "const normPath = (p: unknown): string => pyStrip(pyStr(p)).replace(/\\/+$/, '')"
+ },
+ {
+  "id": "W12",
+  "title": "路径规范化：不去空白",
+  "file": "src/checks/layout.ts",
+  "from": "const normPath = (p: unknown): string => pyStrip(pyStr(p).replaceAll('\\\\', '/')).replace(/\\/+$/, '')",
+  "to": "const normPath = (p: unknown): string => pyStr(p).replaceAll('\\\\', '/').replace(/\\/+$/, '')"
+ },
+ {
+  "id": "N1",
+  "title": "入口：命中记 FAIL",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, PASS, `入口 ${rel} 在`",
+  "to": "out.push(finding(NAME, FAIL, `入口 ${rel} 在`"
+ },
+ {
+  "id": "N2",
+  "title": "入口：缺失记未定而不是 FAIL",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, FAIL, `★ 入口缺失：${rel}`, {",
+  "to": "out.push(finding(NAME, UNDETERMINED, `★ 入口缺失：${rel}`, { reason: 'x',"
+ },
+ {
+  "id": "N3",
+  "title": "入口：多个只处理第一个",
+  "file": "src/checks/layout.ts",
+  "from": "      for (const raw of entries) {\n        const rel = normPath(raw)",
+  "to": "      for (const raw of entries.slice(0, 1)) {\n        const rel = normPath(raw)"
+ },
+ {
+  "id": "N4",
+  "title": "入口：出仓不记 outside-root",
+  "file": "src/checks/layout.ts",
+  "from": "        if (there === null) {\n          out.push(outside(rel, label))\n        } else if (there) {",
+  "to": "        if (false) {\n        } else if (there) {"
+ },
+ {
+  "id": "N6",
+  "title": "入口：命中的证据不写候选来源",
+  "file": "src/checks/layout.ts",
+  "from": "evidence: guessed || '来自项目声明（layout.entry／layout.artifacts.entry）' }",
+  "to": "evidence: '来自项目声明（layout.entry／layout.artifacts.entry）' }"
+ },
+ {
+  "id": "N7",
+  "title": "入口：声明处理后不 continue（又落入通用分支）",
+  "file": "src/checks/layout.ts",
+  "from": "      }\n      continue\n    }\n\n    let override",
+  "to": "      }\n    }\n\n    let override"
+ },
+ {
+  "id": "N8",
+  "title": "裁剪：不看 artifactTailored",
+  "file": "src/checks/layout.ts",
+  "from": "    if (skipped) {\n      out.push(finding(NAME, SKIP, `${label}（${role}）已登记为不适用`",
+  "to": "    if (false) {\n      out.push(finding(NAME, SKIP, `${label}（${role}）已登记为不适用`"
+ },
+ {
+  "id": "N9",
+  "title": "裁剪：理由缺省不写固定句",
+  "file": "src/checks/layout.ts",
+  "from": "reason: sreason || 'project.yaml 的 tailoring 未写理由',",
+  "to": "reason: sreason ?? 'x',"
+ },
+ {
+  "id": "O1",
+  "title": "声明的落点：不读 overrides[role]",
+  "file": "src/checks/layout.ts",
+  "from": "let override: string | undefined = pyTruthy(ov[role]) ? pyStr(ov[role]) : undefined",
+  "to": "let override: string | undefined = undefined"
+ },
+ {
+  "id": "O3",
+  "title": "声明的落点：还去猜候选（声明命中不了时再找候选）",
+  "file": "src/checks/layout.ts",
+  "from": "const candList: string[] = override ? [normPath(override)] : cands.map((c) => rebaseDocs(c, docsRoot))",
+  "to": "const candList: string[] = override ? [normPath(override), ...cands.map((c) => rebaseDocs(c, docsRoot))] : cands.map((c) => rebaseDocs(c, docsRoot))"
+ },
+ {
+  "id": "O4",
+  "title": "候选：不随 docs_root 改基",
+  "file": "src/checks/layout.ts",
+  "from": "cands.map((c) => rebaseDocs(c, docsRoot))",
+  "to": "cands.map((c) => c)"
+ },
+ {
+  "id": "O5",
+  "title": "命中第一个后不停（取最后一个命中）",
+  "file": "src/checks/layout.ts",
+  "from": "if (there) { hit = rel; break }",
+  "to": "if (there) { hit = rel }"
+ },
+ {
+  "id": "O6",
+  "title": "出仓候选不记 outside-root",
+  "file": "src/checks/layout.ts",
+  "from": "if (hit === null && outsideRel) { out.push(outside(outsideRel, label)); continue }",
+  "to": ""
+ },
+ {
+  "id": "O7",
+  "title": "出仓判据：取最后一个出仓而不是第一个",
+  "file": "src/checks/layout.ts",
+  "from": "outsideRel = outsideRel || (there === null ? rel : null)",
+  "to": "outsideRel = there === null ? rel : outsideRel"
+ },
+ {
+  "id": "M1",
+  "title": "★ 声明了落点缺失记未定而不是 FAIL",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, FAIL, `★ ${label} 类工件缺失（${role}）`, {",
+  "to": "out.push(finding(NAME, UNDETERMINED, `★ ${label} 类工件缺失（${role}）`, { reason: 'x',"
+ },
+ {
+  "id": "M2",
+  "title": "★ 未声明候选落空记 FAIL（应未定）",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `★ ${label} 类工件没找到（${role}）`, {\n          where: candList[0]!,\n          reason:",
+  "to": "out.push(finding(NAME, FAIL, `★ ${label} 类工件没找到（${role}）`, {\n          where: candList[0]!,\n          reason:"
+ },
+ {
+  "id": "M3",
+  "title": "★ 判据：声明了但非 ★ 也记 FAIL",
+  "file": "src/checks/layout.ts",
+  "from": "      if (star && override) {",
+  "to": "      if (override) {"
+ },
+ {
+  "id": "M4",
+  "title": "非 ★ 候选落空记 FAIL",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${tier} 档要求的 ${label}（${role}）没找到`, {",
+  "to": "out.push(finding(NAME, FAIL, `${tier} 档要求的 ${label}（${role}）没找到`, {"
+ },
+ {
+  "id": "M5",
+  "title": "缺失的 where 取最后一个候选",
+  "file": "src/checks/layout.ts",
+  "from": "`${tier} 档要求的 ${label}（${role}）没找到`, {\n          where: candList[0]!,",
+  "to": "`${tier} 档要求的 ${label}（${role}）没找到`, {\n          where: candList[candList.length - 1]!,"
+ },
+ {
+  "id": "M6",
+  "title": "命中的 PASS 不带 where",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, PASS, `${label}（${role}）在：${hit}`, { where: hit, evidence: src }))",
+  "to": "out.push(finding(NAME, PASS, `${label}（${role}）在：${hit}`, { evidence: src }))"
+ },
+ {
+  "id": "M7",
+  "title": "命中的证据来源：声明与候选写反",
+  "file": "src/checks/layout.ts",
+  "from": "const src = override ? srcKey : `${TEMPLATE_SOURCE} 快照候选：${candList.join('、')}`",
+  "to": "const src = override ? `${TEMPLATE_SOURCE} 快照候选：${candList.join('、')}` : srcKey"
+ },
+ {
+  "id": "D1",
+  "title": "元信息：.md 后缀判断区分大小写",
+  "file": "src/checks/layout.ts",
+  "from": "hit.toLowerCase().endsWith('.md')",
+  "to": "hit.endsWith('.md')"
+ },
+ {
+  "id": "D3",
+  "title": "元信息：命中是目录也进元信息",
+  "file": "src/checks/layout.ts",
+  "from": "hit.toLowerCase().endsWith('.md') && isFile(join(root, ...hit.split('/')))) {",
+  "to": "hit.toLowerCase().endsWith('.md')) {"
+ },
+ {
+  "id": "D4",
+  "title": "元信息：所有角色都判（不只 acceptance、status）",
+  "file": "src/checks/layout.ts",
+  "from": "    if (role !== 'acceptance' && role !== 'status') continue\n    const path",
+  "to": "    const path"
+ },
+ {
+  "id": "D5",
+  "title": "元信息：只判 status 不判 acceptance",
+  "file": "src/checks/layout.ts",
+  "from": "    if (role !== 'acceptance' && role !== 'status') continue\n    const path",
+  "to": "    if (role !== 'status') continue\n    const path"
+ },
+ {
+  "id": "D6",
+  "title": "目录 SKIP：不限 acceptance、status（所有角色目录都报）",
+  "file": "src/checks/layout.ts",
+  "from": "} else if ((role === 'acceptance' || role === 'status') && isDir(",
+  "to": "} else if (isDir("
+ },
+ {
+  "id": "D7",
+  "title": "目录 SKIP：同一目录报多次",
+  "file": "src/checks/layout.ts",
+  "from": "      !out.some((f) => f.where === hit && f.status === SKIP)) {",
+  "to": "      true) {"
+ },
+ {
+  "id": "D8",
+  "title": "目录 SKIP：只认 status",
+  "file": "src/checks/layout.ts",
+  "from": "} else if ((role === 'acceptance' || role === 'status') && isDir(",
+  "to": "} else if ((role === 'status') && isDir("
+ },
+ {
+  "id": "D9",
+  "title": "元信息头部行数 40 改 41",
+  "file": "src/checks/layout.ts",
+  "from": "const META_HEAD_LINES = 40",
+  "to": "const META_HEAD_LINES = 41"
+ },
+ {
+  "id": "D10",
+  "title": "元信息头部行数 40 改 39",
+  "file": "src/checks/layout.ts",
+  "from": "const META_HEAD_LINES = 40",
+  "to": "const META_HEAD_LINES = 39"
+ },
+ {
+  "id": "D11",
+  "title": "元信息头部：按 \\n 切行而不是 Python 的行终止符",
+  "file": "src/checks/layout.ts",
+  "from": "return [splitLinesPy(text, true).slice(0, META_HEAD_LINES).join(''), text]",
+  "to": "return [text.split('\\n').slice(0, META_HEAD_LINES).join('\\n'), text]"
+ },
+ {
+  "id": "D12",
+  "title": "元信息头部：读取不带上限（head=undefined）",
+  "file": "src/checks/layout.ts",
+  "from": "const text = readText(path, root, MAX_READ_BYTES)",
+  "to": "const text = readText(path, root)"
+ },
+ {
+  "id": "D13",
+  "title": "元信息：读不了不记未定（吞掉）",
+  "file": "src/checks/layout.ts",
+  "from": "    } catch (exc) {\n      out.push(unreadable(NAME, rel, exc))\n      continue\n    }\n    // 字段名",
+  "to": "    } catch (exc) {\n      continue\n    }\n    // 字段名"
+ },
+ {
+  "id": "D14",
+  "title": "日期字段：任一改成全部",
+  "file": "src/checks/layout.ts",
+  "from": "if (!dateFields.some((f) => hasField(h, f)))",
+  "to": "if (!dateFields.every((f) => hasField(h, f)))"
+ },
+ {
+  "id": "D15",
+  "title": "日期字段：用默认值时也判 FAIL（应只记未定）",
+  "file": "src/checks/layout.ts",
+  "from": "(usedDefaultFields ? guessedMiss : missing).push(",
+  "to": "missing.push("
+ },
+ {
+  "id": "D16",
+  "title": "日期字段：声明了缺失也只记未定",
+  "file": "src/checks/layout.ts",
+  "from": "(usedDefaultFields ? guessedMiss : missing).push(",
+  "to": "guessedMiss.push("
+ },
+ {
+  "id": "D17",
+  "title": "状态字段：缺失记 FAIL 而不是并入未定",
+  "file": "src/checks/layout.ts",
+  "from": "if (itemStatus(text) === null) guessedMiss.push(",
+  "to": "if (itemStatus(text) === null) missing.push("
+ },
+ {
+  "id": "D18",
+  "title": "状态字段：用头部 40 行而不是 headOf 划界（读 h 而非 text）",
+  "file": "src/checks/layout.ts",
+  "from": "if (itemStatus(text) === null) guessedMiss.push(",
+  "to": "if (itemStatus(h) === null) guessedMiss.push("
+ },
+ {
+  "id": "D19",
+  "title": "未定判据：guessed 非空且 missing 空 → 改成只看 guessed（missing 非空也未定）",
+  "file": "src/checks/layout.ts",
+  "from": "if (guessedMiss.length && !missing.length) {",
+  "to": "if (guessedMiss.length) {"
+ },
+ {
+  "id": "D20",
+  "title": "FAIL 的缺项列表不并入未认出的",
+  "file": "src/checks/layout.ts",
+  "from": "      missing.push(...guessedMiss)\n",
+  "to": ""
+ },
+ {
+  "id": "D21",
+  "title": "未定的 kind 改名",
+  "file": "src/checks/layout.ts",
+  "from": "where: `${rel}:1`, kind: 'meta-unrecognized', key: rel,",
+  "to": "where: `${rel}:1`, kind: 'meta_unrecognized', key: rel,"
+ },
+ {
+  "id": "D22",
+  "title": "未定的 key 丢掉",
+  "file": "src/checks/layout.ts",
+  "from": "where: `${rel}:1`, kind: 'meta-unrecognized', key: rel,",
+  "to": "where: `${rel}:1`, kind: 'meta-unrecognized',"
+ },
+ {
+  "id": "D23",
+  "title": "元信息 where 不带 :1",
+  "file": "src/checks/layout.ts",
+  "from": "out.push(finding(NAME, FAIL, `${rel} 头部缺元信息：${missing.join('、')}`, {\n        where: `${rel}:1`,",
+  "to": "out.push(finding(NAME, FAIL, `${rel} 头部缺元信息：${missing.join('、')}`, {\n        where: rel,"
+ },
+ {
+  "id": "D24",
+  "title": "元信息齐不记 PASS",
+  "file": "src/checks/layout.ts",
+  "from": "      out.push(finding(NAME, PASS, `${rel} 头部元信息齐`, { where: rel, evidence: note }))",
+  "to": ""
+ },
+ {
+  "id": "D25",
+  "title": "缺项分隔符用逗号",
+  "file": "src/checks/layout.ts",
+  "from": "头部缺元信息：${missing.join('、')}",
+  "to": "头部缺元信息：${missing.join(',')}"
+ },
+ {
+  "id": "D26",
+  "title": "note：默认与声明的文案写反",
+  "file": "src/checks/layout.ts",
+  "from": "const note = usedDefaultFields\n",
+  "to": "const note = !usedDefaultFields\n"
+ },
+ {
+  "id": "S1",
+  "title": "scope：tier 未声明时不写「未声明」",
+  "file": "src/checks/layout.ts",
+  "from": "${pyTruthy(tier) ? pyStr(tier) : '未声明'}",
+  "to": "${pyStr(tier)}"
+ },
+ {
+  "id": "S2",
+  "title": "scope：docs_root 默认时不写「默认」",
+  "file": "src/checks/layout.ts",
+  "from": "normPath(docsRoot) + (dnote ? '，默认' : '')",
+  "to": "normPath(docsRoot)"
+ },
+ {
+  "id": "S3",
+  "title": "scope：入口候选时不写「按候选」",
+  "file": "src/checks/layout.ts",
+  "from": "(entries.join(', ') || '没找到') + (guessed ? '，按候选' : '')",
+  "to": "(entries.join(', ') || '没找到')"
+ },
+ {
+  "id": "S4",
+  "title": "scope：未覆盖项少一条",
+  "file": "src/checks/layout.ts",
+  "from": "      '目录型工件不逐份判其下文档的元信息',\n",
+  "to": ""
+ },
+ {
+  "id": "S5",
+  "title": "scope：字段名默认值标记丢掉",
+  "file": "src/checks/layout.ts",
+  "from": "fields.join('/') + (usedDefault ? '（默认值）' : '')",
+  "to": "fields.join('/')"
+ },
+ {
+  "id": "R1",
+  "title": "外壳：不过 runGuarded",
+  "file": "src/checks/layout.ts",
+  "from": "return runGuarded(NAME, doRun, cfg)",
+  "to": "return doRun(cfg)"
+ },
+ {
+  "id": "R2",
+  "title": "overrides：非映射时不当没声明（直接用）",
+  "file": "src/checks/layout.ts",
+  "from": "const ov: Record<string, unknown> = overrides !== null && typeof overrides === 'object' && !Array.isArray(overrides) ? (overrides as Record<string, unknown>) : {}",
+  "to": "const ov: Record<string, unknown> = overrides as Record<string, unknown>",
+  "unobservable": "真实入口走不到：load_config 对 layout.artifacts 写成非映射整份拒收（形状校验 artifacts: map）。直接调 run() 时非映射值上 `ov[role]` 取属性得到 undefined，与「当作没声明」结果相同，没有可观察差异——两版行为一致，不据此收紧"
+ },
+ {
+  "id": "R3",
+  "title": "overrides：数组也当映射",
+  "file": "src/checks/layout.ts",
+  "from": "overrides !== null && typeof overrides === 'object' && !Array.isArray(overrides) ?",
+  "to": "overrides !== null && typeof overrides === 'object' ?",
+  "unobservable": "真实入口走不到：load_config 对 layout.artifacts 写成非映射整份拒收（形状校验 artifacts: map）。直接调 run() 时非映射值上 `ov[role]` 取属性得到 undefined，与「当作没声明」结果相同，没有可观察差异——两版行为一致，不据此收紧"
+ },
+ {
+  "id": "R4",
+  "title": "work_root：空串不当没声明",
+  "file": "src/checks/layout.ts",
+  "from": "const wr = normPath(pyTruthy(wrRaw) ? wrRaw : '')",
+  "to": "const wr = normPath(wrRaw ?? '')"
+ }
+]

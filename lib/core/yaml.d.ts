@@ -15,7 +15,7 @@ export declare function stripComment(line: string): string;
  * 等价于 Python 的 `str.splitlines()`：除 \n、\r\n、\r 外还在 \v \f \x1c \x1d \x1e \x85 \u2028 \u2029 处断行；
  * 不产生末尾空串。这与 JS 的 `split('\n')` 不同。
  */
-export declare function splitLinesPy(text: string): string[];
+export declare function splitLinesPy(text: string, keepends?: boolean): string[];
 /** 解析 CONTRACT.md §5 所述结构。不支持的语法一律抛 ConfigError，不静默误读。 */
 export declare function parseYamlSubset(text: string): YamlValue;
 export declare const _internal: {

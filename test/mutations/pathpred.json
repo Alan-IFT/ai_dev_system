@@ -101,5 +101,43 @@
   "from": "if (/[\\\\/]$/.test(s) && !statSync(s).isDirectory()) return false\n    lstatSync(s)",
   "to": "if (/[\\\\/]$/.test(s) && statSync(s).isDirectory()) return false\n    lstatSync(s)",
   "winOnly": true
+ },
+ {
+  "id": "E1",
+  "title": "exists：不判尾分隔符（文件 + 尾斜杠也算存在）",
+  "file": "src/core/fs.ts",
+  "from": "    return /[\\\\/]$/.test(s) ? st.isDirectory() : true",
+  "to": "    return true",
+  "winOnly": true
+ },
+ {
+  "id": "E2",
+  "title": "exists：尾分隔符时反过来要求是文件",
+  "file": "src/core/fs.ts",
+  "from": "    return /[\\\\/]$/.test(s) ? st.isDirectory() : true",
+  "to": "    return /[\\\\/]$/.test(s) ? st.isFile() : true",
+  "winOnly": true
+ },
+ {
+  "id": "E3",
+  "title": "exists：不跟随符号链接（lstat，断链也算存在）",
+  "file": "src/core/fs.ts",
+  "from": "    const st = statSync(s)\n    return /[\\\\/]$/.test(s) ? st.isDirectory() : true",
+  "to": "    const st = lstatSync(s)\n    return /[\\\\/]$/.test(s) ? st.isDirectory() : true"
+ },
+ {
+  "id": "E4",
+  "title": "exists：出错时返回 true",
+  "file": "src/core/fs.ts",
+  "from": "    return /[\\\\/]$/.test(s) ? st.isDirectory() : true\n  } catch {\n    return false\n  }",
+  "to": "    return /[\\\\/]$/.test(s) ? st.isDirectory() : true\n  } catch {\n    return true\n  }"
+ },
+ {
+  "id": "E5",
+  "title": "exists：只认常规文件与目录（FIFO 判不存在）",
+  "file": "src/core/fs.ts",
+  "from": "    return /[\\\\/]$/.test(s) ? st.isDirectory() : true",
+  "to": "    return /[\\\\/]$/.test(s) ? st.isDirectory() : (st.isFile() || st.isDirectory())",
+  "posixOnly": true
  }
 ]

@@ -7,7 +7,8 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSyn
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isFile, isDir, lexists } from '../lib/core/fs.js'
+import { spawnSync } from 'node:child_process'
+import { isFile, isDir, lexists, exists } from '../lib/core/fs.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'pathpred.json'), 'utf8'))
@@ -77,6 +78,31 @@ test('lexists：不跟随符号链接——断链也存在；不存在就是不�
     if (lexists(raw(c.rel)) !== c.lexists) wrong.push({ rel: c.rel, want: c.lexists })
   }
   assert.deepEqual(wrong.slice(0, 10), [], `不一致共 ${wrong.length} 条`)
+})
+
+test('exists：对 Python 的 os.path.exists 逐条一致（在生成样本的平台上）；跟随符号链接（断链为假）；带尾分隔符的文件为假', { skip: process.platform === gold.platform ? false : '样本平台不同' }, () => {
+  const wrong = []
+  for (const c of gold.cases) {
+    if (!linked && /^ln_/.test(c.rel)) continue
+    if (WIN32_TRAILING.test(c.rel) && c.exists) continue // D15
+    if (exists(raw(c.rel)) !== c.exists) wrong.push({ rel: c.rel, want: c.exists })
+  }
+  assert.deepEqual(wrong.slice(0, 10), [], `不一致共 ${wrong.length} 条`)
+})
+
+test('exists（平台无关）：文件与目录存在、不存在不存在、断链不存在（跟随符号链接）、文件加尾斜杠不存在（变异 E1 到 E4）', () => {
+  assert.equal(exists(at('f.md')), true); assert.equal(exists(at('d')), true); assert.equal(exists(at('nope')), false)
+  assert.equal(exists(raw('f.md') + '/'), false, '文件 + 尾斜杠：Python 为假')
+  assert.equal(exists(raw('d') + '/'), true, '目录 + 尾斜杠：为真')
+  if (linked) { assert.equal(exists(at('ln_dangling')), false, '断链：跟随链接，目标不在 → 假'); assert.equal(exists(at('ln_file')), true); assert.equal(exists(at('ln_dir')), true) }
+})
+
+test('exists：FIFO 也算存在（Python 判存在；若实现成 isFile || isDir 就会判不存在）——只在能 mkfifo 的平台上（变异 E5）', { skip: process.platform === 'win32' ? 'Windows 上没有 FIFO' : false }, () => {
+  const r = spawnSync('mkfifo', [join(tmp, 'a-fifo')])
+  assert.equal(r.status, 0, 'mkfifo 失败：' + r.stderr)
+  assert.equal(isFile(join(tmp, 'a-fifo')), false, 'FIFO 不是常规文件'); assert.equal(isDir(join(tmp, 'a-fifo')), false)
+  assert.equal(exists(join(tmp, 'a-fifo')), true, 'FIFO 存在')
+  assert.equal(lexists(join(tmp, 'a-fifo')), true)
 })
 
 // 平台无关的 lexists 性质：不能放在「样本平台不同就跳过」的测试里，否则 Linux 上抓不到（Ubuntu 验证时才发现的盲区）
