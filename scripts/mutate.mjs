@@ -60,19 +60,25 @@ const base = failed(r.stdout)
 if (r.status !== 0 || base.size) { console.error(`基线测试不是全绿（失败 ${base.size} 条），先修再变异：\n  ${[...base].slice(0, 5).join('\n  ')}`); rmSync(tmp, { recursive: true, force: true }); process.exit(2) }
 
 let bad = 0
+let unverified = 0          // 清单里标了 unobservable 的变异：性质没有可观察的副作用，测试抓不住是**已知**的——如实计数，既不算通过也不算失败
 try {
   for (const m of muts) {
     const abs = join(root, m.file)
     const text = readFileSync(backup.get(m.file).path, 'utf8')
-    const n = text.split(m.from).length - 1
-    if (n !== 1) { console.log(`? ${m.id.padEnd(6)} ${m.title ?? ''}  锚点在 ${m.file} 里出现 ${n} 次（要恰好 1 次），无效`); bad++; continue }
+    // 复合变异：`multi` 是若干 {from,to}，**同时**应用（用来验证纵深防御：两道互为冗余的防线各自去掉都被另一道兜住，只有同时去掉才该变红）
+    const steps = m.multi ?? [{ from: m.from, to: m.to }]
+    const counts = steps.map((s) => text.split(s.from).length - 1)
+    if (counts.some((n) => n !== 1)) { console.log(`? ${m.id.padEnd(6)} ${m.title ?? ''}  锚点在 ${m.file} 里出现 ${counts.join('/')} 次（每个都要恰好 1 次），无效`); bad++; continue }
     try {
-      writeFileSync(abs, text.replace(m.from, () => m.to))
+      let mutated = text
+      for (const s of steps) mutated = mutated.replace(s.from, () => s.to)
+      writeFileSync(abs, mutated)
       const b = build()
       if (b.status !== 0) { console.log(`? ${m.id.padEnd(6)} ${m.title ?? ''}  变异后编译不过，无效（换一种写法）`); bad++; continue }
       const t = runTests()
       const f = failed(t.stdout)
       if (f.size > 0) console.log(`✓ ${m.id.padEnd(6)} ${m.title ?? ''}  失败 ${f.size} 条`)
+      else if (m.unobservable) { console.log(`△ ${m.id.padEnd(6)} ${m.title ?? ''}  已知未验证：${m.unobservable}`); unverified++ }
       else { console.log(`✗ ${m.id.padEnd(6)} ${m.title ?? ''}  **没被抓住**`); bad++ }
     } finally {
       copyFileSync(backup.get(m.file).path, abs)
@@ -85,5 +91,5 @@ const drift = verify()
 build()
 rmSync(tmp, { recursive: true, force: true })
 if (drift.length) { console.error('还原后文件哈希与开始前不一致：' + drift.join(', ')); process.exit(3) }
-console.log(`\n${muts.length} 条变异；${muts.length - bad} 条被抓住，${bad} 条没被抓住或无效。文件已还原并校验哈希。`)
+console.log(`\n${muts.length} 条变异；${muts.length - bad - unverified} 条被抓住，${unverified} 条已知未验证（unobservable，不折算通过），${bad} 条没被抓住或无效。文件已还原并校验哈希。`)
 process.exit(bad ? 1 : 0)

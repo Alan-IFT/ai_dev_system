@@ -1,0 +1,154 @@
+[
+ {
+  "id": "S1",
+  "title": "字面出仓不再先判（直接去碰文件系统）",
+  "file": "src/core/fs.ts",
+  "from": "if (root !== undefined && root !== null && !under(abs(path), abs(root))) {\n    throw new OutsideRoot(`${path} 的真实位置在被扫项目之外（符号链接或 ..），未读`)\n  }\n  const real",
+  "to": "const real",
+  "unobservable": "字面出仓不碰文件系统：该性质没有可观察的副作用（只会少一次 lstat 链），ESM 的 fs 命名空间不可改写所以无法计数。Python 版靠 monkeypatch os.path.realpath 计次，TS 里没有等价手段。**如实记为未验证**，靠代码审查"
+ },
+ {
+  "id": "S2",
+  "title": "真实位置不再核对（符号链接出仓可读）",
+  "file": "src/core/fs.ts",
+  "from": "if (root !== undefined && root !== null && !under(real, realpathLoose(abs(root)))) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "S3",
+  "title": "打开后不再核对 dev/ino（换位拦不住）",
+  "file": "src/core/fs.ts",
+  "from": "if (realpathLoose(real) !== real || again.dev !== st.dev || again.ino !== st.ino) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "S4",
+  "title": "只核对 realpath 不核对 ino",
+  "file": "src/core/fs.ts",
+  "from": "if (realpathLoose(real) !== real || again.dev !== st.dev || again.ino !== st.ino) {",
+  "to": "if (realpathLoose(real) !== real) {"
+ },
+ {
+  "id": "S5",
+  "title": "只核对 ino 不核对 realpath",
+  "file": "src/core/fs.ts",
+  "from": "if (realpathLoose(real) !== real || again.dev !== st.dev || again.ino !== st.ino) {",
+  "to": "if (again.dev !== st.dev || again.ino !== st.ino) {"
+ },
+ {
+  "id": "S6",
+  "title": "不再拒绝非常规文件",
+  "file": "src/core/fs.ts",
+  "from": "if (!st.isFile()) throw new NotRegular",
+  "to": "if (false) throw new NotRegular"
+ },
+ {
+  "id": "S9",
+  "title": "上限从 2MB 改成 4MB",
+  "file": "src/core/fs.ts",
+  "from": "export const MAX_READ_BYTES = 2 * 1024 * 1024",
+  "to": "export const MAX_READ_BYTES = 4 * 1024 * 1024"
+ },
+ {
+  "id": "S10",
+  "title": "给了 head 也因体量拒读",
+  "file": "src/core/fs.ts",
+  "from": "if ((head === undefined || head === null) && st.size > BigInt(MAX_READ_BYTES)) {",
+  "to": "if (st.size > BigInt(MAX_READ_BYTES)) {"
+ },
+ {
+  "id": "S11",
+  "title": "ino 退化成 Number 比较（Windows 上同一文件会被判成两个）",
+  "file": "src/core/fs.ts",
+  "from": "again.dev !== st.dev || again.ino !== st.ino",
+  "to": "Number(again.dev) !== Number(st.dev) || Number(again.ino) !== Number(st.ino)",
+  "unobservable": "dev/ino 的同一性比较里，Number 与 BigInt 只在「两个不同文件的 ino 恰好 Number 相等」时才有差别（Number 丢精度到 2^-53 相对精度），实际无法构造。BigInt 的必要性来自实测（同一文件的 ino 在 Number 与 BigInt 读出相差 12），那是「同一文件被判成两个」的方向，由 afterOpen 钩子那条测试的前提条件隐含覆盖；独立的变异验证不可行"
+ },
+ {
+  "id": "S12",
+  "title": "BOM 去两个",
+  "file": "src/core/fs.ts",
+  "from": "const d = data.length >= 3 && data[0] === 0xef && data[1] === 0xbb && data[2] === 0xbf ? data.subarray(3) : data",
+  "to": "let d = data; while (d.length >= 3 && d[0] === 0xef && d[1] === 0xbb && d[2] === 0xbf) d = d.subarray(3)"
+ },
+ {
+  "id": "S13",
+  "title": "BOM 不去",
+  "file": "src/core/fs.ts",
+  "from": "const d = data.length >= 3 && data[0] === 0xef && data[1] === 0xbb && data[2] === 0xbf ? data.subarray(3) : data",
+  "to": "const d = data"
+ },
+ {
+  "id": "S14",
+  "title": "CR 不归一",
+  "file": "src/core/fs.ts",
+  "from": ".replaceAll('\\r\\n', '\\n').replaceAll('\\r', '\\n')",
+  "to": ".replaceAll('\\r\\n', '\\n')"
+ },
+ {
+  "id": "S15",
+  "title": "CRLF 不归一",
+  "file": "src/core/fs.ts",
+  "from": "return text.replaceAll('\\r\\n', '\\n').replaceAll('\\r', '\\n')",
+  "to": "return text.replaceAll('\\r', '\\n')"
+ },
+ {
+  "id": "S16",
+  "title": "countLines 末行无换行不加 1",
+  "file": "src/core/fs.ts",
+  "from": "return n + (text && !text.endsWith('\\n') ? 1 : 0)",
+  "to": "return n"
+ },
+ {
+  "id": "S17",
+  "title": "countLines 不限 MAX（超限文件拒读而不是给下界）",
+  "file": "src/core/fs.ts",
+  "from": "const text = readText(path, root, MAX_READ_BYTES)",
+  "to": "const text = readText(path, root)"
+ },
+ {
+  "id": "S19",
+  "title": "inside 不再先按字面判（总去碰文件系统）",
+  "file": "src/core/fs.ts",
+  "from": "if (!under(abs(path), r)) return false\n    return under(realpathLoose(abs(path)), realpathLoose(r))",
+  "to": "return under(realpathLoose(abs(path)), realpathLoose(r))",
+  "unobservable": "字面出仓不碰文件系统：该性质没有可观察的副作用（只会少一次 lstat 链），ESM 的 fs 命名空间不可改写所以无法计数。Python 版靠 monkeypatch os.path.realpath 计次，TS 里没有等价手段。**如实记为未验证**，靠代码审查"
+ },
+ {
+  "id": "S20",
+  "title": "under 退化成纯前缀（root=/a/b 会误含 /a/bc）",
+  "file": "src/core/fs.ts",
+  "from": "return p.startsWith(base + sep)",
+  "to": "return p.startsWith(base)"
+ },
+ {
+  "id": "S21",
+  "title": "head 只读一次不循环（短读被当成全部）",
+  "file": "src/core/fs.ts",
+  "from": "while (got < want) {",
+  "to": "while (got < want && got === 0) {",
+  "unobservable": "普通文件在本机一次 readSync 就返回全部（实测 300000 字节一次读完）；短读只出现在管道、终端、网络文件系统上，本机无法构造。循环读的正确性靠 Ubuntu 容器里用 FIFO/管道的输入验证（未做）"
+ },
+ {
+  "id": "S22",
+  "title": "测试钩子在生产路径里被调用的位置挪到打开之后",
+  "file": "src/core/fs.ts",
+  "from": "__testHooks.beforeOpen?.()\n  const fd = openSync(real, constants.O_RDONLY | O_NONBLOCK | O_NOFOLLOW)",
+  "to": "const fd = openSync(real, constants.O_RDONLY | O_NONBLOCK | O_NOFOLLOW)\n  __testHooks.beforeOpen?.()"
+ },
+ {
+  "id": "S7+8",
+  "title": "超限的两道防线（stat 大小、读后长度）同时去掉",
+  "file": "src/core/fs.ts",
+  "multi": [
+   {
+    "from": "if ((head === undefined || head === null) && st.size > BigInt(MAX_READ_BYTES)) {",
+    "to": "if (false) {"
+   },
+   {
+    "from": "if ((head === undefined || head === null) && data.length > MAX_READ_BYTES) {",
+    "to": "if (false) {"
+   }
+  ]
+ }
+]

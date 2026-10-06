@@ -225,7 +225,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [ ] core（拆成多文件，下面逐个勾）：
     - [x] `core/finding.ts`（三态、id、`normalizeKey`、Python 空白集合 `PY_WHITESPACE`、`pyStrip`、`encodeSurrogateEscape`）
     - [x] `core/yaml.ts`（严格 YAML 子集解析器）、`core/dates.ts`（`parseDate`，D1）
-    - [ ] `core/config.ts`（加载与路径护栏）、`core/fs.ts`（受限读取）、`core/git.ts`（环境加固）、`core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、状态词、工作项）
+    - [x] `core/fs.ts`（受限读取：`inside`/`guard`/`readBytes`/`readText`/`countLines`）
+    - [ ] `core/config.ts`（加载与路径护栏）、`core/git.ts`（环境加固）、`core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、状态词、工作项）
   - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
@@ -315,6 +316,18 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **Python 的 `parse_date` 控制流我第一次读错了**：我以为「日期不存在」在严格模式下报「不是合法日期」，黄金样本说是「既不是 YYYY-MM-DD 也不是 ISO8601」。查实 Python 的顺序是 ① `date.fromisoformat` ② `datetime.fromisoformat` ③ **仅非严格**的前 10 位兜底，①②失败（含日期不存在）才落到③；严格模式没有③。已按这个控制流重写并写进注释。**读 Python 代码得出的结论要拿黄金样本对一遍，不能凭读代码。**
 - **一个新发现**：Python 里一个分支是**不可达**的——「列表项是空的」这条 `ConfigError("第 N 行是空列表项")`，我用 621,435 条穷举输入（17 种行体 × 5 种缩进 × 1 到 3 行）都没有触发。TS 版保留了该分支（行为与 Python 一致），但无法用黄金样本验证它，也无法对它做变异验证，**如实记为未验证**，不假装覆盖。
 
+### 12.8 `core/fs.ts` 完成时量出来的事
+
+- **证据**：对 Python 版夹具型单元黄金样本（`golden/unit/stdlib-fs.json`，190 条，含普通文件、目录、不存在、超限稀疏文件、恰好等于上限、符号链接出仓、目录符号链接出仓、17 种编码与行尾夹具）逐条一致；测试在临时目录里按**同一份夹具清单**建夹具，开头核对条数与每个夹具的字节数，防两边漂移。
+- **变异验证 20 条：16 条被抓住，4 条如实标注「已知未验证」，0 条没被抓住。** 首轮 22 条里有 9 条没被抓住或无效，分四类处理，**没有一条是靠「删掉不好看的」解决的**：
+  1. **测试盲区，补了测试**：`under` 退化成纯字符串前缀（`/x/ab` 误含 `/x/abc`）、`dev/ino` 核对被去掉或只剩一半。后者需要在「fd 已打开、核对之前」那个窗口里把文件换掉——光有 `beforeOpen` 钩子不够，**加了 `afterOpen` 钩子**才造得出这个窗口。
+  2. **纵深防御，改成复合变异**：超限有两道防线（`stat` 大小、读后长度），各自去掉都被另一道兜住，所以单独变异永远抓不住。正确的验证是**同时去掉两道**必须变红——`mutate.mjs` 新增 `multi` 字段，已抓住。
+  3. **等价变异，删除**：我写的 `S18` 在 `realpathLoose` 里加了一个恒假的 `if`，等于没改。
+  4. **性质不可观察，如实标注 `unobservable`**：「字面出仓不碰文件系统」（没有可观察副作用，ESM 的 `fs` 命名空间不可改写所以无法像 Python 那样 monkeypatch `realpath` 计次）；「循环读到底」（普通文件在本机一次 `readSync` 就返回全部，短读只出现在管道和网络文件系统）；`Number` 对 `BigInt` 的 `ino` 比较（只在两个不同文件的 `ino` 恰好 `Number` 相等时才有差别，构造不出）。`mutate.mjs` 把它们报告为 `△ 已知未验证`，**既不算通过也不算失败**。
+- **一个被一次误判差点糊弄过去的测试**：「护栏之后路径被换出仓」那条，我第一版写成了**空壳 `skip`**（注释说「Windows 上做不到」），变异 `S22`（把钩子挪到打开之后）是它没有任何断言时唯一能暴露问题的东西。改成真正验证的版本，需要 `__testHooks.beforeOpen`（生产路径恒为 `undefined`）。**教训：「这个平台上测不了」要先试过，不要先写 skip。**
+- **Windows 上 D8 的实测**：`ino` 的 `Number` 与 `BigInt` 读法相差 12，直接比较会把同一个文件判成两个，所以全程 `BigInt`；`O_NOFOLLOW`/`O_NONBLOCK` 在 Windows 上 Node 返回 `undefined`、Python 的 `getattr(...,0)` 为 0——这三道防线在 Windows 上本来就是空的，**如实写进 §12.6 D8，不假装有**。Linux 上的真实防线要在 Ubuntu 容器里验证（见下一步）。
+- **一次测试侧的错误**：第一轮 `readBytes` 比对「失败」，看输出两边内容完全一样——是 `JSON.stringify` 的键序不同（`{hex,len}` 对 `{len,hex}`）。**是测试的比较方式错了，不是实现错了**；改成键序规范化后全绿。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -354,12 +367,15 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D4 | `\d` 与 `-?\d+` 整数判定 | Unicode 十进制数字（`٣`、全角 `１２` 都是 `\d`，被读成整数 3、12） | 仅 ASCII `0-9`；`٣`、`１２` 当字符串 | 配置里没有理由出现非 ASCII 数字（实测四个仓的 `project.yaml` 里只有 4 处 `②`，在注释里，不是数字值）；放宽会让 `٣` 被静默当成整数 | 同 D3 |
 | D5 | `\w`（`check_links` 标题锚点、`check_drift` 的 `WI-` 边界） | Unicode 15.0（Python 3.12）的 `isalnum()` 或 `_` | `[\p{L}\p{N}_]`（Unicode 17.0，Node 24） | **逐码点实测**：Python 认的 JS 全认（反方向 0 个）；JS 多认的 9661 个**全部**是 Python 视作「未分配」的码点（Unicode 16、17 新增字符），**已分配码点上两者完全等价**。差异只来自 Unicode 数据库版本，不是写法，不应也无法复现 | 实测得出，无需决定 |
 | D6 | `\s`、`str.strip()` | 认 U+001C 到 U+001F、U+0085（NEL）；**不**认 U+FEFF（BOM） | JS 的 `\s`/`trim()` **不**认前者、**认** U+FEFF | 逐码点实测各 6 个差异。U+FEFF 影响最大：Python 的 `strip()` 留着它，JS 的 `trim()` 去掉它——BOM 开头的文件两版本会得出不同结果。实现里**不用** `\s` 与 `trim()` 处理被扫文本，改用显式字符集（与 Python 的集合逐码点一致，由单测钉住） | 实现约束，不是放宽 |
+| D7 | `read_bytes` 对**不是常规文件**的路径 | Windows：`os.open` 目录抛 `PermissionError`；POSIX：能打开，再被 `fstat` 判成 `NotRegular`；FIFO 靠 `O_NONBLOCK` 不阻塞再判 `NotRegular` | 统一抛 `NotRegular`（继承 `OSError`），**不区分平台** | 两者都是 `OSError` 子类，所有读点都是 `except OSError` 一视同仁转未定；区分类名只会让 TS 版多一个平台分支。Python 自己的 selftest 在 Windows 上也因此把 FIFO 断言记 SKIP（目录占位「不等价」）。样本里 `d` 这一条按 D7 比对：Python 的 `PermissionError`、TS 的 `NotRegular` 都算「抛了 OSError 子类、没读」 | 实现时的归并，不改变任何调用方的行为 |
+| D8 | `O_NOFOLLOW`、`O_NONBLOCK`、`st_ino` | POSIX 上用来挡「末段被换成符号链接」「FIFO 阻塞」「打开后换目录再换回来」；Windows 上 Python 的 `getattr(os,'O_NOFOLLOW',0)` 为 0，**这三道防线在 Windows 上本来就是空的** | Node 的 `fs.constants.O_NOFOLLOW`/`O_NONBLOCK` 在 Windows 上是 `undefined`，同样取 0；`st_ino` 用 `bigint: true` 的 `fstat`/`stat`（Windows 上 Number 会丢精度：实测同一文件的 `ino` 在 Number 与 BigInt 下差 12） | 实测：本机 Windows 上 `fstat(fd).ino` 的 Number 值与 `stat(path, {bigint:true}).ino` 相差，**直接比较会把同一个文件判成两个**，所以必须全程 BigInt。Linux 上的真实防线要在 Ubuntu 容器里验证 | 实现约束；Windows 上这三道本来就是空的这件事如实写在这里，不假装有 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/fs.ts` 完成，记 §12.8，新增 D7/D8 | 对 190 条夹具型黄金样本逐条一致；变异 20 条，16 抓住、4 如实标未验证、0 漏；`mutate.mjs` 新增复合变异与 `unobservable` 标注 |
 | 2026-10-06 | 阶段 2 开始：`core` 的 finding/yaml/dates 完成并记 §12.7 | 对 Python 单元黄金样本逐条一致；变异 29 条全抓住（首轮 4 条没抓住，补输入后抓住）；变异脚本事故后改为带哈希校验的独立脚本；一个 Python 分支穷举 62 万输入不可达，如实记未验证 |
 | 2026-10-06 | §12.6 补 D4 到 D6（`\d`、`\w`、`\s`/`strip`） | 逐码点比对 Python 3.12（Unicode 15.0）与 Node 24（Unicode 17.0）；`\w` 的 49,638 个差异先看严重，查构成后确认全部是 Unicode 版本差；`strip()` 对 U+FEFF 的差异是真实风险，实现里禁用 `trim()`/`\s` |
 | 2026-10-06 | 新增 §12.6 有意差异清单；D1（日期解析）Alan 选「按契约严格解析」 | 实测 Python 3.12 的 `fromisoformat` 接受契约没写的紧凑型与周日期；四个真实仓 186 个日期字段里 0 个用到 |
