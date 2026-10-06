@@ -1,5 +1,5 @@
 #!/bin/sh
-# 提交闸门（Gate 合同见仓库工作须知 §7）：三道都跑，任一非 0 即拒绝提交，退出码取最大者。安装（每个克隆一次）：git config core.hooksPath .githooks
+# 提交闸门（Gate 合同见仓库工作须知 §7）：四道都跑，任一非 0 即拒绝提交，退出码取最大者。安装（每个克隆一次）：git config core.hooksPath .githooks
 # 通过时只报一行、失败时只打失败那几道的全量输出：提交的输出会进 agent 上下文，成功路径不该占上下文。
 #
 # 解释器：选择逻辑在公共片段 tools/std/pick-python.sh（采用项目引用同一份：.std/tools/std/pick-python.sh），不在这里内联。
@@ -21,5 +21,22 @@ run_gate() {
 run_gate tools/std/check_all.py . --no-scope
 run_gate docs/附录-载体实例/linkcheck.py
 run_gate docs/附录-载体实例/check_normative_force.py
-[ $fail -eq 0 ] && echo "提交闸门：三道通过"
+# 选 node：DSH 导出 DSH_HOME，它的 node 固定在 $DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/（重构设计 §4.1 实测）。
+# 在 DSH 之外（系统终端手敲 git commit、CI）没有 DSH_HOME，回退到 PATH 上的 node；两者都没有就失败关闭，不当通过。
+NODE=""
+for cand in "${DSH_HOME:+$DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node.exe}" "${DSH_HOME:+$DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node}" node; do
+  [ -n "$cand" ] || continue
+  if "$cand" -e 'process.exit(0)' >/dev/null 2>&1; then NODE="$cand"; break; fi
+done
+if [ -z "$NODE" ]; then
+  echo "提交闸门：找不到能运行的 node（试过 DSH 自带的与 PATH 上的）；本次提交被拒（失败关闭）。" >&2
+  exit 127
+fi
+# 第四道：TS 插件包的 lib/ 必须等于从 src/ 构建的结果（重构设计 §4：lib/ 提交进 git，不一致就是没构建就提交）。
+# 只在存在 package.json 与 scripts/check-lib-sync.mjs 时跑——这两样是 TS 工程的一部分；缺了本仓就不是 TS 工程了，不属于本道的对象。
+if [ -f scripts/check-lib-sync.mjs ]; then
+  out=$("$NODE" scripts/check-lib-sync.mjs 2>&1); rc=$?
+  if [ $rc -ne 0 ]; then printf '%s\n' "$out"; echo "提交闸门：scripts/check-lib-sync.mjs 未通过（退出 $rc）" >&2; [ $rc -gt $fail ] && fail=$rc; fi
+fi
+[ $fail -eq 0 ] && echo "提交闸门：四道通过"
 exit $fail

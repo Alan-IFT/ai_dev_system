@@ -1,0 +1,9 @@
+# ai-dev-std bundle 层：把守卫挂进 profile。
+# `name` 必须等于 package.json 的包名（DSH 按它解析到已装的包）；`id` 是 profile 里这一行的稳定标识，同 id 可在 profile 的
+# cordis.patch.yml 里覆盖（覆盖会替换整块 config，要写全）。
+- insert:
+    - id: ai-dev-std
+      name: ai-dev-std
+      config:
+        enabled: true
+        root: ''            # 项目根；空串 = 取会话工作目录。会话在子目录开时请在 profile 的 cordis.patch.yml 里按 id 覆盖并写上（覆盖会替换整块 config，要写全）

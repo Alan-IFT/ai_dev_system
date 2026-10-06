@@ -20,3 +20,7 @@ __pycache__/
 
 # 旧宿主交付的预览图目录（宿主已不再支持，留着这行只为不让历史产物被误提交）
 Claude outputs/
+
+# TypeScript 工程（重构设计 §3）：依赖与测试编译产物不入库；lib/ 是**要提交**的发布产物（§4），故意不在这里忽略
+node_modules/
+*.tsbuildinfo

@@ -212,7 +212,15 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 设计文档已提交推送（本文）——提交 `2fdb501`，`check_all` 含本文退出 0；变异验证（给本文加坏链接）退出 1 并指到本文，还原后 0
   - [x] 黄金样本已生成并校验可复现——`golden/samples/` 5 个文件：`std`/`reservoir`/`cms`/`pmc` 四个仓的 finding 清单 + `selftest-probes.json`（228 条探针）；`golden/make_golden.py` 重跑后四个仓样本与落盘逐字节相同；`selftest-probes.json` 连跑两次一致
   - [x] 废弃残留清单已落盘——`golden/residue-baseline.txt`（口径与基线读数见 §12.1）
-- [ ] 阶段 1：骨架与守卫
+- [ ] 阶段 1：骨架与守卫（**进行中**，下面分项）
+  - [x] 1-a Q3 实测定案、`tsc` 可用性（`ac0e2b5`）
+  - [x] 1-b TS 工程骨架：`package.json`（`dsh.manifestVersion`、`bundle.patch`、`engines`）、`tsconfig.json`、`cordis.patch.yml`（`name` 与包名同为 `ai-dev-std`）、`scripts/check-lib-sync.mjs`；`tsc` 7.0.2 构建通过
+  - [x] 1-c 守卫迁 TS：`src/guard/{policy,index}.ts` + 根入口 `src/index.ts`；**行为不变**——现役 JS 守卫基线 471 条（470 过、0 败、1 跳）与 TS 编译产物上的结果逐项相同；变异验证（把「.std 只读 deny」改 allow）后 16 条变红、还原后回到 0 败
+  - [x] 1-d `lib/` 与 `src/` 一致性校验：脚本四种变异都符合预期（改 src 不构建→1、手改 lib→1、lib 多出过期文件→1、缺 tsc→2 即「没跑成不当通过」）；已接进 `.githooks/pre-commit` 作第四道，三种行为实测（全绿 0、不一致拦下、找不到 node 失败关闭 127）
+  - [ ] 1-e **`lib/` 提交进 git**（构建产物首次入库）
+  - [ ] 1-f 守卫测试在 **Ubuntu 容器**里全过
+  - [ ] 1-g **真实 DSH 里从 git 地址经安装通道装入，守卫生效**（阶段 1 的硬性验收；需要临时 profile，不碰用户真实 profile）
+  - [ ] 1-h 新路径保护：守卫要保护 `src/guard/`、`lib/`、`standard/`（改守卫的人不应由守卫放行；现在 `tools/dsh-std/` 的保护是旧位置）
 - [ ] 阶段 2：检查器迁移
   - [ ] core　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
@@ -247,11 +255,21 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 现行文档 | 16 | 48 | 0 |
 | 其它 | 1 | 1 | 0 |
 
+### 12.2 阶段 1 里量出来的、设计时没预见的事（做的时候才发现）
+
+- **`noUncheckedIndexedAccess` 关掉了**：开着时这份代码有 57 处「数组下标可能是 undefined」报错；关掉后只剩 17 处，且都是缺类型标注。这份词法扫描代码的循环条件已在运行时保证下标在范围内，把 30 处都改成 `!` 或加判断是在**为类型检查器改写已被运行时保证的代码**，改动面大、引入新错误的风险高，收益是零。**这是有意的取舍，不是偷懒**；其余 `strict` 全开。
+- **TS 7.0 的 `tsc` 能直接用**：`pnpm view` 显示 `latest = 7.0.2`，本机实测构建与运行都成功；DSH 生态里 `dsh-context` 同样用 `^7.0.2`。
+- **DSH 官方有 `ToolExecution`、`PreToolDecision` 类型**（`@deepseek-ai/dsh-tools`），守卫的适配层直接用，不自己编接口。本仓 devDeps 拉到的 `cordis 4.0.4`、`dsh-tools 0.2.0-rc.2` 与 DSH 内置版本**逐一核对相同**。
+- **JS 的字面量推断与 TS 不同**：JS 版里 `{ kind: 'allow' }` 在 TS 里被推断成 `{ kind: string }`，赋给 `PreToolDecision` 报错。给 `downstream`、`verdict`、`inner`、`mine` 显式标类型后解决；行为不变。
+- **插件名要等于包名**：`cordis.patch.yml` 的 `name` 与 `index.ts` 的 `name` 导出都改成 `ai-dev-std`（本机已装的 `dsh-user-preferences` 就是这个惯例）。原来的 `dsh-std` 只是目录名。
+- **`bin` 与 PATH**：见 §4.1。
+
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | 阶段 1 分项 1-a 到 1-d 完成，新增 §12.2 | 守卫迁 TS 并行为不变（471 条逐项一致）；`lib/` 一致性校验与第四道钩子；§12.2 记下做的时候才发现的事 |
 | 2026-10-06 | Q3 实测定案，新增 §4.1；Q1 暂定 A | 做阶段 1 前先验证整个设计风险最大的假设（钩子能否找到插件提供的命令）；Alan 未回复 Q1，按推荐先推进并标明可逆 |
 | 2026-10-06 | 阶段 0 完成；新增 §12.1 记真实口径 | 样本口径（钉提交、只比 id/status/where/registered）与「selftest 探针大量调私有函数」这两点是做的时候才量出来的，必须写进设计，否则阶段 2 会按错的假设去迁 |
 | 2026-10-06 | §4 定「`lib/` 提交进 git」，放弃「git 安装时 `prepare` 构建」 | 实测 pnpm 从 git 装包拒绝 `prepare`（`ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`），提交 `lib/` 则成功 |
