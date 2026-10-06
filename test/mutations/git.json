@@ -1,0 +1,213 @@
+[
+ {
+  "id": "G1",
+  "title": "不去掉 GIT_LOCAL_ENV（定位变量原样带进子进程）",
+  "file": "src/core/git.ts",
+  "from": "for (const key of GIT_LOCAL_ENV) delete env[key]",
+  "to": ""
+ },
+ {
+  "id": "G2",
+  "title": "GIT_LOCAL_ENV 少 GIT_INDEX_FILE",
+  "file": "src/core/git.ts",
+  "from": "'GIT_INDEX_FILE', 'GIT_NO_REPLACE_OBJECTS'",
+  "to": "'GIT_NO_REPLACE_OBJECTS'"
+ },
+ {
+  "id": "G3",
+  "title": "GIT_LOCAL_ENV 误含 GIT_CEILING_DIRECTORIES（它只挡上溯、不改定位，不在表里）",
+  "file": "src/core/git.ts",
+  "from": "'GIT_SHALLOW_FILE', 'GIT_COMMON_DIR',",
+  "to": "'GIT_SHALLOW_FILE', 'GIT_COMMON_DIR', 'GIT_CEILING_DIRECTORIES',"
+ },
+ {
+  "id": "G4",
+  "title": "不清旧的 GIT_CONFIG_KEY_n（调用方注入的配置残留）",
+  "file": "src/core/git.ts",
+  "from": "    delete env[`GIT_CONFIG_KEY_${i}`]\n    delete env[`GIT_CONFIG_VALUE_${i}`]",
+  "to": "    void i"
+ },
+ {
+  "id": "G5",
+  "title": "旧键只清 KEY 不清 VALUE",
+  "file": "src/core/git.ts",
+  "from": "    delete env[`GIT_CONFIG_VALUE_${i}`]\n  }",
+  "to": "  }"
+ },
+ {
+  "id": "G6",
+  "title": "GIT_CONFIG_COUNT 写成加固项数减一",
+  "file": "src/core/git.ts",
+  "from": "env.GIT_CONFIG_COUNT = String(GIT_HARDEN_CONFIG.length)",
+  "to": "env.GIT_CONFIG_COUNT = String(GIT_HARDEN_CONFIG.length - 1)"
+ },
+ {
+  "id": "G7",
+  "title": "不注入 GIT_HARDEN_ENV（pager/提示/可选锁）",
+  "file": "src/core/git.ts",
+  "from": "for (const [k, v] of GIT_HARDEN_ENV) env[k] = v",
+  "to": ""
+ },
+ {
+  "id": "G8",
+  "title": "hardenedEnv 直接改入参（不拷贝）",
+  "file": "src/core/git.ts",
+  "from": "const env: Env = { ...base }\n  for (const key of GIT_LOCAL_ENV)",
+  "to": "const env: Env = base\n  for (const key of GIT_LOCAL_ENV)"
+ },
+ {
+  "id": "G9",
+  "title": "hardenedEnv 偷偷写 process.env（违反 D9）",
+  "file": "src/core/git.ts",
+  "from": "  for (const [k, v] of GIT_HARDEN_ENV) env[k] = v\n  return env",
+  "to": "  for (const [k, v] of GIT_HARDEN_ENV) env[k] = v\n  process.env.GIT_PAGER = 'cat'\n  return env"
+ },
+ {
+  "id": "G10",
+  "title": "加固取值 core.sshCommand 改成空串（D9 要求保持 true）",
+  "file": "src/core/git.ts",
+  "from": "['core.sshCommand', 'true']",
+  "to": "['core.sshCommand', '']"
+ },
+ {
+  "id": "G11",
+  "title": "加固去掉 core.fsmonitor",
+  "file": "src/core/git.ts",
+  "from": "['core.fsmonitor', 'false'], ",
+  "to": ""
+ },
+ {
+  "id": "G12",
+  "title": "加固去掉 diff.external",
+  "file": "src/core/git.ts",
+  "from": "['diff.external', 'true'], ",
+  "to": ""
+ },
+ {
+  "id": "G13",
+  "title": "加固去掉 log.showSignature",
+  "file": "src/core/git.ts",
+  "from": "['log.showSignature', 'false'],",
+  "to": ""
+ },
+ {
+  "id": "G14",
+  "title": "hooksPath 不指向空设备",
+  "file": "src/core/git.ts",
+  "from": "['core.hooksPath', devNull]",
+  "to": "['core.hooksPath', '.githooks']"
+ },
+ {
+  "id": "V1",
+  "title": "版本下限从 2.31 改成 2.30",
+  "file": "src/core/git.ts",
+  "from": "export const GIT_MIN_VERSION: readonly [number, number] = [2, 31]",
+  "to": "export const GIT_MIN_VERSION: readonly [number, number] = [2, 30]"
+ },
+ {
+  "id": "V2",
+  "title": "版本比较只看 minor（3.0 会被判成低于 2.31）",
+  "file": "src/core/git.ts",
+  "from": "if (major < GIT_MIN_VERSION[0] || (major === GIT_MIN_VERSION[0] && minor < GIT_MIN_VERSION[1])) {",
+  "to": "if (minor < GIT_MIN_VERSION[1]) {"
+ },
+ {
+  "id": "V3",
+  "title": "版本比较 minor 用 <= （2.31 本身被判成低）",
+  "file": "src/core/git.ts",
+  "from": "(major === GIT_MIN_VERSION[0] && minor < GIT_MIN_VERSION[1])",
+  "to": "(major === GIT_MIN_VERSION[0] && minor <= GIT_MIN_VERSION[1])"
+ },
+ {
+  "id": "V4",
+  "title": "认不出版本时返回 null（当成合格）",
+  "file": "src/core/git.ts",
+  "from": "if (!m) return `认不出 git 版本",
+  "to": "if (!m) return null; if (false) return `认不出 git 版本"
+ },
+ {
+  "id": "F2",
+  "title": "filterEnv 少置空 smudge",
+  "file": "src/core/git.ts",
+  "from": "[['clean', ''], ['smudge', ''], ['process', ''], ['required', 'false']]",
+  "to": "[['clean', ''], ['process', ''], ['required', 'false']]"
+ },
+ {
+  "id": "F3",
+  "title": "filterEnv 少置空 process（长驻过滤器协议）",
+  "file": "src/core/git.ts",
+  "from": "[['clean', ''], ['smudge', ''], ['process', ''], ['required', 'false']]",
+  "to": "[['clean', ''], ['smudge', ''], ['required', 'false']]"
+ },
+ {
+  "id": "F4",
+  "title": "filterEnv 把 required 置成 true（过滤器失败就整条命令失败）",
+  "file": "src/core/git.ts",
+  "from": "['required', 'false']",
+  "to": "['required', 'true']"
+ },
+ {
+  "id": "F5",
+  "title": "filterEnv 退出码 0 与 1 之外也当正常",
+  "file": "src/core/git.ts",
+  "from": "if (r.status !== 0 && r.status !== 1) return null",
+  "to": ""
+ },
+ {
+  "id": "F6",
+  "title": "filterEnv 退出码 1 当失败（没配过滤器反而 null）",
+  "file": "src/core/git.ts",
+  "from": "if (r.status !== 0 && r.status !== 1) return null",
+  "to": "if (r.status !== 0) return null"
+ },
+ {
+  "id": "F7",
+  "title": "filterEnv 从 COUNT=0 起而不是接着已有的 COUNT（覆盖加固条目）",
+  "file": "src/core/git.ts",
+  "from": "let n = Number(env.GIT_CONFIG_COUNT || 0)",
+  "to": "let n = 0"
+ },
+ {
+  "id": "F8",
+  "title": "filterEnv 用 `-c k=v` 风格（名字带 = 被切错）——以把 KEY/VALUE 拼成一个键来模拟",
+  "file": "src/core/git.ts",
+  "from": "      env[`GIT_CONFIG_KEY_${n}`] = `${head}.${sub}`\n      env[`GIT_CONFIG_VALUE_${n}`] = val",
+  "to": "      env[`GIT_CONFIG_KEY_${n}`] = `${head}.${sub}`.split('=')[0]!\n      env[`GIT_CONFIG_VALUE_${n}`] = val"
+ },
+ {
+  "id": "F9",
+  "title": "filterEnv 改入参 base",
+  "file": "src/core/git.ts",
+  "from": "  const env: Env = { ...base }\n  let n = Number",
+  "to": "  const env: Env = base\n  let n = Number"
+ },
+ {
+  "id": "F10",
+  "title": "filterEnv 过滤器名取错位（用第一个点而不是最后一个点切）",
+  "file": "src/core/git.ts",
+  "from": "const dot = k.lastIndexOf('.')",
+  "to": "const dot = k.indexOf('.', 7)"
+ },
+ {
+  "id": "H1",
+  "title": "浅克隆判断：不认 true 的大小写",
+  "file": "src/core/git.ts",
+  "from": "(r.stdout ?? '').trim().toLowerCase() === 'true'",
+  "to": "(r.stdout ?? '').trim() === 'true'",
+  "unobservable": "真实 git 的 rev-parse --is-shallow-repository 只输出小写 true/false，大小写处理对真实 git 没有可观察差异；Python 版的 .lower() 是防御性写法，TS 保持一致。要验证需要伪造 git 的输出（假 git 可执行文件），收益太低"
+ },
+ {
+  "id": "H2",
+  "title": "浅克隆判断：退出码非 0 当成不是浅克隆",
+  "file": "src/core/git.ts",
+  "from": "if (r.status !== 0) return `git rev-parse --is-shallow-repository 退出码 ${r.status}`",
+  "to": "if (r.status !== 0) return null"
+ },
+ {
+  "id": "H3",
+  "title": "浅克隆判断：永远 null",
+  "file": "src/core/git.ts",
+  "from": "if ((r.stdout ?? '').trim().toLowerCase() === 'true') return",
+  "to": "if (false) return"
+ }
+]

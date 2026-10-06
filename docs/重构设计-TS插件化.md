@@ -226,7 +226,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/finding.ts`（三态、id、`normalizeKey`、Python 空白集合 `PY_WHITESPACE`、`pyStrip`、`encodeSurrogateEscape`）
     - [x] `core/yaml.ts`（严格 YAML 子集解析器）、`core/dates.ts`（`parseDate`，D1）
     - [x] `core/fs.ts`（受限读取：`inside`/`guard`/`readBytes`/`readText`/`countLines`）
-    - [ ] `core/config.ts`（加载与路径护栏）、`core/git.ts`（环境加固）、`core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、状态词、工作项）
+    - [x] `core/git.ts`（git 子进程环境加固：`hardenedEnv`、`filterEnv`、`gitVersionProblem`、`shallowProblem`；`tracked_files` 因依赖 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 废弃）与 `scan_memo`，**推迟到 `check_all` 汇总层迁**）
+    - [ ] `core/config.ts`（加载与路径护栏）、`core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、状态词、工作项）
   - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
@@ -343,6 +344,15 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **为此新增 `scripts/verify-ubuntu.ps1`**：用 `git bundle` 加容器内真实 `git clone` 带代码进去（**不用 `git archive`**，它按导出端的 `autocrlf` 转行尾）、可用 `-Overlay` 把工作区里**未提交**的文件覆盖进去、可用 `-Mutations fs` 另跑变异清单、可指定 Node 版本；容器名与临时目录名固定，只删自己创建的，跑完核对 0 残留。手工拼容器命令这一轮已经出过三次错（grep 格式对不上 Node 22 与 24 的输出、sed 锚点、漏拷文件），脚本化后一次通过。
 
+### 12.10 `core/git.ts` 完成时量出来的事
+
+- **验证做的是行为，不是代码长什么样**：安全加固这一类，「代码里有 `core.fsmonitor=false` 这一行」什么都证明不了。测试在临时目录建**恶意仓**——配置里写 `core.fsmonitor`、`diff.evil.textconv`、两个 `clean` 过滤器（其一名字带 `=`）、`diff.external`，每个都 `touch` 一个标记文件——**先跑不加固的对照组，断言标记文件确实出现了（4 个被执行）**，再跑加固后的实验组，断言一个都没出现。没有对照组的「没被执行」不证明加固起了作用。
+- **第一次跑 textconv 被执行了**：不是 `core/git` 的 bug，是责任划分我没读清楚——`diff.<驱动>.textconv` 的驱动名由被扫方起、列不全，**所以 `git blame` 必须由调用方带 `--no-textconv`**（Python 版 `check_drift` 就这么写，`stdlib` 并不挡它）。我的测试第一版没带它，是测试错了。已把「责任划分」写进 `git.ts` 头注释，并列出迁移后续检查器时**不能漏**的两条（`--no-textconv`、`--literal-pathspecs`）。**这类「不在本模块、靠调用方」的防线最容易在迁移时丢，所以单独列。**
+- **D9 的实测**：本机实测 Python 里 `os.environ[k]=""` 再继承给子进程会让 git 报 `missing config value`（`rc=128`），而 Node 里两种写法空串都能传到子进程。所以 Python 为此绕的弯在 TS 里不再必要，但**取值保持 `true`**（行为不变，且已被安全审计认可），**并且不照搬「改本进程环境」**——TS 模块可能被 DSH 插件宿主加载，改宿主进程的环境会泄漏到别的插件。**这是预防性的：现在 `lib/index.js` 只导出守卫，`core/*` 不在导出链里，没有受影响的路径。**
+- **两个测试环境的坑**：①`os.devNull` 在 Windows 上是 `\\.\nul`，**git 不接受它当配置文件**（`rc=128`），屏蔽用户级与系统级 gitconfig 要用一个真实的空文件；②本机的系统 gitconfig 里有 `git-lfs` 的过滤器，所以「一个过滤器都没配」的测试要先屏蔽这两层，否则测的不是它想测的场景。
+- **变异验证 30 条：29 条被抓住，1 条如实标 `unobservable`，0 条没被抓住；Windows 与 Ubuntu 结论相同（这次没有出现两平台不同的变异）。** 首轮 31 条里有 5 条没被抓住：`G9`（`hardenedEnv` 偷写 `process.env`）——**DSH 会话里 `GIT_PAGER` 本来就是 `cat`，写入 `cat` 前后看不出差别**，改用哨兵值才能区分；`F9`、`F10`（需要「有过滤器」「名字自己带点」的仓才有差别）；`F1` 是我写的等价变异（`Set` 还是 `Set`），删除；`H1`（浅克隆判断不认大小写）真实 git 只输出小写，无可观察差异，如实标注。
+- **范围收窄的一个决定**：`tracked_files` 不在这一块迁。它调用 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 要废弃）与 `scan_memo`（`run_all` 的缓存上下文）。迁它时才能决定「内嵌判定」是直接删还是保留成空实现——放到 `check_all` 汇总层，那时才清楚全局怎么用它。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -384,12 +394,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D6 | `\s`、`str.strip()` | 认 U+001C 到 U+001F、U+0085（NEL）；**不**认 U+FEFF（BOM） | JS 的 `\s`/`trim()` **不**认前者、**认** U+FEFF | 逐码点实测各 6 个差异。U+FEFF 影响最大：Python 的 `strip()` 留着它，JS 的 `trim()` 去掉它——BOM 开头的文件两版本会得出不同结果。实现里**不用** `\s` 与 `trim()` 处理被扫文本，改用显式字符集（与 Python 的集合逐码点一致，由单测钉住） | 实现约束，不是放宽 |
 | D7 | `read_bytes` 对**不是常规文件**的路径 | Windows：`os.open` 目录抛 `PermissionError`；POSIX：能打开，再被 `fstat` 判成 `NotRegular`；FIFO 靠 `O_NONBLOCK` 不阻塞再判 `NotRegular` | 统一抛 `NotRegular`（继承 `OSError`），**不区分平台** | 两者都是 `OSError` 子类，所有读点都是 `except OSError` 一视同仁转未定；区分类名只会让 TS 版多一个平台分支。Python 自己的 selftest 在 Windows 上也因此把 FIFO 断言记 SKIP（目录占位「不等价」）。样本里 `d` 这一条按 D7 比对：Python 的 `PermissionError`、TS 的 `NotRegular` 都算「抛了 OSError 子类、没读」 | 实现时的归并，不改变任何调用方的行为 |
 | D8 | `O_NOFOLLOW`、`O_NONBLOCK`、`st_ino` | POSIX 上用来挡「末段被换成符号链接」「FIFO 阻塞」「打开后换目录再换回来」；Windows 上 Python 的 `getattr(os,'O_NOFOLLOW',0)` 为 0，**这三道防线在 Windows 上本来就是空的** | Node 的 `fs.constants.O_NOFOLLOW`/`O_NONBLOCK` 在 Windows 上是 `undefined`，同样取 0；`st_ino` 用 `bigint: true` 的 `fstat`/`stat`（Windows 上 Number 会丢精度：实测同一文件的 `ino` 在 Number 与 BigInt 下差 12） | 实测：本机 Windows 上 `fstat(fd).ino` 的 Number 值与 `stat(path, {bigint:true}).ino` 相差，**直接比较会把同一个文件判成两个**，所以必须全程 BigInt。Linux 上的真实防线要在 Ubuntu 容器里验证 | 实现约束；Windows 上这三道本来就是空的这件事如实写在这里，不假装有 |
+| D9 | git 环境加固里的「空串值」与「改本进程环境」 | `GIT_HARDEN_CONFIG` 里 `core.sshCommand` 等四项取 `true`（一个命令名）而不是空串，因为 Windows 上 Python 的 `os.environ[k] = ""` **不传给子进程**，丢一个 `GIT_CONFIG_VALUE_n` 而 `COUNT` 不变，git 报 `missing config value` 整条命令失败（本机实测复现：`rc=128`）。另外 Python 版在入口用 `scrub_git_env()` **一次性改写本进程的 `os.environ`**，此后所有 git 子进程继承 | ①取值**保持 `true`**，不改成空串；②**不照搬「改本进程环境」**：每次 `spawn` 显式传 `env` 对象，`core/git` 只提供「构造子进程环境」的纯函数，**永不写 `process.env`** | ①本机实测 Node 里两种写法（`process.env.X=""` 再继承、显式 `env` 对象）空串都能传到子进程，所以 Python 为此绕的弯在 TS 里不再必要；但改成空串会改变「被扫方配置里的 `core.sshCommand` 被什么覆盖」这一行为，`true` 的语义已被 Python 版的安全审计认可，**保持原取值更保守**。②**这是一个现在没人踩、将来很容易踩的坑，不是现在已经存在的风险**：`lib/index.js` 只导出守卫，`core/*` 与将来的 `checks/*` 不在导出链里，DSH 加载插件时**不会**在宿主进程里执行它们，现在只有独立 CLI 与测试会运行它们。但如果将来有人把检查器接成 DSH 的工具或命令（在宿主进程里调用），改 `process.env` 就会泄漏到宿主与别的插件。**设计上先堵住，不等出事** | 实现约束；② 是预防性的，已如实标明现在没有受影响的路径 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/git.ts` 完成，记 §12.10，新增 D9；`tracked_files` 推迟到汇总层 | 用恶意仓验证行为（先跑对照组证明外部程序确会被执行）；30 条变异 29 抓住、1 标未验证；textconv 的防线在调用方而非本模块，写进头注释防迁移时丢失 |
 | 2026-10-06 | 记 §12.9：fs 在 Ubuntu 上的验证；新增 `scripts/verify-ubuntu.ps1` 与仅 POSIX 变异 P1/P2 | 同一条变异在两个平台结论不同，查出是断言写在了会因偶然原因失败的位置；Windows 上本来就空的三道防线在 Linux 上补了验证 |
 | 2026-10-06 | `core/fs.ts` 完成，记 §12.8，新增 D7/D8 | 对 190 条夹具型黄金样本逐条一致；变异 20 条，16 抓住、4 如实标未验证、0 漏；`mutate.mjs` 新增复合变异与 `unobservable` 标注 |
 | 2026-10-06 | 阶段 2 开始：`core` 的 finding/yaml/dates 完成并记 §12.7 | 对 Python 单元黄金样本逐条一致；变异 29 条全抓住（首轮 4 条没抓住，补输入后抓住）；变异脚本事故后改为带哈希校验的独立脚本；一个 Python 分支穷举 62 万输入不可达，如实记未验证 |
