@@ -1,6 +1,6 @@
 # 项目状态
 
-status_revision：`35`
+status_revision：`36`
 corpus_version：`v0.7-theory-draft`  ← **全仓唯一权威版本号**。各文档不再各自声明版本（2026-09-03 去掉 26 处副本，取值曾在 v0.5/v0.6/v0.7 之间漂移）。冻结快照 `docs/归档/历史/`、研究材料与 `.staging/` 保留各自的版本号，那是它们被冻结时的值。  
 updated_at：2026-10-06
 last_status_change：2026-10-04（受支持宿主收为 DeepSeek Harness 一家，见 D-135；逐轮经过只看 git log 与审计记录）
@@ -46,7 +46,7 @@ last_status_change：2026-10-04（受支持宿主收为 DeepSeek Harness 一家�
 
 ## 下一步
 
-**D-135 已收尾（2026-10-05）**：守卫已装进本机 profile 并真跑过；提交闸门在 Windows 上经真实 `git commit` 走过；Reservoir、CMS、PMC-Planner 三个采用项目都已迁到 DSH 接法并推送（PMC-Planner 另按 ADR-0026 同时支持 Linux 与 Windows）。**还没验证**：子 agent 是否继承守卫；守卫在 Ubuntu 真实 DSH 里的行为（只在 Windows 的 `pwsh`／`write`／`edit` 三个工具名下观察过）。**待决（Alan 2026-10-05 定「不发」）**：标准仓 `main` 上 `tools/dsh-std/lib/policy.js` 比公开仓 tag `2026-10-05` 里的新（多了 PowerShell 方言与变量赋值两处误报修复），三个采用项目内嵌的仍是 tag 里那份。这两处只影响「守卫误问人」、不影响拦得住什么，所以**不为它单发新 tag、不让三个项目各多一个升级提交**，等下次有别的标准改动时一并发布；在此之前，在本机用标准仓那份（profile 链接的就是它，改后要重启 DSH 才加载）。
+**D-135 已收尾（2026-10-05）**：守卫已装进本机 profile 并真跑过；提交闸门在 Windows 上经真实 `git commit` 走过；Reservoir、CMS、PMC-Planner 三个采用项目都已迁到 DSH 接法并推送（PMC-Planner 另按 ADR-0026 同时支持 Linux 与 Windows）。**已验证（2026-10-06）**：子 agent 与 `subagent_fork` 两条路径都继承守卫（对 `.std/` 的 `write` 与重定向都被拒、未落盘）；插件单测在 Ubuntu 24.04＋Node 24 容器里（真实 `git clone`）471 条 0 失败（22 条是只在 Windows 成立的路径语义，跳过不算通过），Windows 本机 470 过 0 败；`bash` 工具名与 `pwsh` 同一套判定、只有转义方言不同。**不由本仓验证**：DSH 在 Ubuntu 上如何加载插件是 DSH 自己的行为。**待决（Alan 2026-10-05 定「不发」）**：标准仓 `main` 上 `tools/dsh-std/lib/policy.js` 比公开仓 tag `2026-10-05` 里的新（多了 PowerShell 方言与变量赋值两处误报修复），三个采用项目内嵌的仍是 tag 里那份。这两处只影响「守卫误问人」、不影响拦得住什么，所以**不为它单发新 tag、不让三个项目各多一个升级提交**，等下次有别的标准改动时一并发布；在此之前，在本机用标准仓那份（profile 链接的就是它，改后要重启 DSH 才加载）。
 
 当前工作：在两轮资料补充基础上，按用户确认的评审建议加入[反馈跨任务生效演练](标准/示例项目-连锁零售中台/反馈跨任务生效演练.md)，专项范围与检查见[完善记录](docs/审计记录/本轮完善记录.md#feedback-exercise)。下一步由采用项目选有原始证据的一条关键旅程试用，按[试点通过条件](标准/覆盖与采用检查.md#pilot-exit)及适用的反馈演练取证，验证执行效果与维护成本；尚未运行的分支保留未定。后续资料按真实缺口选取，研究正文的待裁事项仍只由决策索引管理。[D-057](docs/决策日志.md#effective-register) 于 2027-02-17 复审时，一并复核 [D-061](docs/决策日志.md#decision-index) 的六组跨章边界。2026-09-09 另追加一轮 OpenAI/Anthropic 官方近半年文章专项（管理/运维/上下文三方向共 13 张卡 M-21~25、O-16~20、C-20~22，落进 01/02/03/04），见[完善记录·追加专项](docs/审计记录/本轮完善记录.md#addendum-2026-09)。
 
