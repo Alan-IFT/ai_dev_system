@@ -228,7 +228,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/fs.ts`（受限读取：`inside`/`guard`/`readBytes`/`readText`/`countLines`）
     - [x] `core/git.ts`（git 子进程环境加固：`hardenedEnv`、`filterEnv`、`gitVersionProblem`、`shallowProblem`；`tracked_files` 因依赖 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 废弃）与 `scan_memo`，**推迟到 `check_all` 汇总层迁**）
     - [x] `core/config.ts`（配置加载与校验）、`core/cfg.ts`（`cfgGet`、状态词表、`leadWord`、`stateClass`）、`core/utf8.ts`（首个无效序列起点）
-    - [ ] `core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、工件落点、工作项）
+    - [x] `core/exceptions.ts`（例外登记册：`loadExceptions`、关闭态、表格解析、表头归类、日期运算）
+    - [ ] `core/docs.ts`（元信息、工件落点、工作项）
   - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
@@ -367,6 +368,19 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **两个我自己犯的错**：①第一次写黄金样本脚本时命令被拒，我用 `write` 工具重写；脚本里**两次生成逐字节不同**，查出是 `--config` 指向项目之外时 `_path` 是含随机临时目录名的绝对路径，已归一为 `<CONFIG_PATH>` 并另记 `path_key_is_abs`（它本身是契约的一部分：外部配置记绝对路径、项目内记相对路径）。②变异清单追加时，第一次用「替换文本锚点」去改 `make_unit.py`，**锚点没匹配上，整个脚本中止，黄金样本与变异清单都没改**，而我紧接着看到的「152 条」「29 条」其实是**旧值**——差点把它当成新结果。以后追加变异一律用 JSON 读写。
 - **一个收紧**：`readConfig` 里最初 `catch` 了「任何 `Error`」并记成「读不了」，这会把**检查器自己的程序错误**伪装成「配置读不了」。Python 只捕获 `OSError`；TS 版改成只吞本模块的拒读类与带 errno `code` 的系统错误，其余向外抛，变异 `C56` 与对应测试钉住。
 
+### 12.12 `core/exceptions.ts` 完成时量出来的事
+
+- **证据**：对 Python 黄金样本（`golden/unit/stdlib-exceptions.json`）逐条一致——关闭态 65 条、表格行拆分 27 条、表头归类 33 条、第一张表 65 条、`loadExceptions` 65 个 `exceptions.md` 样本（登记行 33、问题 24）、4 条原始字节、5 个运行日（含闰年）、6 种文件布局。变异验证 64 条：**Windows 与 Ubuntu 都是 62 抓住 + 2 条如实标注 + 0 漏**。
+- **UTF-8 诊断从「起点」扩展到「起点 + 终点 + 原因 + Python 整句文本」**：登记册读不了时 Python 把整句异常（`'utf-8' codec can't decode byte 0xe9 in position 2: invalid continuation byte`）塞进 `problems`，所以 `core/utf8.ts` 新增 `diagnoseUtf8` 与 `pyUtf8ErrorMessage`，对同样 406,900 个序列再穷举核对 `start`、`end`、`reason`、整句文本（两个独立哈希）。**一次全对，没有返工**——但那是因为我先用 Python 穷举出了五种信息形状（`byte 0xHH` 对 `bytes ... position N-M`、三种 reason）再写规则。
+- **D10（系统错误整句措辞不复现）与一次我自己改正的事实错误**：设计里我最初写「Windows 简体中文系统上是中文」——**那是凭印象写的**，查实本机（en-US）Python 的 `FileNotFoundError` 文本是 `[Errno 2] No such file or directory: ...`、`winerror` 为 `None`，与 POSIX 相同。已改正，并如实限定：我只验证过 en-US，**不对其它语言环境下结论**；TS 用固定措辞 `<异常类名>: <路径>`，不复现 `[Errno N] strerror`。
+- **变异首轮 65 条里 10 条没被抓住或无效**：
+  1. **锚点写错 4 条**（X3 到 X6）：模板字符串里的反斜杠转义层数，按源码真实文本改。
+  2. **等价变异 1 条删除**（X23）：表头包含匹配里「再看小写」——七个 token 全是中文，`lower()` 对中文恒等，改不改都一样。
+  3. **测试盲区补测试 4 条**：`ENOENT` 与别的 errno 的类名映射（`errnoName`）；自有例外的到期按严格模式（`日期 + 文字` 要被拒）；`dayNumber` 用本地时区还是 UTC——**需要在有夏令时、半小时偏移（`Asia/Kolkata`、`Australia/Lord_Howe`）、UTC+14、UTC−12 的时区下跑子进程比较结果，单在本机时区里永远看不出**；`todayLocal` 取本地日期还是 UTC（固定一个本地与 UTC 日期必然不同的时刻）。
+  4. **两条标 `unobservable`（X52、X53）**：见下一条。
+- **一个值得单独记的发现：`governance/` 本身是指向仓外的目录符号链接时，`loadExceptions` 单独调用会读到仓外的登记册内容**——Python 版如此（黄金样本 `echoed=True`），TS 版与之**一致**。我用真实入口 `check_all` 验证了影响面：默认读配置时 `load_config` 先判真实位置、拒读，**走不到登记册**，报告里没有仓外内容（`TOPSECRET` 未出现）。所以这是**上游一道防线兜住的下游缺口**，不是现行漏洞。我**没有擅自收紧**：收紧是行为改动，要走「有意差异」登记；且这里的价值是确认上游那道防线在 TS 里也在——`config` 的变异 `C51` 与本文件里一条 `loadConfig` 断言钉住它。`guard` 与护栏基准这两条变异因此无可观察差异，标 `unobservable` 并写明全部理由，不折算通过。**这是个应该告诉 Alan 的事：如果将来有人在 DSH 里直接调用登记册读取、绕过 `loadConfig`，缺口会暴露。**
+- **一个我写错的测试期望**：`addDays(2023-12-31, 59)` 我以为是闰日 2024-02-29，实际是 02-28（加 60 才是）；期望值要用 Python `date + timedelta` 实算，不要心算。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -409,12 +423,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D7 | `read_bytes` 对**不是常规文件**的路径 | Windows：`os.open` 目录抛 `PermissionError`；POSIX：能打开，再被 `fstat` 判成 `NotRegular`；FIFO 靠 `O_NONBLOCK` 不阻塞再判 `NotRegular` | 统一抛 `NotRegular`（继承 `OSError`），**不区分平台** | 两者都是 `OSError` 子类，所有读点都是 `except OSError` 一视同仁转未定；区分类名只会让 TS 版多一个平台分支。Python 自己的 selftest 在 Windows 上也因此把 FIFO 断言记 SKIP（目录占位「不等价」）。样本里 `d` 这一条按 D7 比对：Python 的 `PermissionError`、TS 的 `NotRegular` 都算「抛了 OSError 子类、没读」 | 实现时的归并，不改变任何调用方的行为 |
 | D8 | `O_NOFOLLOW`、`O_NONBLOCK`、`st_ino` | POSIX 上用来挡「末段被换成符号链接」「FIFO 阻塞」「打开后换目录再换回来」；Windows 上 Python 的 `getattr(os,'O_NOFOLLOW',0)` 为 0，**这三道防线在 Windows 上本来就是空的** | Node 的 `fs.constants.O_NOFOLLOW`/`O_NONBLOCK` 在 Windows 上是 `undefined`，同样取 0；`st_ino` 用 `bigint: true` 的 `fstat`/`stat`（Windows 上 Number 会丢精度：实测同一文件的 `ino` 在 Number 与 BigInt 下差 12） | 实测：本机 Windows 上 `fstat(fd).ino` 的 Number 值与 `stat(path, {bigint:true}).ino` 相差，**直接比较会把同一个文件判成两个**，所以必须全程 BigInt。Linux 上的真实防线要在 Ubuntu 容器里验证 | 实现约束；Windows 上这三道本来就是空的这件事如实写在这里，不假装有 |
 | D9 | git 环境加固里的「空串值」与「改本进程环境」 | `GIT_HARDEN_CONFIG` 里 `core.sshCommand` 等四项取 `true`（一个命令名）而不是空串，因为 Windows 上 Python 的 `os.environ[k] = ""` **不传给子进程**，丢一个 `GIT_CONFIG_VALUE_n` 而 `COUNT` 不变，git 报 `missing config value` 整条命令失败（本机实测复现：`rc=128`）。另外 Python 版在入口用 `scrub_git_env()` **一次性改写本进程的 `os.environ`**，此后所有 git 子进程继承 | ①取值**保持 `true`**，不改成空串；②**不照搬「改本进程环境」**：每次 `spawn` 显式传 `env` 对象，`core/git` 只提供「构造子进程环境」的纯函数，**永不写 `process.env`** | ①本机实测 Node 里两种写法（`process.env.X=""` 再继承、显式 `env` 对象）空串都能传到子进程，所以 Python 为此绕的弯在 TS 里不再必要；但改成空串会改变「被扫方配置里的 `core.sshCommand` 被什么覆盖」这一行为，`true` 的语义已被 Python 版的安全审计认可，**保持原取值更保守**。②**这是一个现在没人踩、将来很容易踩的坑，不是现在已经存在的风险**：`lib/index.js` 只导出守卫，`core/*` 与将来的 `checks/*` 不在导出链里，DSH 加载插件时**不会**在宿主进程里执行它们，现在只有独立 CLI 与测试会运行它们。但如果将来有人把检查器接成 DSH 的工具或命令（在宿主进程里调用），改 `process.env` 就会泄漏到宿主与别的插件。**设计上先堵住，不等出事** | 实现约束；② 是预防性的，已如实标明现在没有受影响的路径 |
+| D10 | 例外登记册读不了时 `problems` 里的**整句异常文本** | `"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)`，`exc` 的 `str` 随异常类而异：`FileNotFoundError` 是 `[Errno 2] No such file or directory: '路径'`、目录是 `PermissionError`（`[Errno 13] Permission denied: '路径'`）——**本机 en-US 实测如此**（Windows 与 POSIX 在这两类上文本相同；`winerror` 为 None）；非 UTF-8 是 `'utf-8' codec can't decode byte 0xe9 in position 2: invalid continuation byte` | **UTF-8 解码失败**的整句文本与 Python **逐字一致**（`pyUtf8ErrorMessage`，对 406,900 个序列穷举核对）；**系统错误**用 `<ErrnoName>: <path>` 的固定措辞（如 `FileNotFoundError: <path>`），**不复现 `[Errno N] strerror` 这一句**；本模块的拒读类（出仓、超限、非常规文件）保持自己的文本不变 | 系统错误的 `strerror` 来自 C 运行库或操作系统，**可能随系统语言与版本变**（我只在 en-US 的 Windows 上验证过英文文本，没有验证过其它语言环境，不对它们下结论）；复现它既无法保证、也没有价值——它只出现在「登记册读不了」这条未定的 `reason` 里给人看，不参与任何判定、不被抄进登记册（规则列只抄 Finding id）。非 UTF-8 的文本由 Python 解码器生成、不依赖系统语言，保持逐字一致。**对比黄金样本时，系统错误类的 problem 按「异常类名 + 路径归一」比，不按整句** | 实现约束；影响面仅限一条未定的说明文字 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/exceptions.ts` 完成，记 §12.12，新增 D10；UTF-8 诊断扩展到终点、原因与整句文本 | 65 个登记册样本等逐条一致；变异 64 条两平台 62 抓住 2 标未验证 0 漏；发现 governance 出仓目录链接时登记册读取的下游缺口（被上游 loadConfig 兜住，与 Python 一致，未擅自收紧）；D10 里一处凭印象写的事实经实测改正 |
 | 2026-10-06 | `core/config.ts`/`cfg.ts`/`utf8.ts` 完成，记 §12.11 | 104 条配置用例含精确报错信息逐条一致；UTF-8 起点穷举 406900 个序列；变异 78 条 Ubuntu 全抓住；发现并堵住 `__proto__` 键的 JS 特有缺陷；首轮 16 条变异没抓住按五类处理 |
 | 2026-10-06 | `core/git.ts` 完成，记 §12.10，新增 D9；`tracked_files` 推迟到汇总层 | 用恶意仓验证行为（先跑对照组证明外部程序确会被执行）；30 条变异 29 抓住、1 标未验证；textconv 的防线在调用方而非本模块，写进头注释防迁移时丢失 |
 | 2026-10-06 | 记 §12.9：fs 在 Ubuntu 上的验证；新增 `scripts/verify-ubuntu.ps1` 与仅 POSIX 变异 P1/P2 | 同一条变异在两个平台结论不同，查出是断言写在了会因偶然原因失败的位置；Windows 上本来就空的三道防线在 Linux 上补了验证 |

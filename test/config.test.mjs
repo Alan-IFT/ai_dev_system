@@ -232,7 +232,7 @@ test('leadWord / stateClass：长别名优先；别名之后须是结尾或非�
 })
 
 // ---- utf8.ts ----
-test('firstInvalidUtf8：对 Python 的 UnicodeDecodeError.start 穷举一致（25 个边界字节 × 长度 1 到 4，共 406900 个序列）', () => {
+test('firstInvalidUtf8：对 Python 的 UnicodeDecodeError.start 穷举一致（边界字节 × 长度 1 到 4，规格见黄金样本）', () => {
   const spec = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'utf8-start.json'), 'utf8'))
   const h = createHash('sha256'); let n = 0, valid = 0
   const rec = (arr) => { const s = firstInvalidUtf8(Uint8Array.from(arr)); h.update(String(s) + ','); if (s === -1) valid++; n++ }

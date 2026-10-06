@@ -29,6 +29,13 @@
  "count": 406900,
  "maxlen": 4,
  "python": "3.12.14",
+ "reasons": {
+  "invalid continuation byte": 208500,
+  "invalid start byte": 190540,
+  "unexpected end of data": 5280
+ },
  "sha256": "b289138b1cc364a412c5805e2d73aa8b80ee01c0b24c6cc2980f5343747d872f",
+ "sha256_full": "bfd9365167c12ca5af54ea76833ba04be5b61ff0161cf635e415c706b16fe95d",
+ "sha256_start": "b289138b1cc364a412c5805e2d73aa8b80ee01c0b24c6cc2980f5343747d872f",
  "valid": 2580
 }

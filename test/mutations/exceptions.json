@@ -1,0 +1,452 @@
+[
+ {
+  "id": "X1",
+  "title": "关闭词表少 done",
+  "file": "src/core/exceptions.ts",
+  "from": "(?:关闭|已关闭|closed|done|已处理)",
+  "to": "(?:关闭|已关闭|closed|已处理)"
+ },
+ {
+  "id": "X2",
+  "title": "关闭词表少 已处理",
+  "file": "src/core/exceptions.ts",
+  "from": "|done|已处理)",
+  "to": "|done)"
+ },
+ {
+  "id": "X3",
+  "title": "关闭态不要求整词（去掉前瞻）",
+  "file": "src/core/exceptions.ts",
+  "from": "(?=$|${WS}|[*\\`（(【\\\\[：:。.])`)",
+  "to": "`)"
+ },
+ {
+  "id": "X4",
+  "title": "关闭态前瞻漏冒号",
+  "file": "src/core/exceptions.ts",
+  "from": "[*\\`（(【\\\\[：:。.]",
+  "to": "[*\\`（(【\\\\[：。.]"
+ },
+ {
+  "id": "X5",
+  "title": "关闭态前瞻漏全角括号",
+  "file": "src/core/exceptions.ts",
+  "from": "[*\\`（(【\\\\[：:。.]",
+  "to": "[*\\`(【\\\\[：:。.]"
+ },
+ {
+  "id": "X6",
+  "title": "关闭态前瞻漏句号",
+  "file": "src/core/exceptions.ts",
+  "from": "[*\\`（(【\\\\[：:。.]",
+  "to": "[*\\`（(【\\\\[：:。]"
+ },
+ {
+  "id": "X7",
+  "title": "关闭态按「含词即关闭」判（去掉 ^ 锚）",
+  "file": "src/core/exceptions.ts",
+  "from": "new RegExp(`^(?:关闭",
+  "to": "new RegExp(`(?:关闭"
+ },
+ {
+  "id": "X8",
+  "title": "关闭态不转小写",
+  "file": "src/core/exceptions.ts",
+  "from": "for (const seg of status.toLowerCase().split(",
+  "to": "for (const seg of status.split("
+ },
+ {
+  "id": "X9",
+  "title": "关闭态不按分号切段",
+  "file": "src/core/exceptions.ts",
+  "from": "split(/[，,;；、/|]+/)",
+  "to": "split(/[，,、/|]+/)"
+ },
+ {
+  "id": "X10",
+  "title": "关闭态不按斜杠切段",
+  "file": "src/core/exceptions.ts",
+  "from": "split(/[，,;；、/|]+/)",
+  "to": "split(/[，,;；、|]+/)"
+ },
+ {
+  "id": "X11",
+  "title": "关闭态不按竖线切段",
+  "file": "src/core/exceptions.ts",
+  "from": "split(/[，,;；、/|]+/)",
+  "to": "split(/[，,;；、/]+/)"
+ },
+ {
+  "id": "X12",
+  "title": "关闭态不去段首尾的加粗与反引号",
+  "file": "src/core/exceptions.ts",
+  "from": "const s = stripAround(pyStrip(seg), '*`')",
+  "to": "const s = pyStrip(seg)"
+ },
+ {
+  "id": "X13",
+  "title": "关闭态只去加粗不去反引号",
+  "file": "src/core/exceptions.ts",
+  "from": "stripAround(pyStrip(seg), '*`')",
+  "to": "stripAround(pyStrip(seg), '*')"
+ },
+ {
+  "id": "X14",
+  "title": "关闭态切段后不去首尾空白",
+  "file": "src/core/exceptions.ts",
+  "from": "const s = stripAround(pyStrip(seg), '*`')\n    if (EX_CLOSED_RE.test(pyStrip(s))) return true",
+  "to": "const s = stripAround(seg, '*`')\n    if (EX_CLOSED_RE.test(s)) return true"
+ },
+ {
+  "id": "X15",
+  "title": "拆单元格：转义竖线也拆",
+  "file": "src/core/exceptions.ts",
+  "from": "cur.push(ch === '|' ? ch : '\\\\' + ch)",
+  "to": "cur.push(ch)"
+ },
+ {
+  "id": "X16",
+  "title": "拆单元格：转义后非竖线丢掉反斜杠",
+  "file": "src/core/exceptions.ts",
+  "from": "cur.push(ch === '|' ? ch : '\\\\' + ch)",
+  "to": "cur.push(ch)"
+ },
+ {
+  "id": "X17",
+  "title": "拆单元格：末尾的转义竖线也被当成表格结束符去掉",
+  "file": "src/core/exceptions.ts",
+  "from": "if (s.endsWith('|') && !s.endsWith('\\\\|')) s = s.slice(0, -1)",
+  "to": "if (s.endsWith('|')) s = s.slice(0, -1)"
+ },
+ {
+  "id": "X18",
+  "title": "拆单元格：不去前导竖线",
+  "file": "src/core/exceptions.ts",
+  "from": "if (s.startsWith('|')) s = s.slice(1)",
+  "to": ""
+ },
+ {
+  "id": "X19",
+  "title": "拆单元格：行尾孤立反斜杠丢掉",
+  "file": "src/core/exceptions.ts",
+  "from": "if (esc) cur.push('\\\\')",
+  "to": ""
+ },
+ {
+  "id": "X20",
+  "title": "todayLocal 改成 UTC 日期",
+  "file": "src/core/exceptions.ts",
+  "from": "return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }",
+  "to": "return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1, day: now.getUTCDate() }"
+ },
+ {
+  "id": "X21",
+  "title": "表头：id 不要求整格（按包含）",
+  "file": "src/core/exceptions.ts",
+  "from": "if (pyStrip(headerCell).toLowerCase() === 'id') return 'ex_id'",
+  "to": "if (headerCell.toLowerCase().includes('id')) return 'ex_id'"
+ },
+ {
+  "id": "X22",
+  "title": "表头：id 区分大小写",
+  "file": "src/core/exceptions.ts",
+  "from": "if (pyStrip(headerCell).toLowerCase() === 'id') return 'ex_id'",
+  "to": "if (pyStrip(headerCell) === 'id') return 'ex_id'"
+ },
+ {
+  "id": "X24",
+  "title": "表头：词表顺序颠倒（先命中者变成最后命中）",
+  "file": "src/core/exceptions.ts",
+  "from": "['编号', 'ex_id'], ['规则', 'rule'], ['理由', 'reason'], ['范围', 'scope'], ['批准', 'approver'], ['到期', 'expires'], ['状态', 'status'],",
+  "to": "['状态', 'status'], ['到期', 'expires'], ['批准', 'approver'], ['范围', 'scope'], ['理由', 'reason'], ['规则', 'rule'], ['编号', 'ex_id'],"
+ },
+ {
+  "id": "X25",
+  "title": "表头：重复列时后者覆盖前者",
+  "file": "src/core/exceptions.ts",
+  "from": "if (cols.has(field)) { dup.push(field); return }",
+  "to": "if (cols.has(field)) { dup.push(field) }"
+ },
+ {
+  "id": "X26",
+  "title": "表头：重复列不报问题",
+  "file": "src/core/exceptions.ts",
+  "from": "if (dup.length) problems.push(",
+  "to": "if (false) problems.push("
+ },
+ {
+  "id": "X27",
+  "title": "表头：重复列名不去重排序",
+  "file": "src/core/exceptions.ts",
+  "from": "[...new Set(dup)].sort().join('、')",
+  "to": "dup.join('、')"
+ },
+ {
+  "id": "X28",
+  "title": "找表：分隔行不认冒号对齐",
+  "file": "src/core/exceptions.ts",
+  "from": ":?-+:?${WS}*\\\\|)+$`)",
+  "to": "-+${WS}*\\\\|)+$`)"
+ },
+ {
+  "id": "X30",
+  "title": "找表：首行不要求以 | 起头",
+  "file": "src/core/exceptions.ts",
+  "from": "if (!pyStrip(lines[i]!).startsWith('|')) continue",
+  "to": ""
+ },
+ {
+  "id": "X31",
+  "title": "数据行：表在空行处不结束",
+  "file": "src/core/exceptions.ts",
+  "from": "while (j < lines.length && pyStrip(lines[j]!).startsWith('|')) {",
+  "to": "while (j < lines.length && (pyStrip(lines[j]!).startsWith('|') || !pyStrip(lines[j]!))) {"
+ },
+ {
+  "id": "X32",
+  "title": "数据行：全空行也处理",
+  "file": "src/core/exceptions.ts",
+  "from": "if (!cells.some((c) => c)) continue",
+  "to": ""
+ },
+ {
+  "id": "X33",
+  "title": "关闭态不先判",
+  "file": "src/core/exceptions.ts",
+  "from": "    if (exClosed(status)) continue // 先判关闭\n",
+  "to": ""
+ },
+ {
+  "id": "X34",
+  "title": "规则列不去反引号",
+  "file": "src/core/exceptions.ts",
+  "from": "const rule = pyStrip(stripAround(pyStrip(get('rule')), '`'))",
+  "to": "const rule = pyStrip(get('rule'))"
+ },
+ {
+  "id": "X35",
+  "title": "项目自有例外也校验五项（不走自有分支）",
+  "file": "src/core/exceptions.ts",
+  "from": "if (!rule.includes('/')) { // 项目自己的例外：只取到期",
+  "to": "if (false) { // 项目自己的例外：只取到期"
+ },
+ {
+  "id": "X36",
+  "title": "自有例外的到期不用严格模式",
+  "file": "src/core/exceptions.ts",
+  "from": "const [day, err] = parseDate(expiresRaw, true)\n      own.push",
+  "to": "const [day, err] = parseDate(expiresRaw, false)\n      own.push"
+ },
+ {
+  "id": "X37",
+  "title": "认领规则：改成斜杠分段数不少于 3",
+  "file": "src/core/exceptions.ts",
+  "from": "if (!rule.includes('/')) {",
+  "to": "if (rule.split('/').length < 3) {"
+ },
+ {
+  "id": "X38",
+  "title": "五项里漏「批准人」",
+  "file": "src/core/exceptions.ts",
+  "from": "['范围', scope], ['批准人', approver]] as const",
+  "to": "['范围', scope]] as const"
+ },
+ {
+  "id": "X39",
+  "title": "五项里漏「范围」",
+  "file": "src/core/exceptions.ts",
+  "from": "['理由', reason], ['范围', scope], ['批准人', approver]]",
+  "to": "['理由', reason], ['批准人', approver]]"
+ },
+ {
+  "id": "X40",
+  "title": "五项里漏「理由」",
+  "file": "src/core/exceptions.ts",
+  "from": "[['规则', rule], ['理由', reason], ['范围', scope]",
+  "to": "[['规则', rule], ['范围', scope]"
+ },
+ {
+  "id": "X41",
+  "title": "到期严格模式放宽（日期 + 文字也收）",
+  "file": "src/core/exceptions.ts",
+  "from": "const [day, err] = parseDate(expiresRaw, true)\n    if (day === null)",
+  "to": "const [day, err] = parseDate(expiresRaw, false)\n    if (day === null)"
+ },
+ {
+  "id": "X42",
+  "title": "缺项信息不带 tag（编号）",
+  "file": "src/core/exceptions.ts",
+  "from": "const tag = exId ? `（${exId}）` : ''",
+  "to": "const tag = ''"
+ },
+ {
+  "id": "X43",
+  "title": "缺项分隔用逗号而不是顿号",
+  "file": "src/core/exceptions.ts",
+  "from": "缺：${missing.join('、')}",
+  "to": "缺：${missing.join(',')}"
+ },
+ {
+  "id": "X44",
+  "title": "internal-error 不拦",
+  "file": "src/core/exceptions.ts",
+  "from": "if (rule.split('/')[1] === INTERNAL_ERROR_KIND) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "X45",
+  "title": "internal-error 判第一段而不是第二段",
+  "file": "src/core/exceptions.ts",
+  "from": "if (rule.split('/')[1] === INTERNAL_ERROR_KIND) {",
+  "to": "if (rule.split('/')[0] === INTERNAL_ERROR_KIND) {"
+ },
+ {
+  "id": "X46",
+  "title": "internal-error 判任意段",
+  "file": "src/core/exceptions.ts",
+  "from": "if (rule.split('/')[1] === INTERNAL_ERROR_KIND) {",
+  "to": "if (rule.split('/').includes(INTERNAL_ERROR_KIND)) {"
+ },
+ {
+  "id": "X47",
+  "title": "到期上限用 >=（正好等于上限也拒）",
+  "file": "src/core/exceptions.ts",
+  "from": "if (compareDays(day!, lim) > 0) {",
+  "to": "if (compareDays(day!, lim) >= 0) {"
+ },
+ {
+  "id": "X48",
+  "title": "到期上限改成 366 天",
+  "file": "src/core/exceptions.ts",
+  "from": "export const EXCEPTION_MAX_DAYS = 365",
+  "to": "export const EXCEPTION_MAX_DAYS = 366"
+ },
+ {
+  "id": "X49",
+  "title": "到期上限改成 364 天",
+  "file": "src/core/exceptions.ts",
+  "from": "export const EXCEPTION_MAX_DAYS = 365",
+  "to": "export const EXCEPTION_MAX_DAYS = 364"
+ },
+ {
+  "id": "X50",
+  "title": "运行日忽略参数、总取系统日期",
+  "file": "src/core/exceptions.ts",
+  "from": "const lim = addDays(today ?? todayLocal(), EXCEPTION_MAX_DAYS)",
+  "to": "const lim = addDays(todayLocal(), EXCEPTION_MAX_DAYS)"
+ },
+ {
+  "id": "X51",
+  "title": "登记行 expires 不是 ISO 串",
+  "file": "src/core/exceptions.ts",
+  "from": "expires: toIso(day!), expires_date: day!",
+  "to": "expires: expiresRaw, expires_date: day!"
+ },
+ {
+  "id": "X52",
+  "title": "护栏不判（符号链接出仓可读）",
+  "file": "src/core/exceptions.ts",
+  "from": "    guard(base, path)\n",
+  "to": "",
+  "unobservable": "护栏 guard(base, path) 在本模块里是纵深防御的第二道：上游 loadConfig 对出仓的 governance 先拒读，真实入口走不到这里。单独调用时，Python 版（黄金样本 echoed=True）与 TS 都读得到——因为 governance 本身是链接目录，字面与真实位置都被链接带走、都落在「base=config_dir」之内。所以去掉 guard 对外部行为没有可观察差异。**保持与 Python 一致，不擅自收紧**（收紧是有意差异，要登记）；上游那道防线由 config 的变异 C51 与本文件里的 loadConfig 断言钉住"
+ },
+ {
+  "id": "X53",
+  "title": "护栏基准：总是用配置目录",
+  "file": "src/core/exceptions.ts",
+  "from": "const base = root && inside(root, configDir) ? root : configDir",
+  "to": "const base = configDir",
+  "unobservable": "同 X52：护栏基准取项目根还是 config_dir，只在 config_dir 是出仓链接目录时才有差别，而那时 Python 与 TS 的结论一致（都读得到）。真实入口由上游 loadConfig 拦住"
+ },
+ {
+  "id": "X54",
+  "title": "护栏基准：外部配置目录也用项目根",
+  "file": "src/core/exceptions.ts",
+  "from": "const base = root && inside(root, configDir) ? root : configDir",
+  "to": "const base = root ?? configDir"
+ },
+ {
+  "id": "X55",
+  "title": "不存在时返回问题而不是空",
+  "file": "src/core/exceptions.ts",
+  "from": "if (!lexists(path)) return [[], [], null, []]",
+  "to": "if (!lexists(path)) return [[], ['不存在'], null, []]"
+ },
+ {
+  "id": "X56",
+  "title": "是目录时返回 path 而不是 null",
+  "file": "src/core/exceptions.ts",
+  "from": "if (!isFile(path)) return [[], [], null, []]",
+  "to": "if (!isFile(path)) return [[], [], path, []]"
+ },
+ {
+  "id": "X57",
+  "title": "BOM 不去",
+  "file": "src/core/exceptions.ts",
+  "from": "const body = raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf ? raw.subarray(3) : raw",
+  "to": "const body = raw"
+ },
+ {
+  "id": "X58",
+  "title": "非 UTF-8 不拒",
+  "file": "src/core/exceptions.ts",
+  "from": "if (bad) return [[], [`${EXCEPTIONS_FILE} 读不了：${pyUtf8ErrorMessage(body, bad)}`], path, []]",
+  "to": ""
+ },
+ {
+  "id": "X60",
+  "title": "系统错误措辞带 [Errno]（违反 D10）",
+  "file": "src/core/exceptions.ts",
+  "from": "`${EXCEPTIONS_FILE} 读不了：${errnoName(code)}: ${path}`",
+  "to": "`${EXCEPTIONS_FILE} 读不了：[Errno 2] ${errnoName(code)}: ${path}`"
+ },
+ {
+  "id": "X61",
+  "title": "程序错误被吞成读不了",
+  "file": "src/core/exceptions.ts",
+  "from": "    throw e\n  }\n  const table",
+  "to": "    return [[], [`${EXCEPTIONS_FILE} 读不了`], path, []]\n  }\n  const table"
+ },
+ {
+  "id": "X62",
+  "title": "没有表时的措辞改了",
+  "file": "src/core/exceptions.ts",
+  "from": "里没有 markdown 表；本工具只读第一张表",
+  "to": "里没有表"
+ },
+ {
+  "id": "X63",
+  "title": "errnoName 把 ENOENT 映射成 OSError",
+  "file": "src/core/exceptions.ts",
+  "from": "if (code === 'ENOENT') return 'FileNotFoundError'",
+  "to": "if (code === 'ENOENT') return 'OSError'"
+ },
+ {
+  "id": "X64",
+  "title": "errnoName 把 EACCES 映射成 OSError",
+  "file": "src/core/exceptions.ts",
+  "from": "if (code === 'EACCES' || code === 'EPERM') return 'PermissionError'",
+  "to": ""
+ },
+ {
+  "id": "X65",
+  "title": "dayNumber 用本地时区构造日期",
+  "file": "src/core/exceptions.ts",
+  "from": "return Math.floor(Date.UTC(d.year, d.month - 1, d.day) / 86_400_000)",
+  "to": "return Math.floor(new Date(d.year, d.month - 1, d.day).getTime() / 86_400_000)"
+ },
+ {
+  "id": "X66",
+  "title": "compareDays 反号",
+  "file": "src/core/exceptions.ts",
+  "from": "return dayNumber(a) - dayNumber(b)",
+  "to": "return dayNumber(b) - dayNumber(a)"
+ },
+ {
+  "id": "X67",
+  "title": "fromDayNumber 用本地时区取分量",
+  "file": "src/core/exceptions.ts",
+  "from": "return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() }",
+  "to": "return { year: dt.getFullYear(), month: dt.getMonth() + 1, day: dt.getDate() }"
+ }
+]
