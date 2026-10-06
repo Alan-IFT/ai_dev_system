@@ -1,0 +1,481 @@
+[
+ {
+  "check": "adoption",
+  "id": "adoption/60a5c980",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8714bd62",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8baf1c92",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION:1"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/compatibility-policy",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/project.yaml"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/settings-absent",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/48466a1d",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "derived-artifacts",
+  "id": "derived-artifacts/88dac3ad",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-dir-unlocated",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/7eedd157",
+  "registered": null,
+  "status": "PASS",
+  "where": "CONTEXT_MANIFEST.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/handoff_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/module_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/status_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/work_item_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/work-root-absent",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/035edce4",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/会话交接.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/038ffd94",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/架构图/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/0cb48a98",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/31-守卫与权限边界.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/0e493fc4",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/08-规范效力元治理.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/31827207",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/图工程落地包/04-接入与验收清单.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/42d99139",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/20-状态工件.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5024e5d4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/架构确定.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5180f3ce",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/30-验证与测试.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/51bf12d6",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/决策日志.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/55fa0955",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/图工程落地包/02-记忆管理落地设计.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5a54a5f2",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/DSH载体映射.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5ab3a0f4",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/机制类型清单.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/670387c1",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/09-跨工具通用性.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/758861fb",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/79f7f968",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/载体过期登记.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7d2aeb0e",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/失败Case清单.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/831b7e17",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/24-工具与执行环境.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/84388501",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/图工程落地包/05-图形态工作流落地规范.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/85dac21b",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/术语表.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9bf38714",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/记忆候选内容槽位.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9dbfcd20",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/40-人的检查点与授权.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a1ae616d",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/图工程落地包/01-上下文管理落地设计.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a7feb3cc",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/00-总览.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a9537a39",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/图工程落地包/03-通用落地套件.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b09a6a30",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/12-记忆与知识治理.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b2a515b7",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/32-证据与追踪.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b8368109",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/22-上下文装配.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c81d55a1",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/25-执行者与模型.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/cc90e048",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/33-评估与演进.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ce604dcd",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/11-项目知识.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d69ddc97",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/23-方法库.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d7e418bd",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/附录-载体实例/仓库工作须知.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/de3370bf",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/21-调度与拆分.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/e2847c5d",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/10-意图与验收.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/e6837445",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/追溯账本.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ef7ea5cb",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/重构设计-TS插件化.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/frozen-docs",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/work-root-absent",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/06f51c69",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/决策日志.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/35655849",
+  "registered": null,
+  "status": "PASS",
+  "where": "PROJECT_STATUS.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/46549a1c",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "layout",
+  "id": "layout/7a5d1a4b",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "layout",
+  "id": "layout/9ba65230",
+  "registered": null,
+  "status": "PASS",
+  "where": "CONTEXT_MANIFEST.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/cdf1b608",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/失败Case清单.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/edd26568",
+  "registered": null,
+  "status": "PASS",
+  "where": "PROJECT_STATUS.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/fb0efc06",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/附录-载体实例/仓库工作须知.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/fbd365e2",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/附录-载体实例/会话交接.md"
+ },
+ {
+  "check": "links",
+  "id": "links/1a410fe2",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/0eb1835e",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/14:个:部件",
+  "registered": {
+   "expires": "2027-03-02",
+   "id": "EX-001"
+  },
+  "status": "UNDETERMINED",
+  "where": "docs/决策日志.md:23"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/eca01990",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/nondoc-dup-block",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "tool-identity",
+  "id": "tool-identity/f171a26b",
+  "registered": null,
+  "status": "SKIP",
+  "where": "tools/std/"
+ }
+]

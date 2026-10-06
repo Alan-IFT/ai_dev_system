@@ -1,0 +1,1079 @@
+[
+ {
+  "check": "adoption",
+  "id": "adoption/60a5c980",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8714bd62",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8baf1c92",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION:1"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/compatibility-policy",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/project.yaml"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/settings-absent",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/051753c4",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/0e15ea74",
+  "registered": null,
+  "status": "PASS",
+  "where": "."
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/14df17c0",
+  "registered": null,
+  "status": "PASS",
+  "where": "."
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/45e697fa",
+  "registered": null,
+  "status": "PASS",
+  "where": "./AGENTS.md"
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/5bec329a",
+  "registered": null,
+  "status": "SKIP",
+  "where": "（未声明 path）"
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/a733d73d",
+  "registered": null,
+  "status": "PASS",
+  "where": "./AGENTS.md"
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/af9a8b76",
+  "registered": null,
+  "status": "PASS",
+  "where": "（未声明 path）"
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/alias-residue",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-017"
+  },
+  "status": "UNDETERMINED",
+  "where": null
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/dd2cf80e",
+  "registered": null,
+  "status": "SKIP",
+  "where": "（未声明 path）"
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/faf975bb",
+  "registered": null,
+  "status": "SKIP",
+  "where": "（未声明 path）"
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/too-few-local",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "derived-artifacts",
+  "id": "derived-artifacts/88dac3ad",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-index-unreadable/docs/decisions/README.md",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-021"
+  },
+  "status": "UNDETERMINED",
+  "where": "docs/decisions/README.md"
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-revision/docs/decisions/async-report-runs-and-live-log.md",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-023"
+  },
+  "status": "UNDETERMINED",
+  "where": "docs/decisions/async-report-runs-and-live-log.md:567"
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/1e79bfbc",
+  "registered": null,
+  "status": "PASS",
+  "where": "AGENTS.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/48080091",
+  "registered": null,
+  "status": "PASS",
+  "where": "README.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/handoff_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/module_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/status_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/work_item_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/1829dd77",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-274-重要文档补状态字段.md:51"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/338fd4d0",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-252-英集请求串行锁.md:109"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/45075d5d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-253-报表异步触发与实时日志.md:241"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/48273ed1",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-255-铺市活动目标表模板.md:138"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/6be05f94",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-251-凭据字段规格后端下发.md:87"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/7356667e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-227-audit-2026-07-round3.md:20"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/7cb289da",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-261-源数据日缓存与限流告警.md:99"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/925e125c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-260-英集请求拟真与风控规避.md:177"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/9fe72bf9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-250-外部凭据入库.md:347"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/a98b0e71",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-263-审计修复三条.md:134"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/c1712058",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-259-预演体验缺陷三条.md:96"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/d4c9a469",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-256-预演缺陷修复三条.md:143"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/db666702",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-254-英集多账号与按报表指定.md:290"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/e12a0cfa",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-249-alembic-零漂移.md:90"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/e79ccc99",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-257-铺市活动信息自由键与推广期.md:240"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/not-done",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/011dea2c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/deploy-chain-audit-2026-09.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/016ef14b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-242-auto-deploy-on-ci-green-main.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/03d01033",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/alembic-zero-drift.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/11f95807",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-254-英集多账号与按报表指定.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1724e55f",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-227-audit-2026-07-round3.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1fac9564",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/full-audit-2026-09.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/26daa1ec",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/yingji-multi-account.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/2b322a9a",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-248-生产机重置与三仓上线.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/2f379582",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/ops/pitr-runbook.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/31219da9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/divergence-from-monolith.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/328ac759",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/runtime-settings-in-db.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/33094e87",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/B-254/implementation-plan.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/341c95e5",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-255-铺市活动目标表模板.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/36b66db9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/accepted-risks-2026-09.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3710fb9c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-250-外部凭据入库.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/40e91ab8",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/B-253/implementation-plan.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/46e38e8a",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-252-英集请求串行锁.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/49cc278e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/three-layer-architecture.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/4bcaca72",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/ops/go-live-checklist.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/58d46f06",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/59330a2e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-251-凭据字段规格后端下发.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5cb9480e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-264-销售4148已结束窗口日缓存.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5db6118e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-270-前端审计第二遍修复七条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5f1de6ff",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-261-源数据日缓存与限流告警.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/68801d4e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-272-定时报表失败不重试改企微提醒.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6a5f10e7",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/focus-daily-reports-2026-09.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6dc9b2b2",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-265-前端审计修复九条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6eaa21c0",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/B-250/implementation-plan.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6fdd9641",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/redact-at-every-outlet.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/71ebb17c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-246-adopt-and-deploy-seam-cleanups.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/72f8ed3f",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-274-重要文档补状态字段.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/73881c2b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-256-预演缺陷修复三条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7c03dc79",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/float-residue-quantize-at-use.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7e7a47a8",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/dev-map.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7ec2e439",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-258-L3验证冲刺-045第7节.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7ecc01ea",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-260-英集请求拟真与风控规避.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8131e975",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/insight-history.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/840d44f6",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/integration/yingji-data-requirements.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/88f66fd4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/ops/data-root-and-mirror.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8b0376ca",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/timezone-asia-shanghai-pinned-at-connection.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8e04cef4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/insight-index.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8e42b090",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/yingji-4148-dedup-deferred.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8f2987c8",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/version-pin.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9644b528",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/standard-version-upgrades.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9aaa6fac",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-262-试行改验收文件前询问.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9eaa0828",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/reports.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a0f6884f",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/ops/credential-locations.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a3c5dab6",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-257-铺市活动信息自由键与推广期.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/acdf3eb8",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/deploy-smoke-gate-plan.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b170e5aa",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/measure-what-the-parser-consumes.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b4f897d3",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/B-250/task-5-behaviour-table.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b73293cf",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/env-single-parser.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/bc2bc5c7",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/deploy-source-identity.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/bc4a23e3",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/backup-verify-at-landing.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/bc90a8c8",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/ops/casbin-authz.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/be88bfd0",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-253-报表异步触发与实时日志.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c0270971",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/scheduler-off-yingji-risk-control.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c030176d",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/table-rendering.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c8a28a51",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-271-上传与渲染审计修复六条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c90272cb",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/B-258/raw/p15-verifier.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c9620130",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-263-审计修复三条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ce81aa3e",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/B-258/raw/p10v3-plan.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ced31e5f",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-268-运维脚本与配置守卫审计修复九条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d24cca3d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-273-非强关联配置迁入数据库.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d8983917",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-249-alembic-零漂移.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ded00769",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-267-报表逻辑与推送审计修复六条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/df76ea73",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-262-试行改验收文件前询问.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/e1d616d0",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-269-源数据与队列审计修复六条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ea8b893b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-259-预演体验缺陷三条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ed6f2acf",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ee64b843",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/ops/lan-coordinate-history-rewrite.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f90ae313",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/B-266-后端审计修复六条.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f968ce62",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/async-report-runs-and-live-log.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/fd8c1416",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/external-credentials-in-db.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/frozen-docs",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/not-in-progress",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "layout",
+  "id": "layout/0c1e2191",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/2d55ffaa",
+  "registered": null,
+  "status": "PASS",
+  "where": "README.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/3b957e85",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/6c3d438f",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/insight-index.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/709a94f9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/9a1e26e4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/a15f35e6",
+  "registered": null,
+  "status": "PASS",
+  "where": "AGENTS.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/aab1e39b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/decisions/insight-index.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/b2975d7d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/eba23dd7",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/artifacts"
+ },
+ {
+  "check": "links",
+  "id": "links/e6318ffd",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/0eb1835e",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/12:列:栅格",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-004"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/reports/viz.py:55"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/12:条:逐条",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-008"
+  },
+  "status": "UNDETERMINED",
+  "where": "docs/decisions/alembic-zero-drift.md:18"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/1636:行:里",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-012"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/reports/definitions/brand_daily/process/sales_data.py:205"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/16:列:显示",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-003"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/reports/definitions/best_sellers_summary/process/summary.py:45"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/1862:行:位置",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-010"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/reports/definitions/brand_daily/process/new_products.py:238"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/192:份:归档",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-002"
+  },
+  "status": "UNDETERMINED",
+  "where": "README.md:99"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/20:次:成功",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-009"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/api/routes/reports.py:1683"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/22:字:段",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-005"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/api/routes/new_product_push.py:167"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/22:字:段快",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-006"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/api/routes/new_product_push.py:163"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/2345:行:里",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-013"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/reports/definitions/brand_daily/process/new_products.py:237"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/32:字:符",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-007"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/alembic/versions/0040_wedrive_archive.py:8"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/50:个:迁移",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-001"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/AGENTS.md:53"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/51:行:换位",
+  "registered": {
+   "expires": "2027-03-31",
+   "id": "EX-011"
+  },
+  "status": "UNDETERMINED",
+  "where": "backend/app/reports/definitions/brand_daily/process/sales_data.py:205"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/eca01990",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/nondoc-count-claim",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/nondoc-dup-block",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "tool-identity",
+  "id": "tool-identity/f171a26b",
+  "registered": null,
+  "status": "SKIP",
+  "where": "tools/std/"
+ }
+]

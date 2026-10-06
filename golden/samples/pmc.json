@@ -1,0 +1,1101 @@
+[
+ {
+  "check": "adoption",
+  "id": "adoption/60a5c980",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8714bd62",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8baf1c92",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION:1"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/compatibility-policy",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/project.yaml"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/settings-absent",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/65ba1081",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "derived-artifacts",
+  "id": "derived-artifacts/88dac3ad",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-index",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/README.md"
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-revision/docs/adr/ADR-0001-技术栈定型.md",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/adr/ADR-0001-技术栈定型.md:23"
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-revision/docs/adr/ADR-0002-计算轨迹与AI层边界.md",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/adr/ADR-0002-计算轨迹与AI层边界.md:19"
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date/docs/adr/ADR-0001-技术栈定型.md｜2026-09-22",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/adr/ADR-0001-技术栈定型.md:25"
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date/docs/adr/ADR-0017-默认开放自助注册.md｜2026-09-22",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/adr/ADR-0017-默认开放自助注册.md:12"
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date/docs/plans/2026-09-20-WI-0011-网页交互层.md｜2026-09-22",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-20-WI-0011-网页交互层.md:189"
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date/docs/plans/2026-09-22-WI-0026-开放注册与超级管理员.md｜2026-09-22",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-22-WI-0026-开放注册与超级管理员.md:12"
+ },
+ {
+  "check": "drift",
+  "id": "drift/work-item",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/current.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/7438aae7",
+  "registered": null,
+  "status": "PASS",
+  "where": "AGENTS.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/handoff_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/module_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/status_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/work_item_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/not-done",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/05a475db",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0010-single-package-dingcun.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/0eaad68c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-21-WI-0022-后端API.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/0ed4c1c4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0008-trigger-line-by-review-frequency.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/10843bff",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0024-AI运行时核心库暂不固定.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1125979e",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-api/销售单请求示例说明.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/16533c78",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/迁移到Ubuntu开发机.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/18bb9a69",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/erp_export.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1ae7f1f3",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/WI-0005-引入开发标准.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1e94beae",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-20-WI-0011-网页交互层.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1e9fd0a1",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0019-角色权限分层与会话令牌哈希.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/1fa2f3b2",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/compute.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/20af4d90",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0017-默认开放自助注册.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/21142c1d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0020-时间列分墙钟与瞬时两类.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/211d9a2c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-15-WI-0003-ERP接口取数.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/236f57ad",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-api/销售单真实响应核对.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/23bbd7bf",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/06-请求一致性审计.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/2c0ed307",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/WI-0006-订货计算管线实现与对账.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/2d76f74e",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/check.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3034a852",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/ingest.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/33962e1d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/367aae48",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0011-erp-export-tool-joins-dingcun.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/388b846c",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0027-0921试跑处置.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3a7e9400",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0002-计算轨迹与AI层边界.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3b633a8d",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/audit/a4-风控面.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3ce7b2df",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/audit/_diff.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3e7be7a4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0015-回到规划架构-全栈改造与数据中台.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/402d620a",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/handoff.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/411757ce",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/08-线上请求形态.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/414f39c0",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0013-停摆日不入基线窗.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/41d54c30",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/WI-0024-切换清单.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/44e39165",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/464d2820",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0006-four-window-raw-baseline.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/4aa235c4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0030-优化批.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/4b2119ea",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0029-安全加固.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/4c385c6a",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/54017972",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/07-交接说明.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/54843147",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-14-WI-0002-接入层.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5718b988",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-23-WI-0037-去掉Windows兼容.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/57196a63",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/audit/a3-B族直连导出.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5d34b654",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-20-WI-0012-缓冲系数数据化.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/667aea6a",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0036-墙钟列改无时区类型.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6c709252",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/params.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6ca775a9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0009-drop-manual-overrides.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6e94a818",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/03-导出流程逻辑.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/702d9fa7",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-21-WI-0023-React前端.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/70d3c5c7",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0003-readback-equivalence-recompute-gate.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/77d3ae43",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/04-实现记录.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7f1ec07a",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0005-intransit-caliber-into-compute-sku.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8304e72d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/derive.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/85ad1bfa",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-21-WI-0024-切换与部署.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/87cb5b5d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/dwd.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8812e39f",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/data-ownership.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8859e7dc",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/contracts/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8cb38ceb",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/dependency-rules.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/91bbe498",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/audit/a1-A族建任务.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/92ceb620",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/INDEX.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/93edac85",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0025-前端路由用声明式模式.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/95ca7b6d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/rules.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/96777448",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/dm.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9b3c371d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-20-WI-0015-春节系数.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9ea8946c",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/audit/a5-复审.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a2ce4de5",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/knowledge/glossary.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a5553147",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/current.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a6ad3c00",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0007-lifecycle-six-tier.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/a7c1a753",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0014-架构阶段-暂不建库-Excel介质-网页交互.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ab25a3f9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/ods.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b4111e9b",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/01-请求分类.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b7aa4a28",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/output.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/b98ab252",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0004-staging-state-dir-atomic-promote.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/bb4fc16b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0032-安全加固二批.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/bbdc2e88",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/bbf5955b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/overview.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c5a37ad6",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0026-开放注册与超级管理员.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c665a380",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c746a40a",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-20-WI-0013-工厂日历.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c9c6c2ed",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0026-开发同时支持Linux与Windows.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/cc661762",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/modules/web.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/cd379865",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0025-网页取数与更新.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/cd91bfcd",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/current.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ce1701bb",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0012-网页交互层-服务端渲染.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/ce537b23",
+  "registered": null,
+  "status": "PASS",
+  "where": "ACCEPTANCE.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d1ed3b7b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0028-回归冻结夹具.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d24d812f",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/audit/a2-销售单.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d56ddb7c",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-api/销售单API整理与自动化方案.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d62f20db",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/invariants.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d99f7252",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-21-WI-0020-全栈改造总计划.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d9d524ea",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0018-HTTP安全面与ERP默认离线.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/document-state",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/e2f680c4",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/erp-export/05-命名规范.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/e5295929",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0021-开发与运行只支持Linux.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f2dff0cd",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/WI-0005-引入开发标准.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f39e7ece",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0035-治理批.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f655ed2b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0016-毛利明细取数移出compute层.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f786d59d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/adr/ADR-0001-技术栈定型.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/fc07e606",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-20-WI-0014-节庆系数分层退级.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/fd667fc9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/plans/2026-09-22-WI-0033-优化二批.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/fddebfab",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/knowledge/节庆系数的理论基础.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/fe6944c1",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/spec/每日订货系统逻辑规划.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/not-in-progress",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "layout",
+  "id": "layout/154e424a",
+  "registered": null,
+  "status": "PASS",
+  "where": "PLAYBOOK.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/3ce4dd29",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/current.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/5857e110",
+  "registered": null,
+  "status": "PASS",
+  "where": "ACCEPTANCE.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/5b18230b",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/current.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/60fa81a1",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/artifacts"
+ },
+ {
+  "check": "layout",
+  "id": "layout/74590148",
+  "registered": null,
+  "status": "PASS",
+  "where": "ACCEPTANCE.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/77c82a06",
+  "registered": null,
+  "status": "PASS",
+  "where": "FAILURES.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/a15f35e6",
+  "registered": null,
+  "status": "PASS",
+  "where": "AGENTS.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/df134a62",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/handoff.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/f446576f",
+  "registered": null,
+  "status": "PASS",
+  "where": "work/current.md"
+ },
+ {
+  "check": "links",
+  "id": "links/90404cb2",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "links",
+  "id": "links/outside-root/docs/plans/2026-09-21-WI-0021-数据中台.md｜../../../research/微型数据中台设计.html",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:45"
+ },
+ {
+  "check": "links",
+  "id": "links/outside-root/docs/plans/2026-09-21-WI-0021-数据中台.md｜../../../research/数据中台/build_data_dictionary.py",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:45"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/0eb1835e",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/108:项:全绿",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/erp-export/02-请求分类.json:227"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/11:个:数据",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/erp-export/01-请求分类.md:11"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/11:类:数据",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:94"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/12:列:全同",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-22-WI-0027-0921试跑处置.md:163"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/14:个:品类",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/architecture/modules/dm.md:83"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/1581:字:节",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/erp-export/audit/_diff.json:20"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/17:张:结果",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:360"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/196:行:不带",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "FAILURES.md:49"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/19:个:月",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:96"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/2124:字:节",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/erp-export/06-请求一致性审计.md:82"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/31:个:月",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:96"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/31:字:节",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/erp-export/04-实现记录.md:58"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/38:张:表",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "ACCEPTANCE.md:30"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/47:条:件",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0023-React前端.md:422"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/48:条:件",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0023-React前端.md:422"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/49:条:件",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0022-后端API.md:628"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/55:条:件",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0022-后端API.md:617"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/803080:行:零差",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/plans/2026-09-21-WI-0021-数据中台.md:462"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/91167:行:带微",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "FAILURES.md:49"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/count-claim/977:行:变化",
+  "registered": null,
+  "status": "UNDETERMINED",
+  "where": "docs/adr/ADR-0016-毛利明细取数移出compute层.md:98"
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/eca01990",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/nondoc-dup-block",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "tool-identity",
+  "id": "tool-identity/f171a26b",
+  "registered": null,
+  "status": "SKIP",
+  "where": "tools/std/"
+ }
+]

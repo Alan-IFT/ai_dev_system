@@ -1,0 +1,485 @@
+[
+ {
+  "check": "adoption",
+  "id": "adoption/60a5c980",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8714bd62",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/8baf1c92",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/STANDARD_VERSION:1"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/compatibility-policy",
+  "registered": null,
+  "status": "PASS",
+  "where": "governance/project.yaml"
+ },
+ {
+  "check": "adoption",
+  "id": "adoption/settings-absent",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "cross-repo",
+  "id": "cross-repo/65ba1081",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "derived-artifacts",
+  "id": "derived-artifacts/88dac3ad",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "drift",
+  "id": "drift/adr-dir-unlocated",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "drift",
+  "id": "drift/future-date",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs"
+ },
+ {
+  "check": "drift",
+  "id": "drift/work-item",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/6ca24d96",
+  "registered": null,
+  "status": "PASS",
+  "where": "README.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/93adf68e",
+  "registered": null,
+  "status": "PASS",
+  "where": "AGENTS.md"
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/handoff_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/module_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/status_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "entry-budget",
+  "id": "entry-budget/budget-undeclared/work_item_lines",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/0173d187",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-002-合并设计.md:77"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/14883cca",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-001-摸清两项目英集取数现状.md:75"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/536f3d40",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-002-合并设计.md:81"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/66785406",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-002-合并设计.md:78"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/6deb13ae",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-001-摸清两项目英集取数现状.md:78"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/6e52feeb",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-002-合并设计.md:79"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/7df420b8",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-001-摸清两项目英集取数现状.md:77"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/aa7801f4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-002-合并设计.md:80"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/b145eec0",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-001-摸清两项目英集取数现状.md:76"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/b7fc3631",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-001-摸清两项目英集取数现状.md:79"
+ },
+ {
+  "check": "evidence",
+  "id": "evidence/not-done",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/0ea824ee",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-003-水库实施.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/27993136",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/README.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/2ad00363",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/knowledge/PLAYBOOK.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3092411b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/artifacts/WI-003/P1-取数到原始层-实施计划.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/3d023208",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/遗留项推荐方案.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/5ddaa134",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P1-总审查.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/60167bc5",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-001-摸清两项目英集取数现状.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/64dc6005",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-001/cms-英集取数现状.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/6b73780f",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P2-执行台账.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/7d9e110d",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P3-总审查.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/806617cd",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/architecture/合并设计.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/81d3b77c",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-001/下游消费口径.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8a29383b",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-002-合并设计.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/8ca1da87",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-001/pmc-英集取数现状.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/96d6977c",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P1-执行台账.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9d15fb0d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work/WI-003-水库实施.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/9f80b41a",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P2-中台加工与API-实施计划.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/befa7f8f",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P4-P5-迁移逻辑预审.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c4cd608a",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-002/待决策清单-口径与数据.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c53bc039",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P3-管理界面-实施计划.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/c87a4abb",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-001/重叠清单.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/d7f77603",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/状态历史-2026-10-06归档.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/e9012f32",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-003/P3-执行台账.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/f7aff5c7",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-001/部署拓扑.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/fdb2882a",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/artifacts/WI-001/口径决策表.md"
+ },
+ {
+  "check": "freshness",
+  "id": "freshness/not-in-progress",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "layout",
+  "id": "layout/0c1e2191",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/2d55ffaa",
+  "registered": null,
+  "status": "PASS",
+  "where": "README.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/3b957e85",
+  "registered": null,
+  "status": "SKIP",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/709a94f9",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/9a1e26e4",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/a15f35e6",
+  "registered": null,
+  "status": "PASS",
+  "where": "AGENTS.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/b2975d7d",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/work"
+ },
+ {
+  "check": "layout",
+  "id": "layout/b5792136",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/knowledge/PLAYBOOK.md"
+ },
+ {
+  "check": "layout",
+  "id": "layout/eba23dd7",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/state/artifacts"
+ },
+ {
+  "check": "layout",
+  "id": "layout/f41df773",
+  "registered": null,
+  "status": "PASS",
+  "where": "docs/knowledge/PLAYBOOK.md"
+ },
+ {
+  "check": "links",
+  "id": "links/bc8b599a",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/0eb1835e",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/d391d8dd",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/eca01990",
+  "registered": null,
+  "status": "PASS",
+  "where": null
+ },
+ {
+  "check": "single-authority",
+  "id": "single-authority/nondoc-dup-block",
+  "registered": null,
+  "status": "SKIP",
+  "where": null
+ },
+ {
+  "check": "tool-identity",
+  "id": "tool-identity/f171a26b",
+  "registered": null,
+  "status": "SKIP",
+  "where": "tools/std/"
+ }
+]

@@ -1,0 +1,46 @@
+# 废弃技术栈残留基线（重构设计 阶段 0）。口径：Claude Code|claude-code|CLAUDE.md|.claude/|claude plugin|.std/|git subtree 的行数。
+# 阶段 4 的退出条件：除「冻结历史」外全部为 0（冻结历史按设计 §11 Q2 处理）。
+# 小计 其它                                  1 个文件     1 行
+# 小计 冻结历史                              165 个文件  1112 行
+# 小计 守卫(将迁 TS)                           5 个文件   150 行
+# 小计 检查器(Python,将被 TS 取代)                9 个文件   133 行
+# 小计 现行文档                               16 个文件    48 行
+# 冻结历史不逐文件列，按顶层目录汇总（见上方说明）：
+# 冻结历史 docs/决策日志.md                    1 个文件    27 行
+# 冻结历史 docs/参考资料                      50 个文件   217 行
+# 冻结历史 docs/参考资料-Claude                2 个文件     6 行
+# 冻结历史 docs/审计记录                      45 个文件   424 行
+# 冻结历史 docs/归档                        52 个文件   386 行
+# 冻结历史 标准/参考资料                        15 个文件    52 行
+# 以下逐文件列出「冻结历史以外」的残留（阶段 4 目标为 0 的那些）：
+其它	.githooks/pre-commit	1
+守卫(将迁 TS)	tools/dsh-std/README.md	15
+守卫(将迁 TS)	tools/dsh-std/lib/index.js	4
+守卫(将迁 TS)	tools/dsh-std/lib/policy.js	15
+守卫(将迁 TS)	tools/dsh-std/test/policy.test.js	8
+守卫(将迁 TS)	tools/dsh-std/test/regress.test.js	108
+检查器(Python,将被 TS 取代)	tools/std/CONTRACT.md	4
+检查器(Python,将被 TS 取代)	tools/std/README.md	35
+检查器(Python,将被 TS 取代)	tools/std/check_all.py	33
+检查器(Python,将被 TS 取代)	tools/std/checks/check_adoption.py	26
+检查器(Python,将被 TS 取代)	tools/std/checks/check_cross_repo.py	21
+检查器(Python,将被 TS 取代)	tools/std/checks/check_drift.py	2
+检查器(Python,将被 TS 取代)	tools/std/checks/check_freshness.py	1
+检查器(Python,将被 TS 取代)	tools/std/pick-python.sh	7
+检查器(Python,将被 TS 取代)	tools/std/stdlib.py	4
+现行文档	CONTEXT_MANIFEST.md	1
+现行文档	PROJECT_STATUS.md	2
+现行文档	README.md	2
+现行文档	docs/09-跨工具通用性.md	1
+现行文档	docs/失败Case清单.md	3
+现行文档	docs/重构设计-TS插件化.md	14
+现行文档	docs/附录-载体实例/DSH载体映射.md	8
+现行文档	docs/附录-载体实例/仓库工作须知.md	3
+现行文档	docs/附录-载体实例/会话交接.md	3
+现行文档	templates/AGENTS.md	2
+现行文档	templates/文件树与落地路径.md	1
+现行文档	标准/01-项目管理标准.md	4
+现行文档	标准/README.md	1
+现行文档	标准/示例项目-连锁零售中台/governance/project.yaml	1
+现行文档	标准/示例项目-连锁零售中台/维护时间线.md	1
+现行文档	标准/覆盖与采用检查.md	1

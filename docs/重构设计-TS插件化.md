@@ -194,10 +194,10 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 > 勾选规则：只有**附了证据（命令输出摘要或提交号）**才可勾。没证据的不勾。
 
-- [ ] 阶段 0：基线
-  - [ ] 设计文档已提交推送（本文）
-  - [ ] 黄金样本已生成并校验可复现
-  - [ ] 废弃残留清单已落盘
+- [x] 阶段 0：基线（2026-10-06 完成）
+  - [x] 设计文档已提交推送（本文）——提交 `2fdb501`，`check_all` 含本文退出 0；变异验证（给本文加坏链接）退出 1 并指到本文，还原后 0
+  - [x] 黄金样本已生成并校验可复现——`golden/samples/` 5 个文件：`std`/`reservoir`/`cms`/`pmc` 四个仓的 finding 清单 + `selftest-probes.json`（228 条探针）；`golden/make_golden.py` 重跑后四个仓样本与落盘逐字节相同；`selftest-probes.json` 连跑两次一致
+  - [x] 废弃残留清单已落盘——`golden/residue-baseline.txt`（口径与基线读数见 §12.1）
 - [ ] 阶段 1：骨架与守卫
 - [ ] 阶段 2：检查器迁移
   - [ ] core　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
@@ -206,9 +206,37 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - [ ] 阶段 4：清理
 - [ ] 阶段 5：收尾验证
 
+### 12.1 阶段 0 的真实口径（TS 版对比时必须按这个来，不是按我设想的来）
+
+**样本钉在提交上，不钉在目录上**：`make_golden.py` 用临时 `git worktree` 检出记录的提交再扫，所以不受被扫仓当前工作区影响。实测同一提交用「真实目录」与「worktree」两种扫法，PMC 的 157 条 finding 的 id 与 status 完全一致。
+
+| 输入 | 钉住的提交 | 退出码 | finding 数 | 分布 |
+|---|---|---|---|---|
+| std（本仓） | `2fdb501a` | 0 | 68 | SKIP 50 / PASS 17 / UNDETERMINED 1 |
+| reservoir | `1ae3f0d6` | 0 | 69 | SKIP 33 / PASS 36 |
+| cms | `34d0ad9d` | 0 | 147 | SKIP 28 / PASS 103 / UNDETERMINED 16 |
+| pmc | `c952f0ff` | 2 | 157 | SKIP 31 / PASS 98 / UNDETERMINED 28 |
+
+**只比 `id`、`status`、`where`、`registered`，不比 `title`/`evidence`/`reason`**：`freshness` 用运行日（文本里有「N 天」），`tool-identity` 含 git 提交号与检查器哈希，这些随日期与提交变。`tool-identity` 一项在 TS 版里**必然不同**（检查器文件集变了），对比时列入「预期差异」。
+
+**selftest 探针清单**（228 条，已排除 `tool-identity`）记 `check`/`id`/`status`/`title`，按检查器分：stdlib 66、drift 27、freshness 22、single-authority 18、cross-repo 17、evidence 17、adoption 11、entry-budget 10、layout 10、shared-fact 9、derived-artifacts 9、links 8、contract-examples 3、entry-smoke 1。**这些探针的 `title` 是人写的中文描述，TS 版要逐条复现同样的探针（同 id、同 PASS），而不是只复现最终 `check_all` 的结果**——否则变异验证这层质量保障就丢了。
+
+**这里有一个我必须如实写下的迁移难点**：各检查器的 selftest 里，探针**大量直接调用私有函数**（如 `check_entry_budget` 的探针调私有 `_docs`/`_entry` 共 44 次、公共 `run` 0 次；`check_drift` 私有 43 次、公共 16 次）。所以 TS 版**不能只实现公共 `run()`**：每个检查器要保留与 Python 版对应的内部函数边界，selftest 才能逐条对应。这会让迁移比「重写判定逻辑」更贴近原结构，是**有意的取舍**——结构上偏离 Python 版越多，探针越难一一对上。
+
+**废弃残留基线**（`golden/residue-baseline.txt`，口径：`Claude Code|claude-code|CLAUDE.md|.claude/|claude plugin|.std/|git subtree` 命中行数，不含 `golden/` 自己；冻结历史在该文件里**按顶层目录汇总、不逐文件列**——第一版逐文件列了归档文章的文件名，文件名里带的数字被 `single-authority` 当成数值声明、判成「同一声明出现在多个文件」，`check_all` 因此退出 2，改成按目录汇总后回到 0；要逐文件清单就现跑同口径，不入库）：
+
+| 类别 | 文件数 | 行数 | 阶段 4 的目标 |
+|---|---|---|---|
+| 冻结历史 | 165 | 1112 | 按 §11 Q2 |
+| 守卫（将迁 TS） | 5 | 150 | 0 |
+| 检查器（Python，将被 TS 取代） | 9 | 133 | 随 Python 版整体删除 |
+| 现行文档 | 16 | 48 | 0 |
+| 其它 | 1 | 1 | 0 |
+
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | 阶段 0 完成；新增 §12.1 记真实口径 | 样本口径（钉提交、只比 id/status/where/registered）与「selftest 探针大量调私有函数」这两点是做的时候才量出来的，必须写进设计，否则阶段 2 会按错的假设去迁 |
 | 2026-10-06 | §4 定「`lib/` 提交进 git」，放弃「git 安装时 `prepare` 构建」 | 实测 pnpm 从 git 装包拒绝 `prepare`（`ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`），提交 `lib/` 则成功 |
