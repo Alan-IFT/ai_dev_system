@@ -217,8 +217,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 1-b TS 工程骨架：`package.json`（`dsh.manifestVersion`、`bundle.patch`、`engines`）、`tsconfig.json`、`cordis.patch.yml`（`name` 与包名同为 `ai-dev-std`）、`scripts/check-lib-sync.mjs`；`tsc` 7.0.2 构建通过
   - [x] 1-c 守卫迁 TS：`src/guard/{policy,index}.ts` + 根入口 `src/index.ts`；**行为不变**——现役 JS 守卫基线 471 条（470 过、0 败、1 跳）与 TS 编译产物上的结果逐项相同；变异验证（把「.std 只读 deny」改 allow）后 16 条变红、还原后回到 0 败
   - [x] 1-d `lib/` 与 `src/` 一致性校验：脚本四种变异都符合预期（改 src 不构建→1、手改 lib→1、lib 多出过期文件→1、缺 tsc→2 即「没跑成不当通过」）；已接进 `.githooks/pre-commit` 作第四道，三种行为实测（全绿 0、不一致拦下、找不到 node 失败关闭 127）
-  - [ ] 1-e **`lib/` 提交进 git**（构建产物首次入库）
-  - [ ] 1-f 守卫测试在 **Ubuntu 容器**里全过
+  - [x] 1-e **`lib/` 提交进 git**——`755e7ad`，经新的第四道钩子；提交前核暂存清单时发现一份已在磁盘删除的 `tsconfig.test.json` 还在索引里，已移除，没进历史
+  - [x] 1-f 守卫测试在 **Ubuntu 24.04 容器**里全过：用 Node **22.19.0**（`engines` 下限）与 **24.21.0** 各跑一遍——`pnpm install --frozen-lockfile`、`tsc` 构建、`check-lib-sync` 退出 0、构建后 `git status` 为空（lib 与提交一致）、`node --test "test/*.test.mjs"` 471 条、0 失败、22 条跳过（只在 Windows 成立的路径语义，跳过不算通过）
   - [ ] 1-g **真实 DSH 里从 git 地址经安装通道装入，守卫生效**（阶段 1 的硬性验收；需要临时 profile，不碰用户真实 profile）
   - [ ] 1-h 新路径保护：守卫要保护 `src/guard/`、`lib/`、`standard/`（改守卫的人不应由守卫放行；现在 `tools/dsh-std/` 的保护是旧位置）
 - [ ] 阶段 2：检查器迁移
@@ -256,6 +256,10 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 其它 | 1 | 1 | 0 |
 
 ### 12.2 阶段 1 里量出来的、设计时没预见的事（做的时候才发现）
+
+- **一次测量假象，差点被当成真失败**：第一次在 Node 22.19 上跑 `node --test "test/*.test.mjs" | head -12`，退出码是 7，看起来像「22.19 不支持 glob 或测试失败」。不是——是我自己用管道接了 `head`，`head` 提前关管道，`node` 收到 SIGPIPE。去掉管道、重定向到文件后，22.19 上 glob 形式退出 0、471 条、0 失败。**规矩：验证命令不要接会提前退出的管道**，退出码要在没有管道的情况下取。
+- **`pnpm run test` 在 DSH 的会话 shell 里要先把 DSH 的 node 目录放进 PATH**：会话 PATH 里没有 node（§4.1 已记），脚本里的 `tsc`/`node` 由 pnpm 注入 PATH，但 `node` 本身不在其中。这与钩子用 `DSH_HOME` 拼路径是同一件事。
+- **`node --test` 的三种写法在这个仓里结果不同**：传目录（`test/`）失败（被当成模块路径）；无参数会把 `test/` 与别处重复发现的测试一起数成 942 条；只有显式 glob 或显式文件是 471。脚本里固定用显式 glob。
 
 - **`noUncheckedIndexedAccess` 关掉了**：开着时这份代码有 57 处「数组下标可能是 undefined」报错；关掉后只剩 17 处，且都是缺类型标注。这份词法扫描代码的循环条件已在运行时保证下标在范围内，把 30 处都改成 `!` 或加判断是在**为类型检查器改写已被运行时保证的代码**，改动面大、引入新错误的风险高，收益是零。**这是有意的取舍，不是偷懒**；其余 `strict` 全开。
 - **TS 7.0 的 `tsc` 能直接用**：`pnpm view` 显示 `latest = 7.0.2`，本机实测构建与运行都成功；DSH 生态里 `dsh-context` 同样用 `^7.0.2`。
