@@ -1,0 +1,312 @@
+[
+ {
+  "id": "L1",
+  "title": "ls-files：不带 -z（路径被 quotepath 转义）",
+  "file": "src/core/tracked.ts",
+  "from": "const args = ['-C', root, 'ls-files', '-z', ",
+  "to": "const args = ['-C', root, 'ls-files', "
+ },
+ {
+  "id": "L2",
+  "title": "ls-files：加 --literal-pathspecs（通配失效）",
+  "file": "src/core/tracked.ts",
+  "from": "const args = ['-C', root, 'ls-files', '-z', ",
+  "to": "const args = ['-C', root, '--literal-pathspecs', 'ls-files', '-z', "
+ },
+ {
+  "id": "L3",
+  "title": "ls-files：模式前加 --（多出一层语义）",
+  "file": "src/core/tracked.ts",
+  "from": "...(patterns && patterns.length ? patterns : [])]",
+  "to": "...(patterns && patterns.length ? ['--', ...patterns] : [])]"
+ },
+ {
+  "id": "L4",
+  "title": "ls-files：忽略模式（总是列全部）",
+  "file": "src/core/tracked.ts",
+  "from": "...(patterns && patterns.length ? patterns : [])]",
+  "to": "]"
+ },
+ {
+  "id": "L5",
+  "title": "ls-files：不经 hardenedEnv（被扫仓配置里的外部程序会被执行）",
+  "file": "src/core/tracked.ts",
+  "from": "env: hardenedEnv(process.env) as NodeJS.ProcessEnv,",
+  "to": "env: process.env,"
+ },
+ {
+  "id": "L6",
+  "title": "ls-files：超时 60s 改 1ms",
+  "file": "src/core/tracked.ts",
+  "from": "timeout: 60_000, env: hardenedEnv",
+  "to": "timeout: 1, env: hardenedEnv"
+ },
+ {
+  "id": "L7",
+  "title": "退出码非 0 当成功",
+  "file": "src/core/tracked.ts",
+  "from": "  if (r.status !== 0) return [null, `git ls-files 退出码",
+  "to": "  if (false) return [null, `git ls-files 退出码"
+ },
+ {
+  "id": "L8",
+  "title": "退出码信息：不带 stderr 前 200 字符",
+  "file": "src/core/tracked.ts",
+  "from": "${pyStrip((r.stderr ?? Buffer.alloc(0)).toString('utf8')).slice(0, 200)}`]",
+  "to": "`]"
+ },
+ {
+  "id": "L9",
+  "title": "退出码信息：stderr 不去首尾空白（用 trim 则 U+FEFF 被去）",
+  "file": "src/core/tracked.ts",
+  "from": "${pyStrip((r.stderr ?? Buffer.alloc(0)).toString('utf8')).slice(0, 200)}`]",
+  "to": "${(r.stderr ?? Buffer.alloc(0)).toString('utf8').trim().slice(0, 200)}`]",
+  "unobservable": "git 的 stderr 是 git 自己的输出（ASCII），造不出以 U+FEFF 结尾的内容；pyStrip 与 trim 的差别只在 U+FEFF 与 U+001C-1F、U+0085，这些字符不会出现在 git 的错误文案末尾。两版行为一致，改用 pyStrip 是为了不违反 §12.6 D6（check-py-semantics 机械检查要求）"
+ },
+ {
+  "id": "L10",
+  "title": "退出码信息：截断 200 改 20",
+  "file": "src/core/tracked.ts",
+  "from": ".slice(0, 200)}`]",
+  "to": ".slice(0, 20)}`]"
+ },
+ {
+  "id": "L11",
+  "title": "spawn 出错不记问题（当没事）",
+  "file": "src/core/tracked.ts",
+  "from": "  if (r.error) return [null, `跑不了 git ls-files：${r.error.message}`]\n",
+  "to": ""
+ },
+ {
+  "id": "L12",
+  "title": "空路径过滤：不过滤（空串路径进结果）",
+  "file": "src/core/tracked.ts",
+  "from": "raw.split('\\0').filter((p) => pyStrip(p) !== '')",
+  "to": "raw.split('\\0')"
+ },
+ {
+  "id": "L13",
+  "title": "空路径过滤：用 trim（U+FEFF 路径被误丢）",
+  "file": "src/core/tracked.ts",
+  "from": "raw.split('\\0').filter((p) => pyStrip(p) !== '')",
+  "to": "raw.split('\\0').filter((p) => p.trim() !== '')"
+ },
+ {
+  "id": "L14",
+  "title": "路径解码：按 latin1 而不是 utf8",
+  "file": "src/core/tracked.ts",
+  "from": "const raw = (r.stdout ?? Buffer.alloc(0)).toString('utf8')",
+  "to": "const raw = (r.stdout ?? Buffer.alloc(0)).toString('latin1')"
+ },
+ {
+  "id": "L15",
+  "title": "maxBuffer 缩到 100 字节（大仓列不全）",
+  "file": "src/core/tracked.ts",
+  "from": "maxBuffer: 1 << 30",
+  "to": "maxBuffer: 100"
+ },
+ {
+  "id": "M1",
+  "title": "缓存：不缓存（每次都跑 git）",
+  "file": "src/core/tracked.ts",
+  "from": "  if (m && m.key === key) {",
+  "to": "  if (m && m.key === key && key === '') {"
+ },
+ {
+  "id": "M2",
+  "title": "缓存：返回缓存数组本身（调用方改动污染缓存）",
+  "file": "src/core/tracked.ts",
+  "from": "return [files === null ? null : [...files], problem]",
+  "to": "return [files, problem]"
+ },
+ {
+  "id": "M3",
+  "title": "缓存：键不含模式（不同模式共用一项）",
+  "file": "src/core/tracked.ts",
+  "from": "const k = JSON.stringify(patterns ?? [])",
+  "to": "const k = ''"
+ },
+ {
+  "id": "M4",
+  "title": "缓存：键只看根的字面不看真实路径",
+  "file": "src/core/tracked.ts",
+  "from": "  let key: string\n  try { key = realpathSync.native(String(root)) } catch { key = String(root) }\n  if (m && m.key === key) {",
+  "to": "  const key = String(root)\n  if (m && m.key === key) {"
+ },
+ {
+  "id": "M5",
+  "title": "缓存：别的根也走缓存（只看有没有开）",
+  "file": "src/core/tracked.ts",
+  "from": "  if (m && m.key === key) {",
+  "to": "  if (m) {"
+ },
+ {
+  "id": "M6",
+  "title": "缓存：退出后不恢复外层（置空）",
+  "file": "src/core/tracked.ts",
+  "from": "    memo = prev // 退出即恢复外层",
+  "to": "    memo = null // 退出即恢复外层"
+ },
+ {
+  "id": "M7",
+  "title": "缓存：退出后不关（保留内层）",
+  "file": "src/core/tracked.ts",
+  "from": "    memo = prev // 退出即恢复外层",
+  "to": "    // 退出即恢复外层"
+ },
+ {
+  "id": "M8",
+  "title": "缓存：问题也缓存没问题（problem 丢掉）",
+  "file": "src/core/tracked.ts",
+  "from": "return [files === null ? null : [...files], problem]",
+  "to": "return [files === null ? null : [...files], null]"
+ },
+ {
+  "id": "M9",
+  "title": "缓存：模式 undefined 与 [] 不当同一项",
+  "file": "src/core/tracked.ts",
+  "from": "const k = JSON.stringify(patterns ?? [])",
+  "to": "const k = JSON.stringify(patterns)"
+ },
+ {
+  "id": "U1",
+  "title": "markdownUnder：不限 .md 后缀（所有文件）",
+  "file": "src/core/tracked.ts",
+  "from": "r.toLowerCase().endsWith('.md') && under(r, sub)",
+  "to": "under(r, sub)"
+ },
+ {
+  "id": "U2",
+  "title": "markdownUnder：后缀区分大小写",
+  "file": "src/core/tracked.ts",
+  "from": "r.toLowerCase().endsWith('.md') && under(r, sub)",
+  "to": "r.endsWith('.md') && under(r, sub)"
+ },
+ {
+  "id": "U3",
+  "title": "markdownUnder：也收 .markdown",
+  "file": "src/core/tracked.ts",
+  "from": "r.toLowerCase().endsWith('.md') && under(r, sub)",
+  "to": "(r.toLowerCase().endsWith('.md') || r.toLowerCase().endsWith('.markdown')) && under(r, sub)"
+ },
+ {
+  "id": "U4",
+  "title": "markdownUnder：不判 under（整仓）",
+  "file": "src/core/tracked.ts",
+  "from": "r.toLowerCase().endsWith('.md') && under(r, sub)",
+  "to": "r.toLowerCase().endsWith('.md')"
+ },
+ {
+  "id": "U6",
+  "title": "markdownUnder：按 UTF-16 码元排序",
+  "file": "src/core/tracked.ts",
+  "from": ".sort(cmpCodepoint), null]\n}\n\n/**\n * 工作项目录",
+  "to": ".sort(), null]\n}\n\n/**\n * 工作项目录"
+ },
+ {
+  "id": "U7",
+  "title": "【仅 POSIX】markdownUnder：不先规范路径（反斜杠）（Windows 上文件名不能含反斜杠）",
+  "file": "src/core/tracked.ts",
+  "from": "files!.map(normRel).filter(",
+  "to": "files!.filter(",
+  "posixOnly": true
+ },
+ {
+  "id": "U8",
+  "title": "markdownUnder：出错时不透传问题",
+  "file": "src/core/tracked.ts",
+  "from": "  const [files, problem] = trackedFiles(root)\n  if (problem) return [null, problem]\n  return [files!.map(normRel)",
+  "to": "  const [files, problem] = trackedFiles(root)\n  if (problem) return [[], null]\n  return [files!.map(normRel)"
+ },
+ {
+  "id": "U9",
+  "title": "markdownUnder：用带模式的 ls-files（只列 *.md，失去大小写不敏感）",
+  "file": "src/core/tracked.ts",
+  "from": "  const [files, problem] = trackedFiles(root)\n  if (problem) return [null, problem]\n  return [files!.map(normRel)",
+  "to": "  const [files, problem] = trackedFiles(root, ['*.md'])\n  if (problem) return [null, problem]\n  return [files!.map(normRel)"
+ },
+ {
+  "id": "W1",
+  "title": "workItems：包含子目录里的（不限直接一层）",
+  "file": "src/core/tracked.ts",
+  "from": "return [files!.filter((r) => dirnameOf(r) === base || ((base === '' || base === '.') && !r.includes('/'))), null]",
+  "to": "return [files, null]"
+ },
+ {
+  "id": "W2",
+  "title": "workItems：整仓写法（. 与空串）不收根下的",
+  "file": "src/core/tracked.ts",
+  "from": "|| ((base === '' || base === '.') && !r.includes('/'))), null]",
+  "to": "), null]"
+ },
+ {
+  "id": "W3",
+  "title": "workItems：整仓写法只认空串不认 .",
+  "file": "src/core/tracked.ts",
+  "from": "((base === '' || base === '.') && !r.includes('/'))",
+  "to": "((base === '') && !r.includes('/'))"
+ },
+ {
+  "id": "W5",
+  "title": "workItems：整仓写法时不限根下（含所有子目录）",
+  "file": "src/core/tracked.ts",
+  "from": "((base === '' || base === '.') && !r.includes('/'))",
+  "to": "((base === '' || base === '.'))"
+ },
+ {
+  "id": "W6",
+  "title": "workItems：目录写法不去尾斜杠",
+  "file": "src/core/tracked.ts",
+  "from": "const base = normRel(wroot).replace(/\\/+$/, '')",
+  "to": "const base = normRel(wroot)"
+ },
+ {
+  "id": "W7",
+  "title": "workItems：目录写法不规范（原样）",
+  "file": "src/core/tracked.ts",
+  "from": "const base = normRel(wroot).replace(/\\/+$/, '')",
+  "to": "const base = String(wroot).replace(/\\/+$/, '')"
+ },
+ {
+  "id": "W8",
+  "title": "workItems：dirname 取最前一个斜杠",
+  "file": "src/core/tracked.ts",
+  "from": "const i = r.lastIndexOf('/'); return i < 0 ? '' : r.slice(0, i)",
+  "to": "const i = r.indexOf('/'); return i < 0 ? '' : r.slice(0, i)"
+ },
+ {
+  "id": "W9",
+  "title": "workItems：出错时不透传问题",
+  "file": "src/core/tracked.ts",
+  "from": "  const [files, problem] = markdownUnder(root, wroot)\n  if (problem) return [null, problem]\n  const base",
+  "to": "  const [files, problem] = markdownUnder(root, wroot)\n  if (problem) return [[], null]\n  const base"
+ },
+ {
+  "id": "C1",
+  "title": "cmpCodepoint：按码元比（emoji 次序错）",
+  "file": "src/core/tracked.ts",
+  "from": "    const d = p.value.codePointAt(0)! - q.value.codePointAt(0)!",
+  "to": "    const d = p.value.charCodeAt(0) - q.value.charCodeAt(0)"
+ },
+ {
+  "id": "C2",
+  "title": "cmpCodepoint：较短的排后面",
+  "file": "src/core/tracked.ts",
+  "from": "    if (p.done) return -1\n    if (q.done) return 1",
+  "to": "    if (p.done) return 1\n    if (q.done) return -1"
+ },
+ {
+  "id": "C3",
+  "title": "cmpCodepoint：相等返回 1",
+  "file": "src/core/tracked.ts",
+  "from": "    if (p.done && q.done) return 0",
+  "to": "    if (p.done && q.done) return 1"
+ },
+ {
+  "id": "C4",
+  "title": "cmpCodepoint：差值取反",
+  "file": "src/core/tracked.ts",
+  "from": "    if (d) return d\n",
+  "to": "    if (d) return -d\n"
+ }
+]

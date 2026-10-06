@@ -238,8 +238,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/fixture.ts`（自检夹具：`writeText`、`writeFiles`、`gitFixture`、`gitTrack`——所有检查器的 selftest 共用）
     - [x] `core/glob.ts`（路径通配，只实现 layout 用到的子集；§12.17）
     - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
-    - [ ] `core/tracked.ts`（只剩 `tracked_files`、`scan_memo`、`markdown_under`、`work_items`：它们依赖 `.std/` 内嵌机制（阶段 4 废弃）与扫描缓存，推迟到汇总层；其余外壳函数已在 `shell.ts`）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[ ] links　[ ] freshness　[ ] drift
+    - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[ ] links（进行中）　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -455,6 +455,18 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **一个我自己指出来的毛病**：写 `selftest` 对应断言时，我再次写出一段绕弯的表达式（`mk() && (() => {...})()`），发现后立即重写成两步。三个轮次里同一个毛病出现四次，说明「写完问一句：把实现改错它会红吗」这个办法对我并不自动生效——**真正管用的是变异验证本身**（它每次都在兜底），而不是我的自觉。因此本仓的验证口径应当是：**没有变异验证通过的测试，不算守住了那条性质。**
 - **探针脚本是一次性的，用完删除**：我为查 Python 的真实行为写了 `golden/_probe_layout.py`，没进提交，已删（只删自己建的）。
 
+### 12.19 `core/tracked.ts`：这一块我推迟了四轮，迁它时才查清楚「`.std/` 自排除」到底影响什么
+
+- **为什么推迟、为什么现在做**：`links`、`single_authority`、`drift` 都依赖 `trackedFiles`，读 `links` 时不能再推。我原先的理由是「它调用 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 废弃），迁它时才能决定删还是保留」。
+- **一个我之前没验证就信了的前提，这次实测推翻了**：我假设黄金样本在三个采用项目里「排除了 `.std/`」。实测相反——黄金样本是在 `TOOL_ROOT` = 本仓下生成的，`embedded_std_rel(扫描根)` 对三个采用项目**全部返回 `None`**，所以 **`.std/` 从未被排除**，采用项目里 `.std/` 下的文件一直在扫描面内（reservoir 的 `links` 扫的是它 `git ls-files` 的全部 markdown，其中大部分在 `.std/` 下）。反向证明也做了：把 `TOOL_ROOT` 指到 `扫描根/.std`，`links` 的计数才从「全部」变成「只有项目自己的」——那是**真内嵌场景**的行为。
+- **D17（有意差异）**：不带 `.std/` 自排除。**对黄金样本零影响**（实测：三个采用项目上，`links`、`single_authority`、`drift` 三个检查器「排除」与「不排除」的 finding 集合完全相同）；新架构里采用项目本来就不再内嵌 `.std/`（§8），这个机制失去了对象。
+- **证据**：对 Python 样本（真实夹具 git 仓：普通文件、中文名、空格、含 `[ ] # ,` 的名字、`.MD` 大小写后缀、嵌套目录、以点开头、工作项目录与其子目录、`.gitignore` 忽略的、未跟踪的、已删除但仍在索引里的、非仓、空仓；几十种模式与目录写法；条数以样本为准，本节不抄）逐条一致；变异 44 条，**Windows 42 抓住 + 2 如实标注，Ubuntu 44 全抓住，0 漏**；全量测试 Ubuntu 0 败。
+- **一个安全对照实验**：`git ls-files` **会**执行被扫仓配置里的 `core.fsmonitor`（对照组：不经加固直接跑，标记文件出现；`git status` 同）。所以 `trackedFiles` 必须经 `hardenedEnv`——变异 L5（不加固）被恶意仓测试抓住，测试里先跑对照组证明这个攻击在本机真实可行，否则「标记文件没出现」什么也证明不了。
+- **三个这一块暴露的、我本来不知道的事**：①**Windows 上 `col:on.md` 不报错**：NTFS 把冒号当备用数据流，建出的是名为 `col` 的文件——造夹具时必须核对「同名文件真的在目录里」才算造成；②**`git add` 对 `weird[1].md` 这类名字要加 `--literal-pathspecs`**，夹具自己的 `add` 也一样；③**`ls-files` 的 pathspec 要通配，所以这里不加 `--literal-pathspecs`**（与 `git log -- <文件>` 相反，那里的路径要按字面——`drift`、`freshness` 在各自的 `git log` 调用上加）。我最初还多写了一个 `--`，Python 版并没有，按 Python 原样改回，并加变异 L3 与一条测试（`-z`、`--others` 作「模式」传入会被 git 当选项）钉住。
+- **变异首轮 46 条里 18 条没抓住**：补输入 11 条、等价变异删除 2 条（`U5` 排序：git 按 UTF-8 字节序与 Python 码点序对 UTF-8 一致，对 git 返回的列表排序是恒等；`W4`：空串时第一支 `dirname==base` 已覆盖根下一层）、`posixOnly` 1 条（`U7`，文件名含反斜杠只有 Linux 造得出，Ubuntu 上补断言抓住）、`unobservable` 1 条（`L9`，git 的 stderr 末尾不会有 U+FEFF）；`U6`（按 UTF-16 码元排序）要夹具里同时有 `Ａ`（U+FF21）与 `😀`（U+1F600）才可观察——码点序下前者在前，码元序下 `😀` 的首码元 0xD83D 小于 0xFF21 反而在前，补了夹具。
+- **一次清理上的失误与处理**：我的一个一次性探针脚本在 Windows 上 `shutil.rmtree` 删 `.git` 里的只读对象失败，留下一个临时仓。我先核对路径确实是自己建的（精确名字、含 `.git`），去掉只读属性后删除，没有用通配批量删。这类探针以后用 `onerror` 去只读，或直接用 `tempfile.TemporaryDirectory(ignore_cleanup_errors=True)`。
+- **再一次写出了没用的断言**：`withScanMemo` 测试里有一行 `'…'.slice(0, 0) || false`（恒假的绕弯表达式），发现后改成了真断言（无模式也是又一个缓存项，它第一次被调用发生在 `late.md` 已 add 之后，所以看得到）。这是第五次。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -501,12 +513,17 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D11 | `find_field` 的 `re.I` 大小写折叠 | Python `re.I`（Unicode）把 `İ`（U+0130）、`ı`（U+0131）与 `i`、`ſ`（U+017F）与 `s`、`K`（Kelvin，U+212A）与 `k` 视作等价 | 用 `iu` 标志（`ſ↔s`、`K↔k` 随之等价）**并对 `i` 显式并上 `İı`**。**结果与 Python 一致** | 逐码点实测（0x110000 个码点 × 26 个 ASCII 字母）：JS 的 `i` 标志漏 4 个，**`iu` 只漏 2 个（`İ`、`ı`）**；其余 Unicode 字母的大小写对两边一致。这不是「有意放宽或收紧」，而是**把 JS 补到与 Python 一样**。**我最初的实现把四个都手写进特例表，变异验证发现其中 `ſ`、`K` 两项对 `iu` 是多余的（去掉不改变结果），已收窄**——登记在这里是因为它靠一小张手写特例表加一个必须带 `u` 的标志，二者缺一就悄悄不同；由 `docs.test.mjs` 里一条专门的测试与 `findField` 的全部黄金样本钉住，变异 F20（去掉 `u`）与 F25（去掉 `İı`）验证 | 实现约束 |
 | D12 | 配置形状非法时下游函数的行为（`in_frozen` 的 `layout.frozen`、`entry_files` 的 `layout.entry` 等） | `layout.frozen` 写成字符串时 Python **逐字符迭代**（`'docs/archive'` 变成 `'d'`、`'o'`、……，`'d'` 前缀匹配任何以 d 开头的路径）；`layout.entry` 写成整数时 Python 在 `for x in declared` 处抛 `TypeError`（崩溃，被调用方的 `run_guarded` 转成「检查器自身出错」） | **形状非法一律当空**（`frozen` 永不命中；`entry` 返回空列表），**不崩** | **真实入口全都走不到**：`load_config` 对这些键写成非法形状整份拒收（黄金样本 `shape_frozen_scalar`、`shape_entry_int`、`shape_artifacts_entry_*`，报「须是字符串列表／字符串或字符串列表」），下游函数只在配置通过之后被调用。Python 的逐字符迭代与 `TypeError` 都是偶然行为，不是契约；复现它们没有价值，还会让一个本该被拒的输入产生奇怪的命中或崩溃。**黄金样本里这几条记着 Python 的偶然行为，比对时按 D12 跳过**，TS 的实际行为由专门断言钉住 | 实现约束；影响面为零（上游已拒） |
 | D13 | 多行模式下 `^` 认哪些行终止符 | Python `re.M` 的 `^` **只在字符串开头与 `\n` 之后**匹配（`\r`、U+2028、U+2029、`\x85`、`\v`、`\f` 之后都**不**匹配；`\r\n` 因其中有 `\n` 而匹配） | 显式写成 `(?<![^\n])`（不是「前面有非 `\n` 字符」＝开头或前一字符是 `\n`），**不用 JS 的 `m` 标志** | **逐终止符实测**：JS 的 `m` 标志下 `^` 在 `\r`、U+2028、U+2029 之后也匹配，Python 不匹配。后果是真实的：`# T\n状态：a\r## B\r状态：b`（旧 Mac 行尾或混合行尾的文档），Python 里 `\r## B` 不算标题行、状态值是 `a\r## b\r状态：b`，JS 的 `m` 会把它切成 `a`。受影响的两处：`findField` 的行首、`headOf` 的小节标题行首；`find_field` 的 `$`（Python 里这里没用 `$`）不涉及。**这是第三个因「正则标志在两种语言里语义不同」而发现的差异**（D5 的 `\w`、D6 的 `\s`、D11 的 `re.I`、本条的 `m`），说明迁移里**每个用到正则标志的地方都要逐个验证，不能默认等价** | 实现约束 |
+| D14 | 检查器内部异常的类名进 `reason` | Python 的 `type(exc).__name__`（`KeyError`、`ValueError`、`ZeroDivisionError`……） | OSError 家族按 errno 映射成 Python 的类名；本模块的拒读类按各自名字；**其余取 JS 的 `Error.name`**，类名不同 | TS 里没有这些 Python 内置异常的对应物。**实测黄金样本（4 个真实仓 + 全部 selftest 探针）里没有任何一条 finding 的 `reason` 含 Python 异常类名**；验收口径（只比 `check`、`id`、`status`、`where`、`registered`）不比 `reason`，零影响。详见 §12.14 | 实现约束；已验证零影响 |
+| D15 | Windows 上路径名末尾的空格与点 | Python 在 Windows 上按 Win32 规则去掉它们（`f.md ` 读到 `f.md`，`isfile` 为真） | 不复现：`f.md ` 与 `f.md.` 是另外两个名字，不存在即「不是文件」 | 同一份脚本在 Linux 上 Python 的结论也是「不存在」，这是 Windows 文件系统的怪癖，不是契约。配置里能写出这样的路径（YAML 引号内的尾空格，`load_config` 不拦），但**四个真实仓的路径值里没有**。详见 §12.16 | 实现约束；影响面为零 |
+| D16 | `glob` 在 Windows 上的大小写 | Python 的 `glob`（经 `fnmatch` 的 `normcase`）在 Windows 上不区分大小写，POSIX 上区分 | 同 Python：Windows 上带 `i` 标志，其它平台不带 | **不是差异，是「两个平台都与该平台上的 Python 一致」**；登记是因为这条靠平台分支实现，样本只在生成它的平台上整份可比。详见 §12.17 | 平台语义 |
+| D17 | `tracked_files` 的 `.std/` 自排除（`embedded_std_rel`） | 工具自身位于被扫仓的子目录（内嵌的 `.std/`）时，把该目录从扫描面里去掉 | **不带这个机制**，被扫仓的全部 `git ls-files` 结果都在扫描面内 | **对黄金样本零影响**：黄金样本在 `TOOL_ROOT` = 本仓下生成，`embedded_std_rel(扫描根)` 对三个采用项目全部返回 `None`，所以 `.std/` 从未被排除；实测 `links`、`single_authority`、`drift` 三个检查器「排除」与「不排除」的 finding 集合在三个采用项目上完全相同。新架构里采用项目不再内嵌 `.std/`（§8），机制失去对象。**这也意味着 `adoption` 里与它配套的 `embedded-*` 判据一并随阶段 4 消失** | 实现约束；已验证零影响 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/tracked.ts` 完成，记 §12.19，新增 D17（不带 `.std/` 自排除）；推迟四轮的一块，迁时实测推翻了「黄金样本排除了 `.std/`」的假设 | 三个采用项目上排除与否 finding 集合相同；`git ls-files` 会执行被扫仓的 `core.fsmonitor`（对照实验）；变异 44 条 Ubuntu 全抓住；Windows 上 `col:on.md` 建出备用数据流的陷阱；探针脚本留下临时仓、核对路径后手动清理 |
 | 2026-10-06 | **第二个检查器 `layout` 迁完**，记 §12.18；`splitLinesPy` 增 `keepends`；`exists` 并入 `core/fs.ts` | 4 个真实仓逐条一致、selftest 10 条集合相同、变异 89 条两平台 0 漏（87 抓住 + 2 如实标注）；Ubuntu 再次暴露「靠真实仓比对才被抓住的性质在 Linux 上没人守」（第三次同类），补了直接断言；探针脚本用完即删 |
 | 2026-10-06 | `core/glob.ts` 完成，记 §12.17（含 D16）；为 `layout` 的 `glob` 判据补的 core，刻意只实现子集 | 对 Python 样本逐条一致；变异 29 条两平台 0 漏；写断言时三次写出非断言的东西、一次写反期望，已记入教训；「样本平台以外被跳过」的测试守不住别的平台，补了独立断言 |
 | 2026-10-06 | **第一个检查器 `entry_budget` 迁完**，记 §12.16；新增 `golden-compare.mjs`、`golden-selftest.mjs`、`core/fixture.ts`；`isFile`/`isDir`/`lexists` 统一进 `core/fs.ts`；新增 D15 | 4 个真实仓逐条一致、selftest 10 条集合相同、变异 62 条两平台 0 漏；自检暴露 `realpathLoose` 对断链的缺口（`core/fs` 的黄金样本盲区）；路径谓词样本在 Windows 与 Linux 上有 85 条不同 |
