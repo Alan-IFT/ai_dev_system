@@ -1,8 +1,8 @@
 # 项目状态
 
-status_revision：`34`
+status_revision：`35`
 corpus_version：`v0.7-theory-draft`  ← **全仓唯一权威版本号**。各文档不再各自声明版本（2026-09-03 去掉 26 处副本，取值曾在 v0.5/v0.6/v0.7 之间漂移）。冻结快照 `docs/归档/历史/`、研究材料与 `.staging/` 保留各自的版本号，那是它们被冻结时的值。  
-updated_at：2026-10-04
+updated_at：2026-10-06
 last_status_change：2026-10-04（受支持宿主收为 DeepSeek Harness 一家，见 D-135；逐轮经过只看 git log 与审计记录）
 当前里程碑：**本仓只支持 DeepSeek Harness（DSH），不再支持 Claude Code（[D-135](docs/决策日志.md#decision-index)）；执行层是 DSH 原生插件 [`tools/dsh-std/`](tools/dsh-std/README.md)，尚未在真实 DSH 会话里加载运行过。**研究架构保持现有组织；候选标准增加长期管理、架构演进、Agent 治理与运行维护内容，具体交付和检查见[本轮完善记录](docs/审计记录/本轮完善记录.md)。实际项目效果仍待验证；规则效力只查生效登记表。
 状态：进行中  
@@ -46,7 +46,7 @@ last_status_change：2026-10-04（受支持宿主收为 DeepSeek Harness 一家�
 
 ## 下一步
 
-**D-135 的收尾（先做）**：①`tools/dsh-std/` **已装进本机 profile 并真跑过（2026-10-05）**：写 `.std/`、重定向到 `.std/`、`git tag`、改 `AGENTS.md` 都被拒；**还没验证**子 agent 是否继承（审批弹窗是 DSH 自带功能，不属本插件验证范围）；②提交闸门已改为兼容 Windows（`.githooks/pre-commit` 按「跑得通」选 `python3`／`python`／DSH 自带 Python，路径含空格与中文已实测，找不到则失败关闭；改钩子经 Alan 2026-10-05 同意），本机已能通过，**但还没在真实 `git commit` 上走过一遍**，第一次提交时观察；③NFBY_CMS_FullStack 按 DSH 接法迁移（它按 D-115 装过旧接法，需自己的工作项）。
+**D-135 已收尾（2026-10-05）**：守卫已装进本机 profile 并真跑过；提交闸门在 Windows 上经真实 `git commit` 走过；Reservoir、CMS、PMC-Planner 三个采用项目都已迁到 DSH 接法并推送（PMC-Planner 另按 ADR-0026 同时支持 Linux 与 Windows）。**还没验证**：子 agent 是否继承守卫；守卫在 Ubuntu 真实 DSH 里的行为（只在 Windows 的 `pwsh`／`write`／`edit` 三个工具名下观察过）。**待决（Alan 2026-10-05 定「不发」）**：标准仓 `main` 上 `tools/dsh-std/lib/policy.js` 比公开仓 tag `2026-10-05` 里的新（多了 PowerShell 方言与变量赋值两处误报修复），三个采用项目内嵌的仍是 tag 里那份。这两处只影响「守卫误问人」、不影响拦得住什么，所以**不为它单发新 tag、不让三个项目各多一个升级提交**，等下次有别的标准改动时一并发布；在此之前，在本机用标准仓那份（profile 链接的就是它，改后要重启 DSH 才加载）。
 
 当前工作：在两轮资料补充基础上，按用户确认的评审建议加入[反馈跨任务生效演练](标准/示例项目-连锁零售中台/反馈跨任务生效演练.md)，专项范围与检查见[完善记录](docs/审计记录/本轮完善记录.md#feedback-exercise)。下一步由采用项目选有原始证据的一条关键旅程试用，按[试点通过条件](标准/覆盖与采用检查.md#pilot-exit)及适用的反馈演练取证，验证执行效果与维护成本；尚未运行的分支保留未定。后续资料按真实缺口选取，研究正文的待裁事项仍只由决策索引管理。[D-057](docs/决策日志.md#effective-register) 于 2027-02-17 复审时，一并复核 [D-061](docs/决策日志.md#decision-index) 的六组跨章边界。2026-09-09 另追加一轮 OpenAI/Anthropic 官方近半年文章专项（管理/运维/上下文三方向共 13 张卡 M-21~25、O-16~20、C-20~22，落进 01/02/03/04），见[完善记录·追加专项](docs/审计记录/本轮完善记录.md#addendum-2026-09)。
 
