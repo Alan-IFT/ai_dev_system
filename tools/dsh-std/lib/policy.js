@@ -471,6 +471,8 @@ export function innerCommand(toks) {
  */
 function opaqueShell(toks) {
   if (toks.length === 0) return null
+  // 首词是变量（`$sh="C:\x\sh.exe"` 无空格赋值、`$cmd` 引用）不是命令词：取 basename 会把赋值的值误认成解释器名
+  if (toks[0].startsWith('$')) return null
   const w = toks[0].toLowerCase().replace(/^.*[\\/]/, '').replace(/\.exe$/, '')
   if (!SHELLS.has(w)) return null
   const args = toks.slice(1)

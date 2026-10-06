@@ -719,3 +719,16 @@ test('bash 方言：双引号以反斜杠结尾（引号被转义，没闭合）
 // —— 内嵌命令的方言切换 ——
 test('pwsh 里的 bash -c 内嵌按 bash 方言解析：bash -c "echo \\"a\\"; git push -f"', () => psAsk('bash -c "echo \\"a\\"; git push -f"'))
 test('bash 里的 pwsh -Command 内嵌按 PowerShell 方言解析', () => assert.notEqual(decide(bashSh('pwsh -Command "Write-Output \'x\'; git push -f"'), { root: ROOT }).kind, 'allow'))
+
+// —— PowerShell 无空格赋值：`$sh="C:\\x\\sh.exe"` 分词后是一个整词，取 basename 会把赋值的值误认成解释器名（迁移 CMS 时被自己的守卫误拦） ——
+for (const [t1, c] of [
+  ['赋值的值是 sh.exe 路径', '$sh="C:\\x\\sh.exe"; ls'],
+  ['赋值的值是 git.exe 路径', '$g="C:\\Users\\x\\git.exe"; ls'],
+  ['赋值的值是 python.exe 路径', '$py="C:\\x\\python.exe"; ls'],
+  ['赋值的值是 rm.exe 路径', '$rm="C:\\x\\rm.exe"; ls'],
+  ['赋值的值含 git tag 字样', '$tag="git tag"; ls'],
+  ['变量名叫 bash', '$bash = 1'],
+]) test(`变量赋值不是命令：${t1} => allow`, () => psAllow(c))
+test('变量赋值之后的真命令仍被拦：$x = 1; git tag x => ask', () => psAsk('$x = 1; git tag x'))
+test('裸 sh 仍 ask（修复没有放松真命令）', () => psAsk('sh'))
+test('echo … | bash 仍 ask', () => psAsk('echo hi | bash'))

@@ -97,7 +97,7 @@ pnpm add link:D:/Programs/AI辅助开发规范及工作流确定/tools/dsh-std
 
 **已在真实 DSH 会话里验证过的（2026-10-05，DSH 0.2.0-rc.2，本机 `desktop` profile，装法见上）：**
 
-装上后，**在我（执行这次安装的会话）自己正在运行的会话里，没有重启就观察到了守卫生效**。我没有查证这是 DSH 的 HMR 热重组、还是别的机制（例如每次工具调用时重新读取 profile），所以不要据此断言「改 profile 一定热生效」——换一台机器或换一种启动方式可能需要重启。实测：
+装上后，**在执行安装的那个会话里，没有重启就观察到了守卫生效**（新装 bundle 属于「profile 配置变化」，DSH 的 HMR 会重新组合）。**但之后改插件代码不会热生效**：2026-10-05 07:11 修了 `policy.js` 的方言逻辑，而 DSH 进程自 02:01 起一直在跑，运行中的会话仍在用旧版本（用「以反斜杠结尾的字符串」触发了旧版的误判）。DSH 文档写明「Package replacements require restarting the process to load a fresh JavaScript module generation」——**改插件代码后要重启 DSH 才加载新代码**，别以为改完就生效。实测：
 
 | 动作 | 观察到的 |
 |---|---|
