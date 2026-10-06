@@ -76,6 +76,15 @@ def main():
             os.symlink(os.path.join(out_dir, "secret.txt"), os.path.join(proj, "ln_out.txt"))
             os.symlink(os.path.join(proj, "a.txt"), os.path.join(proj, "ln_in.txt"))
             os.symlink(out_dir, os.path.join(proj, "dir_out"), target_is_directory=True)
+            # 断链：指向仓外**不存在**的文件。realpath 对它要跟随链接到目标路径（不存在也照算），判出仓；
+            # TS 的 realpathSync 对它抛 ENOENT，退到上一级求真实路径会把它当成仓内——这个缺口是检查器迁移（entry_budget 的自检）时才暴露的
+            os.symlink(os.path.join(out_dir, "no-such.md"), os.path.join(proj, "ln_out_dangling.md"))
+            os.symlink(os.path.join(proj, "no-such-inside.md"), os.path.join(proj, "ln_in_dangling.md"))
+            os.symlink(os.path.join(out_dir, "no-such-dir", "deeper.md"), os.path.join(proj, "ln_out_dangling_deep.md"))
+            os.symlink("ln_out_dangling.md", os.path.join(proj, "ln_chain_to_dangling.md"))      # 链到断链
+            os.symlink("ln_chain_loop_b.md", os.path.join(proj, "ln_chain_loop_a.md"))            # 循环链
+            os.symlink("ln_chain_loop_a.md", os.path.join(proj, "ln_chain_loop_b.md"))
+            os.symlink("../outside/secret.txt", os.path.join(proj, "ln_rel_out.md"))              # 相对路径出仓
             manifest["symlink"] = True
         except OSError:
             pass
@@ -84,7 +93,8 @@ def main():
         res = {"read_bytes": {}, "read_bytes_head4": {}, "read_text": {}, "read_text_head5": {}, "count_lines": {}, "inside": {}, "guard": {}}
         names = [n for n, _ in FILES] + ["d", "nope", "big_sparse.bin", "big_lines.txt", "exact_max.bin"]
         if manifest["symlink"]:
-            names += ["ln_out.txt", "ln_in.txt", "dir_out/secret.txt"]
+            names += ["ln_out.txt", "ln_in.txt", "dir_out/secret.txt", "ln_out_dangling.md", "ln_in_dangling.md", "ln_out_dangling_deep.md",
+                      "ln_chain_to_dangling.md", "ln_chain_loop_a.md", "ln_chain_loop_b.md", "ln_rel_out.md"]
         for n in names:
             res["read_bytes"][n] = call(lambda n=n: hexed(sl.read_bytes(P(n), proj)))
             res["read_bytes_head4"][n] = call(lambda n=n: hexed(sl.read_bytes(P(n), proj, head=4)))

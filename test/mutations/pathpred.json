@@ -1,0 +1,105 @@
+[
+ {
+  "id": "Q1",
+  "title": "【仅 Windows】isFile：不判尾分隔符（回到 Node 的 statSync 行为）（Linux 上 statSync(\"文件/\") 本来就抛 ENOTDIR，尾分隔符判断冗余，与原代码等价）",
+  "file": "src/core/fs.ts",
+  "from": "    if (/[\\\\/]$/.test(s)) return false\n",
+  "to": "",
+  "winOnly": true
+ },
+ {
+  "id": "Q2",
+  "title": "【仅 Windows】isFile：只判尾斜杠不判尾反斜杠（Linux 上 statSync(\"文件/\") 本来就抛 ENOTDIR，尾分隔符判断冗余，与原代码等价）",
+  "file": "src/core/fs.ts",
+  "from": "if (/[\\\\/]$/.test(s)) return false",
+  "to": "if (/\\/$/.test(s)) return false",
+  "winOnly": true
+ },
+ {
+  "id": "Q3",
+  "title": "【仅 Windows】isFile：只判尾反斜杠不判尾斜杠（Linux 上 statSync(\"文件/\") 本来就抛 ENOTDIR，尾分隔符判断冗余，与原代码等价）",
+  "file": "src/core/fs.ts",
+  "from": "if (/[\\\\/]$/.test(s)) return false",
+  "to": "if (/\\\\$/.test(s)) return false",
+  "winOnly": true
+ },
+ {
+  "id": "Q4",
+  "title": "isFile：尾分隔符不再 false 而是 true（反向）",
+  "file": "src/core/fs.ts",
+  "from": "    if (/[\\\\/]$/.test(s)) return false\n    return statSync(s).isFile()",
+  "to": "    if (/[\\\\/]$/.test(s)) return true\n    return statSync(s).isFile()"
+ },
+ {
+  "id": "Q5",
+  "title": "isFile：改成「存在即文件」（目录也算）",
+  "file": "src/core/fs.ts",
+  "from": "    return statSync(s).isFile()\n  } catch {\n    return false\n  }\n}\n\nexport function isDir",
+  "to": "    return !!statSync(s)\n  } catch {\n    return false\n  }\n}\n\nexport function isDir"
+ },
+ {
+  "id": "Q6",
+  "title": "isFile：出错时返回 true",
+  "file": "src/core/fs.ts",
+  "from": "    return statSync(s).isFile()\n  } catch {\n    return false\n  }\n}\n\nexport function isDir",
+  "to": "    return statSync(s).isFile()\n  } catch {\n    return true\n  }\n}\n\nexport function isDir"
+ },
+ {
+  "id": "Q7",
+  "title": "isFile：不跟随符号链接（lstat）",
+  "file": "src/core/fs.ts",
+  "from": "    return statSync(s).isFile()\n  } catch {\n    return false\n  }\n}\n\nexport function isDir",
+  "to": "    return lstatSync(s).isFile()\n  } catch {\n    return false\n  }\n}\n\nexport function isDir"
+ },
+ {
+  "id": "Q8",
+  "title": "isDir：不跟随符号链接（lstat）",
+  "file": "src/core/fs.ts",
+  "from": "    return statSync(String(p)).isDirectory()",
+  "to": "    return lstatSync(String(p)).isDirectory()"
+ },
+ {
+  "id": "Q9",
+  "title": "isDir：把文件也算目录",
+  "file": "src/core/fs.ts",
+  "from": "    return statSync(String(p)).isDirectory()",
+  "to": "    return !!statSync(String(p))"
+ },
+ {
+  "id": "Q10",
+  "title": "isDir：出错时返回 true",
+  "file": "src/core/fs.ts",
+  "from": "    return statSync(String(p)).isDirectory()\n  } catch {\n    return false\n  }",
+  "to": "    return statSync(String(p)).isDirectory()\n  } catch {\n    return true\n  }"
+ },
+ {
+  "id": "Q11",
+  "title": "lexists：跟随符号链接（断链变成不存在）",
+  "file": "src/core/fs.ts",
+  "from": "    lstatSync(s)\n    return true",
+  "to": "    statSync(s)\n    return true"
+ },
+ {
+  "id": "Q12",
+  "title": "lexists：出错时返回 true",
+  "file": "src/core/fs.ts",
+  "from": "    lstatSync(s)\n    return true\n  } catch {\n    return false\n  }",
+  "to": "    lstatSync(s)\n    return true\n  } catch {\n    return true\n  }"
+ },
+ {
+  "id": "Q13",
+  "title": "【仅 Windows】lexists：不判尾分隔符（回到 Node 的 lstatSync 行为）（Linux 上 statSync(\"文件/\") 本来就抛 ENOTDIR，尾分隔符判断冗余，与原代码等价）",
+  "file": "src/core/fs.ts",
+  "from": "    if (/[\\\\/]$/.test(s) && !statSync(s).isDirectory()) return false\n    lstatSync(s)",
+  "to": "    lstatSync(s)",
+  "winOnly": true
+ },
+ {
+  "id": "Q14",
+  "title": "【仅 Windows】lexists：尾分隔符时不要求是目录（文件 + 尾斜杠也算存在）（Linux 上 statSync(\"文件/\") 本来就抛 ENOTDIR，尾分隔符判断冗余，与原代码等价）",
+  "file": "src/core/fs.ts",
+  "from": "if (/[\\\\/]$/.test(s) && !statSync(s).isDirectory()) return false\n    lstatSync(s)",
+  "to": "if (/[\\\\/]$/.test(s) && statSync(s).isDirectory()) return false\n    lstatSync(s)",
+  "winOnly": true
+ }
+]

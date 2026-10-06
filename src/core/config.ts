@@ -7,10 +7,9 @@
 
 import { cfgGet, DECLARED_STATES, DOC_STATES, stateList, WORK_ITEM_STATES, pyStr, type Config } from './cfg.js'
 import { PY_WHITESPACE, pyStrip } from './finding.js'
-import { inside, readBytes, isReadRefusal } from './fs.js'
+import { inside, isFile, lexists, readBytes, isReadRefusal } from './fs.js'
 import { firstInvalidUtf8 } from './utf8.js'
 import { ConfigError, parseYamlSubset, splitLinesPy, type YamlValue } from './yaml.js'
-import { lstatSync, statSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 
 export const CONFIG_CANDIDATES = ['governance/project.yaml', 'governance/project.yml'] as const
@@ -322,10 +321,5 @@ export function loadConfig(root: string, configPath?: string | null): [Config, P
   return [{}, `未找到 ${CONFIG_CANDIDATES.join(' 或 ')}；本工具不猜项目布局`]
 }
 
-function lexists(p: string): boolean {
-  try { lstatSync(p); return true } catch { return false }
-}
-function isFile(p: string): boolean {
-  try { return statSync(p).isFile() } catch { return false }
-}
+
 

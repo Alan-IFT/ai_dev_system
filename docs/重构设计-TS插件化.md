@@ -231,8 +231,9 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/exceptions.ts`（例外登记册：`loadExceptions`、关闭态、表格解析、表头归类、日期运算）
     - [x] `core/docs.ts`（头部字段查找、工件落点、入口候选、工作项命名、裁剪、状态归类）
     - [x] `core/shell.ts`（检查器公共外壳：`runGuarded`、`undeterminedFromException`、`probe`、`probeCrashed`、`unreadable`、`outsideRoot`、`once`、`agg`、`workRootAbsent`——每个检查器都用，所以先于任何检查器迁）
-    - [ ] `core/tracked.ts`（`tracked_files`、`scan_memo`、`markdown_under`、`work_items`、`work_root_absent`、`unreadable`、`outside_root`、`once`、`agg`——依赖 `.std/` 内嵌机制，推迟到汇总层）
-  - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
+    - [x] `core/fixture.ts`（自检夹具：`writeText`、`writeFiles`、`gitFixture`、`gitTrack`——所有检查器的 selftest 共用）
+    - [ ] `core/tracked.ts`（只剩 `tracked_files`、`scan_memo`、`markdown_under`、`work_items`：它们依赖 `.std/` 内嵌机制（阶段 4 废弃）与扫描缓存，推迟到汇总层；其余外壳函数已在 `shell.ts`）
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -417,6 +418,19 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **一个被 `\s` 规则放宽的细节**：我最初为了放过 `[\s\S]`（「任意字符」，不是空白语义）写了个带前后断言的复杂正则，**测试立刻显示它放过了 `[\s|>]`（字符类里的 `\s`）**；去掉复杂断言、改成无条件抓 `\s`，`[\s\S]` 的放行靠先把这个字面子串从待查文本里删掉。**简单的规则加例外，比复杂的规则更不容易漏。**
 - **没接进提交闸门——这是个待你决定的事**：我准备把它作为 `.githooks/pre-commit` 的第五道，**这一步的编辑被拒绝了**。我没有绕过（钩子是受控动作，需要你同意）。现状：脚本 + 测试都在，`pnpm test` 会跑到 `py-semantics.test.mjs` 里的「真实 src/core 当前无违规」那条，所以**测试套件已经间接守着它**；只是提交时不会单独拦。接不接、是否另有想法，见本轮汇报。
 
+### 12.16 第一个检查器 `entry_budget`：验收脚手架、`isFile` 统一、`realpath` 对断链的缺口
+
+- **验收脚手架**：`scripts/golden-compare.mjs <检查器名>`——在黄金样本钉住的提交上建临时 worktree、跑 TS 版**一个**检查器、与 `golden/samples/<名字>.json` 里该检查器的条目逐条比（口径同 `make_golden.py`：只比 `check`、`id`、`status`、`where`、`registered`）；`scripts/golden-selftest.mjs <检查器名>`——TS 版 `selftest()` 产出的 `(id, status)` 集合必须与 `selftest-probes.json` 里该检查器的条目**完全相同**。后者比逐条看标题强：探针 id 是 `sha1(标题)[:8]`，**标题差一个字 id 就不同**，所以集合相等同时钉住条数、措辞与结论。能单检查器验收的前提——Python 版里单跑一个检查器与它在整体里的结果完全相同——我先实测了一遍，不是假设。
+- **证据**：`entry-budget` 对 4 个真实仓逐条一致（各仓条数见黄金样本）；`selftest` 10 条的 `(id, status)` 集合与黄金样本完全相同；变异验证 62 条，**Windows 62 全抓住、Ubuntu 62 全抓住**；全量测试 Windows 660 条（656 过 0 败 4 跳）、Ubuntu 660 条（635 过 0 败 25 跳，多出的跳过是 Windows 专属与本机真实仓的）。
+- **检查器的自检暴露了 `core/fs` 的黄金样本盲区（这是本轮最值得记的一件事）**：`entry_budget` 的自检第 10 条要求「指向仓外**不存在**文件的断链」被判为出仓。TS 的 `realpathSync` 对断链抛 `ENOENT`，我的 `realpathLoose` 随即退到上一级求路径，把它当成了仓内；Python 的 `realpath` 照算链接目标。`core/fs` 阶段的黄金样本里没有断链，所以一路全绿。修复：`realpathLoose` 遇到 `ENOENT` 先判这一段是不是符号链接，是就跟随它（上限 40 层，循环链原样返回、不抛，与 Python 的非严格 `realpath` 一致）；补 7 种断链/循环链/相对出仓夹具进 `make_unit_fs.py` 与 `fs.test.mjs`（样本从 190 条增到 239 条）。
+- **`isFile`/`isDir`/`lexists` 此前在 5 个文件里各写一份**，都直接用 Node 的 `statSync`——这违反「同一事实只一处」（01 §1 G2），也让一个平台差异无处统一修。差异：路径带尾分隔符的**普通文件**（`S.md/`），Python 的 `os.path.isfile` 为 False，Node 的 `statSync` 在 Windows 上照样 stat 到文件。统一收进 `core/fs.ts`，新增 `golden/make_unit_pathpred.py` 在真实夹具上对 14 种路径写法 × 14 种夹具记 Python 的结论；`pathpred.test.mjs` 与 14 条变异（Windows 全抓住；Ubuntu 9 抓住 + 5 条 `winOnly`——Linux 上 `statSync("文件/")` 本来就抛 `ENOTDIR`，尾分隔符判断冗余，与原代码等价，如实标注，不折算通过）。
+- **D15（有意差异）**：Windows 上 Python 按 Win32 规则去掉路径名**末尾的空格与点**（`f.md ` 读到 `f.md`，`isfile` 为真），Node 不做，两者都认为不存在。TS 不复现：同一份脚本在 Linux 上 Python 的结论也是「不存在」，这是 Windows 文件系统的怪癖，不是契约。**影响面**：配置里能写出这样的路径（YAML 引号内的尾空格，`load_config` 不拦），但**四个真实仓的 78 个路径值里没有**；写成这样的路径，TS 报「文件不在」，Windows 上的 Python 报「在」。已有断言钉住 TS 的行为（`D15：名字末尾的空格与点不去掉`）。
+- **Windows 与 Linux 上 Python 自己的结论也不同**：同一份路径谓词样本，在两个平台上有 85 条（共 196）不同。所以样本只在生成它的平台上比整份，其余平台只比平台无关的核心（无后缀、尾斜杠、不存在、符号链接）。这与 §12.13 里 `docs\WI-002.md` 的结论同类：**黄金样本是平台相关的，跨平台验证不能指望同一份期望**。
+- **变异首轮 62 条里 14 条没抓住**：分类——测试没覆盖的输入补 8 条（合并工件刚好等于最宽预算、只有一类声明、`work_root` 写成空串、`docs-within` 汇总的 12 份上限、默认参考值、读不了、跨类排序、尾斜杠、`work_root` 出仓链接）；锚点编译不过 4 条（放宽类型改写成 `multi` 复合变异）；**纵深防御 2 条**（`D8`、`D9`：目录内排序与按文件排序互为冗余，只有同时去掉才可观察——改成复合变异）。其中「读不了」一类要注入 `EACCES`，用的是 `fs.ts` 里早就为 S22 留的 `__testHooks.beforeOpen`，没有新增生产代码里的测试后门。
+- **机械检查立刻抓到我刚写的代码**：`fixture.ts` 里一处 `.trim()`（只用在错误消息里）。`check-py-semantics` 跑起来的第二次就有收获，没有靠我记得。
+- **两个我写错的、被测试当场指出的假设**：1) 我以为 `run()` 对只有入口的配置只返回入口那一条，实际总会附带四条 `budget-undeclared` 的 SKIP；2) 我以为 `lexists` 不受尾分隔符影响，Windows 上它同样不同——这条是 `pathpred` 的整份比对抓到的，因为我最初只补了 `isFile`。
+- **一个流程上的不确定**：本轮中途有两次 `pwsh` 调用被拒（含一次纯只读的状态确认），我停下来不换花样重试，下一轮开头用最小的只读命令试探后恢复。原因不明，不做推断。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -469,6 +483,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | **第一个检查器 `entry_budget` 迁完**，记 §12.16；新增 `golden-compare.mjs`、`golden-selftest.mjs`、`core/fixture.ts`；`isFile`/`isDir`/`lexists` 统一进 `core/fs.ts`；新增 D15 | 4 个真实仓逐条一致、selftest 10 条集合相同、变异 62 条两平台 0 漏；自检暴露 `realpathLoose` 对断链的缺口（`core/fs` 的黄金样本盲区）；路径谓词样本在 Windows 与 Linux 上有 85 条不同 |
 | 2026-10-06 | 新增 `scripts/check-py-semantics.mjs` 与 `test/py-semantics.test.mjs`，记 §12.15；**未接入 pre-commit（该编辑被拒绝，待 Alan 决定）** | 把 D4、D5、D6、D13 变成机械检查；首次运行在现有源码上抓到 5 处，全部改成显式写法；检查脚本自己有变异测试 |
 | 2026-10-06 | `core/shell.ts` 完成，记 §12.14（含 D14）；先于第一个检查器迁，因为所有检查器都依赖它 | 对 Python 黄金样本逐条一致；变异 50 条两平台 0 漏；`excTypeName` 的真 bug 由黄金样本比出；已登记的 D6 约束我自己在写 `workRootAbsent` 时又违反一次，靠写变异清单才发现 |
 | 2026-10-06 | `core/docs.ts` 完成，记 §12.13，新增 D11 到 D13；`mutate.mjs` 新增 `winOnly`；`verify-ubuntu.ps1` 失败时打印断言细节 | `find_field` 2880 条输入逐条一致；变异 110 条两平台 0 漏；`re.M` 的 `^` 在 `\\r` 之后的差异靠补一条混合行尾样本才暴露；Ubuntu 暴露反斜杠路径语义差异，容器里用 Python 实测后按平台处理；两次 `edit` 失败被当成成功的流程教训 |

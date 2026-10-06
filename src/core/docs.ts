@@ -5,11 +5,10 @@
 // 所以黄金样本给得最密（规模见设计文档 §12.13，不在这里重复数字），并逐码点比对了大小写折叠（见 `foldRegexSource`）。
 // 废弃项：入口候选里的 `CLAUDE.md` 是 Claude Code 时代的兼容名（D-135），**本块保持原行为不动，阶段 4 统一清**——现在删会让黄金样本对不上。
 
-import { lstatSync, statSync } from 'node:fs'
-import { join, basename, dirname } from 'node:path'
+import { join } from 'node:path'
 import { cfgGet, DOC_STATES, leadWord, pyStr, pyTruthy, stateClass, type Config } from './cfg.js'
 import { PY_WHITESPACE, pyStrip } from './finding.js'
-import { inside } from './fs.js'
+import { inside, isFile } from './fs.js'
 
 /** 01 §3.5 的「状态」字段在文档头部叫什么。中英两写都算；**新增写法只在这里加，不在检查器里另起一张表**。 */
 export const STATUS_FIELDS: readonly string[] = ['状态', 'status', 'state']
@@ -129,8 +128,6 @@ function pyBasename(p: string): string {
 export function isWorkItemName(rel: unknown): boolean {
   return WORK_ITEM_NAME.test(pyBasename(pyStr(rel)))
 }
-void basename
-void dirname
 
 // ---------------------------------------------------------------------------------------------
 // 工件落点
@@ -194,10 +191,6 @@ export function entryFiles(cfg: Config): [string[], string] {
   return [hits.slice(0, 1), note + `：${hits[0]}${hits.length > 1 ? `（同时存在 ${hits.slice(1).join('、')}，未取）` : ''}`]
 }
 
-function isFile(p: string): boolean {
-  try { return statSync(p).isFile() } catch { return false }
-}
-void lstatSync
 
 /** 是否落在只读归档区（不承担更新义务，见 01 §3.1）。 */
 export function inFrozen(cfg: Config, relpath: string): boolean {

@@ -39,20 +39,30 @@ test.before(() => {
     symlinkSync(join(outDir, 'secret.txt'), P('ln_out.txt'), 'file')
     symlinkSync(P('a.txt'), P('ln_in.txt'), 'file')
     symlinkSync(outDir, P('dir_out'), 'junction')
+    // 断链与循环链：与 golden/make_unit_fs.py 的同一组夹具（TS 的 realpathSync 对断链抛 ENOENT，Python 的 realpath 照算目标路径——这个缺口由 entry_budget 的自检暴露）
+    symlinkSync(join(outDir, 'no-such.md'), P('ln_out_dangling.md'), 'file')
+    symlinkSync(P('no-such-inside.md'), P('ln_in_dangling.md'), 'file')
+    symlinkSync(join(outDir, 'no-such-dir', 'deeper.md'), P('ln_out_dangling_deep.md'), 'file')
+    symlinkSync('ln_out_dangling.md', P('ln_chain_to_dangling.md'), 'file')
+    symlinkSync('ln_chain_loop_b.md', P('ln_chain_loop_a.md'), 'file')
+    symlinkSync('ln_chain_loop_a.md', P('ln_chain_loop_b.md'), 'file')
+    symlinkSync('../outside/secret.txt', P('ln_rel_out.md'), 'file')
   } catch { canLink = false }
 })
 test.after(() => { rmSync(base, { recursive: true, force: true }) })
 
 const canon = (v) => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
-const run = (fn) => { try { return { ok: fn() } } catch (e) { return { raised: e.name } } }
+/** 把抛出的东西归一成 Python 的异常类名：带 errno `code` 的系统错误按 code 映射（ENOENT→FileNotFoundError，ELOOP→OSError：Python 对循环链报 errno 22 的 OSError），其余取 e.name。 */
+const pyName = (e) => (e.code === 'ENOENT' ? 'FileNotFoundError' : e.code === 'EACCES' || e.code === 'EPERM' ? 'PermissionError' : e.code === 'ELOOP' ? 'OSError' : e.name)
+const run = (fn) => { try { return { ok: fn() } } catch (e) { return { raised: pyName(e) } } }
 const hexed = (b) => ({ len: b.length, hex: Buffer.from(b).subarray(0, 64).toString('hex') })
 /** D7：目录在 Python/Windows 上是 PermissionError，在 POSIX 上是 NotRegular，TS 统一 NotRegular——三者都是「拒读」。 */
 const norm = (r) => ('raised' in r && (r.raised === 'PermissionError' || r.raised === 'NotRegular' || r.raised === 'IsADirectoryError') ? { raised: 'REFUSED_NOT_FILE' } : r)
-/** Python 的 FileNotFoundError 在 Node 里是 ENOENT 的 Error，名字是 'Error'。 */
-const normNode = (r) => ('raised' in r && r.raised === 'Error' ? { raised: 'FileNotFoundError' } : r)
+/** 保留的兼容垫片：旧版本的 run 只返回 e.name，普通 Error 的名字是 'Error'；现在 run 已按 errno 归一，这里恒等。 */
+const normNode = (r) => r
 
-const names = () => [...FILES.map(([n]) => n), 'd', 'nope', 'big_sparse.bin', 'big_lines.txt', 'exact_max.bin', ...(canLink ? ['ln_out.txt', 'ln_in.txt', 'dir_out/secret.txt'] : [])]
+const names = () => [...FILES.map(([n]) => n), 'd', 'nope', 'big_sparse.bin', 'big_lines.txt', 'exact_max.bin', ...(canLink ? ['ln_out.txt', 'ln_in.txt', 'dir_out/secret.txt', 'ln_out_dangling.md', 'ln_in_dangling.md', 'ln_out_dangling_deep.md', 'ln_chain_to_dangling.md', 'ln_chain_loop_a.md', 'ln_chain_loop_b.md', 'ln_rel_out.md'] : [])]
 
 test('夹具清单与黄金样本一致（条数与每个夹具的字节数）', () => {
   assert.equal(FILES.length, 17)
@@ -138,7 +148,7 @@ test('inside / guard 对黄金样本逐条一致：字面出仓不碰文件系�
 test('readBytes 字面出仓的路径：抛 OutsideRoot，且**不碰文件系统**（对一个不存在的仓外路径也是 OutsideRoot 而不是 ENOENT）', () => {
   const r = run(() => readBytes(join(proj, '..', 'does-not-exist-anywhere'), proj))
   assert.deepEqual(r, { raised: 'OutsideRoot' })
-  assert.deepEqual(norm(run(() => hexed(readBytes(P('nope'), proj)))).raised ?? 'ok', 'Error', '仓内不存在的路径是 ENOENT（Python 的 FileNotFoundError），不是 OutsideRoot')
+  assert.deepEqual(norm(run(() => hexed(readBytes(P('nope'), proj)))).raised ?? 'ok', 'FileNotFoundError', '仓内不存在的路径是 ENOENT（Python 的 FileNotFoundError），不是 OutsideRoot')
 })
 
 test('没给 root：不做仓内判定，只读常规文件', () => {

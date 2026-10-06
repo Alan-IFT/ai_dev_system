@@ -60,10 +60,31 @@
   "exact_max.bin": {
    "ok": 1
   },
+  "ln_chain_loop_a.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_loop_b.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_to_dangling.md": {
+   "raised": "OutsideRoot"
+  },
   "ln_in.txt": {
    "ok": 1
   },
+  "ln_in_dangling.md": {
+   "raised": "FileNotFoundError"
+  },
   "ln_out.txt": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling_deep.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_rel_out.md": {
    "raised": "OutsideRoot"
   },
   "nl.txt": {
@@ -143,10 +164,31 @@
   "inner_missing": {
    "ok": true
   },
+  "ln_chain_loop_a.md": {
+   "ok": true
+  },
+  "ln_chain_loop_b.md": {
+   "ok": true
+  },
+  "ln_chain_to_dangling.md": {
+   "raised": "OutsideRoot"
+  },
   "ln_in.txt": {
    "ok": true
   },
+  "ln_in_dangling.md": {
+   "ok": true
+  },
   "ln_out.txt": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling_deep.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_rel_out.md": {
    "raised": "OutsideRoot"
   },
   "nl.txt": {
@@ -232,10 +274,31 @@
   "inner_missing": {
    "ok": true
   },
+  "ln_chain_loop_a.md": {
+   "ok": true
+  },
+  "ln_chain_loop_b.md": {
+   "ok": true
+  },
+  "ln_chain_to_dangling.md": {
+   "ok": false
+  },
   "ln_in.txt": {
    "ok": true
   },
+  "ln_in_dangling.md": {
+   "ok": true
+  },
   "ln_out.txt": {
+   "ok": false
+  },
+  "ln_out_dangling.md": {
+   "ok": false
+  },
+  "ln_out_dangling_deep.md": {
+   "ok": false
+  },
+  "ln_rel_out.md": {
    "ok": false
   },
   "nl.txt": {
@@ -369,13 +432,34 @@
     "len": 2097152
    }
   },
+  "ln_chain_loop_a.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_loop_b.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_to_dangling.md": {
+   "raised": "OutsideRoot"
+  },
   "ln_in.txt": {
    "ok": {
     "hex": "68656c6c6f",
     "len": 5
    }
   },
+  "ln_in_dangling.md": {
+   "raised": "FileNotFoundError"
+  },
   "ln_out.txt": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling_deep.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_rel_out.md": {
    "raised": "OutsideRoot"
   },
   "nl.txt": {
@@ -509,13 +593,34 @@
     "len": 4
    }
   },
+  "ln_chain_loop_a.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_loop_b.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_to_dangling.md": {
+   "raised": "OutsideRoot"
+  },
   "ln_in.txt": {
    "ok": {
     "hex": "68656c6c",
     "len": 4
    }
   },
+  "ln_in_dangling.md": {
+   "raised": "FileNotFoundError"
+  },
   "ln_out.txt": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling_deep.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_rel_out.md": {
    "raised": "OutsideRoot"
   },
   "nl.txt": {
@@ -617,10 +722,31 @@
     "len": 2097152
    }
   },
+  "ln_chain_loop_a.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_loop_b.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_to_dangling.md": {
+   "raised": "OutsideRoot"
+  },
   "ln_in.txt": {
    "ok": "hello"
   },
+  "ln_in_dangling.md": {
+   "raised": "FileNotFoundError"
+  },
   "ln_out.txt": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling_deep.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_rel_out.md": {
    "raised": "OutsideRoot"
   },
   "nl.txt": {
@@ -694,10 +820,31 @@
   "exact_max.bin": {
    "ok": "\u0000\u0000\u0000\u0000\u0000"
   },
+  "ln_chain_loop_a.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_loop_b.md": {
+   "raised": "OSError"
+  },
+  "ln_chain_to_dangling.md": {
+   "raised": "OutsideRoot"
+  },
   "ln_in.txt": {
    "ok": "hello"
   },
+  "ln_in_dangling.md": {
+   "raised": "FileNotFoundError"
+  },
   "ln_out.txt": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_out_dangling_deep.md": {
+   "raised": "OutsideRoot"
+  },
+  "ln_rel_out.md": {
    "raised": "OutsideRoot"
   },
   "nl.txt": {

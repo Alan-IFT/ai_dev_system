@@ -4,8 +4,8 @@
 // 4GB 稀疏文件能把机器撑爆；打开前后可以把中间目录换成指向仓外的链接。每一道都是一次实测出来的缺陷（D-123）。
 // 与 Python 版的有意差异见设计 §12.6：D7（非常规文件统一抛 NotRegular）、D8（Windows 上 O_NOFOLLOW/O_NONBLOCK 为空，ino 用 BigInt）。
 
-import { closeSync, constants, fstatSync, openSync, readSync, realpathSync, statSync } from 'node:fs'
-import { isAbsolute, resolve, sep } from 'node:path'
+import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readlinkSync, realpathSync, statSync } from 'node:fs'
+import { dirname, isAbsolute, resolve, sep } from 'node:path'
 
 /** 读被扫项目文件的唯一上限。超限抛 TooLarge，各读点照常按 OSError 记未定。 */
 export const MAX_READ_BYTES = 2 * 1024 * 1024
@@ -62,7 +62,9 @@ export function inside(root: string | null | undefined, path: string): boolean {
  * 与 Python 的 `os.path.realpath`（非严格）同义：路径不存在时不抛，对存在的最长前缀求真实路径，再拼上剩余部分。
  * Node 的 `realpathSync` 对不存在的路径抛 ENOENT，Python 的不抛——`inside()` 要对「还不存在的路径」也能答。
  */
-export function realpathLoose(p: string): string {
+export function realpathLoose(p: string, hops = 0): string {
+  // 符号链接最多跟 40 层：与 Linux 的 MAXSYMLINKS 同量级；循环链（a→b→a）会走到这个上限，按 Python `realpath` 的做法（非严格）原样返回、不抛。
+  if (hops > 40) return p
   let cur = p
   const rest: string[] = []
   for (;;) {
@@ -71,12 +73,67 @@ export function realpathLoose(p: string): string {
       return rest.length ? resolve(real, ...rest.reverse()) : real
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
+      if (code === 'ELOOP') return p // 循环链：Python 的非严格 realpath 同样不抛，原样返回
       if (code !== 'ENOENT' && code !== 'ENOTDIR') throw e
+      // **这一段本身是断链**（符号链接，目标不存在）：必须跟随它——否则把它当成「不存在的名字」退到上一级，会把指向仓外的断链判成仓内。
+      // Python 的 `os.path.realpath` 对它读 `readlink` 照算目标路径。这个缺口是迁移 entry_budget 时由它的自检暴露的（设计 §12.16）。
+      const target = readlinkOrNull(cur)
+      if (target !== null) {
+        const next = resolve(dirname(cur), target)
+        const resolved = realpathLoose(next, hops + 1)
+        return rest.length ? resolve(resolved, ...rest.reverse()) : resolved
+      }
       const parent = resolve(cur, '..')
       if (parent === cur) return p
       rest.push(cur.slice(parent.length).replace(/^[\\/]+/, ''))
       cur = parent
     }
+  }
+}
+
+/** `cur` 是符号链接就返回它的目标文本，否则 null（不存在、不是链接、读不了都算 null）。 */
+function readlinkOrNull(cur: string): string | null {
+  try {
+    if (!lstatSync(cur).isSymbolicLink()) return null
+    return readlinkSync(cur)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 与 Python 的 `os.path.isfile` / `os.path.isdir` 同义：跟随符号链接，任何错误都按「不是」算。**全仓唯一一份**——此前各模块各写一份直接用 `statSync`。
+ * 差异在 Windows 上：路径带尾分隔符的普通文件（`S.md/`），Python 的 `isfile` 为 False，Node 的 `statSync` 却照样 stat 到文件；这里补上这条（设计 §12.16）。
+ */
+export function isFile(p: string): boolean {
+  try {
+    const s = String(p)
+    // 带尾分隔符的路径只可能指向目录：普通文件 + 尾分隔符，Python 为 False、Node 的 statSync 为 True，所以这里一律 false（目录本来就不是文件，不必再 stat）
+    if (/[\\/]$/.test(s)) return false
+    return statSync(s).isFile()
+  } catch {
+    return false
+  }
+}
+
+export function isDir(p: string): boolean {
+  try {
+    return statSync(String(p)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/** 与 Python 的 `os.path.lexists` 同义：不跟随符号链接，断链也算存在。 */
+export function lexists(p: string): boolean {
+  try {
+    const s = String(p)
+    // 与 isFile 同一条：带尾分隔符的路径，Python 要求它指向目录（或指向目录的链接），Node 的 lstatSync 对「文件 + 尾分隔符」照样成功
+    if (/[\\/]$/.test(s) && !statSync(s).isDirectory()) return false
+    lstatSync(s)
+    return true
+  } catch {
+    return false
   }
 }
 

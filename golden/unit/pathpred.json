@@ -1,0 +1,1183 @@
+{
+ "cases": [
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "f.md/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "f.md//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "f.md\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "f.md/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "f.md/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "f.md/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "f.md?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "f.md*"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "empty.md/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "empty.md//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "empty.md\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "empty.md/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "empty.md/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "empty.md/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "empty.md?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "empty.md*"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "a b.md/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "a b.md//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "a b.md\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "a b.md/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "a b.md/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "a b.md/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "a b.md?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "a b.md*"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "中文.md/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "中文.md//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "中文.md\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "中文.md/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "中文.md/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "中文.md/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "中文.md?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "中文.md*"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "sub/g.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "sub/g.md/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "sub/g.md "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "sub/g.md."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "sub/g.md\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "sub/g.md/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "sub/g.md/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "sub/g.md*"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d/"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d//"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d\\"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d/."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d/./"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d "
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "d/../f.md"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "d?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "d*"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner/"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner//"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner\\"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner/."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner/./"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner "
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "d2/inner/../f.md"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "d2/inner/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "d2/inner?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "d2/inner*"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope\\"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/./"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope "
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "nope/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "nope/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope*"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper\\"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper/./"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper "
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper\\."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "nope/deeper*"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "F.MD/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "F.MD//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "F.MD\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "F.MD/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "F.MD/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "F.MD/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "F.MD?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "F.MD*"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D/"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D//"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D\\"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D/."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D/./"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D "
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "D/../f.md"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "D/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "D?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "D*"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_file/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_file//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_file\\"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_file/./"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file "
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_file/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_file/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_file?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_file*"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir/"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir//"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir\\"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir/."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir/./"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir "
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_dir/../f.md"
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dir/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dir?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dir*"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dangling/"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dangling//"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dangling\\"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling/."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dangling/./"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling "
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling\\."
+  },
+  {
+   "isdir": true,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling/.."
+  },
+  {
+   "isdir": false,
+   "isfile": true,
+   "lexists": true,
+   "rel": "ln_dangling/../f.md"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": true,
+   "rel": "ln_dangling/sub/.."
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dangling?"
+  },
+  {
+   "isdir": false,
+   "isfile": false,
+   "lexists": false,
+   "rel": "ln_dangling*"
+  }
+ ],
+ "platform": "win32",
+ "python": "3.12.14",
+ "symlink": true
+}

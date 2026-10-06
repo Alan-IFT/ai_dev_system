@@ -29,7 +29,15 @@ export declare function inside(root: string | null | undefined, path: string): b
  * 与 Python 的 `os.path.realpath`（非严格）同义：路径不存在时不抛，对存在的最长前缀求真实路径，再拼上剩余部分。
  * Node 的 `realpathSync` 对不存在的路径抛 ENOENT，Python 的不抛——`inside()` 要对「还不存在的路径」也能答。
  */
-export declare function realpathLoose(p: string): string;
+export declare function realpathLoose(p: string, hops?: number): string;
+/**
+ * 与 Python 的 `os.path.isfile` / `os.path.isdir` 同义：跟随符号链接，任何错误都按「不是」算。**全仓唯一一份**——此前各模块各写一份直接用 `statSync`。
+ * 差异在 Windows 上：路径带尾分隔符的普通文件（`S.md/`），Python 的 `isfile` 为 False，Node 的 `statSync` 却照样 stat 到文件；这里补上这条（设计 §12.16）。
+ */
+export declare function isFile(p: string): boolean;
+export declare function isDir(p: string): boolean;
+/** 与 Python 的 `os.path.lexists` 同义：不跟随符号链接，断链也算存在。 */
+export declare function lexists(p: string): boolean;
 /**
  * 读被扫项目里的文件之前调用：真实位置在 root 之外即抛 OutsideRoot，不读、不回显内容。
  * 被扫项目里的符号链接可以指向仓外任意文件；跟随它读，就是把仓外内容（与其存在性）带进报告。

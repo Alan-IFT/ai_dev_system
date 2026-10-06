@@ -4,12 +4,11 @@
 // 与项目自己的门号例外（`G6` 之类）共用一张表：**规则列不含 `/` 的行本工具不登记、不校验五项**——那是项目的门，不是本工具的发现。
 // 有意差异：D10（系统错误的整句措辞，见设计 §12.6）。
 
-import { inside, guard, readBytes, isReadRefusal } from './fs.js'
+import { inside, guard, isFile, lexists, readBytes, isReadRefusal } from './fs.js'
 import { PY_WHITESPACE, pyStrip } from './finding.js'
 import { parseDate, toIso, type CalDate } from './dates.js'
 import { diagnoseUtf8, pyUtf8ErrorMessage } from './utf8.js'
 import { splitLinesPy } from './yaml.js'
-import { lstatSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const EXCEPTIONS_FILE = 'exceptions.md'
@@ -247,9 +246,4 @@ function errnoName(code: string): string {
   return 'OSError'
 }
 
-function lexists(p: string): boolean {
-  try { lstatSync(p); return true } catch { return false }
-}
-function isFile(p: string): boolean {
-  try { return statSync(p).isFile() } catch { return false }
-}
+

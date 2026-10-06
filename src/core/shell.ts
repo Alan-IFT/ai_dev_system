@@ -4,11 +4,10 @@
 // 不带过来的：tracked_files、scan_memo、markdown_under、work_items——它们依赖 `.std/` 内嵌机制（阶段 4 废弃）与扫描缓存，放到 check_all 汇总层迁。
 // 检查器内部异常一律转未定，**绝不吞掉记 PASS**（契约 §1、§4）；这是整个工具最重要的一条安全属性，所以 `runGuarded` 的每个分支都有变异验证。
 
-import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { isTailoredOut } from './docs.js'
 import { FAIL, PASS, SKIP, UNDETERMINED, finding, pyStrip, type Finding, type FindingInit } from './finding.js'
-import { inside, isReadRefusal } from './fs.js'
+import { inside, isDir, isReadRefusal } from './fs.js'
 import { INTERNAL_ERROR_KIND } from './exceptions.js'
 import { workRoot } from './docs.js'
 import { LIST_CAP } from './docs.js'
@@ -108,10 +107,6 @@ export function workRootAbsent(check: string, cfg: Config): Finding | null {
 /** Python 的 `rel.replace("\\", "/").strip()`——`strip` 用 Python 的空白集合，不用 JS 的 `\s`/`trim`（设计 §12.6 D6）。 */
 function pyStripPath(rel: string): string {
   return pyStrip(rel.replaceAll('\\', '/'))
-}
-
-function isDir(p: string): boolean {
-  try { return statSync(p).isDirectory() } catch { return false }
 }
 
 /**
