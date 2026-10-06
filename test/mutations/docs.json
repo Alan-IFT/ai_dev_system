@@ -1,0 +1,773 @@
+[
+ {
+  "id": "D1",
+  "title": "状态字段名少 state",
+  "file": "src/core/docs.ts",
+  "from": "['状态', 'status', 'state']",
+  "to": "['状态', 'status']"
+ },
+ {
+  "id": "D2",
+  "title": "状态字段名少 状态",
+  "file": "src/core/docs.ts",
+  "from": "['状态', 'status', 'state']",
+  "to": "['status', 'state']"
+ },
+ {
+  "id": "D3",
+  "title": "状态字段名顺序颠倒（先 state）",
+  "file": "src/core/docs.ts",
+  "from": "['状态', 'status', 'state']",
+  "to": "['state', 'status', '状态']"
+ },
+ {
+  "id": "D4",
+  "title": "默认日期字段改名",
+  "file": "src/core/docs.ts",
+  "from": "['updated_at']",
+  "to": "['updated']"
+ },
+ {
+  "id": "D5",
+  "title": "HEAD_CHARS 改 5000",
+  "file": "src/core/docs.ts",
+  "from": "export const HEAD_CHARS = 4000",
+  "to": "export const HEAD_CHARS = 5000"
+ },
+ {
+  "id": "D6",
+  "title": "HEAD_CHARS 改 3000",
+  "file": "src/core/docs.ts",
+  "from": "export const HEAD_CHARS = 4000",
+  "to": "export const HEAD_CHARS = 3000"
+ },
+ {
+  "id": "F1",
+  "title": "字段：名字前不要求行首或空白（去掉回看）",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_LEAD = `(?:${LINE_START}|(?<=[${PY_WHITESPACE}　|>]))`",
+  "to": "const FIELD_LEAD = ''"
+ },
+ {
+  "id": "F2",
+  "title": "字段：回看里漏竖线",
+  "file": "src/core/docs.ts",
+  "from": "|(?<=[${PY_WHITESPACE}　|>]))`",
+  "to": "|(?<=[${PY_WHITESPACE}　>]))`"
+ },
+ {
+  "id": "F3",
+  "title": "字段：回看里漏 >",
+  "file": "src/core/docs.ts",
+  "from": "|(?<=[${PY_WHITESPACE}　|>]))`",
+  "to": "|(?<=[${PY_WHITESPACE}　|]))`"
+ },
+ {
+  "id": "F4",
+  "title": "字段：回看里漏全角空格（只有 PY_WHITESPACE 里本来就含它，所以漏写不影响——此变异改成去掉整个空白集合）",
+  "file": "src/core/docs.ts",
+  "from": "|(?<=[${PY_WHITESPACE}　|>]))`",
+  "to": "|(?<=[|>]))`"
+ },
+ {
+  "id": "F5",
+  "title": "字段：装饰上限 4 改成 5",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_DECOR = '[*_`]{0,4}'",
+  "to": "const FIELD_DECOR = '[*_`]{0,5}'"
+ },
+ {
+  "id": "F6",
+  "title": "字段：装饰上限 4 改成 3",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_DECOR = '[*_`]{0,4}'",
+  "to": "const FIELD_DECOR = '[*_`]{0,3}'"
+ },
+ {
+  "id": "F7",
+  "title": "字段：装饰不认下划线",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_DECOR = '[*_`]{0,4}'",
+  "to": "const FIELD_DECOR = '[*`]{0,4}'"
+ },
+ {
+  "id": "F8",
+  "title": "字段：装饰不认反引号",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_DECOR = '[*_`]{0,4}'",
+  "to": "const FIELD_DECOR = '[*_]{0,4}'"
+ },
+ {
+  "id": "F9",
+  "title": "字段：装饰不认星号",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_DECOR = '[*_`]{0,4}'",
+  "to": "const FIELD_DECOR = '[_`]{0,4}'"
+ },
+ {
+  "id": "F10",
+  "title": "字段：冒号两侧的空白吞掉换行（\\s 代替 [ \\t　]）",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_GAP = '[ \\\\t　]*'",
+  "to": "const FIELD_GAP = '\\\\s*'"
+ },
+ {
+  "id": "F11",
+  "title": "字段：冒号两侧不认全角空格",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_GAP = '[ \\\\t　]*'",
+  "to": "const FIELD_GAP = '[ \\\\t]*'"
+ },
+ {
+  "id": "F12",
+  "title": "字段：冒号两侧不认制表符",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_GAP = '[ \\\\t　]*'",
+  "to": "const FIELD_GAP = '[ 　]*'"
+ },
+ {
+  "id": "F13",
+  "title": "字段：值不以全角空格为界",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_VALUE = '([^\\\\n　|]*)'",
+  "to": "const FIELD_VALUE = '([^\\\\n|]*)'"
+ },
+ {
+  "id": "F14",
+  "title": "字段：值不以竖线为界",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_VALUE = '([^\\\\n　|]*)'",
+  "to": "const FIELD_VALUE = '([^\\\\n　]*)'"
+ },
+ {
+  "id": "F15",
+  "title": "字段：值不以换行为界",
+  "file": "src/core/docs.ts",
+  "from": "const FIELD_VALUE = '([^\\\\n　|]*)'",
+  "to": "const FIELD_VALUE = '([^　|]*)'"
+ },
+ {
+  "id": "F16",
+  "title": "字段：只认半角冒号",
+  "file": "src/core/docs.ts",
+  "from": "+ '[:：]' +",
+  "to": "+ ':' +"
+ },
+ {
+  "id": "F17",
+  "title": "字段：只认全角冒号",
+  "file": "src/core/docs.ts",
+  "from": "+ '[:：]' +",
+  "to": "+ '：' +"
+ },
+ {
+  "id": "F18",
+  "title": "字段：去掉不区分大小写标志",
+  "file": "src/core/docs.ts",
+  "from": "FIELD_VALUE, 'iu')",
+  "to": "FIELD_VALUE, 'u')"
+ },
+ {
+  "id": "F19",
+  "title": "字段：行首也认 \\r 之后（回到 JS 的 m 标志行为，违反 D13）",
+  "file": "src/core/docs.ts",
+  "from": "const LINE_START = '(?<![^\\\\n])'",
+  "to": "const LINE_START = '(?<![^\\\\n\\\\r])'"
+ },
+ {
+  "id": "F20",
+  "title": "字段：去掉 u 标志（iu 才认 ſ↔s 与 K↔k）",
+  "file": "src/core/docs.ts",
+  "from": "FIELD_VALUE, 'iu')",
+  "to": "FIELD_VALUE, 'i')"
+ },
+ {
+  "id": "F21",
+  "title": "字段：值为空时继续找下一个同名字段（而不是视作缺字段）",
+  "file": "src/core/docs.ts",
+  "from": "return val ? [val, n] : [null, null]",
+  "to": "if (!val) continue\n      return [val, n]"
+ },
+ {
+  "id": "F22",
+  "title": "字段：值不去首尾空白",
+  "file": "src/core/docs.ts",
+  "from": "const val = pyStrip(m[1]!)",
+  "to": "const val = m[1]!"
+ },
+ {
+  "id": "F23",
+  "title": "字段：用 trim 去空白（U+FEFF 被去掉，Python 不去）",
+  "file": "src/core/docs.ts",
+  "from": "const val = pyStrip(m[1]!)",
+  "to": "const val = m[1]!.trim()"
+ },
+ {
+  "id": "F24",
+  "title": "字段：名字不转义（点号当通配）",
+  "file": "src/core/docs.ts",
+  "from": "const esc = ch.replace(/[.*+?^${}()|[\\]\\\\/-]/g, '\\\\$&')",
+  "to": "const esc = ch"
+ },
+ {
+  "id": "F25",
+  "title": "字段：折叠特例漏 İ ı",
+  "file": "src/core/docs.ts",
+  "from": "i: 'İı', I: 'İı'",
+  "to": "i: '', I: ''"
+ },
+ {
+  "id": "F29",
+  "title": "字段：按名字顺序逐个找改成合并成一个交替模式（取位置最早）",
+  "file": "src/core/docs.ts",
+  "from": "  for (const name of names) {\n    const n = pyStr(name)",
+  "to": "  for (const name of [...names].reverse()) {\n    const n = pyStr(name)"
+ },
+ {
+  "id": "F30",
+  "title": "字段：返回命中的名字用原样而不是传入的名字",
+  "file": "src/core/docs.ts",
+  "from": "return val ? [val, n] : [null, null]",
+  "to": "return val ? [val, m[0]!.slice(0, 1)] : [null, null]"
+ },
+ {
+  "id": "H1",
+  "title": "头部：不识别 YAML 头",
+  "file": "src/core/docs.ts",
+  "from": "if (m && findField(m[1]!, STATUS_FIELDS)[0] !== null) return m[1]!",
+  "to": ""
+ },
+ {
+  "id": "H2",
+  "title": "头部：YAML 头里没状态字段也取它",
+  "file": "src/core/docs.ts",
+  "from": "if (m && findField(m[1]!, STATUS_FIELDS)[0] !== null) return m[1]!",
+  "to": "if (m) return m[1]!"
+ },
+ {
+  "id": "H3",
+  "title": "头部：不认 BOM 开头的 YAML 头",
+  "file": "src/core/docs.ts",
+  "from": "const FRONT_MATTER = /^\\ufeff?---",
+  "to": "const FRONT_MATTER = /^---"
+ },
+ {
+  "id": "H4",
+  "title": "头部：YAML 头结束行不容忍尾随空白",
+  "file": "src/core/docs.ts",
+  "from": "\\n)---[ \\t]*(?:\\n|$)/",
+  "to": "\\n)---(?:\\n|$)/"
+ },
+ {
+  "id": "H5",
+  "title": "头部：YAML 头结束行不允许文件末尾",
+  "file": "src/core/docs.ts",
+  "from": "\\n)---[ \\t]*(?:\\n|$)/",
+  "to": "\\n)---[ \\t]*\\n/"
+ },
+ {
+  "id": "H6",
+  "title": "头部：标题级别 2-6 改成 1-6",
+  "file": "src/core/docs.ts",
+  "from": "`${LINE_START}#{2,6}[${PY_WHITESPACE}]`",
+  "to": "`${LINE_START}#{1,6}[${PY_WHITESPACE}]`"
+ },
+ {
+  "id": "H7",
+  "title": "头部：标题级别 2-6 改成 2-5",
+  "file": "src/core/docs.ts",
+  "from": "`${LINE_START}#{2,6}[${PY_WHITESPACE}]`",
+  "to": "`${LINE_START}#{2,5}[${PY_WHITESPACE}]`"
+ },
+ {
+  "id": "H8",
+  "title": "头部：标题后不要求空白",
+  "file": "src/core/docs.ts",
+  "from": "`${LINE_START}#{2,6}[${PY_WHITESPACE}]`",
+  "to": "`${LINE_START}#{2,6}`"
+ },
+ {
+  "id": "H9",
+  "title": "头部：标题行首也认 \\r 之后（回到 JS 的 m 标志行为，违反 D13）",
+  "file": "src/core/docs.ts",
+  "from": "`${LINE_START}#{2,6}[${PY_WHITESPACE}]`",
+  "to": "`(?:^|(?<=\\\\r))#{2,6}[${PY_WHITESPACE}]`"
+ },
+ {
+  "id": "H10",
+  "title": "头部：不截断到 HEAD_CHARS",
+  "file": "src/core/docs.ts",
+  "from": "const t = text.slice(0, HEAD_CHARS)",
+  "to": "const t = text"
+ },
+ {
+  "id": "H11",
+  "title": "头部：找不到小节标题时返回空而不是整段",
+  "file": "src/core/docs.ts",
+  "from": "return s ? t.slice(0, s.index) : t",
+  "to": "return s ? t.slice(0, s.index) : ''"
+ },
+ {
+  "id": "S1",
+  "title": "状态值：不去括注（全角）",
+  "file": "src/core/docs.ts",
+  "from": "split(/[（(]/)",
+  "to": "split(/[(]/)"
+ },
+ {
+  "id": "S2",
+  "title": "状态值：不去括注（半角）",
+  "file": "src/core/docs.ts",
+  "from": "split(/[（(]/)",
+  "to": "split(/[（]/)"
+ },
+ {
+  "id": "S3",
+  "title": "状态值：不转小写",
+  "file": "src/core/docs.ts",
+  "from": "pyStrip(clean(raw).split(/[（(]/)[0]!).toLowerCase()",
+  "to": "pyStrip(clean(raw).split(/[（(]/)[0]!)"
+ },
+ {
+  "id": "S4",
+  "title": "状态值：没有字段时返回空串而不是 null",
+  "file": "src/core/docs.ts",
+  "from": "if (raw === null) return null",
+  "to": "if (raw === null) return ''"
+ },
+ {
+  "id": "S5",
+  "title": "clean：不去反引号",
+  "file": "src/core/docs.ts",
+  "from": ".replaceAll('*', '').replaceAll('`', '')",
+  "to": ".replaceAll('*', '')"
+ },
+ {
+  "id": "S6",
+  "title": "clean：不去星号",
+  "file": "src/core/docs.ts",
+  "from": ".replaceAll('*', '').replaceAll('`', '')",
+  "to": ".replaceAll('`', '')"
+ },
+ {
+  "id": "S7",
+  "title": "clean：不去首尾空白",
+  "file": "src/core/docs.ts",
+  "from": "return pyStrip(pyStr(value).replaceAll('*', '').replaceAll('`', ''))",
+  "to": "return pyStr(value).replaceAll('*', '').replaceAll('`', '')"
+ },
+ {
+  "id": "P1",
+  "title": "normRel：反斜杠不换",
+  "file": "src/core/docs.ts",
+  "from": "return pyStrip(pyStr(p).replaceAll('\\\\', '/'))",
+  "to": "return pyStrip(pyStr(p))"
+ },
+ {
+  "id": "P2",
+  "title": "normRel：不去空白",
+  "file": "src/core/docs.ts",
+  "from": "return pyStrip(pyStr(p).replaceAll('\\\\', '/'))",
+  "to": "return pyStr(p).replaceAll('\\\\', '/')"
+ },
+ {
+  "id": "P3",
+  "title": "under：目录名按纯前缀（a 误含 ab）",
+  "file": "src/core/docs.ts",
+  "from": "return rel === s || rel.startsWith(s + '/')\n}\n\n/** 工作项文件的命名",
+  "to": "return rel === s || rel.startsWith(s)\n}\n\n/** 工作项文件的命名"
+ },
+ {
+  "id": "P4",
+  "title": "under：空与 . 不视作整仓",
+  "file": "src/core/docs.ts",
+  "from": "if (s === '' || s === '.') return true",
+  "to": "if (s === '') return true"
+ },
+ {
+  "id": "P5",
+  "title": "under：. 不视作整仓",
+  "file": "src/core/docs.ts",
+  "from": "if (s === '' || s === '.') return true",
+  "to": "if (s === '.') return true"
+ },
+ {
+  "id": "P6",
+  "title": "under：不去 sub 末尾斜杠",
+  "file": "src/core/docs.ts",
+  "from": "const s = normRel(sub).replace(/\\/+$/, '')",
+  "to": "const s = normRel(sub)"
+ },
+ {
+  "id": "P7",
+  "title": "工作项名：位数下限 3 改 2",
+  "file": "src/core/docs.ts",
+  "from": "const WORK_ITEM_NAME = /^WI-[0-9]{3,}/",
+  "to": "const WORK_ITEM_NAME = /^WI-[0-9]{2,}/"
+ },
+ {
+  "id": "P8",
+  "title": "工作项名：位数下限 3 改 4",
+  "file": "src/core/docs.ts",
+  "from": "const WORK_ITEM_NAME = /^WI-[0-9]{3,}/",
+  "to": "const WORK_ITEM_NAME = /^WI-[0-9]{4,}/"
+ },
+ {
+  "id": "P9",
+  "title": "工作项名：不锚定开头",
+  "file": "src/core/docs.ts",
+  "from": "const WORK_ITEM_NAME = /^WI-[0-9]{3,}/",
+  "to": "const WORK_ITEM_NAME = /WI-[0-9]{3,}/"
+ },
+ {
+  "id": "P10",
+  "title": "工作项名：不区分大小写",
+  "file": "src/core/docs.ts",
+  "from": "const WORK_ITEM_NAME = /^WI-[0-9]{3,}/",
+  "to": "const WORK_ITEM_NAME = /^WI-[0-9]{3,}/i"
+ },
+ {
+  "id": "P11",
+  "title": "工作项名：用完整路径而不是文件名",
+  "file": "src/core/docs.ts",
+  "from": "return WORK_ITEM_NAME.test(pyBasename(pyStr(rel)))",
+  "to": "return WORK_ITEM_NAME.test(pyStr(rel))"
+ },
+ {
+  "id": "P12",
+  "title": "【仅 Windows】basename 只认斜杠不认反斜杠（POSIX 上原代码本来就不认，与变异等价）",
+  "file": "src/core/docs.ts",
+  "from": "const i = Math.max(p.lastIndexOf('/'), process.platform === 'win32' ? p.lastIndexOf('\\\\') : -1)",
+  "to": "const i = p.lastIndexOf('/')",
+  "winOnly": true
+ },
+ {
+  "id": "R1",
+  "title": "改基：不去末尾斜杠",
+  "file": "src/core/docs.ts",
+  "from": ".replace(/\\/+$/, '')\n  const dr = ",
+  "to": "\n  const dr = "
+ },
+ {
+  "id": "R3",
+  "title": "改基：不要求以 docs/ 开头（含 docsx/）",
+  "file": "src/core/docs.ts",
+  "from": "if (r.startsWith('docs/') && dr !== 'docs')",
+  "to": "if (r.startsWith('docs') && dr !== 'docs')"
+ },
+ {
+  "id": "R4",
+  "title": "改基：docs_root 为空时不取缺省",
+  "file": "src/core/docs.ts",
+  "from": "pyStr(pyTruthy(docsRoot) ? docsRoot : DEFAULT_DOCS_ROOT)",
+  "to": "pyStr(docsRoot ?? DEFAULT_DOCS_ROOT)"
+ },
+ {
+  "id": "W1",
+  "title": "文档根：空串也当配了",
+  "file": "src/core/docs.ts",
+  "from": "if (pyTruthy(raw)) return [pyStr(raw), '']",
+  "to": "if (raw !== undefined && raw !== null) return [pyStr(raw), '']"
+ },
+ {
+  "id": "W2",
+  "title": "文档根：配了也带注记",
+  "file": "src/core/docs.ts",
+  "from": "if (pyTruthy(raw)) return [pyStr(raw), '']",
+  "to": "if (pyTruthy(raw)) return [pyStr(raw), '配了']"
+ },
+ {
+  "id": "W3",
+  "title": "文档根：缺省值改名",
+  "file": "src/core/docs.ts",
+  "from": "export const DEFAULT_DOCS_ROOT = 'docs'",
+  "to": "export const DEFAULT_DOCS_ROOT = 'doc'"
+ },
+ {
+  "id": "W4",
+  "title": "工作项目录：缺省值改名",
+  "file": "src/core/docs.ts",
+  "from": "export const DEFAULT_WORK_ROOT = 'docs/state/work'",
+  "to": "export const DEFAULT_WORK_ROOT = 'docs/work'"
+ },
+ {
+  "id": "W5",
+  "title": "工作项目录：缺省不随 docs_root 改基",
+  "file": "src/core/docs.ts",
+  "from": "const rel = rebaseDocs(DEFAULT_WORK_ROOT, docsRootOf(cfg)[0])",
+  "to": "const rel = DEFAULT_WORK_ROOT"
+ },
+ {
+  "id": "W6",
+  "title": "工作项目录：配了的值被归一（去斜杠）",
+  "file": "src/core/docs.ts",
+  "from": "if (pyTruthy(raw)) return [pyStr(raw), `work_root 取自",
+  "to": "if (pyTruthy(raw)) return [pyStr(raw).replace(/\\/+$/, ''), `work_root 取自"
+ },
+ {
+  "id": "W7",
+  "title": "工作项目录：注记不写取自哪里",
+  "file": "src/core/docs.ts",
+  "from": "`work_root 取自 layout.work_root：${pyStr(raw)}`",
+  "to": "'配了'"
+ },
+ {
+  "id": "E1",
+  "title": "入口候选顺序颠倒",
+  "file": "src/core/docs.ts",
+  "from": "['CONTEXT.md', 'AGENTS.md', 'CLAUDE.md']",
+  "to": "['CLAUDE.md', 'AGENTS.md', 'CONTEXT.md']"
+ },
+ {
+  "id": "E2",
+  "title": "入口候选少 AGENTS.md",
+  "file": "src/core/docs.ts",
+  "from": "['CONTEXT.md', 'AGENTS.md', 'CLAUDE.md']",
+  "to": "['CONTEXT.md', 'CLAUDE.md']"
+ },
+ {
+  "id": "E3",
+  "title": "入口：不认 layout.artifacts.entry",
+  "file": "src/core/docs.ts",
+  "from": "cfgGet(cfg, 'layout.entry') || cfgGet(cfg, 'layout.artifacts.entry')",
+  "to": "cfgGet(cfg, 'layout.entry')"
+ },
+ {
+  "id": "E4",
+  "title": "入口：artifacts.entry 优先于 layout.entry",
+  "file": "src/core/docs.ts",
+  "from": "cfgGet(cfg, 'layout.entry') || cfgGet(cfg, 'layout.artifacts.entry')",
+  "to": "cfgGet(cfg, 'layout.artifacts.entry') || cfgGet(cfg, 'layout.entry')"
+ },
+ {
+  "id": "E5",
+  "title": "入口：声明了也判存在（过滤掉不存在的）",
+  "file": "src/core/docs.ts",
+  "from": "return [list.map((x) => pyStr(x)), '']",
+  "to": "return [list.map((x) => pyStr(x)).filter((x) => isFile(join((cfg._root as string) || '.', x))), '']"
+ },
+ {
+  "id": "E6",
+  "title": "入口：候选全取而不是只取第一个",
+  "file": "src/core/docs.ts",
+  "from": "return [hits.slice(0, 1), note +",
+  "to": "return [hits, note +"
+ },
+ {
+  "id": "E7",
+  "title": "入口：出仓的候选也探测（不照算命中）",
+  "file": "src/core/docs.ts",
+  "from": "const hits = ENTRY_CANDIDATES.filter((c) => !inside(root, join(root, c)) || isFile(join(root, c)))",
+  "to": "const hits = ENTRY_CANDIDATES.filter((c) => inside(root, join(root, c)) && isFile(join(root, c)))"
+ },
+ {
+  "id": "E8",
+  "title": "入口：候选全不在时不带「都不存在」",
+  "file": "src/core/docs.ts",
+  "from": "return [[], note + '：都不存在']",
+  "to": "return [[], note]"
+ },
+ {
+  "id": "E9",
+  "title": "入口：同时存在时不说「未取」",
+  "file": "src/core/docs.ts",
+  "from": "${hits.length > 1 ? `（同时存在 ${hits.slice(1).join('、')}，未取）` : ''}",
+  "to": ""
+ },
+ {
+  "id": "E10",
+  "title": "入口：声明是字符串时不包成列表",
+  "file": "src/core/docs.ts",
+  "from": "const list = typeof declared === 'string' ? [declared] : Array.isArray(declared) ? declared : []",
+  "to": "const list = Array.isArray(declared) ? declared : []"
+ },
+ {
+  "id": "Z1",
+  "title": "归档区：不去末尾斜杠",
+  "file": "src/core/docs.ts",
+  "from": "const pre = pyStr(prefix).replaceAll('\\\\', '/').replace(/\\/+$/, '')",
+  "to": "const pre = pyStr(prefix).replaceAll('\\\\', '/')"
+ },
+ {
+  "id": "Z2",
+  "title": "归档区：按纯前缀（archive 误含 archivex）",
+  "file": "src/core/docs.ts",
+  "from": "if (rel === pre || rel.startsWith(pre + '/')) return true",
+  "to": "if (rel === pre || rel.startsWith(pre)) return true"
+ },
+ {
+  "id": "Z3",
+  "title": "归档区：路径不换反斜杠",
+  "file": "src/core/docs.ts",
+  "from": "const rel = relpath.replaceAll('\\\\', '/')",
+  "to": "const rel = relpath"
+ },
+ {
+  "id": "Z4",
+  "title": "归档区：配置的前缀不换反斜杠",
+  "file": "src/core/docs.ts",
+  "from": "const pre = pyStr(prefix).replaceAll('\\\\', '/').replace(/\\/+$/, '')",
+  "to": "const pre = pyStr(prefix).replace(/\\/+$/, '')"
+ },
+ {
+  "id": "Z5",
+  "title": "归档区：非列表当字符串迭代（回到 Python 的偶然行为，违反 D12）",
+  "file": "src/core/docs.ts",
+  "from": "for (const prefix of Array.isArray(list) ? list : []) {",
+  "to": "for (const prefix of typeof list === 'string' ? [...list] : Array.isArray(list) ? list : []) {"
+ },
+ {
+  "id": "T1",
+  "title": "裁剪：applicable 为字符串 false 也算",
+  "file": "src/core/docs.ts",
+  "from": "if ((item as Record<string, unknown>).applicable === false) {",
+  "to": "if ((item as Record<string, unknown>).applicable === false || (item as Record<string, unknown>).applicable === 'false') {"
+ },
+ {
+  "id": "T2",
+  "title": "裁剪：applicable 为真也算",
+  "file": "src/core/docs.ts",
+  "from": "if ((item as Record<string, unknown>).applicable === false) {",
+  "to": "if (true) {"
+ },
+ {
+  "id": "T3",
+  "title": "裁剪：理由不去空白",
+  "file": "src/core/docs.ts",
+  "from": "return [true, pyStrip(pyTruthy(reason) ? pyStr(reason) : '') || null]",
+  "to": "return [true, (pyTruthy(reason) ? pyStr(reason) : '') || null]"
+ },
+ {
+  "id": "T4",
+  "title": "裁剪：空理由返回空串而不是 null",
+  "file": "src/core/docs.ts",
+  "from": "return [true, pyStrip(pyTruthy(reason) ? pyStr(reason) : '') || null]",
+  "to": "return [true, pyStrip(pyTruthy(reason) ? pyStr(reason) : '')]"
+ },
+ {
+  "id": "T5",
+  "title": "裁剪：只认第一条匹配（找到 check 相同但 applicable 不是 false 就停）",
+  "file": "src/core/docs.ts",
+  "from": "      if ((item as Record<string, unknown>).applicable === false) {\n        const reason",
+  "to": "      if ((item as Record<string, unknown>).applicable !== false) return [false, null]\n      if ((item as Record<string, unknown>).applicable === false) {\n        const reason"
+ },
+ {
+  "id": "T6",
+  "title": "工件裁剪：不认 layout: 前缀写法",
+  "file": "src/core/docs.ts",
+  "from": "const keys = [`layout:${role}`, role]",
+  "to": "const keys = [role]"
+ },
+ {
+  "id": "T7",
+  "title": "工件裁剪：不认裸角色写法",
+  "file": "src/core/docs.ts",
+  "from": "const keys = [`layout:${role}`, role]",
+  "to": "const keys = [`layout:${role}`]"
+ },
+ {
+  "id": "T8",
+  "title": "工件裁剪：check 不转字符串（数字 check 会匹配失败）",
+  "file": "src/core/docs.ts",
+  "from": "if (keys.includes(pyStr(o.check)) && o.applicable === false) {",
+  "to": "if (keys.includes(o.check as string) && o.applicable === false) {"
+ },
+ {
+  "id": "T9",
+  "title": "工件裁剪：applicable 为真也算",
+  "file": "src/core/docs.ts",
+  "from": "if (keys.includes(pyStr(o.check)) && o.applicable === false) {",
+  "to": "if (keys.includes(pyStr(o.check))) {"
+ },
+ {
+  "id": "DF1",
+  "title": "日期字段：不认单个字符串",
+  "file": "src/core/docs.ts",
+  "from": "raw = typeof raw === 'string' ? [raw] : raw",
+  "to": ""
+ },
+ {
+  "id": "DF2",
+  "title": "日期字段：不去空白项",
+  "file": "src/core/docs.ts",
+  "from": "raw.map((x) => pyStrip(pyStr(x))).filter((x) => x)",
+  "to": "raw.map((x) => pyStr(x))"
+ },
+ {
+  "id": "DF3",
+  "title": "日期字段：空列表也算配了",
+  "file": "src/core/docs.ts",
+  "from": "return names.length ? [names, false] : [[...DEFAULT_DATE_FIELDS], true]",
+  "to": "return [names, false]"
+ },
+ {
+  "id": "DF4",
+  "title": "日期字段：用默认值时不标记",
+  "file": "src/core/docs.ts",
+  "from": "return names.length ? [names, false] : [[...DEFAULT_DATE_FIELDS], true]",
+  "to": "return names.length ? [names, false] : [[...DEFAULT_DATE_FIELDS], false]"
+ },
+ {
+  "id": "K1",
+  "title": "状态归类：工作项命名不优先",
+  "file": "src/core/docs.ts",
+  "from": "if (isWorkItemName(rel) || item !== null) return ['work_item', item]",
+  "to": "if (item !== null) return ['work_item', item]"
+ },
+ {
+  "id": "K2",
+  "title": "状态归类：认出六态不优先",
+  "file": "src/core/docs.ts",
+  "from": "if (isWorkItemName(rel) || item !== null) return ['work_item', item]",
+  "to": "if (isWorkItemName(rel)) return ['work_item', item]"
+ },
+ {
+  "id": "K3",
+  "title": "状态归类：声明工件不归文档",
+  "file": "src/core/docs.ts",
+  "from": "if (declared.has(normRel(rel))) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "K4",
+  "title": "状态归类：声明路径不去 ./ 前缀",
+  "file": "src/core/docs.ts",
+  "from": "normRel(v).replace(/^(\\.\\/)+/, '').replace(/\\/+$/, '')",
+  "to": "normRel(v).replace(/\\/+$/, '')"
+ },
+ {
+  "id": "K5",
+  "title": "状态归类：声明路径只去一个 ./",
+  "file": "src/core/docs.ts",
+  "from": "normRel(v).replace(/^(\\.\\/)+/, '')",
+  "to": "normRel(v).replace(/^\\.\\//, '')"
+ },
+ {
+  "id": "K6",
+  "title": "状态归类：声明路径不去末尾斜杠",
+  "file": "src/core/docs.ts",
+  "from": "normRel(v).replace(/^(\\.\\/)+/, '').replace(/\\/+$/, '')",
+  "to": "normRel(v).replace(/^(\\.\\/)+/, '')"
+ },
+ {
+  "id": "K7",
+  "title": "状态归类：文档状态词表漏 draft",
+  "file": "src/core/cfg.ts",
+  "from": "['draft', ['draft', '草稿']],",
+  "to": ""
+ },
+ {
+  "id": "K8",
+  "title": "状态归类：非工作项非声明的默认归到文档",
+  "file": "src/core/docs.ts",
+  "from": "  return ['work_item', null]\n}",
+  "to": "  return ['document', null]\n}"
+ },
+ {
+  "id": "F31",
+  "title": "字段：折叠特例表里误加 ß→s（Python 里 ß 与 s 不等价）",
+  "file": "src/core/docs.ts",
+  "from": "const EXTRA_FOLD: Readonly<Record<string, string>> = { i: 'İı', I: 'İı' }",
+  "to": "const EXTRA_FOLD: Readonly<Record<string, string>> = { i: 'İı', I: 'İı', s: 'ß', S: 'ß' }"
+ }
+]

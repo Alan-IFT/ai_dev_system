@@ -68,6 +68,8 @@ try {
     // 复合变异：`multi` 是若干 {from,to}，**同时**应用（用来验证纵深防御：两道互为冗余的防线各自去掉都被另一道兜住，只有同时去掉才该变红）
     // posixOnly：这条变异要在 POSIX 上才有可观察的差别（O_NOFOLLOW、O_NONBLOCK、FIFO）。Windows 上跳过并如实报告，不假装验证过。
     if (m.posixOnly && process.platform === 'win32') { console.log(`△ ${m.id.padEnd(6)} ${m.title ?? ''}  本平台（Windows）不适用，未验证——在 Ubuntu 容器里跑`); unverified++; continue }
+    // winOnly：对称地，这条变异只在 Windows 上有可观察差别（例如 `\` 是路径分隔符）。POSIX 上它与原代码等价，跳过并如实报告。
+    if (m.winOnly && process.platform !== 'win32') { console.log(`△ ${m.id.padEnd(6)} ${m.title ?? ''}  本平台（${process.platform}）不适用，未验证——在 Windows 上跑`); unverified++; continue }
     const steps = m.multi ?? [{ from: m.from, to: m.to }]
     const counts = steps.map((s) => text.split(s.from).length - 1)
     if (counts.some((n) => n !== 1)) { console.log(`? ${m.id.padEnd(6)} ${m.title ?? ''}  锚点在 ${m.file} 里出现 ${counts.join('/')} 次（每个都要恰好 1 次），无效`); bad++; continue }

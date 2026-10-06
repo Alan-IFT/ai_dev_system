@@ -49,6 +49,8 @@ node scripts/check-lib-sync.mjs > /tmp/s.txt 2>&1; echo "check-lib-sync rc=`$?: 
 [ -f golden/make_unit_fs.py ] && python3 golden/make_unit_fs.py | tail -1
 node --test "test/*.test.mjs" > /tmp/t.txt 2>&1; echo "test rc=`$?  `$(grep -E '^ℹ (tests|pass|fail|skipped)' /tmp/t.txt | tr '\n' ' ')"
 grep -E '^✖ ' /tmp/t.txt | sed -E 's/ \([0-9.]+ms\)`$//' | sort -u | head -8
+# 有失败时把断言细节也打出来（「failing tests:」之后的前 60 行）——否则只知道哪条红、不知道为什么，还得再手拼命令进容器看
+if grep -q '^✖ failing tests:' /tmp/t.txt; then echo "=== 失败详情（node --test 输出里 failing tests 之后）==="; sed -n '/^✖ failing tests:/,`$p' /tmp/t.txt | head -60 | cut -c1-220; fi
 $mutLine
 "@
   [IO.File]::WriteAllText((Join-Path $work 'run.sh'), ($script -replace "`r`n", "`n"), (New-Object Text.UTF8Encoding $false))

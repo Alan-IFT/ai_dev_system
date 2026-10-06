@@ -229,7 +229,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/git.ts`（git 子进程环境加固：`hardenedEnv`、`filterEnv`、`gitVersionProblem`、`shallowProblem`；`tracked_files` 因依赖 `embedded_std_rel`（`.std/` 内嵌机制，阶段 4 废弃）与 `scan_memo`，**推迟到 `check_all` 汇总层迁**）
     - [x] `core/config.ts`（配置加载与校验）、`core/cfg.ts`（`cfgGet`、状态词表、`leadWord`、`stateClass`）、`core/utf8.ts`（首个无效序列起点）
     - [x] `core/exceptions.ts`（例外登记册：`loadExceptions`、关闭态、表格解析、表头归类、日期运算）
-    - [ ] `core/docs.ts`（元信息、工件落点、工作项）
+    - [x] `core/docs.ts`（头部字段查找、工件落点、入口候选、工作项命名、裁剪、状态归类）
+    - [ ] `core/tracked.ts`（`tracked_files`、`scan_memo`、`markdown_under`、`work_items`、`work_root_absent`、`unreadable`、`outside_root`、`once`、`agg`——依赖 `.std/` 内嵌机制，推迟到汇总层）
   - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
@@ -381,6 +382,23 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **一个值得单独记的发现：`governance/` 本身是指向仓外的目录符号链接时，`loadExceptions` 单独调用会读到仓外的登记册内容**——Python 版如此（黄金样本 `echoed=True`），TS 版与之**一致**。我用真实入口 `check_all` 验证了影响面：默认读配置时 `load_config` 先判真实位置、拒读，**走不到登记册**，报告里没有仓外内容（`TOPSECRET` 未出现）。所以这是**上游一道防线兜住的下游缺口**，不是现行漏洞。我**没有擅自收紧**：收紧是行为改动，要走「有意差异」登记；且这里的价值是确认上游那道防线在 TS 里也在——`config` 的变异 `C51` 与本文件里一条 `loadConfig` 断言钉住它。`guard` 与护栏基准这两条变异因此无可观察差异，标 `unobservable` 并写明全部理由，不折算通过。**这是个应该告诉 Alan 的事：如果将来有人在 DSH 里直接调用登记册读取、绕过 `loadConfig`，缺口会暴露。**
 - **一个我写错的测试期望**：`addDays(2023-12-31, 59)` 我以为是闰日 2024-02-29，实际是 02-28（加 60 才是）；期望值要用 Python `date + timedelta` 实算，不要心算。
 
+### 12.13 `core/docs.ts` 完成时量出来的事
+
+- **证据**：对 Python 黄金样本（`golden/unit/stdlib-docs.json`）逐条一致——`find_field` 2880 条输入（文本 × 名字集合，含 Unicode 大小写折叠、满行星号、全角冒号与全角空格、`\r` 行尾）、`head_of`、`item_status`、`status_kind`（3 套配置 × 14 个路径 × 16 个状态值）、配置派生函数（57 套配置）、入口候选的文件系统夹具。变异验证 110 条：**Windows 110 抓住；Ubuntu 109 抓住 + 1 条 `winOnly`（P12，如实标注）；两平台 0 漏**。
+- **三个新的「正则标志在两种语言里语义不同」**，**这个模式已经出现四次**（D5 `\w`、D6 `\s` 与 `strip`、D11 `re.I`、D13 `m`），**每个用到正则标志的地方都要逐个验证，不能默认等价**：
+  1. **D11 `re.I`**：逐码点实测（0x110000 个码点 × 26 个 ASCII 字母）——JS 的 `i` 漏 4 个（`İ ı ſ K`），`iu` 漏 2 个（`İ ı`）。**我最初把四个都手写进特例表，变异验证发现 `ſ`、`K` 两项对 `iu` 是多余的**（去掉不改变结果），已收窄；`u` 标志不能省（变异 F20 钉住）。
+  2. **D13 `re.M` 的 `^`**：Python **只认 `\n` 之后**，JS 的 `m` 在 `\r`、U+2028、U+2029 之后也认。后果是真实的：`# T\n状态：a\r## B\r状态：b`（旧 Mac 行尾或混合行尾），Python 里 `\r## B` 不算标题行，JS 会切断。**这条是黄金样本里我补了一条混合行尾输入才暴露的**——之前所有样本都用 `\n`，一路全绿。改成显式的 `(?<![^\n])`。
+  3. **D4（`\d`）又一次出现**：`WI-１２３.md` 全角数字，TS 与 Python 不同，按已登记的 D4 处理。
+- **D12 扩写**：配置形状非法时（`layout.frozen` 写成字符串、`layout.entry` 写成整数），Python 的行为是偶然的（逐字符迭代、`TypeError`），**真实入口全部走不到**（`load_config` 已整份拒收）。TS 当空、不崩，黄金样本里这两条按 D12 跳过。
+- **变异首轮 114 条里 21 条没被抓住**，分类处理：
+  1. **黄金样本盲区（大头，约 15 条）**：竖线紧邻名字、装饰上限 3 对 4 对 5、制表符、值为空时是否继续找、`U+FEFF` 与 `trim`、六级标题、改基的各种写法、反斜杠前缀、裁剪理由的空白、同名两条的先后、数字 `check`、声明路径的 `././`。**一次补 20 多条输入，从 21 降到 15，再对齐锚点后降到 1**。
+  2. **等价变异删除 3 条**：`R2`、`R5`（`docs_root` 就是 `docs` 时改基结果逐字相同；`slice(5)` 配 `'/'` 等价）、`F26/F27`（折叠特例对 `iu` 多余）。
+  3. **测试读的是参数而非常量（D3）**：`STATUS_FIELDS` 的顺序变异，`findField` 的测试传入 `names` 参数、不经过常量；补了经 `itemStatus` 走常量的断言。
+  4. **我改了源码后变异锚点失效 7 条**（F1、F18 到 F20、H6 到 H9）：变异清单与源码要同步，否则「锚点命中 0 次」会被当成「无效」而不是「没抓住」——**这类无效变异不报错但也不验证任何东西**。`mutate.mjs` 已把它计为失败，所以被发现了。
+  5. **平台相关 1 条（P12）**：`docs\WI-002.md` 里 `\` 是否路径分隔符——Windows 上是、Linux 上不是。**黄金样本在 Windows 上生成，Linux 上 Python 自己对它也返回 False，我在容器里直接实测了**。所以 `isWorkItemName` 的这类输入按平台期望，变异 P12 标 `winOnly`（`mutate.mjs` 新增，与 `posixOnly` 对称）。
+- **Ubuntu 暴露的这一条，是又一次「Windows 全绿而 Linux 不是」**（上次是 fs 的 `O_NOFOLLOW`）。我没有直接改期望糊弄，而是先在容器里用 Python 实测它的行为，确认是路径语义差异再按平台处理。`scripts/verify-ubuntu.ps1` 也因此改进：**失败时把断言细节（`failing tests` 之后 60 行）打印出来**，不然只知道哪条红、不知道为什么，还要再手拼命令进容器。
+- **一个流程教训**：这一轮我**两次**把 `edit` 当成成功了——`edit` 因「文件在读取后变了」失败时，同一批并行的 `pwsh` 照常往下跑，输出里的数字（`17/17`、`605`）其实是**旧测试**的结果。第二次我改成用输出里的**测试名**（「含新测试: True」）确认新测试真的在跑。**并行批里「编辑」与「依赖该编辑的验证」不能放在同一批。**
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -424,12 +442,16 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D8 | `O_NOFOLLOW`、`O_NONBLOCK`、`st_ino` | POSIX 上用来挡「末段被换成符号链接」「FIFO 阻塞」「打开后换目录再换回来」；Windows 上 Python 的 `getattr(os,'O_NOFOLLOW',0)` 为 0，**这三道防线在 Windows 上本来就是空的** | Node 的 `fs.constants.O_NOFOLLOW`/`O_NONBLOCK` 在 Windows 上是 `undefined`，同样取 0；`st_ino` 用 `bigint: true` 的 `fstat`/`stat`（Windows 上 Number 会丢精度：实测同一文件的 `ino` 在 Number 与 BigInt 下差 12） | 实测：本机 Windows 上 `fstat(fd).ino` 的 Number 值与 `stat(path, {bigint:true}).ino` 相差，**直接比较会把同一个文件判成两个**，所以必须全程 BigInt。Linux 上的真实防线要在 Ubuntu 容器里验证 | 实现约束；Windows 上这三道本来就是空的这件事如实写在这里，不假装有 |
 | D9 | git 环境加固里的「空串值」与「改本进程环境」 | `GIT_HARDEN_CONFIG` 里 `core.sshCommand` 等四项取 `true`（一个命令名）而不是空串，因为 Windows 上 Python 的 `os.environ[k] = ""` **不传给子进程**，丢一个 `GIT_CONFIG_VALUE_n` 而 `COUNT` 不变，git 报 `missing config value` 整条命令失败（本机实测复现：`rc=128`）。另外 Python 版在入口用 `scrub_git_env()` **一次性改写本进程的 `os.environ`**，此后所有 git 子进程继承 | ①取值**保持 `true`**，不改成空串；②**不照搬「改本进程环境」**：每次 `spawn` 显式传 `env` 对象，`core/git` 只提供「构造子进程环境」的纯函数，**永不写 `process.env`** | ①本机实测 Node 里两种写法（`process.env.X=""` 再继承、显式 `env` 对象）空串都能传到子进程，所以 Python 为此绕的弯在 TS 里不再必要；但改成空串会改变「被扫方配置里的 `core.sshCommand` 被什么覆盖」这一行为，`true` 的语义已被 Python 版的安全审计认可，**保持原取值更保守**。②**这是一个现在没人踩、将来很容易踩的坑，不是现在已经存在的风险**：`lib/index.js` 只导出守卫，`core/*` 与将来的 `checks/*` 不在导出链里，DSH 加载插件时**不会**在宿主进程里执行它们，现在只有独立 CLI 与测试会运行它们。但如果将来有人把检查器接成 DSH 的工具或命令（在宿主进程里调用），改 `process.env` 就会泄漏到宿主与别的插件。**设计上先堵住，不等出事** | 实现约束；② 是预防性的，已如实标明现在没有受影响的路径 |
 | D10 | 例外登记册读不了时 `problems` 里的**整句异常文本** | `"%s 读不了：%s" % (EXCEPTIONS_FILE, exc)`，`exc` 的 `str` 随异常类而异：`FileNotFoundError` 是 `[Errno 2] No such file or directory: '路径'`、目录是 `PermissionError`（`[Errno 13] Permission denied: '路径'`）——**本机 en-US 实测如此**（Windows 与 POSIX 在这两类上文本相同；`winerror` 为 None）；非 UTF-8 是 `'utf-8' codec can't decode byte 0xe9 in position 2: invalid continuation byte` | **UTF-8 解码失败**的整句文本与 Python **逐字一致**（`pyUtf8ErrorMessage`，对 406,900 个序列穷举核对）；**系统错误**用 `<ErrnoName>: <path>` 的固定措辞（如 `FileNotFoundError: <path>`），**不复现 `[Errno N] strerror` 这一句**；本模块的拒读类（出仓、超限、非常规文件）保持自己的文本不变 | 系统错误的 `strerror` 来自 C 运行库或操作系统，**可能随系统语言与版本变**（我只在 en-US 的 Windows 上验证过英文文本，没有验证过其它语言环境，不对它们下结论）；复现它既无法保证、也没有价值——它只出现在「登记册读不了」这条未定的 `reason` 里给人看，不参与任何判定、不被抄进登记册（规则列只抄 Finding id）。非 UTF-8 的文本由 Python 解码器生成、不依赖系统语言，保持逐字一致。**对比黄金样本时，系统错误类的 problem 按「异常类名 + 路径归一」比，不按整句** | 实现约束；影响面仅限一条未定的说明文字 |
+| D11 | `find_field` 的 `re.I` 大小写折叠 | Python `re.I`（Unicode）把 `İ`（U+0130）、`ı`（U+0131）与 `i`、`ſ`（U+017F）与 `s`、`K`（Kelvin，U+212A）与 `k` 视作等价 | 用 `iu` 标志（`ſ↔s`、`K↔k` 随之等价）**并对 `i` 显式并上 `İı`**。**结果与 Python 一致** | 逐码点实测（0x110000 个码点 × 26 个 ASCII 字母）：JS 的 `i` 标志漏 4 个，**`iu` 只漏 2 个（`İ`、`ı`）**；其余 Unicode 字母的大小写对两边一致。这不是「有意放宽或收紧」，而是**把 JS 补到与 Python 一样**。**我最初的实现把四个都手写进特例表，变异验证发现其中 `ſ`、`K` 两项对 `iu` 是多余的（去掉不改变结果），已收窄**——登记在这里是因为它靠一小张手写特例表加一个必须带 `u` 的标志，二者缺一就悄悄不同；由 `docs.test.mjs` 里一条专门的测试与 `findField` 的全部黄金样本钉住，变异 F20（去掉 `u`）与 F25（去掉 `İı`）验证 | 实现约束 |
+| D12 | 配置形状非法时下游函数的行为（`in_frozen` 的 `layout.frozen`、`entry_files` 的 `layout.entry` 等） | `layout.frozen` 写成字符串时 Python **逐字符迭代**（`'docs/archive'` 变成 `'d'`、`'o'`、……，`'d'` 前缀匹配任何以 d 开头的路径）；`layout.entry` 写成整数时 Python 在 `for x in declared` 处抛 `TypeError`（崩溃，被调用方的 `run_guarded` 转成「检查器自身出错」） | **形状非法一律当空**（`frozen` 永不命中；`entry` 返回空列表），**不崩** | **真实入口全都走不到**：`load_config` 对这些键写成非法形状整份拒收（黄金样本 `shape_frozen_scalar`、`shape_entry_int`、`shape_artifacts_entry_*`，报「须是字符串列表／字符串或字符串列表」），下游函数只在配置通过之后被调用。Python 的逐字符迭代与 `TypeError` 都是偶然行为，不是契约；复现它们没有价值，还会让一个本该被拒的输入产生奇怪的命中或崩溃。**黄金样本里这几条记着 Python 的偶然行为，比对时按 D12 跳过**，TS 的实际行为由专门断言钉住 | 实现约束；影响面为零（上游已拒） |
+| D13 | 多行模式下 `^` 认哪些行终止符 | Python `re.M` 的 `^` **只在字符串开头与 `\n` 之后**匹配（`\r`、U+2028、U+2029、`\x85`、`\v`、`\f` 之后都**不**匹配；`\r\n` 因其中有 `\n` 而匹配） | 显式写成 `(?<![^\n])`（不是「前面有非 `\n` 字符」＝开头或前一字符是 `\n`），**不用 JS 的 `m` 标志** | **逐终止符实测**：JS 的 `m` 标志下 `^` 在 `\r`、U+2028、U+2029 之后也匹配，Python 不匹配。后果是真实的：`# T\n状态：a\r## B\r状态：b`（旧 Mac 行尾或混合行尾的文档），Python 里 `\r## B` 不算标题行、状态值是 `a\r## b\r状态：b`，JS 的 `m` 会把它切成 `a`。受影响的两处：`findField` 的行首、`headOf` 的小节标题行首；`find_field` 的 `$`（Python 里这里没用 `$`）不涉及。**这是第三个因「正则标志在两种语言里语义不同」而发现的差异**（D5 的 `\w`、D6 的 `\s`、D11 的 `re.I`、本条的 `m`），说明迁移里**每个用到正则标志的地方都要逐个验证，不能默认等价** | 实现约束 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/docs.ts` 完成，记 §12.13，新增 D11 到 D13；`mutate.mjs` 新增 `winOnly`；`verify-ubuntu.ps1` 失败时打印断言细节 | `find_field` 2880 条输入逐条一致；变异 110 条两平台 0 漏；`re.M` 的 `^` 在 `\\r` 之后的差异靠补一条混合行尾样本才暴露；Ubuntu 暴露反斜杠路径语义差异，容器里用 Python 实测后按平台处理；两次 `edit` 失败被当成成功的流程教训 |
 | 2026-10-06 | `core/exceptions.ts` 完成，记 §12.12，新增 D10；UTF-8 诊断扩展到终点、原因与整句文本 | 65 个登记册样本等逐条一致；变异 64 条两平台 62 抓住 2 标未验证 0 漏；发现 governance 出仓目录链接时登记册读取的下游缺口（被上游 loadConfig 兜住，与 Python 一致，未擅自收紧）；D10 里一处凭印象写的事实经实测改正 |
 | 2026-10-06 | `core/config.ts`/`cfg.ts`/`utf8.ts` 完成，记 §12.11 | 104 条配置用例含精确报错信息逐条一致；UTF-8 起点穷举 406900 个序列；变异 78 条 Ubuntu 全抓住；发现并堵住 `__proto__` 键的 JS 特有缺陷；首轮 16 条变异没抓住按五类处理 |
 | 2026-10-06 | `core/git.ts` 完成，记 §12.10，新增 D9；`tracked_files` 推迟到汇总层 | 用恶意仓验证行为（先跑对照组证明外部程序确会被执行）；30 条变异 29 抓住、1 标未验证；textconv 的防线在调用方而非本模块，写进头注释防迁移时丢失 |
