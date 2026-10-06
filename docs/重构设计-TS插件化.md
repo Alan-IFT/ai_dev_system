@@ -88,6 +88,20 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **版本与 tag**：沿用现有 `YYYY-MM-DD[.n]` 命名，**同时**满足 npm semver 的要求——`package.json.version` 用 `0.<序号>.0` 形式（见 §11 未决 Q1），tag 名仍是日期版本；两者的对应关系写进发布记录。
 
+### 4.1 钩子如何调用插件提供的命令（Q3 的实测答案）
+
+2026-10-06 在临时目录里用 `pnpm add git+file://…` 装一个带 `bin` 字段的最小包，结果：
+
+| 实测 | 结论 |
+|---|---|
+| 包声明 `bin: {"std-check": "lib/cli.js"}` 后，装入 profile，`node_modules/.bin/` 出现 `std-check`、`.CMD`、`.ps1` | **`bin` 机制可用**，不需要 DSH 额外提供命令入口 |
+| 直接调 `.bin/std-check.CMD`：报「`node` 不是内部或外部命令」；把 DSH 的 node 目录放进 PATH 后调：成功，node=v24.21.0 | **`.CMD` 要求 PATH 里有 node**；DSH 的会话 shell 里 **PATH 没有 node**（实测 `Get-Command node` 为空，PATH 里也没有任何 `.dsh` 段） |
+| 绕开 `.bin`，直接 `node <profile>/node_modules/<包名>/lib/cli.js`：成功 | 路径稳定：`node_modules/<包名>` 是指向 `.pnpm` 的链接 |
+| DSH 导出 `DSH_HOME`、`DSH_PROFILE_DIR`、`DSH_PROFILE`；DSH 的 node 固定在 `$DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node(.exe)` | **钩子只靠这两个环境变量就能定位 node 与插件**，不需要找系统 node |
+
+**据此定的钩子写法**（阶段 1 落地并验证）：钩子用 `$DSH_PROFILE_DIR`、`$DSH_HOME` 拼出 node 与 `cli.js` 的路径后直接 `node cli.js`，**不依赖 `.bin` 的 shim，也不依赖 PATH 上有 node**。这和现在 `pick-python.sh` 解决的是同一类问题（「钩子运行时找不到解释器」），但**只剩一条确定路径**，不再需要「依次试几个候选、取第一个跑得通」。
+**未验证**：钩子在 **DSH 之外**（例如在系统终端手敲 `git commit`、CI）运行时，`DSH_HOME` 不存在——此时钩子要回退到什么？阶段 1 要定：我的倾向是回退到 `PATH` 上的 `node` 与项目里记录的 `STD_CLI` 环境变量，找不到则**失败关闭**并说清缺什么。
+
 **安装验证（硬性，阶段 1 的验收）**：在真实 DSH 里，用 Plugins 页（或 `plugin_manager`）填 `git+https://github.com/Alan-IFT/ai_dev_system.git#<tag>` 安装，重启后**实测守卫生效**（写 `standard/` 被拒），不能只靠本地 `link:`。
 
 ## 5. 技术选型
@@ -174,9 +188,9 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 | # | 问题 | 我的倾向 | 状态 |
 |---|---|---|---|
-| Q1 | `package.json.version` 用什么形式：`0.<序号>.0`（符合 semver，与日期 tag 另表对应），还是把日期当版本（`2026.10.6` 这类，不合 semver 规范但可读） | `0.<序号>.0`，对应表放发布记录 | 未决，阶段 1 前定 |
+| Q1 | **暂定 A**（Alan 未回复，按推荐先推进；可逆：只影响 `package.json.version` 一个字段）。`package.json.version` 用什么形式：`0.<序号>.0`（符合 semver，与日期 tag 另表对应），还是把日期当版本（`2026.10.6` 这类，不合 semver 规范但可读） | `0.<序号>.0`，对应表放发布记录 | 未决，阶段 1 前定 |
 | Q2 | 冻结历史（`docs/参考资料*`、`审计记录`、`归档`、`标准/参考资料`，约 172 个文件、1,190 处 Claude 字样）：留在 `main`、还是打 tag 后从 `main` 移除 | 打 tag 后从 `main` 移除（保留可查，`main` 不再带废弃栈）；**这会推翻 D-135 当时的「冻结历史不改」** | **未决，阶段 4 前必须定** |
-| Q3 | 采用项目的钩子怎么找到插件提供的 `std-check`：插件把命令装到 profile 的 `node_modules/.bin`？还是由 DSH 提供命令入口？ | 阶段 1 实测后写定；**不能凭想象** | 阶段 1 实测 |
+| Q3 | 采用项目的钩子怎么找到插件提供的 `std-check` | **已实测，答案见 §4.1**：`bin` 字段 + `.bin` 可用，但钩子里必须自己带 node | **已定（阶段 1，2026-10-06）** |
 
 **风险**
 
@@ -238,5 +252,6 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | Q3 实测定案，新增 §4.1；Q1 暂定 A | 做阶段 1 前先验证整个设计风险最大的假设（钩子能否找到插件提供的命令）；Alan 未回复 Q1，按推荐先推进并标明可逆 |
 | 2026-10-06 | 阶段 0 完成；新增 §12.1 记真实口径 | 样本口径（钉提交、只比 id/status/where/registered）与「selftest 探针大量调私有函数」这两点是做的时候才量出来的，必须写进设计，否则阶段 2 会按错的假设去迁 |
 | 2026-10-06 | §4 定「`lib/` 提交进 git」，放弃「git 安装时 `prepare` 构建」 | 实测 pnpm 从 git 装包拒绝 `prepare`（`ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`），提交 `lib/` 则成功 |
