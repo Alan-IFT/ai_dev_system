@@ -232,6 +232,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/docs.ts`（头部字段查找、工件落点、入口候选、工作项命名、裁剪、状态归类）
     - [x] `core/shell.ts`（检查器公共外壳：`runGuarded`、`undeterminedFromException`、`probe`、`probeCrashed`、`unreadable`、`outsideRoot`、`once`、`agg`、`workRootAbsent`——每个检查器都用，所以先于任何检查器迁）
     - [x] `core/fixture.ts`（自检夹具：`writeText`、`writeFiles`、`gitFixture`、`gitTrack`——所有检查器的 selftest 共用）
+    - [x] `core/glob.ts`（路径通配，只实现 layout 用到的子集；§12.17）
     - [ ] `core/tracked.ts`（只剩 `tracked_files`、`scan_memo`、`markdown_under`、`work_items`：它们依赖 `.std/` 内嵌机制（阶段 4 废弃）与扫描缓存，推迟到汇总层；其余外壳函数已在 `shell.ts`）
   - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
@@ -431,6 +432,15 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **两个我写错的、被测试当场指出的假设**：1) 我以为 `run()` 对只有入口的配置只返回入口那一条，实际总会附带四条 `budget-undeclared` 的 SKIP；2) 我以为 `lexists` 不受尾分隔符影响，Windows 上它同样不同——这条是 `pathpred` 的整份比对抓到的，因为我最初只补了 `isFile`。
 - **一个流程上的不确定**：本轮中途有两次 `pwsh` 调用被拒（含一次纯只读的状态确认），我停下来不换花样重试，下一轮开头用最小的只读命令试探后恢复。原因不明，不做推断。
 
+### 12.17 `core/glob.ts`：为 `layout` 的存在性判据补一块 core，刻意只实现子集
+
+- **为什么要有它**：`layout` 的 `glob` 判据（L2 的「项目侧检查器」`tools/check_*.py` 一类）用 Python 的 `glob.glob`；JS 没有内置 glob（Node 22 的 `fs.globSync` 是实验性的、语义也不同）。**全仓只有这一处用 glob**，且候选写死为三种形态，所以**不引依赖、不做通用 glob**，只实现够用的子集：`*`、`?`、`[...]`、`[!...]` 只在单个路径段内、不匹配隐藏文件、`**` 不递归（Python 没带 `recursive=True`）、根按字面（C14：扫描根路径可能含 `[ ] * ?`）。
+- **证据**：对 Python 样本（`golden/unit/glob.json`：若干种根名——含 `a[b]`、中文与空格；一棵含隐藏文件、中文名、符号链接、断链的夹具树；几十种通配写法；条数以样本为准，本节不抄）逐条一致；变异验证 29 条，**Windows 27 抓住 + 2 条 `posixOnly`，Ubuntu 28 抓住 + 1 条 `winOnly`，两平台 0 漏**；全量测试 Ubuntu 678 条 0 败。
+- **一个这轮反复出现的毛病**：我在写断言时有三次写出了**不是断言的东西**——一条 `deepEqual(x, 一长串绕来绕去的过滤表达式)`、一条带「占位」字样的、一条恒真的 `!a === false`。**每一次都是在写测试的当下想「先让它过」，而不是写出它该守护的事实。** 处理办法：写完断言先问「把实现改错，它会红吗？」；变异验证会兜底，但应该在写的时候就拦住。另有一次我把期望写反（`*/check_a.py` 本该命中 `tools/check_a.py`，我写成 0 条）——靠基线红才发现，这是好的失败。
+- **变异首轮 32 条里 10 条没抓住**，分类：字符类边界（`^` 在 Python 的 fnmatch 里是字面不是取反、`]` 作首字符、`-` 在两端）这类 Python 特有语义，样本里缺；等价或子集外 3 条删除（`G24` 模式 `/`、`G26` 空层后继续、`G31` 绝对模式——layout 只用相对候选）；Windows 与 Linux 各有只在本平台可观察的 3 条标注；**`G32`（根按字面）在 Linux 上没被抓住是真盲区**：整份比对在样本平台以外被跳过，而「第一段就是通配时读的是根目录本身」这条性质没有独立断言——补了。**这与 §12.16 的教训同类：「样本平台以外被跳过」的测试，守不住那个平台上的性质，必须有不依赖样本平台的断言。**
+- **D16（平台差异）**：Python 的 `glob` 在 Windows 上经 `fnmatch` 的 `normcase`（小写）比较，所以 `Check_c.py` 匹配 `check_*.py`；POSIX 上区分。本实现 Windows 上带 `i` 标志、其它平台不带，**两个平台都与「在该平台上跑 Python」一致**。
+- **刻意不收的**：模式 `/` 与 `//`（指向文件系统根，与扫描根无关，Python 的结论是偶然的）、`**` 递归、`{a,b}` 花括号（Python 的 glob 也不支持）。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -483,6 +493,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | `core/glob.ts` 完成，记 §12.17（含 D16）；为 `layout` 的 `glob` 判据补的 core，刻意只实现子集 | 对 Python 样本逐条一致；变异 29 条两平台 0 漏；写断言时三次写出非断言的东西、一次写反期望，已记入教训；「样本平台以外被跳过」的测试守不住别的平台，补了独立断言 |
 | 2026-10-06 | **第一个检查器 `entry_budget` 迁完**，记 §12.16；新增 `golden-compare.mjs`、`golden-selftest.mjs`、`core/fixture.ts`；`isFile`/`isDir`/`lexists` 统一进 `core/fs.ts`；新增 D15 | 4 个真实仓逐条一致、selftest 10 条集合相同、变异 62 条两平台 0 漏；自检暴露 `realpathLoose` 对断链的缺口（`core/fs` 的黄金样本盲区）；路径谓词样本在 Windows 与 Linux 上有 85 条不同 |
 | 2026-10-06 | 新增 `scripts/check-py-semantics.mjs` 与 `test/py-semantics.test.mjs`，记 §12.15；**未接入 pre-commit（该编辑被拒绝，待 Alan 决定）** | 把 D4、D5、D6、D13 变成机械检查；首次运行在现有源码上抓到 5 处，全部改成显式写法；检查脚本自己有变异测试 |
 | 2026-10-06 | `core/shell.ts` 完成，记 §12.14（含 D14）；先于第一个检查器迁，因为所有检查器都依赖它 | 对 Python 黄金样本逐条一致；变异 50 条两平台 0 漏；`excTypeName` 的真 bug 由黄金样本比出；已登记的 D6 约束我自己在写 `workRootAbsent` 时又违反一次，靠写变异清单才发现 |

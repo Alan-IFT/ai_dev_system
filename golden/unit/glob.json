@@ -1,0 +1,3009 @@
+{
+ "cases": [
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ],
+   "pattern": "tools/*/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/lndir/checks/check_g.py",
+    "tools/sub dir/checks/check_i.py",
+    "tools/x/checks/check_g.py",
+    "tools/中文/checks/check_h.py"
+   ],
+   "pattern": "tools/*/checks/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/lndir/checks/check_g.py",
+    "tools/sub dir/checks/check_i.py",
+    "tools/x/checks/check_g.py",
+    "tools/中文/checks/check_h.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ],
+   "pattern": "tools/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/check_dir.py/inner.txt",
+    "tools/lndir/check_d.py",
+    "tools/lndir/check_e.pyc",
+    "tools/lndir/checks",
+    "tools/lndir/y",
+    "tools/sub dir/checks",
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y",
+    "tools/中文/checks"
+   ],
+   "pattern": "tools/*/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py",
+    "tools/check_dir.py/inner.txt",
+    "tools/lndir/check_d.py",
+    "tools/lndir/check_e.pyc",
+    "tools/lndir/checks",
+    "tools/lndir/y",
+    "tools/sub dir/checks",
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y",
+    "tools/中文/checks"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ],
+   "pattern": "tools/**/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_?.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_[ab].py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py"
+   ],
+   "pattern": "tools/check_[!a].py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_[a-b].py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/[Cc]heck_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "A.MD"
+   ],
+   "pattern": "*.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "A.MD"
+   ]
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ],
+   "pattern": "docs/*.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ]
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub"
+   ],
+   "pattern": "docs/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub"
+   ]
+  },
+  {
+   "hits": [
+    "docs/.hidden.md"
+   ],
+   "pattern": "docs/.*",
+   "root": "plain",
+   "unescaped_hits": [
+    "docs/.hidden.md"
+   ]
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ],
+   "pattern": "docs/?.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "nope/*",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y"
+   ],
+   "pattern": "tools/x/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y"
+   ]
+  },
+  {
+   "hits": [
+    "tools/x/checks/check_g.py",
+    "tools/x/checks/sub"
+   ],
+   "pattern": "tools/x/checks/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/x/checks/check_g.py",
+    "tools/x/checks/sub"
+   ]
+  },
+  {
+   "hits": [
+    "tools/x/checks",
+    "tools/x/y"
+   ],
+   "pattern": "tools/x/*/",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/x/checks",
+    "tools/x/y"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py"
+   ],
+   "pattern": "tools/check_*.py/",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_dir.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py"
+   ],
+   "pattern": "tools/check_dir.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_dir.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py/inner.txt"
+   ],
+   "pattern": "tools/check_dir.py/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_dir.py/inner.txt"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py/inner.txt"
+   ],
+   "pattern": "tools/*/inner.txt",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_dir.py/inner.txt"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py"
+   ],
+   "pattern": "tools/a[[]b]/check_k.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/a?b/check_*.py",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py"
+   ],
+   "pattern": "tools/[a]*/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools"
+   ],
+   "pattern": "tools/",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/check_*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/*check*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/.check_hidden.py",
+    "tools/.h"
+   ],
+   "pattern": "tools/.*",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/.check_hidden.py",
+    "tools/.h"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/*/.*",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "."
+   ],
+   "pattern": "",
+   "root": "plain",
+   "unescaped_hits": [
+    "."
+   ]
+  },
+  {
+   "hits": [
+    "A.MD",
+    "cls",
+    "docs",
+    "nl",
+    "tools"
+   ],
+   "pattern": "*",
+   "root": "plain",
+   "unescaped_hits": [
+    "A.MD",
+    "cls",
+    "docs",
+    "nl",
+    "tools"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md",
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub",
+    "nl/a b.md",
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ],
+   "pattern": "*/*",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md",
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub",
+    "nl/a b.md",
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[]",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[a",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_\\*.py",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md"
+   ],
+   "pattern": "cls/[]].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[]a].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/a.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!]].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[^a].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[a^].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[a",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/a[.md",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[]",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[!]",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[]a",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!a-b].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/?.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/*.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/a-b.md",
+    "cls/a.b.md"
+   ],
+   "pattern": "cls/a?b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/a-b.md",
+    "cls/a.b.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/ab.md"
+   ],
+   "pattern": "cls/a*b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/ab.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/a.md",
+    "cls/b.md"
+   ],
+   "pattern": "cls/[a-b].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/a.md",
+    "cls/b.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!a].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[.]b.md",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/a.b.md"
+   ],
+   "pattern": "cls/a[.]b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/a.b.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/ab.md"
+   ],
+   "pattern": "cls/[a-]b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/ab.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/ab.md"
+   ],
+   "pattern": "cls/[-a]b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/ab.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/中.md"
+   ],
+   "pattern": "cls/[一-鿿].md",
+   "root": "plain",
+   "unescaped_hits": [
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[a\\]].md",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a?b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a*b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/*.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a[ \n]b.md",
+   "root": "plain",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dangling.py"
+   ],
+   "pattern": "tools/check_dangling.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_dangling.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_ln.py"
+   ],
+   "pattern": "tools/check_ln.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_ln.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/lndir"
+   ],
+   "pattern": "tools/lndir",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/lndir"
+   ]
+  },
+  {
+   "hits": [
+    "tools/lndir/check_d.py"
+   ],
+   "pattern": "tools/lndir/check_d.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/lndir/check_d.py"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/no-such-target",
+   "root": "plain",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools//check_a.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools///check_a.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "./tools/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/./check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/../tools/check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/x/../check_*.py",
+   "root": "plain",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ],
+   "pattern": "tools/*/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/lndir/checks/check_g.py",
+    "tools/sub dir/checks/check_i.py",
+    "tools/x/checks/check_g.py",
+    "tools/中文/checks/check_h.py"
+   ],
+   "pattern": "tools/*/checks/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ],
+   "pattern": "tools/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/check_dir.py/inner.txt",
+    "tools/lndir/check_d.py",
+    "tools/lndir/check_e.pyc",
+    "tools/lndir/checks",
+    "tools/lndir/y",
+    "tools/sub dir/checks",
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y",
+    "tools/中文/checks"
+   ],
+   "pattern": "tools/*/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ],
+   "pattern": "tools/**/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_?.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_[ab].py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py"
+   ],
+   "pattern": "tools/check_[!a].py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_[a-b].py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/[Cc]heck_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "A.MD"
+   ],
+   "pattern": "*.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ],
+   "pattern": "docs/*.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub"
+   ],
+   "pattern": "docs/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "docs/.hidden.md"
+   ],
+   "pattern": "docs/.*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ],
+   "pattern": "docs/?.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "nope/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y"
+   ],
+   "pattern": "tools/x/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/x/checks/check_g.py",
+    "tools/x/checks/sub"
+   ],
+   "pattern": "tools/x/checks/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/x/checks",
+    "tools/x/y"
+   ],
+   "pattern": "tools/x/*/",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_dir.py"
+   ],
+   "pattern": "tools/check_*.py/",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_dir.py"
+   ],
+   "pattern": "tools/check_dir.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_dir.py/inner.txt"
+   ],
+   "pattern": "tools/check_dir.py/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_dir.py/inner.txt"
+   ],
+   "pattern": "tools/*/inner.txt",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py"
+   ],
+   "pattern": "tools/a[[]b]/check_k.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/a?b/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py"
+   ],
+   "pattern": "tools/[a]*/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools"
+   ],
+   "pattern": "tools/",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/check_*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/*check*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/.check_hidden.py",
+    "tools/.h"
+   ],
+   "pattern": "tools/.*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/*/.*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "."
+   ],
+   "pattern": "",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "A.MD",
+    "cls",
+    "docs",
+    "nl",
+    "tools"
+   ],
+   "pattern": "*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md",
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub",
+    "nl/a b.md",
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ],
+   "pattern": "*/*",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[]",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[a",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_\\*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md"
+   ],
+   "pattern": "cls/[]].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[]a].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!]].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[^a].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[a^].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[a",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/a[.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[]",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[!]",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[]a",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!a-b].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/?.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/*.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/a-b.md",
+    "cls/a.b.md"
+   ],
+   "pattern": "cls/a?b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/ab.md"
+   ],
+   "pattern": "cls/a*b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/a.md",
+    "cls/b.md"
+   ],
+   "pattern": "cls/[a-b].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!a].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[.]b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/a.b.md"
+   ],
+   "pattern": "cls/a[.]b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/ab.md"
+   ],
+   "pattern": "cls/[a-]b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/ab.md"
+   ],
+   "pattern": "cls/[-a]b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/中.md"
+   ],
+   "pattern": "cls/[一-鿿].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[a\\]].md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a?b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a*b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/*.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a[ \n]b.md",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_dangling.py"
+   ],
+   "pattern": "tools/check_dangling.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_ln.py"
+   ],
+   "pattern": "tools/check_ln.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/lndir"
+   ],
+   "pattern": "tools/lndir",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/lndir/check_d.py"
+   ],
+   "pattern": "tools/lndir/check_d.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/no-such-target",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools//check_a.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools///check_a.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "./tools/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/./check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/../tools/check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/x/../check_*.py",
+   "root": "a[b]",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ],
+   "pattern": "tools/*/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/lndir/checks/check_g.py",
+    "tools/sub dir/checks/check_i.py",
+    "tools/x/checks/check_g.py",
+    "tools/中文/checks/check_h.py"
+   ],
+   "pattern": "tools/*/checks/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/lndir/checks/check_g.py",
+    "tools/sub dir/checks/check_i.py",
+    "tools/x/checks/check_g.py",
+    "tools/中文/checks/check_h.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ],
+   "pattern": "tools/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/check_dir.py/inner.txt",
+    "tools/lndir/check_d.py",
+    "tools/lndir/check_e.pyc",
+    "tools/lndir/checks",
+    "tools/lndir/y",
+    "tools/sub dir/checks",
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y",
+    "tools/中文/checks"
+   ],
+   "pattern": "tools/*/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py",
+    "tools/check_dir.py/inner.txt",
+    "tools/lndir/check_d.py",
+    "tools/lndir/check_e.pyc",
+    "tools/lndir/checks",
+    "tools/lndir/y",
+    "tools/sub dir/checks",
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y",
+    "tools/中文/checks"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ],
+   "pattern": "tools/**/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py",
+    "tools/lndir/check_d.py",
+    "tools/x/check_d.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_?.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_[ab].py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py"
+   ],
+   "pattern": "tools/check_[!a].py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools/check_[a-b].py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/[Cc]heck_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "A.MD"
+   ],
+   "pattern": "*.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "A.MD"
+   ]
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ],
+   "pattern": "docs/*.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ]
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub"
+   ],
+   "pattern": "docs/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub"
+   ]
+  },
+  {
+   "hits": [
+    "docs/.hidden.md"
+   ],
+   "pattern": "docs/.*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "docs/.hidden.md"
+   ]
+  },
+  {
+   "hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ],
+   "pattern": "docs/?.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "docs/a.md",
+    "docs/b.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "nope/*",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y"
+   ],
+   "pattern": "tools/x/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/x/check_d.py",
+    "tools/x/check_e.pyc",
+    "tools/x/checks",
+    "tools/x/y"
+   ]
+  },
+  {
+   "hits": [
+    "tools/x/checks/check_g.py",
+    "tools/x/checks/sub"
+   ],
+   "pattern": "tools/x/checks/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/x/checks/check_g.py",
+    "tools/x/checks/sub"
+   ]
+  },
+  {
+   "hits": [
+    "tools/x/checks",
+    "tools/x/y"
+   ],
+   "pattern": "tools/x/*/",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/x/checks",
+    "tools/x/y"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py"
+   ],
+   "pattern": "tools/check_*.py/",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_dir.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py"
+   ],
+   "pattern": "tools/check_dir.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_dir.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py/inner.txt"
+   ],
+   "pattern": "tools/check_dir.py/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_dir.py/inner.txt"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dir.py/inner.txt"
+   ],
+   "pattern": "tools/*/inner.txt",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_dir.py/inner.txt"
+   ]
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py"
+   ],
+   "pattern": "tools/a[[]b]/check_k.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/a?b/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/a[b]/check_k.py"
+   ],
+   "pattern": "tools/[a]*/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/a[b]/check_k.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools"
+   ],
+   "pattern": "tools/",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/check_*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/*check*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/.check_hidden.py",
+    "tools/.h"
+   ],
+   "pattern": "tools/.*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/.check_hidden.py",
+    "tools/.h"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/*/.*",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "."
+   ],
+   "pattern": "",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "."
+   ]
+  },
+  {
+   "hits": [
+    "A.MD",
+    "cls",
+    "docs",
+    "nl",
+    "tools"
+   ],
+   "pattern": "*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "A.MD",
+    "cls",
+    "docs",
+    "nl",
+    "tools"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md",
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub",
+    "nl/a b.md",
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ],
+   "pattern": "*/*",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md",
+    "docs/a.md",
+    "docs/b.md",
+    "docs/sub",
+    "nl/a b.md",
+    "tools/Check_c.py",
+    "tools/a[b]",
+    "tools/check x.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_b.txt",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py",
+    "tools/lndir",
+    "tools/sub dir",
+    "tools/x",
+    "tools/中文"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[]",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_[a",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "tools/check_\\*.py",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md"
+   ],
+   "pattern": "cls/[]].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[]a].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/a.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!]].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[^a].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ],
+   "pattern": "cls/[a^].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/^.md",
+    "cls/a.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[a",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/a[.md",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[]",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[!]",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[]a",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!a-b].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/?.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/*.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/a.md",
+    "cls/ab.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/a-b.md",
+    "cls/a.b.md"
+   ],
+   "pattern": "cls/a?b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/a-b.md",
+    "cls/a.b.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/ab.md"
+   ],
+   "pattern": "cls/a*b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/a-b.md",
+    "cls/a.b.md",
+    "cls/ab.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/a.md",
+    "cls/b.md"
+   ],
+   "pattern": "cls/[a-b].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/a.md",
+    "cls/b.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ],
+   "pattern": "cls/[!a].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/].md",
+    "cls/^.md",
+    "cls/b.md",
+    "cls/x.md",
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[.]b.md",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "cls/a.b.md"
+   ],
+   "pattern": "cls/a[.]b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/a.b.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/ab.md"
+   ],
+   "pattern": "cls/[a-]b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/ab.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/ab.md"
+   ],
+   "pattern": "cls/[-a]b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/ab.md"
+   ]
+  },
+  {
+   "hits": [
+    "cls/中.md"
+   ],
+   "pattern": "cls/[一-鿿].md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "cls/中.md"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "cls/[a\\]].md",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a?b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a*b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/*.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "nl/a b.md"
+   ],
+   "pattern": "nl/a[ \n]b.md",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "nl/a b.md"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_dangling.py"
+   ],
+   "pattern": "tools/check_dangling.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_dangling.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_ln.py"
+   ],
+   "pattern": "tools/check_ln.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_ln.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/lndir"
+   ],
+   "pattern": "tools/lndir",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/lndir"
+   ]
+  },
+  {
+   "hits": [
+    "tools/lndir/check_d.py"
+   ],
+   "pattern": "tools/lndir/check_d.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/lndir/check_d.py"
+   ]
+  },
+  {
+   "hits": [],
+   "pattern": "tools/no-such-target",
+   "root": "中文 root",
+   "unescaped_hits": []
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools//check_a.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/check_a.py"
+   ],
+   "pattern": "tools///check_a.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/check_a.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "./tools/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/./check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/../tools/check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  },
+  {
+   "hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ],
+   "pattern": "tools/x/../check_*.py",
+   "root": "中文 root",
+   "unescaped_hits": [
+    "tools/Check_c.py",
+    "tools/check_.py",
+    "tools/check_a.py",
+    "tools/check_dangling.py",
+    "tools/check_dir.py",
+    "tools/check_ln.py",
+    "tools/check_中文.py"
+   ]
+  }
+ ],
+ "patterns": [
+  "tools/check_*.py",
+  "tools/*/check_*.py",
+  "tools/*/checks/check_*.py",
+  "tools/*",
+  "tools/*/*",
+  "tools/**/check_*.py",
+  "tools/check_?.py",
+  "tools/check_[ab].py",
+  "tools/check_[!a].py",
+  "tools/check_[a-b].py",
+  "tools/[Cc]heck_*.py",
+  "tools/*.py",
+  "*.md",
+  "docs/*.md",
+  "docs/*",
+  "docs/.*",
+  "docs/?.md",
+  "nope/*",
+  "tools/x/*",
+  "tools/x/checks/*",
+  "tools/x/*/",
+  "tools/check_*.py/",
+  "tools/check_dir.py",
+  "tools/check_dir.py/*",
+  "tools/*/inner.txt",
+  "tools/a[[]b]/check_k.py",
+  "tools/a?b/check_*.py",
+  "tools/[a]*/check_*.py",
+  "tools/",
+  "tools/check_*",
+  "tools/*check*",
+  "tools/.*",
+  "tools/*/.*",
+  "",
+  "*",
+  "*/*",
+  "tools/check_[",
+  "tools/check_[]",
+  "tools/check_[a",
+  "tools/check_\\*.py",
+  "cls/[]].md",
+  "cls/[]a].md",
+  "cls/[!]].md",
+  "cls/[^a].md",
+  "cls/[a^].md",
+  "cls/[a",
+  "cls/a[.md",
+  "cls/[]",
+  "cls/[!]",
+  "cls/[]a",
+  "cls/[!a-b].md",
+  "cls/?.md",
+  "cls/*.md",
+  "cls/a?b.md",
+  "cls/a*b.md",
+  "cls/[a-b].md",
+  "cls/[!a].md",
+  "cls/[.]b.md",
+  "cls/a[.]b.md",
+  "cls/[a-]b.md",
+  "cls/[-a]b.md",
+  "cls/[一-鿿].md",
+  "cls/[a\\]].md",
+  "nl/a?b.md",
+  "nl/a*b.md",
+  "nl/*.md",
+  "nl/a[ \n]b.md",
+  "tools/check_dangling.py",
+  "tools/check_ln.py",
+  "tools/lndir",
+  "tools/lndir/check_d.py",
+  "tools/no-such-target",
+  "tools//check_a.py",
+  "tools///check_a.py",
+  "./tools/check_*.py",
+  "tools/./check_*.py",
+  "tools/../tools/check_*.py",
+  "tools/x/../check_*.py"
+ ],
+ "platform": "win32",
+ "python": "3.12.14",
+ "root_names": [
+  "plain",
+  "a[b]",
+  "a*b",
+  "a?b",
+  "中文 root"
+ ],
+ "skipped_roots": [
+  "a*b",
+  "a?b"
+ ],
+ "symlink": true,
+ "tree": [
+  "tools/check_a.py",
+  "tools/check_b.txt",
+  "tools/Check_c.py",
+  "tools/check_.py",
+  "tools/check_中文.py",
+  "tools/check x.py",
+  "tools/.check_hidden.py",
+  "tools/x/check_d.py",
+  "tools/x/check_e.pyc",
+  "tools/.h/check_f.py",
+  "tools/x/checks/check_g.py",
+  "tools/x/y/checks/check_deep.py",
+  "tools/中文/checks/check_h.py",
+  "tools/sub dir/checks/check_i.py",
+  "tools/x/checks/sub/check_j.py",
+  "tools/check_dir.py/inner.txt",
+  "tools/a[b]/check_k.py",
+  "tools/a*b/check_l.py",
+  "docs/a.md",
+  "docs/b.md",
+  "docs/.hidden.md",
+  "docs/sub/c.md",
+  "A.MD",
+  "a.md",
+  "cls/^.md",
+  "cls/].md",
+  "cls/a.md",
+  "cls/b.md",
+  "cls/x.md",
+  "cls/ab.md",
+  "cls/a-b.md",
+  "cls/a.b.md",
+  "cls/中.md",
+  "nl/a\nb.md",
+  "nl/a b.md"
+ ],
+ "tree_made": [
+  "tools/check_a.py",
+  "tools/check_b.txt",
+  "tools/Check_c.py",
+  "tools/check_.py",
+  "tools/check_中文.py",
+  "tools/check x.py",
+  "tools/.check_hidden.py",
+  "tools/x/check_d.py",
+  "tools/x/check_e.pyc",
+  "tools/.h/check_f.py",
+  "tools/x/checks/check_g.py",
+  "tools/x/y/checks/check_deep.py",
+  "tools/中文/checks/check_h.py",
+  "tools/sub dir/checks/check_i.py",
+  "tools/x/checks/sub/check_j.py",
+  "tools/check_dir.py/inner.txt",
+  "tools/a[b]/check_k.py",
+  "docs/a.md",
+  "docs/b.md",
+  "docs/.hidden.md",
+  "docs/sub/c.md",
+  "A.MD",
+  "a.md",
+  "cls/^.md",
+  "cls/].md",
+  "cls/a.md",
+  "cls/b.md",
+  "cls/x.md",
+  "cls/ab.md",
+  "cls/a-b.md",
+  "cls/a.b.md",
+  "cls/中.md",
+  "nl/a b.md"
+ ]
+}

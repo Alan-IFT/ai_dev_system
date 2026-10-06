@@ -1,0 +1,220 @@
+[
+ {
+  "id": "G1",
+  "title": "`*` 改成匹配隐藏文件",
+  "file": "src/core/glob.ts",
+  "from": "        if (n.startsWith('.') && !dot) continue\n",
+  "to": ""
+ },
+ {
+  "id": "G2",
+  "title": "隐藏文件规则反了（模式带点才跳过）",
+  "file": "src/core/glob.ts",
+  "from": "if (n.startsWith('.') && !dot) continue",
+  "to": "if (n.startsWith('.') && dot) continue"
+ },
+ {
+  "id": "G3",
+  "title": "模式以 . 开头时仍跳过隐藏文件",
+  "file": "src/core/glob.ts",
+  "from": "const dot = seg.startsWith('.')",
+  "to": "const dot = false"
+ },
+ {
+  "id": "G4",
+  "title": "`*` 改成 `.+`（至少一个字符）",
+  "file": "src/core/glob.ts",
+  "from": "      re += '.*'\n    } else if (c === '?') {",
+  "to": "      re += '.+'\n    } else if (c === '?') {"
+ },
+ {
+  "id": "G5",
+  "title": "`?` 改成 `.*`",
+  "file": "src/core/glob.ts",
+  "from": "      re += '.'\n    } else if (c === '[') {",
+  "to": "      re += '.*'\n    } else if (c === '[') {"
+ },
+ {
+  "id": "G6",
+  "title": "段正则不锚定结尾（前缀匹配，.pyc 误中 .py）",
+  "file": "src/core/glob.ts",
+  "from": "return new RegExp(`^(?:${re})$`, 's' + (ignoreCase ? 'i' : ''))",
+  "to": "return new RegExp(`^(?:${re})`, 's' + (ignoreCase ? 'i' : ''))"
+ },
+ {
+  "id": "G7",
+  "title": "段正则不锚定开头",
+  "file": "src/core/glob.ts",
+  "from": "return new RegExp(`^(?:${re})$`, 's' + (ignoreCase ? 'i' : ''))",
+  "to": "return new RegExp(`(?:${re})$`, 's' + (ignoreCase ? 'i' : ''))"
+ },
+ {
+  "id": "G8",
+  "title": "【仅 Windows】大小写：Windows 也区分（POSIX 上本来就区分）",
+  "file": "src/core/glob.ts",
+  "from": "const ignoreCase = process.platform === 'win32'",
+  "to": "const ignoreCase = false",
+  "winOnly": true
+ },
+ {
+  "id": "G9",
+  "title": "【仅 POSIX】大小写：所有平台都不区分（Windows 上本来就不区分）",
+  "file": "src/core/glob.ts",
+  "from": "const ignoreCase = process.platform === 'win32'",
+  "to": "const ignoreCase = true",
+  "posixOnly": true
+ },
+ {
+  "id": "G10",
+  "title": "字面字符不转义（点号当通配）",
+  "file": "src/core/glob.ts",
+  "from": "      re += c.replace(/[.*+?^${}()|[\\]\\\\/-]/g, '\\\\$&')",
+  "to": "      re += c"
+ },
+ {
+  "id": "G11",
+  "title": "字符类取反标记 ! 不认",
+  "file": "src/core/glob.ts",
+  "from": "const neg = stuff.startsWith('!')",
+  "to": "const neg = false"
+ },
+ {
+  "id": "G12",
+  "title": "字符类取反结果写成不取反",
+  "file": "src/core/glob.ts",
+  "from": "re += `[${neg ? '^' : ''}${stuff}]`",
+  "to": "re += `[${stuff}]`"
+ },
+ {
+  "id": "G13",
+  "title": "不闭合的 [ 当成通配吞掉而不是字面",
+  "file": "src/core/glob.ts",
+  "from": "        re += '\\\\[' // 没有闭合：按字面的 `[`",
+  "to": "        re += '' // 没有闭合"
+ },
+ {
+  "id": "G14",
+  "title": "字符类里的 ] 开头不认",
+  "file": "src/core/glob.ts",
+  "from": "      if (seg[j] === ']') j++\n",
+  "to": ""
+ },
+ {
+  "id": "G15",
+  "title": "字符类内容不转义反斜杠",
+  "file": "src/core/glob.ts",
+  "from": "stuff = stuff.replaceAll('\\\\', '\\\\\\\\').replaceAll(']', '\\\\]').replaceAll('^', '\\\\^')",
+  "to": "stuff = stuff.replaceAll(']', '\\\\]').replaceAll('^', '\\\\^')"
+ },
+ {
+  "id": "G16",
+  "title": "字符类内容不转义 ^（[^a] 变成取反）",
+  "file": "src/core/glob.ts",
+  "from": ".replaceAll(']', '\\\\]').replaceAll('^', '\\\\^')",
+  "to": ".replaceAll(']', '\\\\]')"
+ },
+ {
+  "id": "G17",
+  "title": "`**` 递归（当成跨目录）",
+  "file": "src/core/glob.ts",
+  "from": "const re = segmentRegex(seg === '**' ? '*' : seg, ignoreCase)",
+  "to": "const re = segmentRegex(seg === '**' ? '*' : seg, ignoreCase)\n      if (seg === '**') { names = names.concat(names.flatMap((m) => { try { return readdirSync(join(dir, m)).map((x) => `${m}/${x}`) } catch { return [] } })) }"
+ },
+ {
+  "id": "G18",
+  "title": "【仅 POSIX】`.` 标志 s 去掉（. 不匹配换行）（换行文件名在 Windows 上造不出）",
+  "file": "src/core/glob.ts",
+  "from": "'s' + (ignoreCase ? 'i' : '')",
+  "to": "(ignoreCase ? 'i' : '')",
+  "posixOnly": true
+ },
+ {
+  "id": "G19",
+  "title": "无通配段不判存在（直接放行）",
+  "file": "src/core/glob.ts",
+  "from": "        if (lexists(join(root, rel))) next.push(rel)\n        continue",
+  "to": "        next.push(rel)\n        continue"
+ },
+ {
+  "id": "G20",
+  "title": "无通配段用 isDir 而不是 lexists（文件段被丢）",
+  "file": "src/core/glob.ts",
+  "from": "        if (lexists(join(root, rel))) next.push(rel)",
+  "to": "        if (isDir(join(root, rel))) next.push(rel)"
+ },
+ {
+  "id": "G21",
+  "title": "无通配段跟随符号链接（断链被丢）",
+  "file": "src/core/glob.ts",
+  "multi": [
+   {
+    "from": "        if (lexists(join(root, rel))) next.push(rel)",
+    "to": "        if (statExists(join(root, rel))) next.push(rel)"
+   },
+   {
+    "from": "const MAGIC = /[*?[]/",
+    "to": "const MAGIC = /[*?[]/\nconst statExists = (p: string): boolean => { try { statSync(p); return true } catch { return false } }"
+   },
+   {
+    "from": "import { readdirSync } from 'node:fs'",
+    "to": "import { readdirSync, statSync } from 'node:fs'"
+   }
+  ]
+ },
+ {
+  "id": "G22",
+  "title": "尾斜杠不只留目录",
+  "file": "src/core/glob.ts",
+  "from": "const hits = dirOnly ? level.filter((r) => isDir(join(root, r))) : level",
+  "to": "const hits = level"
+ },
+ {
+  "id": "G23",
+  "title": "尾斜杠只留文件",
+  "file": "src/core/glob.ts",
+  "from": "const hits = dirOnly ? level.filter((r) => isDir(join(root, r))) : level",
+  "to": "const hits = dirOnly ? level.filter((r) => !isDir(join(root, r))) : level"
+ },
+ {
+  "id": "G25",
+  "title": "读目录失败时抛出而不是当没有",
+  "file": "src/core/glob.ts",
+  "from": "      try { names = readdirSync(dir) } catch { continue }",
+  "to": "      names = readdirSync(dir)"
+ },
+ {
+  "id": "G27",
+  "title": "globAny：accept 不生效",
+  "file": "src/core/glob.ts",
+  "from": "return globIn(root, pattern).some(accept)",
+  "to": "return globIn(root, pattern).length > 0"
+ },
+ {
+  "id": "G28",
+  "title": "globAny：accept 反了",
+  "file": "src/core/glob.ts",
+  "from": "return globIn(root, pattern).some(accept)",
+  "to": "return globIn(root, pattern).some((r) => !accept(r))"
+ },
+ {
+  "id": "G29",
+  "title": "MAGIC 少 [（字符类段被当字面）",
+  "file": "src/core/glob.ts",
+  "from": "const MAGIC = /[*?[]/",
+  "to": "const MAGIC = /[*?]/"
+ },
+ {
+  "id": "G30",
+  "title": "MAGIC 少 ?",
+  "file": "src/core/glob.ts",
+  "from": "const MAGIC = /[*?[]/",
+  "to": "const MAGIC = /[*[]/"
+ },
+ {
+  "id": "G32",
+  "title": "根不按字面：join 前把根里的 [ 当成通配的退化（把根拼进模式）",
+  "file": "src/core/glob.ts",
+  "from": "      const dir = base ? join(root, base) : root",
+  "to": "      const dir = base ? join(root, base) : root.replace(/[[\\]]/g, '')"
+ }
+]
