@@ -62,6 +62,21 @@ pnpm add link:D:/Programs/AI辅助开发规范及工作流确定/tools/dsh-std
 - **删除/移走/清空状态入口与失败清单**（`rm`、`unlink`、`shred`、`truncate`、`mv`、`Set-Content`、`> PROJECT_STATUS.md`、`find … -delete`），以及 `cp/curl/wget/dd/tee…` 覆盖它们；**通配符**（`rm .st*`、`rm AGENTS*`、`rm -r .*`、`PROJECT_STATUS.*`）可能匹配 `.std`／状态文件／受保护文件时也问（`rm *.log`、`rm build/*` 不问）。
 - **写入口合同、入口指令、提交钩子、守卫自身**：写工具按路径判；shell 按「写动词 + 参数路径」判，并按虚拟 cwd 解析（`cd tools; rm dsh-std/lib/policy.js`、`cd .githooks && echo x > pre-commit`）。
 
+- **插件配置 `protect` 列出的额外路径**（2026-10-06，重构设计 §12.4）：`config.protect` 是相对项目根的路径数组，命中（整段匹配：等于它或在它之下，`package.json` 不连带 `package.json.bak`）的写操作先问人，写工具与 shell（含 `cd` 后写、命令替换、内嵌 `bash -c`）都判。**默认空**——守卫装在 profile 里、对你的所有项目共用，如果内置保护 `src/`、`lib/`、`package.json`，会误伤每个采用项目自己的同名路径（实测：不加这个开关时，写采用项目自己的 `src/app/main.py` 会被问）。只有**开发本插件的仓库**才在 profile 里按 id 覆盖并写上。非数组、非字符串项、空串、绝对路径（含盘符与 UNC）、含 `.`/`..`/空段的项**一律被丢弃**，不抛、不当成「全部」、不连带项目内同名的普通路径。大小写按 `.std` 同样的规整（Windows 上不分大小写）。
+
+  **保护本插件自己的源码**（开发 `ai_dev_system` 时）：在 profile 的 `cordis.patch.yml` **顶层**写一条带同一个 `id` 的条目（DSH 的规则：用户 patch **整块替换**匹配到的 config、不做深合并，所以 `enabled`、`root` 要写全）：
+
+  ```yaml
+  - id: ai-dev-std
+    name: ai-dev-std
+    config:
+      enabled: true
+      root: 'D:/Programs/AI辅助开发规范及工作流确定'
+      protect: [src, lib, cordis.patch.yml, package.json, tsconfig.json, scripts/check-lib-sync.mjs]
+  ```
+
+  **已在真实 DSH 里验证（2026-10-06，隔离 `DSH_HOME`）**：`dsh --profile e2e --dump-config` 合并后的配置里 `protect` 是上面这六项；探针在真实 `tools/pre-execute` 管线里写 `src/guard/x.ts` 与 `package.json` 得到 `tool "write" requires approval`，写 `docs/a.md`、`test/a.mjs` 放行并落盘；**对照**：同一个 profile 把 `protect` 改回 `[]`，四个写入全部放行并落盘——说明拒绝来自 `protect` 而不是别的。（本段早先写的 `- override:` 语法是我编的、DSH 并没有这个键，已更正。）
+
 ### 只读用法不问
 
 `sed` 无 `-i`、`tar -t`、`unzip -l/-p/-t`、`git reset`（默认 mixed）、`git restore --staged`、`git rm --cached`、`git apply --check`、`find` 无 `-delete/-exec`、`2>&1`／`2>$null`／`>/dev/null`、`command -v git`、`bash build.sh`、`pwsh -File x.ps1`、`bash -c "ls -la"`。

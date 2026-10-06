@@ -35,6 +35,7 @@ function buildConfig() {
     return schema.object({
       enabled: schema.boolean().default(true),
       root: schema.string().default(''),
+      protect: schema.array(schema.string()).default([]),
     })
   } catch {
     return undefined
@@ -50,8 +51,10 @@ const RANK: Record<string, number> = { allow: 0, ask: 1, deny: 2 }
  * @param {import('@deepseek-ai/cordis').Context} ctx
  * @param {{enabled?: boolean, root?: string}} [config]
  */
-export function apply(ctx: Context, rawConfig?: { enabled?: boolean; root?: string } | null): void {
-  const config: { enabled?: boolean; root?: string } = rawConfig && typeof rawConfig === 'object' ? rawConfig : {}   // apply(ctx, null) 不崩
+export interface GuardConfig { enabled?: boolean; root?: string; protect?: unknown }
+
+export function apply(ctx: Context, rawConfig?: GuardConfig | null): void {
+  const config: GuardConfig = rawConfig && typeof rawConfig === 'object' ? rawConfig : {}   // apply(ctx, null) 不崩
   if (config.enabled === false) return
   const logger = typeof ctx.logger === 'function' ? ctx.logger(name) : console
 
@@ -81,7 +84,7 @@ export function apply(ctx: Context, rawConfig?: { enabled?: boolean; root?: stri
 
     let verdict: Verdict
     try {
-      verdict = decide({ name: exec?.name, arguments: exec?.arguments }, { root })
+      verdict = decide({ name: exec?.name, arguments: exec?.arguments }, { root, protect: config.protect })
     } catch (error) {
       // 判定自己崩了：按未定处理，不放行（01 §2 N1）。
       logger.warn?.(`${name}: decide() threw, falling back to ask: ${String(error)}`)

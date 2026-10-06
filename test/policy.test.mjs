@@ -74,6 +74,59 @@ for (const [title, exec, want] of cases) {
   })
 }
 
+// —— protect：插件配置里列出的「额外受保护路径」（设计 §12.4）。默认空：采用项目自己的 src/、lib/、package.json 不被误伤 ——
+const protectCases = [
+  // [标题, exec, protect 列表, 期望 kind]
+  ['未配置 protect：写 src/app/main.py => allow（采用项目自己的源码不误伤）', { name: 'write', arguments: { file_path: 'src/app/main.py' } }, undefined, 'allow'],
+  ['protect=[] 同上 => allow', { name: 'write', arguments: { file_path: 'src/app/main.py' } }, [], 'allow'],
+  ['protect 里列了 src/guard：写其下文件 => ask', { name: 'edit', arguments: { file_path: 'src/guard/policy.ts' } }, ['src/guard'], 'ask'],
+  ['protect 里列了 src/guard：写 src/guard 本身 => ask', { name: 'write', arguments: { file_path: 'src/guard' } }, ['src/guard'], 'ask'],
+  ['protect 里列了 src/guard：写 src/other => allow（只保护列出的）', { name: 'write', arguments: { file_path: 'src/other/a.ts' } }, ['src/guard'], 'allow'],
+  ['protect 里列了 lib：写 lib/guard/policy.js => ask', { name: 'edit', arguments: { file_path: 'lib/guard/policy.js' } }, ['lib'], 'ask'],
+  ['protect 里列了单文件 package.json：写它 => ask', { name: 'edit', arguments: { file_path: 'package.json' } }, ['package.json'], 'ask'],
+  ['protect 里列了单文件 package.json：写 package.json.bak => allow（整段匹配，不是前缀字符串）', { name: 'write', arguments: { file_path: 'package.json.bak' } }, ['package.json'], 'allow'],
+  ['protect 里列了 src/guard：名字像它的别处 docs/src/guard/a.md => allow', { name: 'write', arguments: { file_path: 'docs/src/guard/a.md' } }, ['src/guard'], 'allow'],
+  ['protect 写成带尾斜杠与反斜杠也认：src\\guard\\', { name: 'edit', arguments: { file_path: 'src/guard/x.ts' } }, ['src\\guard\\'], 'ask'],
+  ['protect 里有非字符串/空串被忽略，不崩也不放宽：[1,null,"",{}] 加合法项 lib', { name: 'edit', arguments: { file_path: 'lib/a.js' } }, [1, null, '', {}, 'lib'], 'ask'],
+  ['protect 不是数组（字符串）被忽略，不崩：写 src/guard => allow', { name: 'edit', arguments: { file_path: 'src/guard/a.ts' } }, 'src/guard', 'allow'],
+  ['protect 里写 .. 越出项目的路径被忽略：写项目内普通文件 => allow', { name: 'write', arguments: { file_path: 'docs/a.md' } }, ['..', '../x'], 'allow'],
+  ['protect 里写绝对路径被忽略（只认相对项目根）：写 docs/a.md => allow', { name: 'write', arguments: { file_path: 'docs/a.md' } }, ['/', 'D:\\'], 'allow'],
+  // 下面这几条是「变异验证发现原用例不触发差异」后补的：放过这些项不会让判定变宽，但会让**项目内同名的普通路径被误保护**。
+  // 非数组 protect 必须整体忽略。字符串 'x' 若被逐字符展开成 ['x'] 就会命中项目内名叫 x 的文件——用单字符串做输入才能区分「忽略」与「展开」。
+  ['protect 是单字符串 x（非数组）被整体忽略：写项目内 x => allow', { name: 'write', arguments: { file_path: 'x' } }, 'x', 'allow'],
+  ['protect 是对象（非数组）被整体忽略：写 src/guard/a.ts => allow', { name: 'edit', arguments: { file_path: 'src/guard/a.ts' } }, { 'src/guard': true }, 'allow'],
+  ['protect 是数字被整体忽略 => allow', { name: 'write', arguments: { file_path: 'docs/a.md' } }, 7, 'allow'],
+  ['protect 是 null 被整体忽略 => allow', { name: 'write', arguments: { file_path: 'docs/a.md' } }, null, 'allow'],
+  ['protect 里写 ./x 被丢弃（不当成 x）：写项目内 x => allow', { name: 'write', arguments: { file_path: 'x' } }, ['./x'], 'allow'],
+  ['protect 里写 a/../b 被丢弃（不当成 b）：写项目内 b => allow', { name: 'write', arguments: { file_path: 'b' } }, ['a/../b'], 'allow'],
+  ['protect 里写 . 被丢弃（不当成整个项目根）：写 docs/a.md => allow', { name: 'write', arguments: { file_path: 'docs/a.md' } }, ['.'], 'allow'],
+  ['protect 里写 /etc 被丢弃（不当成项目内的 etc）：写 etc/hosts => allow', { name: 'write', arguments: { file_path: 'etc/hosts' } }, ['/etc'], 'allow'],
+  ['protect 里写 D:\\x 被丢弃（不当成项目内的 d:/x 或 x）：写 x => allow', { name: 'write', arguments: { file_path: 'x' } }, ['D:\\x'], 'allow'],
+  ['protect 里写 C:/x 被丢弃：写项目内 c:/x 同名路径 => allow', { name: 'write', arguments: { file_path: 'c:/x' } }, ['C:/x'], 'allow'],
+  ['protect 里写 UNC \\\\srv\\share 被丢弃（不当成项目内的 srv/share）：写 srv/share/a => allow', { name: 'write', arguments: { file_path: 'srv/share/a' } }, ['\\\\srv\\share'], 'allow'],
+  ['protect 里写 src//guard（空段）被丢弃：写 src/guard/a.ts => allow', { name: 'edit', arguments: { file_path: 'src/guard/a.ts' } }, ['src//guard'], 'allow'],
+  ['protect 大小写不敏感（Windows 语义一致）：Src/Guard 命中 src/guard/a.ts => ask', { name: 'edit', arguments: { file_path: 'src/guard/a.ts' } }, ['Src/Guard'], process.platform === 'win32' ? 'ask' : 'allow'],
+  ['pwsh 写 protect 内文件 => ask', sh('Set-Content src/guard/policy.ts x'), ['src/guard'], 'ask'],
+  ['pwsh 重定向写 protect 内单文件 => ask', sh('echo x > cordis.patch.yml'), ['cordis.patch.yml'], 'ask'],
+  ['pwsh 删 protect 内目录 => ask', sh('Remove-Item -Recurse lib'), ['lib'], 'ask'],
+  ['pwsh 只读 protect 内文件 => allow', sh('Get-Content src/guard/policy.ts'), ['src/guard'], 'allow'],
+  ['pwsh cd 进 protect 目录后写 => ask', sh('cd src/guard; Set-Content a.ts x'), ['src/guard'], 'ask'],
+  ['命令替换里写 protect 内文件 => ask', sh('echo $(Set-Content src/guard/a.ts x)'), ['src/guard'], 'ask'],
+  ['内嵌 bash -c 里写 protect 内文件 => ask', { name: 'bash', arguments: { command: "bash -c 'echo x > src/guard/a.ts'" } }, ['src/guard'], 'ask'],
+  ['protect 不削弱 .std 只读：写 .std/ 仍是 deny', { name: 'write', arguments: { file_path: '.std/x.md' } }, ['src/guard'], 'deny'],
+]
+test('protect 用例表非空（空用例表不得算通过）', () => { assert.ok(protectCases.length >= 20) })
+for (const [title, exec, protect, want] of protectCases) {
+  test('protect：' + title, () => {
+    const v = decide(exec, { root: ROOT, protect })
+    assert.equal(v.kind, want, `${title}：实得 ${v.kind}${'reason' in v ? '（' + v.reason + '）' : ''}`)
+  })
+}
+test('protect 会让三种判定之外多出的 ask 都带 reason（给人看的理由不能为空）', () => {
+  const v = decide({ name: 'edit', arguments: { file_path: 'src/guard/a.ts' } }, { root: ROOT, protect: ['src/guard'] })
+  assert.equal(v.kind, 'ask'); assert.ok(typeof v.reason === 'string' && v.reason.length > 0)
+})
+
 test('分布：三种判定都至少出现一次（防判定器退化成恒 allow）', () => {
   const kinds = new Set(cases.map(([, e]) => decide(e, { root: ROOT }).kind))
   assert.deepEqual([...kinds].sort(), ['allow', 'ask', 'deny'])

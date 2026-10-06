@@ -7,3 +7,5 @@
       config:
         enabled: true
         root: ''            # 项目根；空串 = 取会话工作目录。会话在子目录开时请在 profile 的 cordis.patch.yml 里按 id 覆盖并写上（覆盖会替换整块 config，要写全）
+        protect: []         # 额外受保护的路径（相对项目根，整段匹配；命中就先问人）。默认空：采用项目自己的 src/、lib/、package.json 不被误伤。
+                            # 只有开发本插件的仓库才需要在 profile 里按 id 覆盖并写上，见 README「保护本插件自己的源码」。

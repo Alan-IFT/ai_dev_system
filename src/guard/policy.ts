@@ -29,7 +29,7 @@ export type Dialect = 'bash' | 'ps'
 export interface Sub { text: string; at: number }
 export interface LexResult { segs: string[]; subs: Sub[]; problem: string | null }
 export interface ToolCall { name?: unknown; arguments?: unknown }
-export interface DecideOpts { root?: string }
+export interface DecideOpts { root?: string; protect?: unknown }
 
 export const MAX_CMD = 8192
 /** 内嵌命令（`bash -c "…"`、`$(…)`、反引号等）的最大递归深度：再深一律 ask。 */
@@ -81,7 +81,7 @@ export function inEmbeddedStd(p: string, root?: string, base?: string): boolean 
 }
 
 /** 路径是否是需要先问的受保护文件（改钩子、改入口合同、改守卫自身）；返回理由或 null。 */
-export function protectedPath(p: string, root?: string, base?: string): string | null {
+export function protectedPath(p: string, root?: string, base?: string, protect: string[] = []): string | null {
   if (typeof p !== 'string' || p === '') return null
   const r = baseRoot(root)
   const b = base ? path.resolve(r, base) : r
@@ -91,7 +91,28 @@ export function protectedPath(p: string, root?: string, base?: string): string |
   if (rel === 'agents.md' || rel === 'AGENTS.md') return '改入口指令文件'
   if (rel.startsWith('.githooks/') || rel === '.githooks') return '改提交闸门钩子'
   if (rel.startsWith('tools/dsh-std/') || rel === 'tools/dsh-std') return '改守卫插件自身（改守卫的人不应由守卫放行）'
+  // 插件配置 protect 列出的额外路径：整段匹配（rel 等于它，或在它之下），不是字符串前缀——package.json 不连带 package.json.bak。
+  for (const q of protect) if (rel === q || rel.startsWith(q + '/')) return '改插件配置 protect 列出的受保护路径（' + q + '）'
   return null
+}
+
+/**
+ * 把插件配置的 protect 规整成「相对项目根、以 / 分隔、无首尾斜杠」的列表。只收紧不放宽：
+ * 非数组、非字符串项、空串、绝对路径（含盘符与 UNC）、含 `..` 或 `.` 段的项一律丢弃，不抛、不当成「全部」。
+ * 比较时与 protectedPath 里的 rel 同样走 normalizeForCompare（大小写、段尾点与空格），所以 `Src\\Guard` 也认。
+ */
+export function normalizeProtect(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const s = item.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+    if (s === '' || /^[A-Za-z]:/.test(item) || item.startsWith('/') || item.startsWith('\\\\')) continue
+    const segs = s.split('/')
+    if (segs.some((x) => x === '' || x === '.' || x === '..')) continue
+    out.push(normalizeForCompare(segs.join('/')).split(path.sep).join('/'))
+  }
+  return out
 }
 
 /** 路径是否指向状态入口/失败清单（只拦删除、移走、清空，不拦日常编辑）。 */
@@ -677,6 +698,7 @@ export function decide(exec: ToolCall, opts?: DecideOpts): Verdict {
     return { kind: 'ask', reason: '工具调用的 name／arguments 读不出来，按未定处理，先问人' }
   }
   const root = opts && typeof opts === 'object' && typeof opts.root === 'string' ? opts.root : undefined
+  const protect = normalizeProtect(opts && typeof opts === 'object' ? opts.protect : undefined)
 
   if (name !== undefined && Object.prototype.hasOwnProperty.call(WRITE_TOOLS, name)) {
     const p = args[WRITE_TOOLS[name]!]
@@ -685,7 +707,7 @@ export function decide(exec: ToolCall, opts?: DecideOpts): Verdict {
     if (inEmbeddedStd(p, root)) {
       return { kind: 'deny', reason: '内嵌标准目录 .std/ 只读（01 §8）：要改标准就向上游报告，修复发布后再按新 tag 取回' }
     }
-    const why = protectedPath(p, root)
+    const why = protectedPath(p, root, undefined, protect)
     if (why) return { kind: 'ask', reason: why }
     return { kind: 'allow' }
   }
@@ -696,7 +718,7 @@ export function decide(exec: ToolCall, opts?: DecideOpts): Verdict {
     if (cmd.length > MAX_CMD) {
       return { kind: 'ask', reason: `命令超过 ${MAX_CMD} 字符，守卫不分析，按未定处理，先问人` }
     }
-    return judgeShell(cmd, root, 0, baseRoot(root), dialectOf(name))
+    return judgeShell(cmd, root, 0, baseRoot(root), dialectOf(name), protect)
   }
 
   return { kind: 'allow' }
@@ -707,7 +729,7 @@ export function decide(exec: ToolCall, opts?: DecideOpts): Verdict {
  * cwd0 是虚拟工作目录（绝对路径），`cd` 会更新它，相对路径按它解析。
  * 返回 {kind, reason}。
  */
-function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: string, dialect: Dialect): Verdict {
+function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: string, dialect: Dialect, protect: string[]): Verdict {
   if (depth > MAX_DEPTH) return { kind: 'ask', reason: '命令嵌套了太多层（shell 包装、命令替换），守卫不再往里看，先问人' }
   const lexed = lex(cmd, dialect)
   if (lexed.problem) return { kind: 'ask', reason: `命令里有守卫解析不了的形状（${lexed.problem}），先问人` }
@@ -718,7 +740,7 @@ function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: 
   const subsBySeg = new Map<number, string[]>()
   for (const s of lexed.subs) { if (!subsBySeg.has(s.at)) subsBySeg.set(s.at, []); subsBySeg.get(s.at)!.push(s.text) }
   // 命令替换的求值点在它所在的子命令：用到那一点的虚拟 cwd（`cd tools; echo $(rm dsh-std/…)`）
-  const judgeSubs = (idx: number): void => { for (const text of subsBySeg.get(idx) || []) inner = stricter(inner, judgeShell(text, root, depth + 1, cwd, dialect)) }
+  const judgeSubs = (idx: number): void => { for (const text of subsBySeg.get(idx) || []) inner = stricter(inner, judgeShell(text, root, depth + 1, cwd, dialect, protect)) }
 
   for (let segIdx = 0; segIdx < lexed.segs.length; segIdx++) {
     const rawSeg = lexed.segs[segIdx]
@@ -733,7 +755,7 @@ function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: 
         const hit = stdHit(tg, root, cwd, r)
         if (hit === 'sure') return { kind: 'deny', reason: '命令把输出重定向到内嵌标准目录 .std/（01 §8 只读）。请把目标改到别处' }
         if (hit === 'maybe' && !ask) ask = '重定向目标按项目根解析落在 .std/，而 cd 可能没有生效，先问人（01 §8 只读）'
-        const why: string | false | null = !ask && (protectedPath(tg, root, cwd) || (cwd !== r ? protectedPath(tg, root, r) : null))
+        const why: string | false | null = !ask && (protectedPath(tg, root, cwd, protect) || (cwd !== r ? protectedPath(tg, root, r, protect) : null))
         if (why) ask = why
       }
       continue
@@ -741,7 +763,7 @@ function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: 
 
     // 内嵌命令：bash -c "…"、iex "…"、eval '…'
     const innerCmd = innerCommand(toks)
-    if (innerCmd !== null) inner = stricter(inner, judgeShell(innerCmd.text, root, depth + 1, cwd, innerCmd.dialect))
+    if (innerCmd !== null) inner = stricter(inner, judgeShell(innerCmd.text, root, depth + 1, cwd, innerCmd.dialect, protect))
     const opaque = opaqueShell(toks)
     if (opaque && !ask) ask = opaque
 
@@ -760,7 +782,7 @@ function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: 
       const hit = stdHit(tg, root, cwd, r)
       if (hit === 'sure') return { kind: 'deny', reason: '命令把输出重定向到内嵌标准目录 .std/（01 §8 只读）。请把目标改到别处' }
       if (hit === 'maybe' && !ask) ask = '重定向目标按项目根解析落在 .std/，而 cd 可能没有生效，先问人（01 §8 只读）'
-      const why = !ask && (protectedPath(tg, root, cwd) || (cwd !== r ? protectedPath(tg, root, r) : null))
+      const why = !ask && (protectedPath(tg, root, cwd, protect) || (cwd !== r ? protectedPath(tg, root, r, protect) : null))
       if (why) ask = why
     }
 
@@ -770,12 +792,12 @@ function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: 
     if (writes) {
       // 2) 写类命令：虚拟 cwd 在 .std 或受保护目录里；参数里有 .std／受保护路径
       if (!ask && inEmbeddedStd('.', root, cwd)) ask = '命令在内嵌标准目录 .std/ 里执行写类命令，先问人（01 §8 只读）'
-      if (!ask) { const why = protectedPath('.', root, cwd); if (why && cwd !== r) ask = why }
+      if (!ask) { const why = protectedPath('.', root, cwd, protect); if (why && cwd !== r) ask = why }
       if (!ask) {
         for (const t of toks.slice(1)) {
           for (const c of candidates(t)) {
             if (stdHit(c, root, cwd, r)) { ask = '命令里同时有写动词与 .std，写目标判不清，先问人（01 §8 只读）'; break }
-            const why = protectedPath(c, root, cwd) || (cwd !== r ? protectedPath(c, root, r) : null)
+            const why = protectedPath(c, root, cwd, protect) || (cwd !== r ? protectedPath(c, root, r, protect) : null)
             if (why) { ask = why; break }
             if (DELETERS.has(verb)) {
               const re = globRegex(c)

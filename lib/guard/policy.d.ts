@@ -27,6 +27,7 @@ export interface ToolCall {
 }
 export interface DecideOpts {
     root?: string;
+    protect?: unknown;
 }
 export declare const MAX_CMD = 8192;
 /** 把路径规整成可比较的形式：Win32 会忽略每段尾部的点与空格，并认 \\?\ 前缀；NTFS 的 `:流名` 后缀不改变文件本身；Windows 上还要忽略大小写。 */
@@ -34,7 +35,13 @@ export declare function normalizeForCompare(p: string): string;
 /** 路径是否落在内嵌标准目录（.std/）之下。base 缺省为 root（虚拟 cwd 时传入）。 */
 export declare function inEmbeddedStd(p: string, root?: string, base?: string): boolean;
 /** 路径是否是需要先问的受保护文件（改钩子、改入口合同、改守卫自身）；返回理由或 null。 */
-export declare function protectedPath(p: string, root?: string, base?: string): string | null;
+export declare function protectedPath(p: string, root?: string, base?: string, protect?: string[]): string | null;
+/**
+ * 把插件配置的 protect 规整成「相对项目根、以 / 分隔、无首尾斜杠」的列表。只收紧不放宽：
+ * 非数组、非字符串项、空串、绝对路径（含盘符与 UNC）、含 `..` 或 `.` 段的项一律丢弃，不抛、不当成「全部」。
+ * 比较时与 protectedPath 里的 rel 同样走 normalizeForCompare（大小写、段尾点与空格），所以 `Src\\Guard` 也认。
+ */
+export declare function normalizeProtect(raw: unknown): string[];
 /**
  * 词法扫描。返回 {segs, subs, problem}：
  *   segs    —— 按未被引号包住的 `; && || | & 换行` 与词首的 `{ }` 切出的子命令（保留引号，供后续切词与重定向识别）；

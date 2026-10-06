@@ -8,7 +8,9 @@ export declare const Config: any;
  * @param {import('@deepseek-ai/cordis').Context} ctx
  * @param {{enabled?: boolean, root?: string}} [config]
  */
-export declare function apply(ctx: Context, rawConfig?: {
+export interface GuardConfig {
     enabled?: boolean;
     root?: string;
-} | null): void;
+    protect?: unknown;
+}
+export declare function apply(ctx: Context, rawConfig?: GuardConfig | null): void;
