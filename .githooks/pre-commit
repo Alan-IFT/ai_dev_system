@@ -2,23 +2,13 @@
 # 提交闸门（Gate 合同见仓库工作须知 §7）：三道都跑，任一非 0 即拒绝提交，退出码取最大者。安装（每个克隆一次）：git config core.hooksPath .githooks
 # 通过时只报一行、失败时只打失败那几道的全量输出：提交的输出会进 agent 上下文，成功路径不该占上下文。
 #
-# 解释器（D-135 起支持 Windows）：不再写死 python3。依次试 python3、python、DSH 自带的 Python，取**第一个真能跑**的。
-# 「能跑」= 能执行一条语句并退出 0：Windows 上 Microsoft Store 的占位程序占着 python3/python 这两个名字，
-# 它们存在于 PATH 但退出 49，只看「命令存在」会选中它们；所以按「跑得通」选，不按「找得到」选。
-# 一个都没有就失败关闭并说明缺什么——不放行，也不跳过（01 §2 N1：没跑成的不记通过）。
-#
+# 解释器：选择逻辑在公共片段 tools/std/pick-python.sh（采用项目引用同一份：.std/tools/std/pick-python.sh），不在这里内联。
+# 它按「跑得通」选 python3、python、DSH 自带的 Python（Windows 上 Microsoft Store 占位程序占着 python3/python、退出 49，
+# 只看「命令存在」会选中它们），都没有就失败关闭（返回 127）——不放行也不跳过（01 §2 N1）。
 # 路径含空格（用户名、DSH_HOME 里常见）：解释器路径一律带引号用，不拼进字符串再不加引号展开
 # （独立审查实测：拼成 "$PY script" 再 $cmd 展开会在空格处拆词，三道全退出 127 而误拒所有提交）。
-PY=""
-for cand in python3 python "${DSH_HOME:+$DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/python/python.exe}" "${USERPROFILE:+$USERPROFILE/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/python/python.exe}"; do
-  [ -n "$cand" ] || continue
-  if "$cand" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then PY="$cand"; break; fi
-done
-if [ -z "$PY" ]; then
-  echo "提交闸门：找不到能运行的 Python（试过 python3、python、DSH 自带的 Python）。Windows 上 python3/python 常是 Microsoft Store 占位程序（退出 49）。装一个真 Python 或设置 DSH_HOME 后重试；本次提交被拒（失败关闭）。" >&2
-  exit 127
-fi
-export PYTHONUTF8=1
+[ -f tools/std/pick-python.sh ] || { echo "提交闸门：缺 tools/std/pick-python.sh（公共解释器选择片段）；本次提交被拒（失败关闭）。" >&2; exit 127; }
+. tools/std/pick-python.sh || exit $?
 fail=0
 # 三道检查逐条写出，不用分隔符切字符串（路径里出现 | 或空格都不会被拆错）；$PY 永远带引号。
 run_gate() {

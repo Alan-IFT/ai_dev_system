@@ -163,8 +163,12 @@ README 里的命令零编辑复制即用；要钉某一版，把命令里的 `ma
 
 ```sh
 #!/bin/sh
-exec python3 .std/tools/std/check_all.py . --no-scope
+[ -f .std/tools/std/pick-python.sh ] || { echo "提交闸门：缺 .std/tools/std/pick-python.sh（.std/ 没初始化或被删？）；本次提交被拒（失败关闭）。" >&2; exit 127; }
+. .std/tools/std/pick-python.sh || exit $?
+exec "$PY" .std/tools/std/check_all.py . --no-scope
 ```
+
+**不要写成 `exec python3 …`**：Windows 上 Microsoft Store 的占位程序占着 `python3`／`python` 这两个名字，存在于 PATH 但退出 49，这样写的钩子会拒绝该项目的每一次提交。[`pick-python.sh`](pick-python.sh) 是公共写法（随 `.std/` 到达，同在内嵌目录内，与 `check_all.py` 同一信任域，`.std/` 里已跟踪文件被改动 `check_adoption` 判 FAIL，所以它不会被悄悄改）：按「跑得通」依次试 `python3`、`python`、DSH 自带的 Python，取第一个能执行语句、退出 0 且版本不低于 3.8 的；都没有就返回 127（失败关闭，不放行也不跳过，01 §2 N1）。选解释器必须发生在 Python 之前，所以不能放进 `check_all.py`。非 `.sh` 的承载（例如 pre-commit 框架的 `entry`）用同一思路：先判「跑得通」再 `exec`，找不到就退 127——框架里没法 `source`，要内联同样的循环。它不进 `check_all` 的工具身份哈希（身份只算 `check_all.py`、`stdlib.py`、`CONTRACT.md` 与 `checks/check_*.py`）：它不改任何检查的判定，只选解释器。
 
 `git subtree add/pull` 走 `commit-tree`，不经过这个钩子，升级不需要放行；反过来它也看不见
 `--no-verify` 的提交（git 接受无歧义缩写如 `--no-veri`，`-n` 可并进组合短选项如 `-an`）、
