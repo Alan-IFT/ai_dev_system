@@ -221,8 +221,12 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 1-f 守卫测试在 **Ubuntu 24.04 容器**里全过：用 Node **22.19.0**（`engines` 下限）与 **24.21.0** 各跑一遍——`pnpm install --frozen-lockfile`、`tsc` 构建、`check-lib-sync` 退出 0、构建后 `git status` 为空（lib 与提交一致）、`node --test "test/*.test.mjs"` 471 条、0 失败、22 条跳过（只在 Windows 成立的路径语义，跳过不算通过）
   - [x] 1-g **真实 DSH 里从 git 地址经 DSH 自己的安装通道装入，守卫生效**（2026-10-06，提交 `fac60ca`）。做法与范围见 §12.3；**未覆盖的两项**（`ask` 的真实批准流程、桌面版 Plugins 页的点击安装）在 §12.3 逐条写明，不算已验证
   - [x] 1-h 新路径保护：做成插件配置 `protect`（Alan 2026-10-06 选 B），默认空；37 条单测；6 种变异验证（首轮 2 种没被抓住，补用例后全部抓住）；真实 DSH 里端到端验证配置传递，含对照实验。做法与取舍见 §12.4。**`standard/` 的保护未做**——该目录阶段 2 之后才存在，不预先写规则
-- [ ] 阶段 2：检查器迁移
-  - [ ] core　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
+- [ ] 阶段 2：检查器迁移（**进行中**）
+  - [ ] core（拆成多文件，下面逐个勾）：
+    - [x] `core/finding.ts`（三态、id、`normalizeKey`、Python 空白集合 `PY_WHITESPACE`、`pyStrip`、`encodeSurrogateEscape`）
+    - [x] `core/yaml.ts`（严格 YAML 子集解析器）、`core/dates.ts`（`parseDate`，D1）
+    - [ ] `core/config.ts`（加载与路径护栏）、`core/fs.ts`（受限读取）、`core/git.ts`（环境加固）、`core/exceptions.ts`（例外登记册）、`core/docs.ts`（元信息、状态词、工作项）
+  - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -303,6 +307,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **插件名要等于包名**：`cordis.patch.yml` 的 `name` 与 `index.ts` 的 `name` 导出都改成 `ai-dev-std`（本机已装的 `dsh-user-preferences` 就是这个惯例）。原来的 `dsh-std` 只是目录名。
 - **`bin` 与 PATH**：见 §4.1。
 
+### 12.7 阶段 2 迁移中量出来的事（`core` 的 finding/yaml/dates 完成时）
+
+- **证据**：对 Python 版单元黄金样本（`golden/unit/stdlib-pure.json`，152 条输入，52 接受 39 拒收）逐条比对，含**精确的错误信息**；YAML 配置读入的结果比对时键序规范化（黄金样本用 `sort_keys` 写出，键序不是解析结果的一部分，数组顺序则是语义、不规范化）。`PY_WHITESPACE` 对着 `golden/unit/whitespace.json`（Python 的 `strip`/`\s` 在全部 0x110000 个码点上的集合）逐码点测。
+- **变异验证 29 条全部被抓住**（`test/mutations/core.json`，`scripts/mutate.mjs` 执行）。**首轮 25 条里有 4 条没被抓住**，都是因为黄金样本没有构造能触发差异的输入：列表项内重复键、列表项缩进不一致、BOM 出现在值里、闰年的世纪规则（1900 不是闰年而 2000 是）。补了输入后抓住——这是第三次实测证明**用例通过不等于有区分力**。
+- **我写变异脚本时出过一次事故**：第一版是一段内联 PowerShell，其中 `Try-Mut` 函数在失败路径上用了一个未定义变量，`WriteAllBytes` 把一份**尚未提交**的 `dates.ts` 整份当成路径写坏了。幸好文件系统写的是「路径不存在」而没真的覆盖，且我立刻核对了文件内容，**没有丢数据**。改成独立脚本 `scripts/mutate.mjs`：开始前整份备份并记 sha256、每条变异 `try/finally` 还原、结束后核对哈希、`SIGINT`/未捕获异常也从备份恢复；还有「基线必须全绿才开始」「锚点必须恰好出现一次」「变异后编译不过算无效」三条前置检查。清单落在 `test/mutations/*.json`，成为**可重复的资产**而不是一次性操作。
+- **Python 的 `parse_date` 控制流我第一次读错了**：我以为「日期不存在」在严格模式下报「不是合法日期」，黄金样本说是「既不是 YYYY-MM-DD 也不是 ISO8601」。查实 Python 的顺序是 ① `date.fromisoformat` ② `datetime.fromisoformat` ③ **仅非严格**的前 10 位兜底，①②失败（含日期不存在）才落到③；严格模式没有③。已按这个控制流重写并写进注释。**读 Python 代码得出的结论要拿黄金样本对一遍，不能凭读代码。**
+- **一个新发现**：Python 里一个分支是**不可达**的——「列表项是空的」这条 `ConfigError("第 N 行是空列表项")`，我用 621,435 条穷举输入（17 种行体 × 5 种缩进 × 1 到 3 行）都没有触发。TS 版保留了该分支（行为与 Python 一致），但无法用黄金样本验证它，也无法对它做变异验证，**如实记为未验证**，不假装覆盖。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -348,7 +360,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
-| 2026-10-06 | §12.6 补 D4 到 D6（`\\d`、`\\w`、`\\s`/`strip`） | 逐码点比对 Python 3.12（Unicode 15.0）与 Node 24（Unicode 17.0）；`\\w` 的 49,638 个差异先看严重，查构成后确认全部是 Unicode 版本差；`strip()` 对 U+FEFF 的差异是真实风险，实现里禁用 `trim()`/`\\s` |
+| 2026-10-06 | 阶段 2 开始：`core` 的 finding/yaml/dates 完成并记 §12.7 | 对 Python 单元黄金样本逐条一致；变异 29 条全抓住（首轮 4 条没抓住，补输入后抓住）；变异脚本事故后改为带哈希校验的独立脚本；一个 Python 分支穷举 62 万输入不可达，如实记未验证 |
 | 2026-10-06 | §12.6 补 D4 到 D6（`\d`、`\w`、`\s`/`strip`） | 逐码点比对 Python 3.12（Unicode 15.0）与 Node 24（Unicode 17.0）；`\w` 的 49,638 个差异先看严重，查构成后确认全部是 Unicode 版本差；`strip()` 对 U+FEFF 的差异是真实风险，实现里禁用 `trim()`/`\s` |
 | 2026-10-06 | 新增 §12.6 有意差异清单；D1（日期解析）Alan 选「按契约严格解析」 | 实测 Python 3.12 的 `fromisoformat` 接受契约没写的紧凑型与周日期；四个真实仓 186 个日期字段里 0 个用到 |
 | 2026-10-06 | 新增 §12.5 阶段 2 验收口径 | 动手前先量规模与探针分类（225/10/3）；分类时犯过一次关键词误判，抽样复核后更正 |

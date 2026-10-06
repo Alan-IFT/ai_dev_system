@@ -284,6 +284,206 @@
     ]
    },
    "strict": false
+  },
+  {
+   "input": "1900-02-29",
+   "result": {
+    "ok": [
+     null,
+     "不是合法日期：'1900-02-29'"
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "2000-02-29",
+   "result": {
+    "ok": [
+     "2000-02-29",
+     null
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "2100-02-29",
+   "result": {
+    "ok": [
+     null,
+     "不是合法日期：'2100-02-29'"
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "2024-02-29",
+   "result": {
+    "ok": [
+     "2024-02-29",
+     null
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2023-02-29",
+   "result": {
+    "ok": [
+     null,
+     "既不是 YYYY-MM-DD 也不是 ISO8601：'2023-02-29'"
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-04-31",
+   "result": {
+    "ok": [
+     null,
+     "不是合法日期：'2026-04-31'"
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "2026-06-31",
+   "result": {
+    "ok": [
+     null,
+     "既不是 YYYY-MM-DD 也不是 ISO8601：'2026-06-31'"
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-12-31",
+   "result": {
+    "ok": [
+     "2026-12-31",
+     null
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-01-00",
+   "result": {
+    "ok": [
+     null,
+     "不是合法日期：'2026-01-00'"
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "0000-01-01",
+   "result": {
+    "ok": [
+     null,
+     "不是合法日期：'0000-01-01'"
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "9999-12-31",
+   "result": {
+    "ok": [
+     "9999-12-31",
+     null
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "2026-10-06 10:00",
+   "result": {
+    "ok": [
+     "2026-10-06",
+     null
+    ]
+   },
+   "strict": false
+  },
+  {
+   "input": "2026-10-06 10:00",
+   "result": {
+    "ok": [
+     "2026-10-06",
+     null
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T10:00:00+0800",
+   "result": {
+    "ok": [
+     "2026-10-06",
+     null
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T10:00:00+08",
+   "result": {
+    "ok": [
+     "2026-10-06",
+     null
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T10:60:00",
+   "result": {
+    "ok": [
+     null,
+     "既不是 YYYY-MM-DD 也不是 ISO8601：'2026-10-06T10:60:00'"
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T10:00:60",
+   "result": {
+    "ok": [
+     null,
+     "既不是 YYYY-MM-DD 也不是 ISO8601：'2026-10-06T10:00:60'"
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T10:00:00.5Z",
+   "result": {
+    "ok": [
+     "2026-10-06",
+     null
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T24:00:00",
+   "result": {
+    "ok": [
+     null,
+     "既不是 YYYY-MM-DD 也不是 ISO8601：'2026-10-06T24:00:00'"
+    ]
+   },
+   "strict": true
+  },
+  {
+   "input": "2026-10-06T10:00:00-23:59",
+   "result": {
+    "ok": [
+     "2026-10-06",
+     null
+    ]
+   },
+   "strict": true
   }
  ],
  "scalar_edge": [],
@@ -945,6 +1145,253 @@
    "result": {
     "message": "第 1 行用了本解析器不支持的 YAML 语法 '!'。本工具只接受最简子集（缩进映射、短横线列表、纯量），看不懂即拒绝而不是猜。以 ! 起头的值须加引号（例如 metadata_required 的排除前缀写 \"!docs/x\"）。",
     "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "- a: 1\n  a: 2\n",
+   "input_len": 14,
+   "result": {
+    "message": "第 2 行的键 'a' 在同一列表项里重复；重复键的取值有歧义",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "x:\n  - a: 1\n    a: 2\n",
+   "input_len": 21,
+   "result": {
+    "message": "第 3 行的键 'a' 在同一列表项里重复；重复键的取值有歧义",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "- a: 1\n    b: 2\n",
+   "input_len": 16,
+   "result": {
+    "message": "第 2 行缩进不一致",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "x:\n  - a: 1\n      b: 2\n",
+   "input_len": 23,
+   "result": {
+    "message": "第 3 行缩进不一致",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "- a: 1\n b: 2\n",
+   "input_len": 13,
+   "result": {
+    "message": "第 2 行缩进层级无法归属",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "- a: 1\n  b:\n    c: 2\n  d: 3\n",
+   "input_len": 28,
+   "result": {
+    "ok": [
+     {
+      "a": 1,
+      "b": {
+       "c": 2
+      },
+      "d": 3
+     }
+    ]
+   }
+  },
+  {
+   "input": "- a: 1\n  b:\n  c: 2\n",
+   "input_len": 19,
+   "result": {
+    "ok": [
+     {
+      "a": 1,
+      "b": null,
+      "c": 2
+     }
+    ]
+   }
+  },
+  {
+   "input": "- a: 1\n  b:\n- c: 2\n",
+   "input_len": 19,
+   "result": {
+    "ok": [
+     {
+      "a": 1,
+      "b": null
+     },
+     {
+      "c": 2
+     }
+    ]
+   }
+  },
+  {
+   "input": "- a: 1\n  b: 2\n  c:\n    - d\n    - e\n",
+   "input_len": 35,
+   "result": {
+    "ok": [
+     {
+      "a": 1,
+      "b": 2,
+      "c": [
+       "d",
+       "e"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "input": "tier: ﻿L1\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "tier": "﻿L1"
+    }
+   }
+  },
+  {
+   "input": "a: ﻿\n",
+   "input_len": 5,
+   "result": {
+    "ok": {
+     "a": "﻿"
+    }
+   }
+  },
+  {
+   "input": "　a: 1\n",
+   "input_len": 6,
+   "result": {
+    "ok": {
+     "a": 1
+    }
+   }
+  },
+  {
+   "input": "a:　b\n",
+   "input_len": 5,
+   "result": {
+    "ok": {
+     "a": "b"
+    }
+   }
+  },
+  {
+   "input": "a: 　\n",
+   "input_len": 5,
+   "result": {
+    "ok": {
+     "a": null
+    }
+   }
+  },
+  {
+   "input": "a: b\n",
+   "input_len": 5,
+   "result": {
+    "ok": {
+     "a": "b"
+    }
+   }
+  },
+  {
+   "input": "a: b　\n",
+   "input_len": 6,
+   "result": {
+    "ok": {
+     "a": "b"
+    }
+   }
+  },
+  {
+   "input": "- ﻿x\n",
+   "input_len": 5,
+   "result": {
+    "ok": [
+     "﻿x"
+    ]
+   }
+  },
+  {
+   "input": "-　x\n",
+   "input_len": 4,
+   "result": {
+    "message": "第 1 行不是 `键: 值`：本解析器不支持没有 `键: 值` 的冒号",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "a b: 1\n",
+   "input_len": 7,
+   "result": {
+    "message": "第 1 行不是 `键: 值`：本解析器不支持没有 `键: 值` 的冒号",
+    "raised": "ConfigError"
+   }
+  },
+  {
+   "input": "a: 1 b: 2\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "a": 1,
+     "b": 2
+    }
+   }
+  },
+  {
+   "input": "a: 1b: 2\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "a": 1,
+     "b": 2
+    }
+   }
+  },
+  {
+   "input": "a: 1\u001cb: 2\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "a": 1,
+     "b": 2
+    }
+   }
+  },
+  {
+   "input": "a: 1\u000bb: 2\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "a": 1,
+     "b": 2
+    }
+   }
+  },
+  {
+   "input": "a: 1\fb: 2\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "a": 1,
+     "b": 2
+    }
+   }
+  },
+  {
+   "input": "a: 1\rb: 2\n",
+   "input_len": 10,
+   "result": {
+    "ok": {
+     "a": 1,
+     "b": 2
+    }
    }
   },
   {

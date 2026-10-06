@@ -46,6 +46,12 @@ YAML_INPUTS = [
     "layout:\n  entry:\n    - A.md\n    - B.md\n  docs_root: docs\n",
     "metadata_required:\n  - docs/a\n  - \"!docs/x\"\n",
     "a: !docs/x\n",
+    # ---- 变异验证发现的盲区（TS 版对应变异没被抓住）：列表项内的重复键与缩进不一致 ----
+    "- a: 1\n  a: 2\n", "x:\n  - a: 1\n    a: 2\n", "- a: 1\n    b: 2\n", "x:\n  - a: 1\n      b: 2\n", "- a: 1\n b: 2\n",
+    "- a: 1\n  b:\n    c: 2\n  d: 3\n", "- a: 1\n  b:\n  c: 2\n", "- a: 1\n  b:\n- c: 2\n", "- a: 1\n  b: 2\n  c:\n    - d\n    - e\n",
+    # BOM 与全角空格出现在值里、键里、行首（Python 的 strip 保留 U+FEFF 但去 U+3000，设计 §12.6 D6）
+    "tier: \ufeffL1\n", "a: \ufeff\n", "\u3000a: 1\n", "a:\u3000b\n", "a: \u3000\n", "a:\u00a0b\n", "a: b\u3000\n", "- \ufeffx\n", "-\u3000x\n",
+    "a\u2028b: 1\n", "a: 1\u2028b: 2\n", "a: 1\x85b: 2\n", "a: 1\x1cb: 2\n", "a: 1\vb: 2\n", "a: 1\fb: 2\n", "a: 1\rb: 2\n",
 ]
 # 深嵌套与极长行（性能与递归上限）
 YAML_INPUTS.append("".join("%sk%d:\n" % ("  " * i, i) for i in range(1200)) + "  " * 1200 + "v: 1\n")
@@ -63,7 +69,11 @@ def main():
         out["strip_comment"].append({"input": raw, "result": call(sl._strip_comment, raw)})
     for raw, strict in [("2026-10-06", False), ("2026-10-06T10:00:00Z", False), ("2026-10-06T10:00:00+08:00", False), ("**2026-10-06**", False),
                         ("`2026-10-06`", False), ("2026-10-06 之前", False), ("2026-10-06 之前", True), ("2026-13-45", False), ("", False), ("  ", False),
-                        ("2026-1-6", False), ("20261006", False), ("2026-10-06T25:00:00", False), ("2026-02-30", False), ("2024-02-29", False), ("2026-10-06z", False)]:
+                        ("2026-1-6", False), ("20261006", False), ("2026-10-06T25:00:00", False), ("2026-02-30", False), ("2024-02-29", False), ("2026-10-06z", False),
+                        ("1900-02-29", False), ("2000-02-29", False), ("2100-02-29", False), ("2024-02-29", True), ("2023-02-29", True), ("2026-04-31", False),
+                        ("2026-06-31", True), ("2026-12-31", True), ("2026-01-00", False), ("0000-01-01", False), ("9999-12-31", False), ("2026-10-06 10:00", False),
+                        ("2026-10-06 10:00", True), ("2026-10-06T10:00:00+0800", True), ("2026-10-06T10:00:00+08", True), ("2026-10-06T10:60:00", True),
+                        ("2026-10-06T10:00:60", True), ("2026-10-06T10:00:00.5Z", True), ("2026-10-06T24:00:00", True), ("2026-10-06T10:00:00-23:59", True)]:
         out["parse_date"].append({"input": raw, "strict": strict, "result": call(lambda r=raw, s=strict: [str(x) if x is not None else None for x in sl.parse_date(r, s)])})
     for raw in ["a b", "  a\n b  ", "a|b", "a｜b", "中 文", "", "a\t\tb"]:
         out["normalize_key"].append({"input": raw, "result": call(sl.normalize_key, raw)})

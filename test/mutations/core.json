@@ -1,0 +1,205 @@
+[
+ {
+  "id": "F1",
+  "title": "空白集合漏 U+3000",
+  "file": "src/core/finding.ts",
+  "from": "\\\\u205f\\\\u3000'",
+  "to": "\\\\u205f'"
+ },
+ {
+  "id": "F2",
+  "title": "空白集合多 U+FEFF（退化成 JS 的 trim）",
+  "file": "src/core/finding.ts",
+  "from": "\\\\u205f\\\\u3000'",
+  "to": "\\\\u205f\\\\u3000\\\\ufeff'"
+ },
+ {
+  "id": "F3",
+  "title": "空白集合漏 U+0085",
+  "file": "src/core/finding.ts",
+  "from": "\\\\x1c-\\\\x20\\\\x85\\\\xa0",
+  "to": "\\\\x1c-\\\\x20\\\\xa0"
+ },
+ {
+  "id": "F4",
+  "title": "normalizeKey 不换竖线",
+  "file": "src/core/finding.ts",
+  "from": ".replaceAll('|', '｜')",
+  "to": ""
+ },
+ {
+  "id": "F5",
+  "title": "normalizeKey 空白不折成下划线",
+  "file": "src/core/finding.ts",
+  "from": "replace(PY_WS_RUN, '_')",
+  "to": "replace(PY_WS_RUN, '')"
+ },
+ {
+  "id": "F6",
+  "title": "哈希用 Buffer.from(utf8)（孤立代理变 U+FFFD）",
+  "file": "src/core/finding.ts",
+  "from": "update(encodeSurrogateEscape(title))",
+  "to": "update(Buffer.from(title, 'utf8'))"
+ },
+ {
+  "id": "F7",
+  "title": "哈希取 7 位",
+  "file": "src/core/finding.ts",
+  "from": "slice(0, 8)",
+  "to": "slice(0, 7)"
+ },
+ {
+  "id": "F8",
+  "title": "key 全空白也拼 /",
+  "file": "src/core/finding.ts",
+  "from": "pyStrip(String(key)) !== ''",
+  "to": "String(key) !== ''"
+ },
+ {
+  "id": "F9",
+  "title": "非法状态不抛",
+  "file": "src/core/finding.ts",
+  "from": "throw new Error(`非法状态",
+  "to": "console.log(`非法状态"
+ },
+ {
+  "id": "F10",
+  "title": "未定可以没有 reason",
+  "file": "src/core/finding.ts",
+  "from": "if ((status === UNDETERMINED || status === SKIP) && !reason)",
+  "to": "if (false)"
+ },
+ {
+  "id": "Y1",
+  "title": "映射里重复键不拒",
+  "file": "src/core/yaml.ts",
+  "from": "if (Object.hasOwn(mapping, k)) throw",
+  "to": "if (false) throw"
+ },
+ {
+  "id": "Y2",
+  "title": "列表项内重复键不拒",
+  "file": "src/core/yaml.ts",
+  "from": "if (Object.hasOwn(item, k2)) throw",
+  "to": "if (false) throw"
+ },
+ {
+  "id": "Y3",
+  "title": "制表符不拒",
+  "file": "src/core/yaml.ts",
+  "from": ".includes('\\t')) throw",
+  "to": ".includes('\\u0000')) throw"
+ },
+ {
+  "id": "Y4",
+  "title": "引号字符串含转义不拒",
+  "file": "src/core/yaml.ts",
+  "from": "if (body.includes('\\\\')) throw",
+  "to": "if (false) throw"
+ },
+ {
+  "id": "Y5",
+  "title": "值里的「: 」不拒",
+  "file": "src/core/yaml.ts",
+  "from": "if (s.includes(': ')) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "Y6",
+  "title": "布尔词表少 yes",
+  "file": "src/core/yaml.ts",
+  "from": "new Set(['true', 'yes', 'on'])",
+  "to": "new Set(['true', 'on'])"
+ },
+ {
+  "id": "Y7",
+  "title": "注释判定去掉「# 前要有空白」",
+  "file": "src/core/yaml.ts",
+  "from": "line[i - 1] === ' ' || line[i - 1] === '\\t')",
+  "to": "true)"
+ },
+ {
+  "id": "Y8",
+  "title": "引号只在值开头才开启这条规则去掉",
+  "file": "src/core/yaml.ts",
+  "from": "if (last === '' || last === ':' || last === '-') {",
+  "to": "if (true) {"
+ },
+ {
+  "id": "Y9",
+  "title": "递归上限放宽到 100000",
+  "file": "src/core/yaml.ts",
+  "from": "const MAX_DEPTH = 100",
+  "to": "const MAX_DEPTH = 100000"
+ },
+ {
+  "id": "Y10",
+  "title": "安全整数检查去掉",
+  "file": "src/core/yaml.ts",
+  "from": "if (!Number.isSafeInteger(n)) throw",
+  "to": "if (false) throw"
+ },
+ {
+  "id": "Y11",
+  "title": "整数判定放宽成 Unicode 数字",
+  "file": "src/core/yaml.ts",
+  "from": "/^-?[0-9]+$/.test(s)",
+  "to": "/^-?\\p{Nd}+$/u.test(s)"
+ },
+ {
+  "id": "Y12",
+  "title": "值被 trim（BOM 被剥）",
+  "file": "src/core/yaml.ts",
+  "from": "const s = pyStrip(raw)",
+  "to": "const s = raw.trim()"
+ },
+ {
+  "id": "Y13",
+  "title": "列表项缩进不一致不拒",
+  "file": "src/core/yaml.ts",
+  "from": "if (ind2 !== childIndent) throw",
+  "to": "if (false) throw"
+ },
+ {
+  "id": "Y15",
+  "title": "splitlines 不在 U+2028 断",
+  "file": "src/core/yaml.ts",
+  "from": "\\x85\\u2028\\u2029]/)",
+  "to": "\\x85\\u2029]/)"
+ },
+ {
+  "id": "T1",
+  "title": "闰年判断去掉 400 规则",
+  "file": "src/core/dates.ts",
+  "from": "|| y % 400 === 0",
+  "to": ""
+ },
+ {
+  "id": "T2",
+  "title": "不剥星号与反引号",
+  "file": "src/core/dates.ts",
+  "from": ".replaceAll('*', '').replaceAll('`', '')",
+  "to": ""
+ },
+ {
+  "id": "T3",
+  "title": "严格模式也走兜底",
+  "file": "src/core/dates.ts",
+  "from": "const m3 = strict ? null : LEADING.exec(s)",
+  "to": "const m3 = LEADING.exec(s)"
+ },
+ {
+  "id": "T4",
+  "title": "时刻不校验范围",
+  "file": "src/core/dates.ts",
+  "from": "return h <= 23 && mi <= 59 && sec <= 59 && tzh <= 23 && tzm <= 59",
+  "to": "return true"
+ },
+ {
+  "id": "T5",
+  "title": "紧凑型被接受（回到 Python 的偶然行为）",
+  "file": "src/core/dates.ts",
+  "from": "const PLAIN = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/",
+  "to": "const PLAIN = /^([0-9]{4})-?([0-9]{2})-?([0-9]{2})$/"
+ }
+]
