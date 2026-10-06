@@ -1,0 +1,1771 @@
+{
+ "agg": [
+  {
+   "n": 0,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（0 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": 1,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "docs/f000.md",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（1 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": 5,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "docs/f000.md；docs/f001.md；docs/f002.md；docs/f003.md；docs/f004.md",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（5 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": 12,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "docs/f000.md；docs/f001.md；docs/f002.md；docs/f003.md；docs/f004.md；docs/f005.md；docs/f006.md；docs/f007.md；docs/f008.md；docs/f009.md；docs/f010.md；docs/f011.md",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（12 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": 13,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "docs/f000.md；docs/f001.md；docs/f002.md；docs/f003.md；docs/f004.md；docs/f005.md；docs/f006.md；docs/f007.md；docs/f008.md；docs/f009.md；docs/f010.md；docs/f011.md；另有 1 份未列出",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（13 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": 20,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "docs/f000.md；docs/f001.md；docs/f002.md；docs/f003.md；docs/f004.md；docs/f005.md；docs/f006.md；docs/f007.md；docs/f008.md；docs/f009.md；docs/f010.md；docs/f011.md；另有 8 份未列出",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（20 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": 100,
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "docs/f000.md；docs/f001.md；docs/f002.md；docs/f003.md；docs/f004.md；docs/f005.md；docs/f006.md；docs/f007.md；docs/f008.md；docs/f009.md；docs/f010.md；docs/f011.md；另有 88 份未列出",
+     "id": "chk/kk",
+     "reason": "原因",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "标题（100 份）",
+     "where": null,
+     "why": "依据"
+    }
+   }
+  },
+  {
+   "n": "no_why",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "a",
+     "id": "chk/kk",
+     "reason": "",
+     "registered": null,
+     "status": "PASS",
+     "title": "标题（1 份）",
+     "where": null,
+     "why": ""
+    }
+   }
+  }
+ ],
+ "exc": [
+  {
+   "name": "filenotfound",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "FileNotFoundError: [Errno 2] No such file or directory",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "FileNotFoundError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "FileNotFoundError: [Errno 2] No such file or directory",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "permission",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "PermissionError: [Errno 13] Permission denied",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "PermissionError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "PermissionError: [Errno 13] Permission denied",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（PermissionError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "isadir",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "IsADirectoryError: [Errno 21] Is a directory",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "IsADirectoryError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "IsADirectoryError: [Errno 21] Is a directory",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（IsADirectoryError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "notadir",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "NotADirectoryError: [Errno 20] Not a directory",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "NotADirectoryError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "NotADirectoryError: [Errno 20] Not a directory",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（NotADirectoryError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "oserror",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "OSError: [Errno 5] I/O error",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "OSError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "OSError: [Errno 5] I/O error",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（OSError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "plain_oserror_msg",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "OSError: 自定义消息",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "OSError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "OSError: 自定义消息",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（OSError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "outside_root",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "OutsideRoot: x 的真实位置在被扫项目之外",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "OutsideRoot",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "OutsideRoot: x 的真实位置在被扫项目之外",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（OutsideRoot），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "too_large",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "TooLarge: x 超过上限",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "TooLarge",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "TooLarge: x 超过上限",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（TooLarge），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "not_regular",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "NotRegular: x 不是常规文件",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "NotRegular",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "NotRegular: x 不是常规文件",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（NotRegular），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "config_error",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "ConfigError: 第 3 行不对",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "ConfigError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "ConfigError: 第 3 行不对",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（ConfigError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "custom",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "Boom: 炸了",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "Boom",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "Boom: 炸了",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（Boom），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "custom_empty",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "Boom: ",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "Boom",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "Boom: ",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（Boom），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "value_error",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "ValueError: bad",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "ValueError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "ValueError: bad",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（ValueError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "key_error",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "KeyError: 'k'",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "KeyError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "KeyError: 'k'",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（KeyError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "type_error",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "TypeError: t",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "TypeError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "TypeError: t",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（TypeError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "zero_div",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "ZeroDivisionError: division by zero",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "ZeroDivisionError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "ZeroDivisionError: division by zero",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（ZeroDivisionError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "runtime",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "RuntimeError: r",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "RuntimeError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "RuntimeError: r",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（RuntimeError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  },
+  {
+   "name": "recursion",
+   "probe_crashed": {
+    "ok": {
+     "check": "chk",
+     "evidence": "RecursionError: maximum recursion depth exceeded",
+     "id": "chk/5af327ed",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "某断言自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "type_name": "RecursionError",
+   "undetermined": {
+    "ok": {
+     "check": "chk",
+     "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+     "id": "chk/internal-error",
+     "reason": "RecursionError: maximum recursion depth exceeded",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "读东西 时检查器自身出错",
+     "where": null,
+     "why": ""
+    }
+   },
+   "unreadable": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a.md 读不了（RecursionError），依赖它的判据未判",
+     "where": "docs/a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   }
+  }
+ ],
+ "once": [
+  {
+   "name": "dup",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/k/1",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "a",
+      "where": null,
+      "why": ""
+     },
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/k/2",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "c",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "name": "empty",
+   "out": {
+    "ok": []
+   }
+  },
+  {
+   "name": "single",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/k/1",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "a",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "name": "distinct",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/k/0",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "t0",
+      "where": null,
+      "why": ""
+     },
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/k/1",
+      "reason": "",
+      "registered": null,
+      "status": "FAIL",
+      "title": "t1",
+      "where": null,
+      "why": ""
+     },
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/k/2",
+      "reason": "r",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "t2",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  }
+ ],
+ "outside": [
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root/a.md",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "a.md 的真实位置在被扫项目之外，未读",
+     "where": "a.md",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": "a.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root/docs/a_b.md",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a b.md 的真实位置在被扫项目之外，未读",
+     "where": "docs/a b.md",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": "docs/a b.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root/中文.md",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "中文.md 的真实位置在被扫项目之外，未读",
+     "where": "中文.md",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": "中文.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": " 的真实位置在被扫项目之外，未读",
+     "where": "",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": ""
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root/a｜b.md",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "a|b.md 的真实位置在被扫项目之外，未读",
+     "where": "a|b.md",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": "a|b.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root/sp",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "  sp   的真实位置在被扫项目之外，未读",
+     "where": "  sp  ",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": "  sp  "
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/outside-root/a_b.md",
+     "reason": "它是指向项目之外的符号链接；本工具不读、不探测项目之外的路径",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "a\nb.md 的真实位置在被扫项目之外，未读",
+     "where": "a\nb.md",
+     "why": "契约 §5：只读被扫项目之内的文件"
+    }
+   },
+   "rel": "a\nb.md"
+  }
+ ],
+ "probe": [
+  {
+   "ok": "True",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "PASS",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "False",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "1",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "PASS",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "0",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "''",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "'x'",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "PASS",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "None",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "[]",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "FAIL",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "[1]",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "e",
+     "id": "chk/bed728ad",
+     "reason": "",
+     "registered": null,
+     "status": "PASS",
+     "title": "断言",
+     "where": null,
+     "why": "w"
+    }
+   }
+  },
+  {
+   "ok": "reason-given",
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/bed728ad",
+     "reason": "r",
+     "registered": null,
+     "status": "FAIL",
+     "title": "断言",
+     "where": null,
+     "why": ""
+    }
+   }
+  }
+ ],
+ "run_guarded": [
+  {
+   "cfg": "none",
+   "fn": "fine",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/7a85f476",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "ok",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "none",
+   "fn": "boom",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+      "id": "c/internal-error",
+      "reason": "Boom: 炸",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "跑 c 时检查器自身出错",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "none",
+   "fn": "fnf",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+      "id": "c/internal-error",
+      "reason": "FileNotFoundError: [Errno 2] x",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "跑 c 时检查器自身出错",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_reason",
+   "fn": "fine",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/48466a1d",
+      "reason": "不适用",
+      "registered": null,
+      "status": "SKIP",
+      "title": "项目已裁剪本检查",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_reason",
+   "fn": "boom",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/48466a1d",
+      "reason": "不适用",
+      "registered": null,
+      "status": "SKIP",
+      "title": "项目已裁剪本检查",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_reason",
+   "fn": "fnf",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/48466a1d",
+      "reason": "不适用",
+      "registered": null,
+      "status": "SKIP",
+      "title": "项目已裁剪本检查",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_noreason",
+   "fn": "fine",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/48466a1d",
+      "reason": "project.yaml 未写理由",
+      "registered": null,
+      "status": "SKIP",
+      "title": "项目已裁剪本检查",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_noreason",
+   "fn": "boom",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/48466a1d",
+      "reason": "project.yaml 未写理由",
+      "registered": null,
+      "status": "SKIP",
+      "title": "项目已裁剪本检查",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_noreason",
+   "fn": "fnf",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/48466a1d",
+      "reason": "project.yaml 未写理由",
+      "registered": null,
+      "status": "SKIP",
+      "title": "项目已裁剪本检查",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_other",
+   "fn": "fine",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/7a85f476",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "ok",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_other",
+   "fn": "boom",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+      "id": "c/internal-error",
+      "reason": "Boom: 炸",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "跑 c 时检查器自身出错",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_other",
+   "fn": "fnf",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+      "id": "c/internal-error",
+      "reason": "FileNotFoundError: [Errno 2] x",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "跑 c 时检查器自身出错",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_applicable",
+   "fn": "fine",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "",
+      "id": "c/7a85f476",
+      "reason": "",
+      "registered": null,
+      "status": "PASS",
+      "title": "ok",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_applicable",
+   "fn": "boom",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+      "id": "c/internal-error",
+      "reason": "Boom: 炸",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "跑 c 时检查器自身出错",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  },
+  {
+   "cfg": "tailored_applicable",
+   "fn": "fnf",
+   "out": {
+    "ok": [
+     {
+      "check": "c",
+      "evidence": "检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。",
+      "id": "c/internal-error",
+      "reason": "FileNotFoundError: [Errno 2] x",
+      "registered": null,
+      "status": "UNDETERMINED",
+      "title": "跑 c 时检查器自身出错",
+      "where": null,
+      "why": ""
+     }
+    ]
+   }
+  }
+ ],
+ "unreadable": [
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/a.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "a.md 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "a.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": "a.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/docs/a_b.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "docs/a b.md 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "docs/a b.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": "docs/a b.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/中文.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "中文.md 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "中文.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": "中文.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": " 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": ""
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/a｜b.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "a|b.md 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "a|b.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": "a|b.md"
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/sp",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "  sp   读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "  sp  ",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": "  sp  "
+  },
+  {
+   "out": {
+    "ok": {
+     "check": "chk",
+     "evidence": "",
+     "id": "chk/unreadable/a_b.md",
+     "reason": "读不了、不是常规文件、超过读取上限或真实位置在项目之外；没读的文件不是没有问题",
+     "registered": null,
+     "status": "UNDETERMINED",
+     "title": "a\nb.md 读不了（FileNotFoundError），依赖它的判据未判",
+     "where": "a\nb.md",
+     "why": "01 §2 N1：依赖不可用记未定，不记通过"
+    }
+   },
+   "rel": "a\nb.md"
+  }
+ ],
+ "work_root_absent": [
+  {
+   "name": "default_present",
+   "out": {
+    "ok": null
+   }
+  },
+  {
+   "name": "declared_present",
+   "out": {
+    "ok": null
+   }
+  },
+  {
+   "name": "declared_absent",
+   "out": {
+    "ok": {
+     "check": "c",
+     "evidence": "work_root 取自 layout.work_root：nope；负责报告的检查器：layout",
+     "id": "c/work-root-absent",
+     "reason": "目录在不在由 layout 报：01 §3.1 的存在性判定归它（声明了 layout.work_root 时任何档由 layout 判 FAIL，出仓记未定；没声明时 L1 起由 work_current 认这个缺省目录，L0 不要求它）。本检查不再另记一条未定",
+     "registered": null,
+     "status": "SKIP",
+     "title": "本检查只扫工作项目录，它不在：nope",
+     "where": "nope",
+     "why": ""
+    }
+   }
+  },
+  {
+   "name": "docs_root_rebase_absent",
+   "out": {
+    "ok": {
+     "check": "c",
+     "evidence": "work_root 用的是默认 manual/state/work（未配 layout.work_root）；负责报告的检查器：layout",
+     "id": "c/work-root-absent",
+     "reason": "目录在不在由 layout 报：01 §3.1 的存在性判定归它（声明了 layout.work_root 时任何档由 layout 判 FAIL，出仓记未定；没声明时 L1 起由 work_current 认这个缺省目录，L0 不要求它）。本检查不再另记一条未定",
+     "registered": null,
+     "status": "SKIP",
+     "title": "本检查只扫工作项目录，它不在：manual/state/work",
+     "where": "manual/state/work",
+     "why": ""
+    }
+   }
+  },
+  {
+   "name": "declared_backslash",
+   "out": {
+    "ok": null
+   }
+  },
+  {
+   "name": "declared_spaces",
+   "out": {
+    "ok": null
+   }
+  },
+  {
+   "name": "declared_is_file",
+   "out": {
+    "ok": {
+     "check": "c",
+     "evidence": "work_root 取自 layout.work_root：f.txt；负责报告的检查器：layout",
+     "id": "c/work-root-absent",
+     "reason": "目录在不在由 layout 报：01 §3.1 的存在性判定归它（声明了 layout.work_root 时任何档由 layout 判 FAIL，出仓记未定；没声明时 L1 起由 work_current 认这个缺省目录，L0 不要求它）。本检查不再另记一条未定",
+     "registered": null,
+     "status": "SKIP",
+     "title": "本检查只扫工作项目录，它不在：f.txt",
+     "where": "f.txt",
+     "why": ""
+    }
+   }
+  },
+  {
+   "name": "declared_symlink_out",
+   "out": {
+    "ok": {
+     "check": "c",
+     "evidence": "work_root 取自 layout.work_root：linkdir；负责报告的检查器：layout",
+     "id": "c/work-root-absent",
+     "reason": "目录在不在由 layout 报：01 §3.1 的存在性判定归它（声明了 layout.work_root 时任何档由 layout 判 FAIL，出仓记未定；没声明时 L1 起由 work_current 认这个缺省目录，L0 不要求它）。本检查不再另记一条未定",
+     "registered": null,
+     "status": "SKIP",
+     "title": "本检查只扫工作项目录，它不在：linkdir",
+     "where": "linkdir",
+     "why": ""
+    }
+   },
+   "symlink": true
+  }
+ ]
+}

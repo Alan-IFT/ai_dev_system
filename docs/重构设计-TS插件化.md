@@ -230,6 +230,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/config.ts`（配置加载与校验）、`core/cfg.ts`（`cfgGet`、状态词表、`leadWord`、`stateClass`）、`core/utf8.ts`（首个无效序列起点）
     - [x] `core/exceptions.ts`（例外登记册：`loadExceptions`、关闭态、表格解析、表头归类、日期运算）
     - [x] `core/docs.ts`（头部字段查找、工件落点、入口候选、工作项命名、裁剪、状态归类）
+    - [x] `core/shell.ts`（检查器公共外壳：`runGuarded`、`undeterminedFromException`、`probe`、`probeCrashed`、`unreadable`、`outsideRoot`、`once`、`agg`、`workRootAbsent`——每个检查器都用，所以先于任何检查器迁）
     - [ ] `core/tracked.ts`（`tracked_files`、`scan_memo`、`markdown_under`、`work_items`、`work_root_absent`、`unreadable`、`outside_root`、`once`、`agg`——依赖 `.std/` 内嵌机制，推迟到汇总层）
   - [ ] （core 总项，上面全勾才勾）　[ ] entry_budget　[ ] layout　[ ] links　[ ] freshness　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
@@ -399,6 +400,23 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **Ubuntu 暴露的这一条，是又一次「Windows 全绿而 Linux 不是」**（上次是 fs 的 `O_NOFOLLOW`）。我没有直接改期望糊弄，而是先在容器里用 Python 实测它的行为，确认是路径语义差异再按平台处理。`scripts/verify-ubuntu.ps1` 也因此改进：**失败时把断言细节（`failing tests` 之后 60 行）打印出来**，不然只知道哪条红、不知道为什么，还要再手拼命令进容器。
 - **一个流程教训**：这一轮我**两次**把 `edit` 当成成功了——`edit` 因「文件在读取后变了」失败时，同一批并行的 `pwsh` 照常往下跑，输出里的数字（`17/17`、`605`）其实是**旧测试**的结果。第二次我改成用输出里的**测试名**（「含新测试: True」）确认新测试真的在跑。**并行批里「编辑」与「依赖该编辑的验证」不能放在同一批。**
 
+### 12.14 `core/shell.ts` 完成时量出来的事
+
+- **为什么先迁它**：读 `entry_budget` 时发现它依赖 `run_guarded`、`unreadable`、`once` 等一批外壳函数——它们是**每个检查器**都用的，不属于任何一个检查器，所以单独成块、先于第一个检查器迁。`tracked_files` 一类仍推迟（依赖 `.std/` 内嵌机制）。
+- **证据**：对 Python 黄金样本（`golden/unit/stdlib-shell.json`）逐条一致——18 种异常 × 三个函数、`probe` 的 9 种真值、`once`、`agg` 的 0 到 100 份、`run_guarded` 的 15 种组合（5 种裁剪配置 × 3 种 fn）、`work_root_absent` 的 8 种情形。变异验证 50 条：**Windows 49 抓住 + 1 条 `posixOnly`（W3），Ubuntu 50 全抓住，0 漏**。
+- **一个由黄金样本比出来的真 bug，不是变异发现的**：`excTypeName` 我最初写成「带 `code` 字符串的都是 `OSError`」，但本模块自己的拒读类（`OutsideRoot`、`TooLarge`、`NotRegular`）**也带 `code`**，所以被吞成 `OSError`。后果不是显示问题：类名进 `unreadable` 的**标题**（`docs/a.md 读不了（OutsideRoot）`），而 `unreadable` 给了 `kind` 所以 id 不变，但**别处没给 `kind` 的构造点标题变了兜底 id 的哈希就变**。改为先判拒读类。**这种「某个分支吞掉了另一个分支」的错，测试里不存在直接对应的单点断言，只有对着 Python 的整条输出才暴露。**
+- **一个我自己犯的、刚登记过的错**：`workRootAbsent` 里 Python 的 `rel.replace("\\","/").strip()`，我第一版写成了 JS 的 `\s` 去空白——**正是 D6 登记过的「不能用 `\s` 与 `trim`」**，写代码时没想起来，靠写变异清单（`W5`：U+FEFF）时才发现。**教训：已登记的约束不会自己执行；要么有机械检查，要么每次写新代码前重读。** 下一步我打算给「`src/` 里出现 `.trim()` 或正则 `\s`」加一道自动检查（见下）。
+- **D14（异常类名不对应）**：Python 的 `KeyError`、`ValueError`、`ZeroDivisionError` 等在 TS 里没有对应物，进 `reason` 的类名不同。这部分**只比结构**（id、status、where、是否有 reason），不比类名；OSError 家族按 errno 映射、本模块拒读类按各自名字。**实测黄金样本（4 个真实仓 + 228 探针）里没有任何一条 finding 的 `reason` 含 Python 异常类名**——所以这条差异对验收口径（只比 `check, id, status, where, registered`）零影响。
+- **一个流程上做对了的事**：这一轮我把「创建文件」「构建」「运行测试」「依赖编辑的验证」**分成不同的批次**，没有再出现上一轮「编辑失败但并行验证照跑、读到旧结果」的事。W3/W5/N4 补测试后，我用输出里的测试名（`含新测试: True`）确认新测试真的在跑，才信变异结果。
+
+### 12.15 机械检查 `scripts/check-py-semantics.mjs`：把已登记的约束变成会执行的东西
+
+- **起因**：§12.14 记了一件事——D6 早已登记「不用 `trim()` 与 `\s` 处理被扫文本」，我自己写 `workRootAbsent` 时又违反了一次，靠写变异清单才偶然发现。**已登记的约束不会自己执行。**
+- **做了什么**：新增 `scripts/check-py-semantics.mjs`，扫 `src/core/`（**不扫 `src/guard/`**：守卫是 JS 原生实现，不是 Python 的移植，不需要与 Python 对齐），禁止五类写法：`.trim()` 一族（D6）、正则 `\s \S`（D6）、`\w \W \b`（D5）、`\d \D`（D4）、正则 `m` 标志（D13）。注释里的不算；确有理由的在行尾写 `// py-semantics-ok: 理由`（**理由必填**，不写理由本身就是违规）。`test/py-semantics.test.mjs` 对它做变异：18 种违规写法必须全被抓住、12 种合规写法必须全被放行、真实 `src/core` 必须 0 违规、`src/core` 不存在时必须退出码 2（不是静默通过）。
+- **首次运行就在现有源码上抓到 5 处**：`config.ts` 2 处 `\s`（`numKinds` 的两个正则，输入已通过 YAML 解析，实际风险小，但仍按约束改成显式空白类）、`git.ts` 2 处 `.trim()` 与 1 处 `\d`。另外 `config.ts:241` 的 `.trim()` 是个**真实的小风险**（预算键名带 U+FEFF 时对不上，脚本之前我手工审计时发现并修了）。全部改成 `pyStrip` / `[0-9]` / 显式空白类，行为不变，全部测试仍过。
+- **一个被 `\s` 规则放宽的细节**：我最初为了放过 `[\s\S]`（「任意字符」，不是空白语义）写了个带前后断言的复杂正则，**测试立刻显示它放过了 `[\s|>]`（字符类里的 `\s`）**；去掉复杂断言、改成无条件抓 `\s`，`[\s\S]` 的放行靠先把这个字面子串从待查文本里删掉。**简单的规则加例外，比复杂的规则更不容易漏。**
+- **没接进提交闸门——这是个待你决定的事**：我准备把它作为 `.githooks/pre-commit` 的第五道，**这一步的编辑被拒绝了**。我没有绕过（钩子是受控动作，需要你同意）。现状：脚本 + 测试都在，`pnpm test` 会跑到 `py-semantics.test.mjs` 里的「真实 src/core 当前无违规」那条，所以**测试套件已经间接守着它**；只是提交时不会单独拦。接不接、是否另有想法，见本轮汇报。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -451,6 +469,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | 新增 `scripts/check-py-semantics.mjs` 与 `test/py-semantics.test.mjs`，记 §12.15；**未接入 pre-commit（该编辑被拒绝，待 Alan 决定）** | 把 D4、D5、D6、D13 变成机械检查；首次运行在现有源码上抓到 5 处，全部改成显式写法；检查脚本自己有变异测试 |
+| 2026-10-06 | `core/shell.ts` 完成，记 §12.14（含 D14）；先于第一个检查器迁，因为所有检查器都依赖它 | 对 Python 黄金样本逐条一致；变异 50 条两平台 0 漏；`excTypeName` 的真 bug 由黄金样本比出；已登记的 D6 约束我自己在写 `workRootAbsent` 时又违反一次，靠写变异清单才发现 |
 | 2026-10-06 | `core/docs.ts` 完成，记 §12.13，新增 D11 到 D13；`mutate.mjs` 新增 `winOnly`；`verify-ubuntu.ps1` 失败时打印断言细节 | `find_field` 2880 条输入逐条一致；变异 110 条两平台 0 漏；`re.M` 的 `^` 在 `\\r` 之后的差异靠补一条混合行尾样本才暴露；Ubuntu 暴露反斜杠路径语义差异，容器里用 Python 实测后按平台处理；两次 `edit` 失败被当成成功的流程教训 |
 | 2026-10-06 | `core/exceptions.ts` 完成，记 §12.12，新增 D10；UTF-8 诊断扩展到终点、原因与整句文本 | 65 个登记册样本等逐条一致；变异 64 条两平台 62 抓住 2 标未验证 0 漏；发现 governance 出仓目录链接时登记册读取的下游缺口（被上游 loadConfig 兜住，与 Python 一致，未擅自收紧）；D10 里一处凭印象写的事实经实测改正 |
 | 2026-10-06 | `core/config.ts`/`cfg.ts`/`utf8.ts` 完成，记 §12.11 | 104 条配置用例含精确报错信息逐条一致；UTF-8 起点穷举 406900 个序列；变异 78 条 Ubuntu 全抓住；发现并堵住 `__proto__` 键的 JS 特有缺陷；首轮 16 条变异没抓住按五类处理 |

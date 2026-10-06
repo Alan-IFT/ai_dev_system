@@ -1,0 +1,353 @@
+[
+ {
+  "id": "R1",
+  "title": "runGuarded：裁剪不生效",
+  "file": "src/core/shell.ts",
+  "from": "if (tailored) return [finding(check, SKIP, '项目已裁剪本检查'",
+  "to": "if (false) return [finding(check, SKIP, '项目已裁剪本检查'"
+ },
+ {
+  "id": "R2",
+  "title": "runGuarded：裁剪没写理由时不补固定句（空 reason 会让 finding 抛）",
+  "file": "src/core/shell.ts",
+  "from": "{ reason: reason || 'project.yaml 未写理由' }",
+  "to": "{ reason: reason ?? 'x' }"
+ },
+ {
+  "id": "R3",
+  "title": "runGuarded：异常被吞掉记成空结果（最危险：检查器崩了等于没问题）",
+  "file": "src/core/shell.ts",
+  "from": "  } catch (exc) {\n    return [undeterminedFromException(check, exc, `跑 ${check}`)]\n  }",
+  "to": "  } catch (exc) {\n    return []\n  }"
+ },
+ {
+  "id": "R4",
+  "title": "runGuarded：异常被记成 PASS",
+  "file": "src/core/shell.ts",
+  "from": "    return [undeterminedFromException(check, exc, `跑 ${check}`)]",
+  "to": "    return [finding(check, PASS, `跑 ${check}`)]"
+ },
+ {
+  "id": "R5",
+  "title": "runGuarded：异常向外抛（带走整个进程）",
+  "file": "src/core/shell.ts",
+  "from": "    return [undeterminedFromException(check, exc, `跑 ${check}`)]",
+  "to": "    throw exc"
+ },
+ {
+  "id": "R6",
+  "title": "runGuarded：异常记成 FAIL 而不是未定",
+  "file": "src/core/shell.ts",
+  "from": "    return [undeterminedFromException(check, exc, `跑 ${check}`)]",
+  "to": "    return [finding(check, FAIL, `跑 ${check}`)]"
+ },
+ {
+  "id": "R7",
+  "title": "runGuarded：先跑 fn 再看裁剪（被裁剪的检查仍在执行）",
+  "file": "src/core/shell.ts",
+  "from": "  const [tailored, reason] = isTailoredOut(cfg, check)\n  if (tailored) return",
+  "to": "  const [tailored, reason] = isTailoredOut(cfg, check)\n  if (tailored) fn(cfg)\n  if (tailored) return"
+ },
+ {
+  "id": "U1",
+  "title": "异常转未定：状态改成 FAIL",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, UNDETERMINED, `${what} 时检查器自身出错`",
+  "to": "return finding(check, FAIL, `${what} 时检查器自身出错`"
+ },
+ {
+  "id": "U2",
+  "title": "异常转未定：kind 不是 internal-error（会变成可登记的兜底 id）",
+  "file": "src/core/shell.ts",
+  "from": "    evidence: '检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。',\n    kind: INTERNAL_ERROR_KIND,",
+  "to": "    evidence: '检查器故障时其结论作废；按 01 §5.6 判检查器故障，不按通过记。',"
+ },
+ {
+  "id": "U3",
+  "title": "异常转未定：reason 不带类名",
+  "file": "src/core/shell.ts",
+  "from": "reason: `${excTypeName(exc)}: ${excMessage(exc)}`,\n    evidence",
+  "to": "reason: `${excMessage(exc)}`,\n    evidence"
+ },
+ {
+  "id": "U4",
+  "title": "异常转未定：标题少「时检查器自身出错」",
+  "file": "src/core/shell.ts",
+  "from": "`${what} 时检查器自身出错`",
+  "to": "`${what} 出错`"
+ },
+ {
+  "id": "T1",
+  "title": "类名：拒读类不先判（被 code 吞成 OSError）",
+  "file": "src/core/shell.ts",
+  "from": "  if (isReadRefusal(e)) return e.name\n",
+  "to": ""
+ },
+ {
+  "id": "T2",
+  "title": "类名：ENOENT 映射成 OSError",
+  "file": "src/core/shell.ts",
+  "from": "if (code === 'ENOENT') return 'FileNotFoundError'",
+  "to": "if (code === 'ENOENT') return 'OSError'"
+ },
+ {
+  "id": "T3",
+  "title": "类名：EACCES 与 EPERM 只认一个",
+  "file": "src/core/shell.ts",
+  "from": "if (code === 'EACCES' || code === 'EPERM') return 'PermissionError'",
+  "to": "if (code === 'EACCES') return 'PermissionError'"
+ },
+ {
+  "id": "T4",
+  "title": "类名：EISDIR 映射成 OSError",
+  "file": "src/core/shell.ts",
+  "from": "if (code === 'EISDIR') return 'IsADirectoryError'",
+  "to": ""
+ },
+ {
+  "id": "T5",
+  "title": "类名：ENOTDIR 映射成 OSError",
+  "file": "src/core/shell.ts",
+  "from": "if (code === 'ENOTDIR') return 'NotADirectoryError'",
+  "to": ""
+ },
+ {
+  "id": "T6",
+  "title": "类名：带 code 的未知错误不当 OSError",
+  "file": "src/core/shell.ts",
+  "from": "if (typeof code === 'string') return 'OSError'",
+  "to": ""
+ },
+ {
+  "id": "T7",
+  "title": "类名：非对象返回 'undefined' 以外的东西",
+  "file": "src/core/shell.ts",
+  "from": "if (e === null || typeof e !== 'object') return typeof e",
+  "to": "if (e === null || typeof e !== 'object') return 'Error'"
+ },
+ {
+  "id": "P1",
+  "title": "probe：真假颠倒",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, ok ? PASS : FAIL, title, init)",
+  "to": "return finding(check, ok ? FAIL : PASS, title, init)"
+ },
+ {
+  "id": "P2",
+  "title": "probe：假值记成 PASS",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, ok ? PASS : FAIL, title, init)",
+  "to": "return finding(check, PASS, title, init)"
+ },
+ {
+  "id": "P3",
+  "title": "probe：真值记成 FAIL",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, ok ? PASS : FAIL, title, init)",
+  "to": "return finding(check, FAIL, title, init)"
+ },
+ {
+  "id": "P4",
+  "title": "probeCrashed：记成 PASS（自检崩了按通过记）",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, FAIL, `${what}自身出错`",
+  "to": "return finding(check, PASS, `${what}自身出错`"
+ },
+ {
+  "id": "P5",
+  "title": "probeCrashed：记成 UNDETERMINED（会被当成检查器故障之外的另一种）",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, FAIL, `${what}自身出错`, { evidence",
+  "to": "return finding(check, UNDETERMINED, `${what}自身出错`, { reason: 'x', evidence"
+ },
+ {
+  "id": "L1",
+  "title": "unreadable：状态记成 FAIL",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, UNDETERMINED, `${rel} 读不了（${excTypeName(exc)}），依赖它的判据未判`",
+  "to": "return finding(check, FAIL, `${rel} 读不了（${excTypeName(exc)}），依赖它的判据未判`"
+ },
+ {
+  "id": "L2",
+  "title": "unreadable：不带 kind（标题含类名，兜底 id 会随异常类变）",
+  "file": "src/core/shell.ts",
+  "from": "    where: rel, kind: 'unreadable', key: rel,",
+  "to": "    where: rel,"
+ },
+ {
+  "id": "L3",
+  "title": "unreadable：key 不是路径（同一文件不同异常会拆成两条）",
+  "file": "src/core/shell.ts",
+  "from": "    where: rel, kind: 'unreadable', key: rel,",
+  "to": "    where: rel, kind: 'unreadable', key: excTypeName(exc),"
+ },
+ {
+  "id": "L4",
+  "title": "unreadable：where 丢掉",
+  "file": "src/core/shell.ts",
+  "from": "    where: rel, kind: 'unreadable', key: rel,",
+  "to": "    kind: 'unreadable', key: rel,"
+ },
+ {
+  "id": "O1",
+  "title": "outsideRoot：状态记成 FAIL",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, UNDETERMINED, `${rel} 的真实位置在被扫项目之外，未读`",
+  "to": "return finding(check, FAIL, `${rel} 的真实位置在被扫项目之外，未读`"
+ },
+ {
+  "id": "O2",
+  "title": "outsideRoot：kind 改名（id 变，登记行成孤儿）",
+  "file": "src/core/shell.ts",
+  "from": "where: rel, kind: 'outside-root', key: rel,",
+  "to": "where: rel, kind: 'outside_root', key: rel,"
+ },
+ {
+  "id": "N1",
+  "title": "once：不去重",
+  "file": "src/core/shell.ts",
+  "from": "return findings.filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)))",
+  "to": "return [...findings]"
+ },
+ {
+  "id": "N2",
+  "title": "once：留最后一条而不是第一条",
+  "file": "src/core/shell.ts",
+  "from": "return findings.filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)))",
+  "to": "return [...findings].reverse().filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true))).reverse()"
+ },
+ {
+  "id": "N3",
+  "title": "once：按标题而不是 id 去重",
+  "file": "src/core/shell.ts",
+  "from": "return findings.filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)))",
+  "to": "return findings.filter((f) => (seen.has(f.title) ? false : (seen.add(f.title), true)))"
+ },
+ {
+  "id": "N4",
+  "title": "once：只留 FAIL 之外（丢掉所有 FAIL）",
+  "file": "src/core/shell.ts",
+  "from": "return findings.filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)))",
+  "to": "return findings.filter((f) => f.status !== FAIL && (seen.has(f.id) ? false : (seen.add(f.id), true)))"
+ },
+ {
+  "id": "A1",
+  "title": "agg：证据上限 12 改 13",
+  "file": "src/core/docs.ts",
+  "from": "export const LIST_CAP = 12",
+  "to": "export const LIST_CAP = 13"
+ },
+ {
+  "id": "A2",
+  "title": "agg：证据上限 12 改 11",
+  "file": "src/core/docs.ts",
+  "from": "export const LIST_CAP = 12",
+  "to": "export const LIST_CAP = 11"
+ },
+ {
+  "id": "A3",
+  "title": "agg：标题不带份数",
+  "file": "src/core/shell.ts",
+  "from": "`${title}（${paths.length} 份）`",
+  "to": "title"
+ },
+ {
+  "id": "A4",
+  "title": "agg：份数用列出的条数而不是总数",
+  "file": "src/core/shell.ts",
+  "from": "`${title}（${paths.length} 份）`",
+  "to": "`${title}（${Math.min(paths.length, LIST_CAP)} 份）`"
+ },
+ {
+  "id": "A5",
+  "title": "agg：超出时不写「另有 N 份未列出」",
+  "file": "src/core/shell.ts",
+  "from": "const more = paths.length <= LIST_CAP ? '' : `；另有 ${paths.length - LIST_CAP} 份未列出`",
+  "to": "const more = ''"
+ },
+ {
+  "id": "A6",
+  "title": "agg：「另有 N」N 算错（少 1）",
+  "file": "src/core/shell.ts",
+  "from": "`；另有 ${paths.length - LIST_CAP} 份未列出`",
+  "to": "`；另有 ${paths.length - LIST_CAP - 1} 份未列出`"
+ },
+ {
+  "id": "A7",
+  "title": "agg：刚好等于上限时也写「另有」",
+  "file": "src/core/shell.ts",
+  "from": "paths.length <= LIST_CAP ? ''",
+  "to": "paths.length < LIST_CAP ? ''"
+ },
+ {
+  "id": "A8",
+  "title": "agg：证据分隔用逗号",
+  "file": "src/core/shell.ts",
+  "from": "evidence: paths.slice(0, LIST_CAP).join('；') + more",
+  "to": "evidence: paths.slice(0, LIST_CAP).join(',') + more"
+ },
+ {
+  "id": "A9",
+  "title": "agg：kind 不传",
+  "file": "src/core/shell.ts",
+  "from": "{ kind, reason, why, evidence: paths.slice(0, LIST_CAP)",
+  "to": "{ reason, why, evidence: paths.slice(0, LIST_CAP)"
+ },
+ {
+  "id": "W1",
+  "title": "workRootAbsent：不判真实位置（出仓链接目录当作在）",
+  "file": "src/core/shell.ts",
+  "from": "if (inside(root, path) && isDir(path)) return null",
+  "to": "if (isDir(path)) return null"
+ },
+ {
+  "id": "W2",
+  "title": "workRootAbsent：不判是目录（文件也当作在）",
+  "file": "src/core/shell.ts",
+  "from": "if (inside(root, path) && isDir(path)) return null",
+  "to": "if (inside(root, path)) return null"
+ },
+ {
+  "id": "W3",
+  "title": "【仅 POSIX】workRootAbsent 配置值的反斜杠不换成斜杠（Windows 上 join 本来就把 \\ 当分隔符，两者等价）",
+  "file": "src/core/shell.ts",
+  "from": "return pyStrip(rel.replaceAll('\\\\', '/'))",
+  "to": "return pyStrip(rel)",
+  "posixOnly": true
+ },
+ {
+  "id": "W4",
+  "title": "workRootAbsent：配置值不去空白",
+  "file": "src/core/shell.ts",
+  "from": "return pyStrip(rel.replaceAll('\\\\', '/'))",
+  "to": "return rel.replaceAll('\\\\', '/')"
+ },
+ {
+  "id": "W5",
+  "title": "workRootAbsent：用 trim 去空白（U+FEFF 被去，Python 不去）",
+  "file": "src/core/shell.ts",
+  "from": "return pyStrip(rel.replaceAll('\\\\', '/'))",
+  "to": "return rel.replaceAll('\\\\', '/').trim()"
+ },
+ {
+  "id": "W6",
+  "title": "workRootAbsent：状态记成未定而不是 SKIP",
+  "file": "src/core/shell.ts",
+  "from": "return finding(check, SKIP, `本检查只扫工作项目录，它不在：${rel}`",
+  "to": "return finding(check, UNDETERMINED, `本检查只扫工作项目录，它不在：${rel}`"
+ },
+ {
+  "id": "W7",
+  "title": "workRootAbsent：kind 改名",
+  "file": "src/core/shell.ts",
+  "from": "where: rel, kind: 'work-root-absent',",
+  "to": "where: rel, kind: 'work_root_absent',"
+ },
+ {
+  "id": "W8",
+  "title": "workRootAbsent：证据不写负责报告的检查器",
+  "file": "src/core/shell.ts",
+  "from": "evidence: `${note}；负责报告的检查器：layout`,",
+  "to": "evidence: `${note}`,"
+ }
+]
