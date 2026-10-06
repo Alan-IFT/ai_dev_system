@@ -25,7 +25,7 @@ const cases = [
   ['改守卫插件自身 => ask', { name: 'edit', arguments: { file_path: 'tools/dsh-std/lib/policy.js' } }, 'ask'],
   // —— 命令：写 .std deny ——
   ['重定向写 .std => deny', sh('echo x > .std/a.md'), 'deny'],
-  ['Set-Content 写 .std => ask（带 .std 的写类命令，写目标不猜，交给人）', sh("Set-Content .std\\a.md 'x'"), 'ask'],
+  ['Set-Content 写 .std => ask（带 .std 的写类命令，写目标不猜，交给人）', sh("Set-Content .std/a.md 'x'"), 'ask'],
   ['Remove-Item .std => ask（带 .std 的写类命令，写目标不猜，交给人）', sh('Remove-Item -Recurse .std'), 'ask'],
   ['只读 .std（Get-Content）=> allow', sh('Get-Content .std/标准/README.md'), 'allow'],
   ['ls .std => allow', sh('ls .std'), 'allow'],

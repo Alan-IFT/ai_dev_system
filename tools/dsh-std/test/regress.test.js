@@ -11,6 +11,7 @@ const WIN = process.platform === 'win32'
 const ROOT = WIN ? 'D:\\proj' : '/proj'
 const sh = (command) => ({ name: WIN ? 'pwsh' : 'bash', arguments: { command } })
 const w = (file_path) => ({ name: 'write', arguments: { file_path } })
+const bashSh = (command) => ({ name: 'bash', arguments: { command } })   // 固定 bash 工具名（不随平台变），用来在任何平台上钉 POSIX 写法
 
 const winOnly = (title, fn) => test(title, { skip: WIN ? false : '仅 Windows 的路径规整语义' }, fn)
 
@@ -37,12 +38,9 @@ for (const [title, cmd] of [
   ['别名 cpi a .std/a', 'cpi a .std/a'],
   ['别名 ni .std/a.md', 'ni .std/a.md'],
   ['cmd rd /s /q .std', 'rd /s /q .std'],
-  ['cmd move a .std\\a', 'move a .std\\a'],
-  ['cmd copy a .std\\a', 'copy a .std\\a'],
   ['robocopy 目标 .std', 'robocopy src .std /E'],
   ['xcopy 目标 .std', 'xcopy src .std /E'],
   ['重定向无空格 >.std/a', 'echo x >.std/a'],
-  ['Set-Content 大小写 .STD', 'Set-Content .STD/a x'],
   ['iwr -OutFile .std', 'iwr http://x -OutFile .std/a'],
   ['curl -o .std', 'curl -o .std/a http://x'],
   ['dd of=.std', 'dd of=.std/a'],
@@ -52,6 +50,31 @@ for (const [title, cmd] of [
   ['git stash push -- .std', 'git stash push -- .std'],
   ['git apply 到 .std（命令里提到 .std）', 'git apply --directory=.std p.diff'],
 ]) test(`写 .std：${title} => 被拦（ask 或 deny，不能放行）`, () => assert.notEqual(decide(sh(cmd), { root: ROOT }).kind, 'allow', cmd))
+
+// —— Windows 专属写法：反斜杠是路径分隔符、`.STD` 与 `.std` 是同一个目录、cmd 内置 `move`/`copy`。
+// Linux 上 `\\` 只是文件名里的普通字符、`.STD` 是另一个目录，这些命令本来就写不到 `.std`，断言「必须被拦」在那里不成立
+// （Ubuntu 容器里跑 `node --test` 就是因此红了 7 条）。所以只在 Windows 上断言；Linux 的对应覆盖是紧随其后的 POSIX 表。
+for (const [title, cmd] of [
+  ['cmd move a .std\\a', 'move a .std\\a'],
+  ['cmd copy a .std\\a', 'copy a .std\\a'],
+  ['Set-Content 大小写 .STD', 'Set-Content .STD/a x'],
+  ['ren .std\\a b（反斜杠）', 'ren .std\\a b'],
+  ['Copy-Item x .std\\ 2>nul（反斜杠）', 'Copy-Item x .std\\ 2>nul'],
+  ['Tee-Object .std\\a（反斜杠）', 'Get-Content a | Tee-Object .std\\a'],
+  ['Set-Content .std\\a.md（反斜杠）', "Set-Content .std\\a.md 'x'"],
+]) winOnly(`写 .std（仅 Windows）：${title} => 被拦`, () => assert.notEqual(decide(sh(cmd), { root: ROOT }).kind, 'allow', cmd))
+
+// —— Linux（bash 工具名）对应覆盖：同一类动作的 POSIX 写法，以及「大小写不同的目录不是 .std」这一条平台语义本身。
+for (const [title, cmd] of [
+  ['bash mv 到 .std', 'mv a .std/a'],
+  ['bash cp 到 .std', 'cp a .std/a'],
+  ['bash cp -r 到 .std', 'cp -r src .std/'],
+  ['bash 重定向到 .std', 'echo x >> .std/a'],
+  ['bash install 到 .std', 'install -m 644 a .std/a'],
+]) test(`写 .std（bash 工具名）：${title} => 被拦`, () => assert.notEqual(decide(bashSh(cmd), { root: ROOT }).kind, 'allow', cmd))
+test('Linux 语义：`.STD` 与 `.std` 是两个目录，大小写不同的写入不算写 .std（只在非 Windows 上成立）', { skip: WIN ? 'Windows 大小写不敏感，两者是同一个目录' : false }, () => {
+  assert.equal(decide(w('.STD/a'), { root: ROOT }).kind, 'allow')
+})
 
 for (const [title, cmd] of [
   ['只读 Get-Content .std', 'Get-Content .std/标准/README.md'],
@@ -92,11 +115,12 @@ for (const [title, cmd] of [
   ['branch -dr', 'git branch -dr x'],
   ['update-ref -d', 'git update-ref -d refs/heads/x'],
   ['reset --ha 缩写', 'git reset --ha'],
-  ['reset --hard 反引号续行（PowerShell）', 'git reset `\n --hard'],
   ['--no-veri 缩写', 'git commit --no-veri -m x'],
   ['--force-if-includes', 'git push --force-if-includes origin main'],
   ['ri 删 PROJECT_STATUS（别名）', 'ri PROJECT_STATUS.md'],
 ]) test(`受控 git：${title} => ask`, () => assert.notEqual(decide(sh(cmd), { root: ROOT }).kind, 'allow', cmd))
+test('受控 git：reset --hard 反引号续行（固定 pwsh 工具名：反引号在 PowerShell 里是续行，在 bash 里是命令替换，Linux 上用 sh() 会选 bash 而判成放行）', () =>
+  assert.notEqual(decide({ name: 'pwsh', arguments: { command: 'git reset `\n --hard' } }, { root: ROOT }).kind, 'allow'))
 
 test('无续行符的换行是两条独立命令：`git reset` 与 `--hard`，后者不是 git，放行', () => assert.equal(decide(sh('git reset\n--hard'), { root: ROOT }).kind, 'allow'))
 
@@ -258,7 +282,7 @@ for (const [title, cmd] of [
   ['Remove-Item .std)', 'Remove-Item .std)'],
   ['cd .std; sc a x', 'cd .std; sc a x'],
   ['Set-Location .std; Set-Content a x', 'Set-Location .std; Set-Content a x'],
-  ['Tee-Object .std\\a', 'Get-Content a | Tee-Object .std\\a'],
+  ['Tee-Object .std/a', 'Get-Content a | Tee-Object .std/a'],
   ['git -C . checkout -- .std', 'git -C . checkout -- .std'],
   ['git -C .std checkout .', 'git -C .std checkout .'],
 ]) test(`写 .std（审查二）：${title} => 被拦（ask 或 deny，不能放行）`, () => assert.notEqual(decide(sh(cmd), { root: ROOT }).kind, 'allow', cmd))
@@ -327,9 +351,9 @@ for (const [title, cmd] of [
 for (const [title, cmd] of [
   ['-Path/-Destination 写 .std', 'Copy-Item a -Destination .std'],
   ['mv 源是 .std（会从 .std 里移走）', 'mv .std/a b'],
-  ['ren .std 里的文件', 'ren .std\\a b'],
+  ['ren .std 里的文件', 'ren .std/a b'],
   ['cp 目标 .std 加 2>&1', 'cp a .std/a 2>&1'],
-  ['cp 目标 .std 加 2>nul', 'Copy-Item x .std\\ 2>nul'],
+  ['cp 目标 .std 加 2>nul', 'Copy-Item x .std/ 2>nul'],
   ['mv 目标 .std 加 2>/dev/null', 'mv a .std 2>/dev/null'],
   ['cp 目标 .std 加 >/dev/null', 'cp a .std/ >/dev/null'],
   ['Copy-Item 加 -ErrorAction', 'Copy-Item a .std -ErrorAction SilentlyContinue'],
@@ -455,7 +479,6 @@ test('适配层：Symbol kind / 冻结对象 / 数字 kind 都按 ask 处理', a
 })
 
 // —— 审查三点名的单测盲区 ——
-const bashSh = (command) => ({ name: 'bash', arguments: { command } })
 test('工具名 bash 同样判定（不只 pwsh）', () => {
   assert.equal(decide(bashSh('git push -f'), { root: ROOT }).kind, 'ask')
   assert.equal(decide(bashSh('echo x > .std/a'), { root: ROOT }).kind, 'deny')
