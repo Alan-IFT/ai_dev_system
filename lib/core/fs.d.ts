@@ -42,7 +42,8 @@ export declare function guard(root: string | null | undefined, path: string): st
  */
 export declare const __testHooks: {
     beforeOpen: (() => void) | undefined;
-    afterOpen: (() => void) | undefined;
+    afterOpen: ((fd: number) => void) | undefined;
+    opened: number;
 };
 /**
  * 读被扫项目文件的唯一入口：护栏 → 非阻塞打开 → 只收常规文件 → 大小上限。

@@ -328,6 +328,21 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **Windows 上 D8 的实测**：`ino` 的 `Number` 与 `BigInt` 读法相差 12，直接比较会把同一个文件判成两个，所以全程 `BigInt`；`O_NOFOLLOW`/`O_NONBLOCK` 在 Windows 上 Node 返回 `undefined`、Python 的 `getattr(...,0)` 为 0——这三道防线在 Windows 上本来就是空的，**如实写进 §12.6 D8，不假装有**。Linux 上的真实防线要在 Ubuntu 容器里验证（见下一步）。
 - **一次测试侧的错误**：第一轮 `readBytes` 比对「失败」，看输出两边内容完全一样——是 `JSON.stringify` 的键序不同（`{hex,len}` 对 `{len,hex}`）。**是测试的比较方式错了，不是实现错了**；改成键序规范化后全绿。
 
+### 12.9 `core/fs.ts` 在 Ubuntu 上验证时发现的、只在 Linux 上才暴露的事
+
+做 fs 时我在 Windows 上把变异验证跑到「全部被抓住」，**然后去 Ubuntu 容器里重跑**，结果出了三件 Windows 上看不见的事：
+
+1. **Linux 独有的两条防线 Windows 上本来就是空的**：`O_NOFOLLOW`（挡「末段被换成符号链接」）与 `O_NONBLOCK`（挡 FIFO 永久阻塞）。Windows 上 Node 返回 `undefined`、Python 的 `getattr(...,0)` 为 0，两边都空，所以黄金样本与 Windows 测试**对它们没有任何验证力**。补了两条 POSIX 才跑的测试（FIFO 靠子进程 + 超时杀掉验证不阻塞；`beforeOpen` 钩子在 realpath 与 open 之间把末段换成出仓链接），并在变异清单里加 `P1`、`P2`（`posixOnly`），`mutate.mjs` 在 Windows 上把它们报告为「△ 本平台不适用」而不是假装通过。
+2. **`O_NOFOLLOW` 与 `dev/ino` 核对是一对纵深防御**：在 Linux 上单独去掉任何一道都被另一道兜住（我实测了三种组合：只去 `O_NOFOLLOW` → 被 `dev/ino` 拦下；只去 `dev/ino` → 被 `O_NOFOLLOW` 拦下；两道同时去掉 → 读到仓外内容）。所以 `P1` 是**复合变异**。这和 `S7+8`（超限的两道防线）同一类。
+3. **同一条变异在两个平台上结论不同，根因是我的测试断言写在了「会因别的原因失败」的位置**：`S22`（把 `beforeOpen` 钩子挪到 `openSync` 之后）在 Windows 上被抓住、在 Linux 上没被抓住。我连改了三版才弄对——
+   - 第一版靠「换目录这个动作本身在 Windows 上会因文件已被打开而失败」被抓住，**那是偶然的失败，不是测试在验证顺序**；Linux 上换目录总是成功，所以抓不住。
+   - 第二版用「`openSync` 返回的 fd 赋给 `lastFd`」当哨兵，以为它「挪不动」。**错了**：`lastFd = fd` 那一行在 `openSync` 之后，钩子被挪过 `openSync` 之后仍然在 `lastFd = fd` **之前**被调用，所以哨兵看起来「还没变」。
+   - 第三版把计数 `opened++` 与 `openSync(...)` 绑在**同一个表达式**里：`const fd = (opened++, openSync(...))`。钩子被挪到这个表达式之后时，`opened` 必然已经是 1。这才是让断言**不依赖行的先后、只依赖「open 是否已被调用」这个事实**的写法。Windows 与 Linux 上都被抓住。
+
+   **教训：写变异验证的断言时，要问「这条失败是因为我要验证的那件事，还是因为别的偶然原因」。换了平台结论就变，说明是后者。**
+
+**为此新增 `scripts/verify-ubuntu.ps1`**：用 `git bundle` 加容器内真实 `git clone` 带代码进去（**不用 `git archive`**，它按导出端的 `autocrlf` 转行尾）、可用 `-Overlay` 把工作区里**未提交**的文件覆盖进去、可用 `-Mutations fs` 另跑变异清单、可指定 Node 版本；容器名与临时目录名固定，只删自己创建的，跑完核对 0 残留。手工拼容器命令这一轮已经出过三次错（grep 格式对不上 Node 22 与 24 的输出、sed 锚点、漏拷文件），脚本化后一次通过。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -375,6 +390,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | 记 §12.9：fs 在 Ubuntu 上的验证；新增 `scripts/verify-ubuntu.ps1` 与仅 POSIX 变异 P1/P2 | 同一条变异在两个平台结论不同，查出是断言写在了会因偶然原因失败的位置；Windows 上本来就空的三道防线在 Linux 上补了验证 |
 | 2026-10-06 | `core/fs.ts` 完成，记 §12.8，新增 D7/D8 | 对 190 条夹具型黄金样本逐条一致；变异 20 条，16 抓住、4 如实标未验证、0 漏；`mutate.mjs` 新增复合变异与 `unobservable` 标注 |
 | 2026-10-06 | 阶段 2 开始：`core` 的 finding/yaml/dates 完成并记 §12.7 | 对 Python 单元黄金样本逐条一致；变异 29 条全抓住（首轮 4 条没抓住，补输入后抓住）；变异脚本事故后改为带哈希校验的独立脚本；一个 Python 分支穷举 62 万输入不可达，如实记未验证 |
 | 2026-10-06 | §12.6 补 D4 到 D6（`\d`、`\w`、`\s`/`strip`） | 逐码点比对 Python 3.12（Unicode 15.0）与 Node 24（Unicode 17.0）；`\w` 的 49,638 个差异先看严重，查构成后确认全部是 Unicode 版本差；`strip()` 对 U+FEFF 的差异是真实风险，实现里禁用 `trim()`/`\s` |

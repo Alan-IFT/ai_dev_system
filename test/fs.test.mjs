@@ -3,7 +3,7 @@
 // 设计 §12.6 D7：Python 在 Windows 上对目录抛 PermissionError、POSIX 上抛 NotRegular；TS 统一 NotRegular——比对时两者都归一成「OSError 类的拒读」。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, openSync, ftruncateSync, closeSync, readFileSync, renameSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, openSync, ftruncateSync, closeSync, readFileSync, renameSync, appendFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -174,6 +174,17 @@ test('护栏之后路径被换出仓：打开后复核拦下（OutsideRoot），
   } finally { __testHooks.beforeOpen = undefined }
 })
 
+test('beforeOpen 在 open 之前、afterOpen 在 open 之后被调用（变异 S22：钩子被挪过 open）', () => {
+  // opened 与 openSync 在同一个表达式里递增：beforeOpen 被调用时它必须还是 0（即 openSync 尚未被调用），afterOpen 被调用时必须是 1。
+  const base0 = __hooks.opened
+  const seen = { before: -1, after: -1 }
+  __hooks.beforeOpen = () => { seen.before = __hooks.opened - base0 }
+  __hooks.afterOpen = () => { seen.after = __hooks.opened - base0 }
+  try { readBytes(P('a.txt'), proj) } finally { __hooks.beforeOpen = undefined; __hooks.afterOpen = undefined }
+  assert.equal(seen.before, 0, 'beforeOpen 被调用时 openSync 尚未被调用')
+  assert.equal(seen.after, 1, 'afterOpen 被调用时 openSync 已被调用一次')
+})
+
 test('under 是「整段」前缀：root=/x/ab 不含兄弟目录 /x/abc（变异 S20：退化成纯字符串前缀）', () => {
   const sib = join(base, 'projx')                       // 名字以 proj 为前缀的兄弟目录
   mkdirSync(sib); writeFileSync(join(sib, 'x.txt'), 'SIB')
@@ -204,6 +215,40 @@ test('fd 已打开、核对之前文件被换成另一个：realpath 不变，�
     assert.ok(n > 0, '钩子应当被调用（否则这条测试什么都没验证）')
     assert.deepEqual(r, { raised: 'OutsideRoot' }, '换位后必须拦下：' + JSON.stringify(r))
   } finally { __hooks.afterOpen = undefined }
+})
+
+// FIFO：没有 O_NONBLOCK 时，open 一个没有写端的 FIFO 会**永久阻塞**。这是 O_NONBLOCK 存在的理由，只有 POSIX 才造得出（D8）。
+// 超时用子进程 + kill 实现：测试进程自己若真阻塞就会卡死整个 node --test。
+test('FIFO 不读、不阻塞：抛 NotRegular（变异：去掉 O_NONBLOCK 会让子进程卡住被超时杀掉）', { skip: process.platform === 'win32' ? 'Windows 没有 FIFO（设计 §12.6 D8）；目录占位走的是另一条分支，不等价，所以不换夹具，如实 SKIP' : false }, async () => {
+  const { spawnSync } = await import('node:child_process')
+  const fifo = P('fifo.md')
+  const mk = spawnSync('mkfifo', [fifo]); assert.equal(mk.status, 0, 'mkfifo 失败')
+  const code = `import { readBytes } from ${JSON.stringify(new URL('../lib/core/fs.js', import.meta.url).href)}
+try { readBytes(${JSON.stringify(fifo)}, ${JSON.stringify(proj)}); console.log('READ') } catch (e) { console.log(e.name) }`
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], { timeout: 5000, encoding: 'utf8' })
+  assert.notEqual(r.error?.code, 'ETIMEDOUT', 'readBytes 在 FIFO 上阻塞了（O_NONBLOCK 失效）')
+  assert.equal(r.stdout.trim(), 'NotRegular')
+})
+
+// 短读：管道一次 readSync 只返回已写入的那部分。普通文件在本机一次读完（实测），所以只能用 /proc 或管道类输入验证循环读——
+// 这里用 FIFO 喂入分两次写、中间停顿的数据；readBytes 对 FIFO 抛 NotRegular（拒读），所以这条验证的是**拒读之外的**另一路：
+// 用 /dev/stdin 的等价物不稳定，改为验证 readBytes 对「大小在读取期间增长」的文件：读取循环必须读到底再判超限。
+// O_NOFOLLOW 单独起作用的场景：realpath 与 open 之间，**末段文件**被换成指向仓外的符号链接。此时 realpath 已经算完（指向仓内原文件），
+// 若没有 O_NOFOLLOW，open 会跟随新链接读到仓外内容；有了它 open 直接失败（ELOOP）。只有 POSIX 有这个标志（D8）。
+test('realpath 之后末段被换成出仓链接：O_NOFOLLOW 让 open 失败，读不到仓外内容（变异：去掉 O_NOFOLLOW 必须变红）', { skip: process.platform === 'win32' ? 'Windows 上 Node 没有 O_NOFOLLOW（D8）' : false }, () => {
+  const f = P('last.md'); writeFileSync(f, 'inside\n')
+  __hooks.beforeOpen = () => { renameSync(f, f + '.bak'); symlinkSync(join(outDir, 'secret.txt'), f) }
+  try {
+    const r = run(() => Buffer.from(readBytes(f, proj)).toString())
+    assert.ok(!('ok' in r && String(r.ok).includes('TOPSECRET')), '读到了仓外内容：' + JSON.stringify(r))
+    assert.ok('raised' in r, '应抛出（ELOOP），实得 ' + JSON.stringify(r))
+  } finally { __hooks.beforeOpen = undefined }
+})
+
+test('读取期间文件长大超过上限：读后长度检查拦下（变异 S8 的单点验证，POSIX 上用 O_APPEND 追加写）', { skip: process.platform === 'win32' ? '依赖 POSIX 的并发追加语义；Windows 不验证' : false }, async () => {
+  const f = P('grow.bin'); writeFileSync(f, Buffer.alloc(MAX_READ_BYTES - 10))      // 恰好在上限之下
+  __hooks.afterOpen = () => { appendFileSync(f, Buffer.alloc(100)) }                  // fd 打开、stat 之后长大了
+  try { assert.deepEqual(run(() => hexed(readBytes(f, proj))), { raised: 'TooLarge' }) } finally { __hooks.afterOpen = undefined }
 })
 
 test('读取错误类型各自独立：TooLarge / NotRegular / OutsideRoot 互不是子类', () => {

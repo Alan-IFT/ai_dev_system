@@ -133,8 +133,8 @@
   "id": "S22",
   "title": "测试钩子在生产路径里被调用的位置挪到打开之后",
   "file": "src/core/fs.ts",
-  "from": "__testHooks.beforeOpen?.()\n  const fd = openSync(real, constants.O_RDONLY | O_NONBLOCK | O_NOFOLLOW)",
-  "to": "const fd = openSync(real, constants.O_RDONLY | O_NONBLOCK | O_NOFOLLOW)\n  __testHooks.beforeOpen?.()"
+  "from": "__testHooks.beforeOpen?.()\n  const fd = (__testHooks.opened++, openSync(real, constants.O_RDONLY | O_NONBLOCK | O_NOFOLLOW))",
+  "to": "const fd = (__testHooks.opened++, openSync(real, constants.O_RDONLY | O_NONBLOCK | O_NOFOLLOW))\n  __testHooks.beforeOpen?.()"
  },
  {
   "id": "S7+8",
@@ -150,5 +150,29 @@
     "to": "if (false) {"
    }
   ]
+ },
+ {
+  "id": "P1",
+  "title": "【仅 POSIX】O_NOFOLLOW 与 dev/ino 核对同时去掉：末段被换成出仓链接必须泄露，测试变红",
+  "file": "src/core/fs.ts",
+  "posixOnly": true,
+  "multi": [
+   {
+    "from": "const O_NOFOLLOW = constants.O_NOFOLLOW ?? 0",
+    "to": "const O_NOFOLLOW = 0"
+   },
+   {
+    "from": "if (realpathLoose(real) !== real || again.dev !== st.dev || again.ino !== st.ino) {",
+    "to": "if (false) {"
+   }
+  ]
+ },
+ {
+  "id": "P2",
+  "title": "【仅 POSIX】去掉 O_NONBLOCK：FIFO 上 open 永久阻塞，子进程被超时杀掉，测试变红",
+  "file": "src/core/fs.ts",
+  "posixOnly": true,
+  "from": "const O_NONBLOCK = constants.O_NONBLOCK ?? 0",
+  "to": "const O_NONBLOCK = 0"
  }
 ]
