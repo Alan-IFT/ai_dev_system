@@ -240,7 +240,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/dates`（日期运算 `todayLocal`/`addDays`/`compareDays` 从 `exceptions.ts` 移来，`freshness` 也用）
     - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
     - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[ ] drift
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -512,6 +512,25 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **一些写测试时才知道的 git 事实**（都已按 Python 实测写进断言）：①`git log` 在「当前分支还没有提交」时退出码 128，不是「无输出」——后者是「有提交但该文件没有历史」；②`git log -1 --format=%cI` **不**触发 `core.fsmonitor`（`ls-files`、`status` 才触发），`log.showSignature` + `gpg.program` 只对**已签名**提交验签——所以 `G2`（不经 `hardenedEnv`）在本机不可观察，标 `unobservable` 并写明实测证据；③git 不在 PATH 时 `git ls-files` 先失败，整轮在文件清单一步记未定，走不到取提交时间那一步，`G9` 因此不可达。
 - **探针脚本的清理**：本块用了五个一次性探针，每个用完即删；它们留下的 `frp*`/`frp2-`/`frp3-`/`frp4-` 临时目录逐个核对精确前缀、去只读属性后删除，没有用通配批量删别的东西。
 
+### 12.24 第五个检查器 `drift`：四条判据、27 条探针、194 条变异
+
+- **证据**：4 个真实仓 finding 逐条一致（2、3、3、8，共 16 条）；`selftest` 探针 27 条的 `(id, status)` 集合与黄金样本完全相同；纯函数（`candidates`、`revisionHits`、`indexTarget`、`latestDay`、`parseBlame`、`WI` 正则）另有 `golden/unit/drift.json` 逐条比对（候选 49、修订标记 84、索引目标 24、工作项正则 50、最晚时区 15、blame 行头 9、blame 文本 22）；变异 194 条，**Windows 181 抓住 + 13 如实标注 + 0 漏**。
+- **`registered` 字段的比对口径要变**：黄金样本里 `cms` 的两条 `drift` 未定带 `registered`（被例外登记簿认领）。它**不是检查器产出的**——Python 实测单跑 `drift.run` 得 `None`，贴上登记后才与整体样本完全相同，贴的人是 `check_all` 的 `_join_exceptions`。汇总层还没迁，TS 侧没有这一步。所以 `scripts/golden-compare.mjs` 加了 `REGISTERED_PENDING`：样本里 `registered` 非空的条目只比 `(id, status, where)`，**并显式打印有几条没比该字段**，不静默跳过；汇总层迁完后改回全口径。这是设计 §12.1 写「只比 `id/status/where/registered`」时没料到的一处——前四个检查器的样本里没有带登记的，`drift` 是第一个。
+- **新增的纯函数边界核对（动笔前在 Python 上实测，写进了注释）**：`lower()` 对 `İ` 变长，但标记词判据 `low.startswith(mark)` 之后用的是 `s[len(mark):]`——Python 实测 `İrevision` 根本不命中，所以偏移不会错位；`\b` 是 Unicode 词边界，`WI-001` 紧贴中文、下划线、字母时不算；`s[:40]` 按码点（D18）；窗口按码点——`m.start()` 在 Python 里是码点下标，JS 的 `m.index` 是码元下标，含 emoji 的行两边不通用，所以 `candidates` 里把行转成码点数组、起点换算成码点下标后再加减窗口；`latestDay` 对 Python `datetime` 的年份范围（1 到 9999）显式抛错；`int()` 对浮点字符串抛 `ValueError`，TS 用 `pyInt` 同样抛。
+- **D19 的范围随 `drift` 扩大**到三处（日期令牌、`WI-<数字>`、blame 行头里的行号）；后两处的输入来自文档正文里的 ID 与 git 自己的输出，现实里不会出现非 ASCII 数字。
+- **把重复的东西合成一份**：`noteDefault` 原在 `freshness.ts`，`drift` 也用，提到 `core/shell.ts`（Python 里它在 `stdlib`）；`WORK_ITEM_NAME` 在 `core/docs.ts` 里已有，导出复用；未提交行的判据原来在 `parseBlame` 与 `checkDates` 里各写一遍，改成只在 `parseBlame` 判（`baseDay === null` 即未提交），变异也就只有一处锚点。
+- **变异验证走了三轮才收拢，而且每一轮的漏网都是同一个原因：样本只放在最容易想到的位置**。第一轮（195 条）漏 40 条，其中：①ADR 目录放在 `docs_root` 之内时，判据 1 先读到同一份读不了的文件，`once` 去重后**看不出判据 2/3 有没有自己吞掉异常**——要把 ADR 目录放在 `docs_root` 之外才能区分 `E36`、`F34`；②`D8` 用的是 `2026-02-30`，而真正让「不丢弃非法日期」变红的是 `2026-09-31`（`Date.UTC` 会滚成 10-01，晚于基准日，会被错误地报出），`2026-02-30` 滚成 03-02 同样晚于基准日却已被别的断言挡住——**区分输入要选「滚动后的结果会改变结论」的那个**；③`F13`（`os.path.join` 遇绝对路径取绝对路径本身）要求「仓内绝对路径是找到实物的唯一途径」，只放一个存在的绝对路径不够，要让回落的 `<ID>*.md` 也找不到。
+- **三条没有可构造输入的真等价**，各自写明 Python 实测证据：`E25`（`rest[0]` 要落在 `:：|` 才影响结果，而这些字符没有大小写，`s` 与 `low` 在该位置恒相同）、`E30`（标记词表里没有任何一对互为前缀）、`F5`（`"文件".lower() == "文件"`）。**四条冗余防御**：`I7`/`I8`（`git ls-files "*.md"` 已限定后缀，其后的 `.md` 筛选不改变任何结果；实测 `core.ignorecase=true` 时 `*.md` 不列 `.MD`）、`H13`、`E37`（孤立 `\r` 经 `readText` 归一前后，`splitlines` 行数相同）。**两条依赖运行时刻/竞态**：`B4`（`Date.now()/1000` 的浮点秒只在恰好距日界不足 1 秒时影响取日）、`D9`（候选行号与 blame 行号来自同一文件的同一次 `\n` 计数，只有读与 blame 之间文件被改才不同）。
+- **我写变异清单时的两个毛病**：①有两条条目写完之后自己在 `unobservable` 里承认「占位无效」（`C6`、`F24`）——**垃圾条目，不应入库**，已删；②有 15 条标了 `unobservable` 却没验证，**把标注摘掉单独跑一遍才知道其中 4 条（`A14`、`E22`、`E27`、`G11`）其实被抓住**，标注是错的；另有 4 条（`E5`、`H22`、`C11`、`B6`）能构造区分输入，补了断言。**标注 `unobservable` 前必须先把标注摘掉跑一遍**，否则它只是「我觉得抓不住」。
+- **`--no-textconv` 的对照组**：`C11` 要证明「blame 不加这个选项就会执行被扫仓的 textconv 驱动」才有意义，所以先在恶意仓里放一个会 `touch` 标记文件的驱动，对照组（不加选项）实测确会执行，再断言 `drift` 的 blame 不执行它。仅 POSIX 跑（需要 `sh`）。
+
+### 12.25 验收口径的两处修正：运行日要冻结；对采用项目的仓必须只读
+
+- **运行日要冻结**。`freshness` 的 PASS、SKIP 条目 id 是标题哈希（没有 `kind`），标题里写着「距今 N 天」；工作项活性也随运行日越过 14 天阈值。黄金样本是 2026-10-06 生成的静态文件，所以**样本一过夜，连 Python 自己重跑都与它对不上**。Python 在 4 个固定提交上实测（采用项目仓只读）：reservoir 6 条、cms 64 条、pmc 79 条、std 2 条编号不同，且**剥掉编号后 (位置, 状态) 多重集在 3 个仓里完全相同**；pmc 另有 1 条差异：`work/current.md` 因日期往后走了一天越过 14 天阈值，多一条 `work-item-stale` FAIL、少一条 PASS。——**这不是 TS 的问题，是验收口径的问题**：前四个检查器的样本里没有「id 随运行日变」的条目，`freshness` 是第一个。
+- **做法**：`scripts/golden-compare.mjs` 在进程里把 `Date` 冻结为 `MANIFEST.generated_at` 当天的本地正午，样本和比对就在同一天。**不改任何生产代码，也不加环境变量开关**——后者等于给人留一个能把「文档过期」藏起来的口子。TS 检查器取「今天」都走 `new Date()`/`Date.now()`，所以一处替换覆盖全部；子进程里的 git 不受影响。五个已迁检查器（entry-budget、layout、links、freshness、drift）对四个仓全部逐条一致。**这是真正的固定住，不是放宽口径**。
+- **对采用项目的仓必须只读**。原来 `golden-compare` 用 `git worktree add`，它会往被扫仓的 `.git/worktrees/` 写元数据（用完即清，但确实写了）。这与「只改本仓与插件，采用项目只写步骤与脚本」的约束不符。改为 `git clone --shared --no-checkout` 到自己的临时目录再检出固定提交：`--shared` 只读源仓的对象库，源仓一字节不动。**实测**：三个采用项目仓的 `.git`（文件数、最新修改时间、总字节）在比对前后完全一致，worktree 数仍是 1（只有主工作区），临时目录全部清理。我之前几轮用 worktree 时没把这点当成要先问的事，是我对约束的理解偏松，现已改。
+- **一个澄清（用户问：为什么还保留 Python）**：Python 版是**迁移期的对照答案**，不是产品。TS 版只有对着 Python 在同样输入上逐条比，才能证明「没有悄悄判错」——这个工具判定的是别人项目的文档有没有过期、ADR 有没有被改，悄悄漏掉一个边界不会报错，只会在某个采用项目里少报一次本该报出来的问题。这轮实际发现的缺陷（D18 emoji 截取错位、D19 全角数字、`latestDay` 随机器时区漂、blame 行号取错）没有一个是「读代码能看出来」的。**全部迁完、全部对齐后，Python 版、`golden/`、`tools/dsh-std/` 都删（阶段 4）**；这也是最初要求的「废弃技术栈直接清理，不再遗留」。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -563,13 +582,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D16 | `glob` 在 Windows 上的大小写 | Python 的 `glob`（经 `fnmatch` 的 `normcase`）在 Windows 上不区分大小写，POSIX 上区分 | 同 Python：Windows 上带 `i` 标志，其它平台不带 | **不是差异，是「两个平台都与该平台上的 Python 一致」**；登记是因为这条靠平台分支实现，样本只在生成它的平台上整份可比。详见 §12.17 | 平台语义 |
 | D17 | `tracked_files` 的 `.std/` 自排除（`embedded_std_rel`） | 工具自身位于被扫仓的子目录（内嵌的 `.std/`）时，把该目录从扫描面里去掉 | **不带这个机制**，被扫仓的全部 `git ls-files` 结果都在扫描面内 | **对黄金样本零影响**：黄金样本在 `TOOL_ROOT` = 本仓下生成，`embedded_std_rel(扫描根)` 对三个采用项目全部返回 `None`，所以 `.std/` 从未被排除；实测 `links`、`single_authority`、`drift` 三个检查器「排除」与「不排除」的 finding 集合在三个采用项目上完全相同。新架构里采用项目不再内嵌 `.std/`（§8），机制失去对象。**这也意味着 `adoption` 里与它配套的 `embedded-*` 判据一并随阶段 4 消失** | 实现约束；已验证零影响 |
 | D18 | 字符串按码点截取（`s[:n]`） | Python 按**码点**计 | 用 `headChars`（按码点）；JS 的 `slice(0, n)` 按 UTF-16 码元计，BMP 之外的字符（emoji、CJK 扩展区）占 2 个码元，会少取 | **这是一个真实缺陷，不是理论差异**：`core/docs.ts` 的 `headOf` 原用 `text.slice(0, HEAD_CHARS)`，头部含 emoji 的文档，日期或状态字段会被挤出头部，进而影响 `findField`/`itemStatus` → `layout`、`entry_budget`、`freshness` 的 status。对 83 条样本，修前 28 条日期与状态与 Python 不同，修后 0 条。4 个真实仓的黄金样本里没有这种输入，所以此前零差异的结论没受影响，但缺陷一直在。`scripts/check-py-semantics.mjs` 新增规则 `slice-cu` 拦住以后再写 `.slice(0, 常量)`；纯展示的截断加 `// py-semantics-ok: 展示` 标注 | 已修复并机械防住 |
-| D19 | 日期令牌里的非 ASCII 数字（`\d{4}-\d{2}-\d{2}`） | Python 的 `\d` 认全角（`２０２６`）与阿拉伯-印度数字，`int()` 也接受，所以 `updated_at: ２０２６-０９-０１` 被读成 2026-09-01 | 只认 ASCII `0-9`：全角日期读不出，`freshness` 对该文档记「日期解析不了」（未定），不静默通过 | **Alan 2026-10-06 选「保持 TS 严格」**（与已登记的 D1、D4 同向，不新增例外）。真实影响面：四个真实仓固定提交里**日期字段值以非 ASCII 数字开头的文档 0 份**；仓里出现过一次「全角数字」字样，是 pmc 一份审计文档在**讨论**这个 Python 行为（`a5-复审.md` 第 481 行），不是日期字段。作者写成全角日期时，TS 版提示改写成 ASCII，比静默接受更不容易让不同工具读出不同日期 | Alan 2026-10-06 决定 |
+| D19 | 日期令牌里的非 ASCII 数字（`\d{4}-\d{2}-\d{2}`） | Python 的 `\d` 认全角（`２０２６`）与阿拉伯-印度数字，`int()` 也接受，所以 `updated_at: ２０２６-０９-０１` 被读成 2026-09-01 | 只认 ASCII `0-9`：全角日期读不出，`freshness` 对该文档记「日期解析不了」（未定），不静默通过 | **Alan 2026-10-06 选「保持 TS 严格」**（与已登记的 D1、D4 同向，不新增例外）。真实影响面：四个真实仓固定提交里**日期字段值以非 ASCII 数字开头的文档 0 份**；仓里出现过一次「全角数字」字样，是 pmc 一份审计文档在**讨论**这个 Python 行为（`a5-复审.md` 第 481 行），不是日期字段。作者写成全角日期时，TS 版提示改写成 ASCII，比静默接受更不容易让不同工具读出不同日期 **范围随 `drift` 扩大**：同一规则（`\d`、`\b` 里的非 ASCII 数字）还影响 `drift` 的三处——日期候选的日期令牌、工作项 ID `WI-<数字>`、blame 行头里的行号；后两处的输入分别来自文档正文里的 ID 与 git 自己的输出，现实里不会出现非 ASCII 数字，`blame` 行头那一处只是「不接受」而不是「错判」。 | Alan 2026-10-06 决定 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-07 | **第五个检查器 `drift` 迁完**，记 §12.24；`noteDefault` 提到 `core/shell`，`WORK_ITEM_NAME` 导出复用；`golden-compare` 加 `REGISTERED_PENDING`（样本里带 `registered` 的只比 id/status/where，并显式打印条数）；D19 范围扩大 | 4 个真实仓 16 条逐条一致、selftest 27 条集合相同、变异 194 条（Windows 181 抓住 + 13 标注 + 0 漏）；变异三轮才收拢，漏网都是「样本只放在最容易想到的位置」；摘掉 `unobservable` 标注单独验证发现 4 条标错 |
 | 2026-10-06 | **第四个检查器 `freshness` 迁完**，记 §12.23；新增 D19（日期令牌的非 ASCII 数字，Alan 选保持严格）；日期运算从 `exceptions.ts` 移入 `core/dates.ts` | 4 个真实仓 239 条逐条一致、selftest 22 条集合相同、变异 150 条（Windows 146 抓住 + 4 标注 + 0 漏；Ubuntu 首轮 2 漏，补断言后全抓住）；事先对每个 Python 操作做等价性核对，D18 与 D19 都是写 TS 之前发现的；仍有 7 条等价变异是跑完才发现的 |
 | 2026-10-06 | **D18：`docs.ts` 的头部截取按码元、Python 按码点，已迁代码里的真实缺陷**，记 §12.22；新增 `headChars`、`check-py-semantics` 第 6 条规则 `slice-cu` | 修前 83 条样本 28 条与 Python 不同，修后 0 条；变异 7 条两平台全抓住；三个已迁检查器对 4 个真实仓与 selftest 仍零差异（样本里本来就没有这类输入，所以此前的零差异结论不受影响，但缺陷一直在）；脚本测试补 5+9 条 |
 | 2026-10-06 | `core/repr.ts` 完成，记 §12.21；统一八份各自为政的 `pyRepr`（迁 `freshness` 前发现）；变异暴露四处代码冗余，直接删除 | 全量 785 条两平台 0 败；三个已迁检查器对 4 个真实仓与 selftest 仍零差异；变异 31 条两平台全抓住；样本第一版逐码点存了 9.7 MB，改成区间 25 KB |

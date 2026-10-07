@@ -1,0 +1,1374 @@
+[
+ {
+  "id": "A1",
+  "title": "窗口：计划词左窗口改按码元（slice）取",
+  "file": "src/checks/drift.ts",
+  "from": "const left = cps.slice(Math.max(0, start - PLAN_WINDOW), start).join('')",
+  "to": "const left = line.slice(Math.max(0, m.index! - PLAN_WINDOW), m.index!)"
+ },
+ {
+  "id": "A2",
+  "title": "窗口：动作词右窗口改按码元取",
+  "file": "src/checks/drift.ts",
+  "from": "const right = cps.slice(end, end + ACT_WINDOW).join('')",
+  "to": "const right = line.slice(m.index! + m[0].length, m.index! + m[0].length + ACT_WINDOW)"
+ },
+ {
+  "id": "A3",
+  "title": "窗口：右窗口 10 改 9",
+  "file": "src/checks/drift.ts",
+  "from": "const ACT_WINDOW = 10",
+  "to": "const ACT_WINDOW = 9"
+ },
+ {
+  "id": "A4",
+  "title": "窗口：右窗口 10 改 11",
+  "file": "src/checks/drift.ts",
+  "from": "const ACT_WINDOW = 10",
+  "to": "const ACT_WINDOW = 11"
+ },
+ {
+  "id": "A5",
+  "title": "窗口：左窗口 6 改 5",
+  "file": "src/checks/drift.ts",
+  "from": "const PLAN_WINDOW = 6",
+  "to": "const PLAN_WINDOW = 5"
+ },
+ {
+  "id": "A6",
+  "title": "窗口：左窗口 6 改 7",
+  "file": "src/checks/drift.ts",
+  "from": "const PLAN_WINDOW = 6",
+  "to": "const PLAN_WINDOW = 7"
+ },
+ {
+  "id": "A7",
+  "title": "窗口：日期起点用码元下标（不换算码点）",
+  "file": "src/checks/drift.ts",
+  "from": "const start = [...line.slice(0, m.index!)].length",
+  "to": "const start = m.index!"
+ },
+ {
+  "id": "A8",
+  "title": "窗口：日期终点多算 1",
+  "file": "src/checks/drift.ts",
+  "from": "const end = start + m[0].length",
+  "to": "const end = start + m[0].length + 1"
+ },
+ {
+  "id": "A9",
+  "title": "候选：计划词命中不丢弃",
+  "file": "src/checks/drift.ts",
+  "from": "if (PLAN_WORDS.some((w) => left.includes(w))) continue",
+  "to": ""
+ },
+ {
+  "id": "A10",
+  "title": "候选：不要求动作词（日期都算候选）",
+  "file": "src/checks/drift.ts",
+  "from": "if (PAST_ACTS.some((w) => right.includes(w))) out.push([li + 1, m[0]])",
+  "to": "out.push([li + 1, m[0]])"
+ },
+ {
+  "id": "A11",
+  "title": "候选：改按 splitLinesPy 切行（认 \\x0c、U+2028、孤立 \\r）",
+  "file": "src/checks/drift.ts",
+  "from": "const lines = text.split('\\n') // 只按 \\n 切",
+  "to": "const lines = splitLinesPy(text) // 只按 \\n 切"
+ },
+ {
+  "id": "A12",
+  "title": "候选：行号从 0 起",
+  "file": "src/checks/drift.ts",
+  "from": "out.push([li + 1, m[0]])",
+  "to": "out.push([li, m[0]])"
+ },
+ {
+  "id": "A13",
+  "title": "候选：日期正则改认任意位数",
+  "file": "src/checks/drift.ts",
+  "from": "const DATE_RE = /[0-9]{4}-[0-9]{2}-[0-9]{2}/g",
+  "to": "const DATE_RE = /[0-9]+-[0-9]+-[0-9]+/g"
+ },
+ {
+  "id": "A14",
+  "title": "候选：日期正则认 Unicode 数字（违反 D19）",
+  "file": "src/checks/drift.ts",
+  "from": "const DATE_RE = /[0-9]{4}-[0-9]{2}-[0-9]{2}/g",
+  "to": "const DATE_RE = /\\p{Nd}{4}-\\p{Nd}{2}-\\p{Nd}{2}/gu"
+ },
+ {
+  "id": "A15",
+  "title": "词表：动作词少一个（决议）",
+  "file": "src/checks/drift.ts",
+  "from": "'已取代', '决议', '签字']",
+  "to": "'已取代', '签字']"
+ },
+ {
+  "id": "A16",
+  "title": "词表：动作词少一个（验收通过）",
+  "file": "src/checks/drift.ts",
+  "from": "'批准', '验收通过', '已完成',",
+  "to": "'批准', '已完成',"
+ },
+ {
+  "id": "A17",
+  "title": "词表：计划词少一个（保留至）",
+  "file": "src/checks/drift.ts",
+  "from": "'截止', '保留至', '有效期']",
+  "to": "'截止', '有效期']"
+ },
+ {
+  "id": "A18",
+  "title": "词表：计划词少一个（下次）",
+  "file": "src/checks/drift.ts",
+  "from": "['复查', '到期', '下次', '计划', '截止', '保留至', '有效期']",
+  "to": "['复查', '到期', '计划', '截止', '保留至', '有效期']"
+ },
+ {
+  "id": "B1",
+  "title": "latestDay：UTC+14 改 UTC+13",
+  "file": "src/checks/drift.ts",
+  "from": "const dt = new Date((Math.trunc(epochSeconds) + 14 * 3600) * 1000)",
+  "to": "const dt = new Date((Math.trunc(epochSeconds) + 13 * 3600) * 1000)"
+ },
+ {
+  "id": "B2",
+  "title": "latestDay：UTC+14 改 UTC+15",
+  "file": "src/checks/drift.ts",
+  "from": "const dt = new Date((Math.trunc(epochSeconds) + 14 * 3600) * 1000)",
+  "to": "const dt = new Date((Math.trunc(epochSeconds) + 15 * 3600) * 1000)"
+ },
+ {
+  "id": "B3",
+  "title": "latestDay：取本地时区的日期而不是 UTC+14",
+  "file": "src/checks/drift.ts",
+  "from": "return { year, month: dt.getUTCMonth() + 1, day: dt.getUTCDate() }",
+  "to": "return { year, month: dt.getMonth() + 1, day: dt.getDate() }"
+ },
+ {
+  "id": "B4",
+  "title": "latestDay：浮点秒不取整",
+  "file": "src/checks/drift.ts",
+  "from": "Math.trunc(epochSeconds)",
+  "to": "epochSeconds",
+  "unobservable": "依赖运行时刻：`latestDay(Date.now()/1000)` 的浮点秒只在恰好距 UTC+14 日界不足 1 秒时才影响取日，无法用固定输入构造；整数入口（blame 的 committer-time）由 pyInt 保证是整数，已由 drift-pure 的 latestDay 浮点样本逐条比对"
+ },
+ {
+  "id": "B5",
+  "title": "latestDay：不检查年份越界",
+  "file": "src/checks/drift.ts",
+  "from": "if (!(year >= 1 && year <= 9999)) throw new RangeError('date value out of range')",
+  "to": ""
+ },
+ {
+  "id": "B6",
+  "title": "latestDay：年份下界放宽到 0",
+  "file": "src/checks/drift.ts",
+  "from": "if (!(year >= 1 && year <= 9999))",
+  "to": "if (!(year >= 0 && year <= 9999))"
+ },
+ {
+  "id": "B7",
+  "title": "latestDay：年份上界放宽到 10000",
+  "file": "src/checks/drift.ts",
+  "from": "if (!(year >= 1 && year <= 9999))",
+  "to": "if (!(year >= 1 && year <= 10000))"
+ },
+ {
+  "id": "C1",
+  "title": "blame：行头只认 SHA-1（40 位）",
+  "file": "src/checks/drift.ts",
+  "from": "([0-9a-f]{40}(?:[0-9a-f]{24})?)",
+  "to": "([0-9a-f]{40})"
+ },
+ {
+  "id": "C2",
+  "title": "blame：不要求 committer-time 就绪（缺时间取 null）",
+  "file": "src/checks/drift.ts",
+  "from": "if (epoch === undefined) return [null, `blame 输出里 ${sha.slice(0, 7)} 这个提交没有 committer-time`]",
+  "to": "if (epoch === undefined) { out.set(lineno, [sha, null]); continue }"
+ },
+ {
+  "id": "C3",
+  "title": "blame：遇到 \\t 行不重置当前 sha（committer-time 串到下一提交）",
+  "file": "src/checks/drift.ts",
+  "from": "if (raw.startsWith('\\t')) cur = null",
+  "to": "if (raw.startsWith('\\t')) { /* 不重置 */ }"
+ },
+ {
+  "id": "C4",
+  "title": "blame：committer-time 取值不去空白",
+  "file": "src/checks/drift.ts",
+  "from": "times.set(cur, pyStrip(raw.slice(raw.indexOf(' ') + 1)))",
+  "to": "times.set(cur, raw.slice(raw.indexOf(' ') + 1))"
+ },
+ {
+  "id": "C5",
+  "title": "blame：committer-time 用 trim 去空白",
+  "file": "src/checks/drift.ts",
+  "from": "times.set(cur, pyStrip(raw.slice(raw.indexOf(' ') + 1)))",
+  "to": "times.set(cur, raw.slice(raw.indexOf(' ') + 1).trim())",
+  "unobservable": "等价：git 的 committer-time 取值是纯 ASCII 数字，pyStrip 与 trim 只在 U+FEFF、U+001C-1F、U+0085 上不同，这些字符不会出现在 git 输出里；用 pyStrip 是为了不违反 D6（机械检查要求）"
+ },
+ {
+  "id": "C7",
+  "title": "blame：未提交行不识别（按提交处理 → 缺 committer-time 才报）",
+  "file": "src/checks/drift.ts",
+  "from": "    if (!sha.replace(/^0+|0+$/g, '')) { // `sha.strip(\"0\")`：未提交行是全零 sha（SHA-1 40 位 / SHA-256 64 位）\n      out.set(lineno, [sha, null])\n      continue\n    }",
+  "to": ""
+ },
+ {
+  "id": "C8",
+  "title": "blame：行号取第 2 个数字（原文件行号）而不是第 3 个（最终行号）",
+  "file": "src/checks/drift.ts",
+  "from": "lines.set(pyInt(m[3]!), cur)",
+  "to": "lines.set(pyInt(m[2]!), cur)"
+ },
+ {
+  "id": "C9",
+  "title": "blame：committer-time 不走 pyInt（浮点不抛）",
+  "file": "src/checks/drift.ts",
+  "from": "out.set(lineno, [sha, latestDay(pyInt(epoch))])",
+  "to": "out.set(lineno, [sha, latestDay(Number(epoch))])"
+ },
+ {
+  "id": "C10",
+  "title": "pyInt：放宽成任意字符串（Number 兜底）",
+  "file": "src/checks/drift.ts",
+  "from": "if (!/^[+-]?[0-9]+$/.test(s)) throw new SyntaxError(`invalid literal for int(): ${pyRepr(s)}`)",
+  "to": ""
+ },
+ {
+  "id": "C11",
+  "title": "blame：不加 --no-textconv",
+  "file": "src/checks/drift.ts",
+  "from": "['blame', '-p', '--no-textconv', '--', rel]",
+  "to": "['blame', '-p', '--', rel]"
+ },
+ {
+  "id": "C12",
+  "title": "blame：filterEnv 失败不返回（继续跑 blame）",
+  "file": "src/checks/drift.ts",
+  "from": "  const env = filterEnv(root, base)\n  if (env === null) return",
+  "to": "  const env = filterEnv(root, base) ?? base\n  if (env === null) return",
+  "unobservable": "filterEnv 返回 null 只在被扫仓的 `git config` 列过滤器失败或超时时发生，本检查器的测试无法稳定构造；filterEnv 自己的行为由 core/git.test 钉住"
+ },
+ {
+  "id": "C13",
+  "title": "blame：退出码非 0 当成功",
+  "file": "src/checks/drift.ts",
+  "from": "if (code !== 0) return [null, `git blame 退出码 ${code}：${err}`]",
+  "to": ""
+ },
+ {
+  "id": "D1",
+  "title": "浅克隆：不探测",
+  "file": "src/checks/drift.ts",
+  "from": "if (pyStrip(text).toLowerCase() === 'true') {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "D2",
+  "title": "浅克隆：判据区分大小写",
+  "file": "src/checks/drift.ts",
+  "from": "if (pyStrip(text).toLowerCase() === 'true') {",
+  "to": "if (pyStrip(text) === 'true') {",
+  "unobservable": "等价：git rev-parse --is-shallow-repository 只输出小写 true/false"
+ },
+ {
+  "id": "D3",
+  "title": "浅克隆：探测命令失败当不是浅克隆",
+  "file": "src/checks/drift.ts",
+  "from": "if (code === null || code !== 0) {",
+  "to": "if (false) {",
+  "unobservable": "路径不可达：git 不可执行或非仓时 `git ls-files` 先失败，整轮在文件清单一步记未定，走不到浅克隆探测"
+ },
+ {
+  "id": "D4",
+  "title": "判据 1：日期等于基准日也报（> 改 >=）",
+  "file": "src/checks/drift.ts",
+  "from": "if (compareDays(got, base) > 0) {",
+  "to": "if (compareDays(got, base) >= 0) {"
+ },
+ {
+  "id": "D5",
+  "title": "判据 1：日期早于基准日才报（反号）",
+  "file": "src/checks/drift.ts",
+  "from": "if (compareDays(got, base) > 0) {",
+  "to": "if (compareDays(got, base) < 0) {"
+ },
+ {
+  "id": "D7",
+  "title": "判据 1：未提交行基准取固定很早的日期（全报）",
+  "file": "src/checks/drift.ts",
+  "from": "        base = today\n        note = `该行未提交",
+  "to": "        base = { year: 1970, month: 1, day: 1 }\n        note = `该行未提交"
+ },
+ {
+  "id": "D8",
+  "title": "判据 1：不丢掉不合法日期（2026-02-30 当候选报）",
+  "file": "src/checks/drift.ts",
+  "from": "      const [got] = parseDay(day)\n      if (got === null) continue",
+  "to": "      const got = { year: Number(day.slice(0, 4)), month: Number(day.slice(5, 7)), day: Number(day.slice(8, 10)) }"
+ },
+ {
+  "id": "D9",
+  "title": "判据 1：blame 里找不到的行不记 lost（直接跳过）",
+  "file": "src/checks/drift.ts",
+  "from": "if (hit === undefined) { lost.push(lineno); continue }",
+  "to": "if (hit === undefined) continue",
+  "unobservable": "路径不可达（竞态才可达）：候选行号来自读取到的文件内容按 \\n 切分，blame 行号来自 git 对同一工作区文件的 \\n 计数，二者一致；只有读取与 blame 之间文件被改动时才不同。Python 同一结构（实测末行无换行也一致）"
+ },
+ {
+  "id": "D10",
+  "title": "判据 1：同一天多行不合并（每行一条）",
+  "file": "src/checks/drift.ts",
+  "from": "const g = groups.get(day) ?? []",
+  "to": "const g: Array<[number, string]> = []"
+ },
+ {
+  "id": "D11",
+  "title": "判据 1：key 不带日期",
+  "file": "src/checks/drift.ts",
+  "from": "kind: 'future-date', key: `${rel}|${day}`,",
+  "to": "kind: 'future-date', key: rel,"
+ },
+ {
+  "id": "D12",
+  "title": "判据 1：归档区不跳过",
+  "file": "src/checks/drift.ts",
+  "from": "if (inFrozen(cfg, rel)) continue\n    let cand",
+  "to": "let cand"
+ },
+ {
+  "id": "D13",
+  "title": "判据 1：未来日期记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${rel} 里的 ${day} 写成已经发生，却晚于写下它的那次提交`",
+  "to": "out.push(finding(NAME, FAIL, `${rel} 里的 ${day} 写成已经发生，却晚于写下它的那次提交`"
+ },
+ {
+  "id": "D14",
+  "title": "判据 1：blame 取不到记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `取不到 ${rel} 的行级提交时间`",
+  "to": "out.push(finding(NAME, FAIL, `取不到 ${rel} 的行级提交时间`"
+ },
+ {
+  "id": "D15",
+  "title": "判据 1：扫描面 0 份时也出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (scanned === 0) return unread // 空集上说不出",
+  "to": "// 空集上说不出"
+ },
+ {
+  "id": "D16",
+  "title": "判据 1：无候选时不出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (hot.length === 0) return [...unread, ...cleanPass()]",
+  "to": "if (hot.length === 0) return unread"
+ },
+ {
+  "id": "D17",
+  "title": "判据 1：读文件改用 readText（归一孤立 \\r）",
+  "file": "src/checks/drift.ts",
+  "from": "cand = candidates(readBytes(join(root, ...rel.split('/')), root).toString('utf8'))",
+  "to": "cand = candidates(readText(join(root, ...rel.split('/')), root))"
+ },
+ {
+  "id": "D18",
+  "title": "判据 1：读不了不记 unreadable（吞掉）",
+  "file": "src/checks/drift.ts",
+  "from": "unread.push(unreadable(NAME, rel, exc))\n      continue",
+  "to": "continue"
+ },
+ {
+  "id": "D19",
+  "title": "判据 1：PASS 文案不写份数",
+  "file": "src/checks/drift.ts",
+  "from": "`future-date：扫 ${scanned} 份文档、${candTotal} 个候选行，无晚于写下时间的日期`",
+  "to": "`future-date：无晚于写下时间的日期`"
+ },
+ {
+  "id": "E1",
+  "title": "判据 2：行首装饰不含全角空格",
+  "file": "src/checks/drift.ts",
+  "from": "const LEAD_TRIM = ' \\t\\u3000>#-*|'",
+  "to": "const LEAD_TRIM = ' \\t>#-*|'"
+ },
+ {
+  "id": "E2",
+  "title": "判据 2：行首装饰不含 `>`",
+  "file": "src/checks/drift.ts",
+  "from": "const LEAD_TRIM = ' \\t\\u3000>#-*|'",
+  "to": "const LEAD_TRIM = ' \\t\\u3000#-*|'"
+ },
+ {
+  "id": "E3",
+  "title": "判据 2：行首装饰不含 `|`",
+  "file": "src/checks/drift.ts",
+  "from": "const LEAD_TRIM = ' \\t\\u3000>#-*|'",
+  "to": "const LEAD_TRIM = ' \\t\\u3000>#-*'"
+ },
+ {
+  "id": "E4",
+  "title": "判据 2：行首装饰不含 `#`",
+  "file": "src/checks/drift.ts",
+  "from": "const LEAD_TRIM = ' \\t\\u3000>#-*|'",
+  "to": "const LEAD_TRIM = ' \\t\\u3000>-*|'"
+ },
+ {
+  "id": "E5",
+  "title": "判据 2：行首装饰多含一个 `+`",
+  "file": "src/checks/drift.ts",
+  "from": "const LEAD_TRIM = ' \\t\\u3000>#-*|'",
+  "to": "const LEAD_TRIM = ' \\t\\u3000>#-*|+'"
+ },
+ {
+  "id": "E6",
+  "title": "判据 2：围栏判断用的 bare 不去 `>`（引用里的围栏不识别）",
+  "file": "src/checks/drift.ts",
+  "from": "const bare = lstripChars(line, ' \\t\\u3000>')",
+  "to": "const bare = lstripChars(line, ' \\t\\u3000')"
+ },
+ {
+  "id": "E7",
+  "title": "判据 2：围栏判断用的 bare 不去全角空格",
+  "file": "src/checks/drift.ts",
+  "from": "const bare = lstripChars(line, ' \\t\\u3000>')",
+  "to": "const bare = lstripChars(line, ' \\t>')"
+ },
+ {
+  "id": "E8",
+  "title": "判据 2：围栏闭合不要求同字符",
+  "file": "src/checks/drift.ts",
+  "from": "if (fm && fm[1]![0] === fence[0] && fm[1]!.length >= fence.length && !pyStrip(fm[2]!)) fence = null",
+  "to": "if (fm && fm[1]!.length >= fence.length && !pyStrip(fm[2]!)) fence = null"
+ },
+ {
+  "id": "E9",
+  "title": "判据 2：围栏闭合不要求不短于开围栏",
+  "file": "src/checks/drift.ts",
+  "from": "if (fm && fm[1]![0] === fence[0] && fm[1]!.length >= fence.length && !pyStrip(fm[2]!)) fence = null",
+  "to": "if (fm && fm[1]![0] === fence[0] && !pyStrip(fm[2]!)) fence = null"
+ },
+ {
+  "id": "E10",
+  "title": "判据 2：围栏闭合不要求其后只有空白",
+  "file": "src/checks/drift.ts",
+  "from": "if (fm && fm[1]![0] === fence[0] && fm[1]!.length >= fence.length && !pyStrip(fm[2]!)) fence = null",
+  "to": "if (fm && fm[1]![0] === fence[0] && fm[1]!.length >= fence.length) fence = null"
+ },
+ {
+  "id": "E11",
+  "title": "判据 2：闭合后的空白判据用 trim",
+  "file": "src/checks/drift.ts",
+  "from": "!pyStrip(fm[2]!)) fence = null",
+  "to": "!fm[2]!.trim()) fence = null"
+ },
+ {
+  "id": "E12",
+  "title": "判据 2：反引号围栏的信息串含反引号时也开围栏",
+  "file": "src/checks/drift.ts",
+  "from": "if (fm && !(fm[1]![0] === '`' && fm[2]!.includes('`'))) {",
+  "to": "if (fm) {"
+ },
+ {
+  "id": "E13",
+  "title": "判据 2：所有围栏的信息串含反引号都不开（含 ~）",
+  "file": "src/checks/drift.ts",
+  "from": "if (fm && !(fm[1]![0] === '`' && fm[2]!.includes('`'))) {",
+  "to": "if (fm && !fm[2]!.includes('`')) {"
+ },
+ {
+  "id": "E14",
+  "title": "判据 2：围栏之内的行也判",
+  "file": "src/checks/drift.ts",
+  "from": "      if (fm && fm[1]![0] === fence[0] && fm[1]!.length >= fence.length && !pyStrip(fm[2]!)) fence = null\n      continue",
+  "to": "      if (fm && fm[1]![0] === fence[0] && fm[1]!.length >= fence.length && !pyStrip(fm[2]!)) fence = null"
+ },
+ {
+  "id": "E15",
+  "title": "判据 2：「修订后」指代句也算",
+  "file": "src/checks/drift.ts",
+  "from": "if (REVISION_NOT.some((x) => low.startsWith(x))) continue",
+  "to": ""
+ },
+ {
+  "id": "E16",
+  "title": "判据 2：标记词不要求从第 0 个字符起（包含即算）",
+  "file": "src/checks/drift.ts",
+  "from": "if (!low.startsWith(mark)) continue",
+  "to": "if (!low.includes(mark)) continue"
+ },
+ {
+  "id": "E17",
+  "title": "判据 2：标记词匹配区分大小写（不 lower）",
+  "file": "src/checks/drift.ts",
+  "from": "const low = s.toLowerCase()",
+  "to": "const low = s"
+ },
+ {
+  "id": "E18",
+  "title": "判据 2：英文词不限标签形态（revision/changelog 当普通标记词）",
+  "file": "src/checks/drift.ts",
+  "from": "REVISION_LABEL_ONLY.includes(mark) && !bare.startsWith('#') && rest && !':：|'.includes([...rest][0]!)",
+  "to": "false"
+ },
+ {
+  "id": "E19",
+  "title": "判据 2：标签形态不认全角冒号",
+  "file": "src/checks/drift.ts",
+  "from": "!':：|'.includes([...rest][0]!)",
+  "to": "!':|'.includes([...rest][0]!)"
+ },
+ {
+  "id": "E20",
+  "title": "判据 2：标签形态不认竖线",
+  "file": "src/checks/drift.ts",
+  "from": "!':：|'.includes([...rest][0]!)",
+  "to": "!':：'.includes([...rest][0]!)"
+ },
+ {
+  "id": "E21",
+  "title": "判据 2：标签形态要求 `#` 起头改成不看（bare 判）",
+  "file": "src/checks/drift.ts",
+  "from": "REVISION_LABEL_ONLY.includes(mark) && !bare.startsWith('#') &&",
+  "to": "REVISION_LABEL_ONLY.includes(mark) &&"
+ },
+ {
+  "id": "E22",
+  "title": "判据 2：标签形态里 `#` 判据改看 s（已去装饰）",
+  "file": "src/checks/drift.ts",
+  "from": "!bare.startsWith('#') &&",
+  "to": "!s.startsWith('#') &&"
+ },
+ {
+  "id": "E23",
+  "title": "判据 2：rest 不去 `* \\t`",
+  "file": "src/checks/drift.ts",
+  "from": "const rest = rstripPy(lstripChars(s.slice(mark.length), '* \\t'))",
+  "to": "const rest = rstripPy(s.slice(mark.length))"
+ },
+ {
+  "id": "E24",
+  "title": "判据 2：rest 不去尾部空白",
+  "file": "src/checks/drift.ts",
+  "from": "const rest = rstripPy(lstripChars(s.slice(mark.length), '* \\t'))",
+  "to": "const rest = lstripChars(s.slice(mark.length), '* \\t')"
+ },
+ {
+  "id": "E25",
+  "title": "判据 2：rest 用 s.slice 取（含 low 的偏移）",
+  "file": "src/checks/drift.ts",
+  "from": "s.slice(mark.length), '* \\t'))",
+  "to": "low.slice(mark.length), '* \\t'))",
+  "unobservable": "等价：Python 实测 `revisionİ: x` 不命中；mark 之后的第一个字符 s 与 low 里恒相同（`:：|` 都无大小写）；二者仅在 mark 之后含大写字母时不同，而 `rest[0]` 要在 `:：|` 里才影响结果"
+ },
+ {
+  "id": "E26",
+  "title": "判据 2：证据行文取 40 改 39",
+  "file": "src/checks/drift.ts",
+  "from": "out.push([n, headChars(s, 40), mark])",
+  "to": "out.push([n, headChars(s, 39), mark])"
+ },
+ {
+  "id": "E27",
+  "title": "判据 2：证据行文按码元截 40",
+  "file": "src/checks/drift.ts",
+  "from": "out.push([n, headChars(s, 40), mark])",
+  "to": "out.push([n, s.slice(0, 40), mark])"
+ },
+ {
+  "id": "E28",
+  "title": "判据 2：标记词表少一个（版本历史）",
+  "file": "src/checks/drift.ts",
+  "from": "'修改记录', '版本历史', 'revision'",
+  "to": "'修改记录', 'revision'"
+ },
+ {
+  "id": "E29",
+  "title": "判据 2：标记词表少一个（更新于）",
+  "file": "src/checks/drift.ts",
+  "from": "'补充', '更新于', '追加'",
+  "to": "'补充', '追加'"
+ },
+ {
+  "id": "E30",
+  "title": "判据 2：命中后不 break（同一行记多个标记）",
+  "file": "src/checks/drift.ts",
+  "from": "out.push([n, headChars(s, 40), mark])\n      break",
+  "to": "out.push([n, headChars(s, 40), mark])",
+  "unobservable": "等价：Python 实测标记词表里没有任何一对互为前缀，一行最多匹配一个标记词，break 与否输出相同"
+ },
+ {
+  "id": "E31",
+  "title": "判据 2：命中记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${rel} 里有就地修订的标记",
+  "to": "out.push(finding(NAME, FAIL, `${rel} 里有就地修订的标记"
+ },
+ {
+  "id": "E32",
+  "title": "判据 2：where 不带行号",
+  "file": "src/checks/drift.ts",
+  "from": "where: `${rel}:${hits[0]![0]}`, kind: 'adr-revision', key: rel,",
+  "to": "where: rel, kind: 'adr-revision', key: rel,"
+ },
+ {
+  "id": "E33",
+  "title": "判据 2：key 丢掉（id 随标题份数漂）",
+  "file": "src/checks/drift.ts",
+  "from": "where: `${rel}:${hits[0]![0]}`, kind: 'adr-revision', key: rel,",
+  "to": "where: `${rel}:${hits[0]![0]}`, kind: 'adr-revision',"
+ },
+ {
+  "id": "E34",
+  "title": "判据 2：空集也出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (out.length || adrFiles.length === 0) return out // 空集上说不出",
+  "to": "if (out.length) return out // 空集上说不出"
+ },
+ {
+  "id": "E35",
+  "title": "判据 2：有未读的也出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (out.length || adrFiles.length === 0) return out // 空集上说不出",
+  "to": "if (adrFiles.length === 0) return out // 空集上说不出"
+ },
+ {
+  "id": "E36",
+  "title": "判据 2：读不了不记 unreadable（吞掉）",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(unreadable(NAME, rel, exc))\n      continue\n    }\n    if (hits.length === 0) continue",
+  "to": "continue\n    }\n    if (hits.length === 0) continue"
+ },
+ {
+  "id": "E37",
+  "title": "判据 2：用 readBytes 读（孤立 \\r 不归一）",
+  "file": "src/checks/drift.ts",
+  "from": "hits = revisionHits(readText(join(root, ...rel.split('/')), root))",
+  "to": "hits = revisionHits(readBytes(join(root, ...rel.split('/')), root).toString('utf8'))",
+  "unobservable": "等价：Python 实测 `# A\\r修订：x` 与 `# A\\n修订：x` 的 revision_hits 相同——splitlines 把孤立 \\r 也当行终止符，readText 归一前后行号不变"
+ },
+ {
+  "id": "E38",
+  "title": "判据 2：改用 text.split('\\n') 切行",
+  "file": "src/checks/drift.ts",
+  "from": "const lines = splitLinesPy(text)\n  for (let li = 0; li < lines.length; li++) {\n    const n = li + 1",
+  "to": "const lines = text.split('\\n')\n  for (let li = 0; li < lines.length; li++) {\n    const n = li + 1"
+ },
+ {
+  "id": "F1",
+  "title": "索引：表头 ID 列取最后一个匹配而不是第一个",
+  "file": "src/checks/drift.ts",
+  "from": "if (idCol === null && low.includes('id')) idCol = i",
+  "to": "if (low.includes('id')) idCol = i"
+ },
+ {
+  "id": "F2",
+  "title": "索引：表头 ID 列区分大小写",
+  "file": "src/checks/drift.ts",
+  "from": "if (idCol === null && low.includes('id')) idCol = i",
+  "to": "if (idCol === null && cell.includes('id')) idCol = i"
+ },
+ {
+  "id": "F3",
+  "title": "索引：ID 列要求整格等于 id（不是包含）",
+  "file": "src/checks/drift.ts",
+  "from": "if (idCol === null && low.includes('id')) idCol = i",
+  "to": "if (idCol === null && low === 'id') idCol = i"
+ },
+ {
+  "id": "F4",
+  "title": "索引：文件列取最后一个匹配",
+  "file": "src/checks/drift.ts",
+  "from": "if (fileCol === null && cell.includes('文件')) fileCol = i",
+  "to": "if (cell.includes('文件')) fileCol = i"
+ },
+ {
+  "id": "F5",
+  "title": "索引：文件列表头用 lower 匹配",
+  "file": "src/checks/drift.ts",
+  "from": "if (fileCol === null && cell.includes('文件')) fileCol = i",
+  "to": "if (fileCol === null && low.includes('文件')) fileCol = i",
+  "unobservable": "等价：Python 实测 `\"文件\".lower() == \"文件\"`，lower 对它无变化"
+ },
+ {
+  "id": "F6",
+  "title": "索引：没有 ID 列时不报未读出（继续）",
+  "file": "src/checks/drift.ts",
+  "from": "  if (table === null || idCol === null) {",
+  "to": "  if (idCol === null) idCol = 0\n  if (table === null || idCol === null) {",
+  "unobservable": "变异后无法通过类型检查（idCol: number | null 迫使「没有 ID 列」这一支必须在使用前处理）——类型系统就是这条的防线；该分支的行为由「索引里没有 ID 列」的断言钉住"
+ },
+ {
+  "id": "F7",
+  "title": "索引：有文件列时不探测路径（直接回落 ID）",
+  "file": "src/checks/drift.ts",
+  "from": "if (target && [pyJoin(root, adrDirRel, target), pyJoin(root, target)].some((p) => inside(root, p) && isFile(p))) continue",
+  "to": ""
+ },
+ {
+  "id": "F8",
+  "title": "索引：只探测相对 ADR 目录的路径",
+  "file": "src/checks/drift.ts",
+  "from": "[pyJoin(root, adrDirRel, target), pyJoin(root, target)].some(",
+  "to": "[pyJoin(root, adrDirRel, target)].some("
+ },
+ {
+  "id": "F9",
+  "title": "索引：只探测相对仓根的路径",
+  "file": "src/checks/drift.ts",
+  "from": "[pyJoin(root, adrDirRel, target), pyJoin(root, target)].some(",
+  "to": "[pyJoin(root, target)].some("
+ },
+ {
+  "id": "F10",
+  "title": "索引：不护栏仓外（探测出仓路径）",
+  "file": "src/checks/drift.ts",
+  "from": "some((p) => inside(root, p) && isFile(p))",
+  "to": "some((p) => isFile(p))"
+ },
+ {
+  "id": "F11",
+  "title": "索引：存在性判据 isFile 改 pathExists（目录也算）",
+  "file": "src/checks/drift.ts",
+  "from": "some((p) => inside(root, p) && isFile(p))",
+  "to": "some((p) => inside(root, p) && pathExists(p))"
+ },
+ {
+  "id": "F12",
+  "title": "索引：不回落 <ID>*.md",
+  "file": "src/checks/drift.ts",
+  "from": "if (dirIds.has(adrId)) continue // 「文件」列不是可用路径时回落到 <ID>*.md",
+  "to": ""
+ },
+ {
+  "id": "F13",
+  "title": "索引：pyJoin 绝对路径不丢前缀（普通 join）",
+  "file": "src/checks/drift.ts",
+  "from": "for (const p of parts.slice(1)) acc = isAbsolutePy(p) ? p : join(acc, p)",
+  "to": "for (const p of parts.slice(1)) acc = join(acc, p)"
+ },
+ {
+  "id": "F14",
+  "title": "索引：indexTarget 不去锚点",
+  "file": "src/checks/drift.ts",
+  "from": "if (m) return pyStrip(m[1]!.split('#')[0]!)",
+  "to": "if (m) return pyStrip(m[1]!)"
+ },
+ {
+  "id": "F15",
+  "title": "索引：indexTarget 链接取不去空白",
+  "file": "src/checks/drift.ts",
+  "from": "if (m) return pyStrip(m[1]!.split('#')[0]!)",
+  "to": "if (m) return m[1]!.split('#')[0]!"
+ },
+ {
+  "id": "F16",
+  "title": "索引：indexTarget 非链接不去反引号",
+  "file": "src/checks/drift.ts",
+  "from": "const s = pyStrip(pyStrip(cell).replace(/^`+|`+$/g, ''))",
+  "to": "const s = pyStrip(cell)"
+ },
+ {
+  "id": "F17",
+  "title": "索引：indexTarget .md 后缀区分大小写",
+  "file": "src/checks/drift.ts",
+  "from": "return s.toLowerCase().endsWith('.md') ? s : null",
+  "to": "return s.endsWith('.md') ? s : null"
+ },
+ {
+  "id": "F18",
+  "title": "索引：indexTarget 非 .md 也返回",
+  "file": "src/checks/drift.ts",
+  "from": "return s.toLowerCase().endsWith('.md') ? s : null",
+  "to": "return s"
+ },
+ {
+  "id": "F19",
+  "title": "索引：同 ID 取后一份实物",
+  "file": "src/checks/drift.ts",
+  "from": "if (m && !dirIds.has(m[1]!)) dirIds.set(m[1]!, rel)",
+  "to": "if (m) dirIds.set(m[1]!, rel)"
+ },
+ {
+  "id": "F20",
+  "title": "索引：ADR 文件名正则不要求开头（任意位置）",
+  "file": "src/checks/drift.ts",
+  "from": "const ADR_FILE_RE = /^(ADR-[0-9]+)/",
+  "to": "const ADR_FILE_RE = /(ADR-[0-9]+)/"
+ },
+ {
+  "id": "F21",
+  "title": "索引：单元格 ID 正则不匹配则不跳过",
+  "file": "src/checks/drift.ts",
+  "from": "const m = ADR_RE.exec(cell)\n    if (!m) continue",
+  "to": "const m = ADR_RE.exec(cell) ?? ['']\n    if (!m) continue"
+ },
+ {
+  "id": "F22",
+  "title": "索引：实物不在索引——声明了也只记未定",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, declared ? FAIL : UNDETERMINED, `${adrId} 在 ${adrDirRel} 里，索引没有它`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `${adrId} 在 ${adrDirRel} 里，索引没有它`"
+ },
+ {
+  "id": "F23",
+  "title": "索引：实物不在索引——没声明也判 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, declared ? FAIL : UNDETERMINED, `${adrId} 在 ${adrDirRel} 里，索引没有它`",
+  "to": "out.push(finding(NAME, FAIL, `${adrId} 在 ${adrDirRel} 里，索引没有它`"
+ },
+ {
+  "id": "F25",
+  "title": "索引：缺实物记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${indexRel} 列了 ${missing.length} 个没有实物的 ADR`",
+  "to": "out.push(finding(NAME, FAIL, `${indexRel} 列了 ${missing.length} 个没有实物的 ADR`"
+ },
+ {
+  "id": "F26",
+  "title": "索引：缺索引记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `${adrDirRel} 下有 ${dirIds.size} 份 ADR，但没有索引`",
+  "to": "return [finding(NAME, FAIL, `${adrDirRel} 下有 ${dirIds.size} 份 ADR，但没有索引`"
+ },
+ {
+  "id": "F27",
+  "title": "索引：缺索引且目录里没有 ADR 时也报",
+  "file": "src/checks/drift.ts",
+  "from": "if (dirIds.size === 0) return []",
+  "to": ""
+ },
+ {
+  "id": "F28",
+  "title": "索引：索引未读出表记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `${indexRel} 读不出 ADR 索引表`",
+  "to": "return [finding(NAME, FAIL, `${indexRel} 读不出 ADR 索引表`"
+ },
+ {
+  "id": "F29",
+  "title": "索引：空索引也出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (out.length || listed.size === 0) return out // 空集上说不出",
+  "to": "if (out.length) return out // 空集上说不出"
+ },
+ {
+  "id": "F30",
+  "title": "索引：索引名顺序反了（INDEX 优先）",
+  "file": "src/checks/drift.ts",
+  "from": "const INDEX_NAMES: readonly string[] = ['README.md', 'INDEX.md']",
+  "to": "const INDEX_NAMES: readonly string[] = ['INDEX.md', 'README.md']"
+ },
+ {
+  "id": "F31",
+  "title": "索引：索引也算 ADR（不排除）",
+  "file": "src/checks/drift.ts",
+  "from": "const adrFiles = adrAll.filter((f) => !INDEX_NAMES.includes(basenameOf(f)))",
+  "to": "const adrFiles = adrAll"
+ },
+ {
+  "id": "F32",
+  "title": "索引：不排除归档区",
+  "file": "src/checks/drift.ts",
+  "from": "const adrAll = mdUnder(files, adrDirRel!).filter((f) => dirnameOf(f) === adrDirRel && !inFrozen(cfg, f))",
+  "to": "const adrAll = mdUnder(files, adrDirRel!).filter((f) => dirnameOf(f) === adrDirRel)"
+ },
+ {
+  "id": "F33",
+  "title": "索引：递归子目录（不要求直接一层）",
+  "file": "src/checks/drift.ts",
+  "from": "const adrAll = mdUnder(files, adrDirRel!).filter((f) => dirnameOf(f) === adrDirRel && !inFrozen(cfg, f))",
+  "to": "const adrAll = mdUnder(files, adrDirRel!).filter((f) => !inFrozen(cfg, f))"
+ },
+ {
+  "id": "F34",
+  "title": "索引：读不了索引不记 unreadable",
+  "file": "src/checks/drift.ts",
+  "from": "  } catch (exc) {\n    return [unreadable(NAME, indexRel, exc)]\n  }",
+  "to": "  } catch (exc) {\n    return []\n  }"
+ },
+ {
+  "id": "G1",
+  "title": "目录定位：声明的目录是文件时不取其目录",
+  "file": "src/checks/drift.ts",
+  "from": "if (isFile(path)) {\n      rel = dirnameOf(rel) || '.'",
+  "to": "if (false) {\n      rel = dirnameOf(rel) || '.'"
+ },
+ {
+  "id": "G2",
+  "title": "目录定位：声明不护栏出仓",
+  "file": "src/checks/drift.ts",
+  "from": "if (!inside(root, path)) return [null, true, outsideRoot(NAME, rel)] // 先护栏（R1-07）",
+  "to": ""
+ },
+ {
+  "id": "G3",
+  "title": "目录定位：声明的目录不存在时不报（继续）",
+  "file": "src/checks/drift.ts",
+  "from": "if (!isDir(path)) {\n      return [null, true, finding(NAME, UNDETERMINED, `ADR 目录不存在",
+  "to": "if (false) {\n      return [null, true, finding(NAME, UNDETERMINED, `ADR 目录不存在"
+ },
+ {
+  "id": "G4",
+  "title": "目录定位：声明的路径不去尾斜杠",
+  "file": "src/checks/drift.ts",
+  "from": "let rel = normRel(declared).replace(/\\/+$/, '')\n    let path",
+  "to": "let rel = normRel(declared)\n    let path"
+ },
+ {
+  "id": "G5",
+  "title": "目录定位：唯一候选才取（多个也取第一个）",
+  "file": "src/checks/drift.ts",
+  "from": "if (found.size === 1) return [[...found][0]!, false, null]",
+  "to": "if (found.size >= 1) return [[...found].sort(cmpCp)[0]!, false, null]"
+ },
+ {
+  "id": "G6",
+  "title": "目录定位：候选只看 docs_root 之下改成全仓",
+  "file": "src/checks/drift.ts",
+  "from": "    if (!under(f, docsRoot)) continue\n    const parts",
+  "to": "    const parts"
+ },
+ {
+  "id": "G7",
+  "title": "目录定位：档位 L0 不算不适用",
+  "file": "src/checks/drift.ts",
+  "from": "(tier === 'L0' || tier === 'L1') ? SKIP : UNDETERMINED",
+  "to": "(tier === 'L1') ? SKIP : UNDETERMINED"
+ },
+ {
+  "id": "G8",
+  "title": "目录定位：档位 L1 不算不适用",
+  "file": "src/checks/drift.ts",
+  "from": "(tier === 'L0' || tier === 'L1') ? SKIP : UNDETERMINED",
+  "to": "(tier === 'L0') ? SKIP : UNDETERMINED"
+ },
+ {
+  "id": "G9",
+  "title": "目录定位：L2 也算不适用",
+  "file": "src/checks/drift.ts",
+  "from": "(tier === 'L0' || tier === 'L1') ? SKIP : UNDETERMINED",
+  "to": "(tier === 'L0' || tier === 'L1' || tier === 'L2') ? SKIP : UNDETERMINED"
+ },
+ {
+  "id": "G10",
+  "title": "目录定位：有多个候选时 L1 也算不适用（found.size === 0 条件去掉）",
+  "file": "src/checks/drift.ts",
+  "from": "const status = found.size === 0 && (tier",
+  "to": "const status = (tier"
+ },
+ {
+  "id": "G11",
+  "title": "目录定位：不适用的 reason 不写档位",
+  "file": "src/checks/drift.ts",
+  "from": "(status === SKIP ? `。tier ${tier} 不要求决策登记（L2 起），故不适用` : '。ADR 在别处就在 layout.artifacts.decisions 声明'),",
+  "to": "'。ADR 在别处就在 layout.artifacts.decisions 声明',"
+ },
+ {
+  "id": "G12",
+  "title": "目录定位：未定位时 SKIP 与 UNDETERMINED 写反",
+  "file": "src/checks/drift.ts",
+  "from": "(tier === 'L0' || tier === 'L1') ? SKIP : UNDETERMINED",
+  "to": "(tier === 'L0' || tier === 'L1') ? UNDETERMINED : SKIP"
+ },
+ {
+  "id": "H1",
+  "title": "判据 4：状态文件候选不随 docs_root 改基",
+  "file": "src/checks/drift.ts",
+  "from": "const cands = STATUS_CANDIDATES.map((c) => rebaseDocs(c, docsRootOf(cfg)[0]))",
+  "to": "const cands = STATUS_CANDIDATES.map((c) => c)"
+ },
+ {
+  "id": "H2",
+  "title": "判据 4：候选存在才取改成第一个无条件取",
+  "file": "src/checks/drift.ts",
+  "from": "if (!inside(root, p) || pathExists(p)) { // 出仓的候选不探测，读时记未定",
+  "to": "if (true) {"
+ },
+ {
+  "id": "H3",
+  "title": "判据 4：出仓候选也探测存在性",
+  "file": "src/checks/drift.ts",
+  "from": "if (!inside(root, p) || pathExists(p)) { // 出仓的候选不探测，读时记未定",
+  "to": "if (pathExists(p)) {"
+ },
+ {
+  "id": "H4",
+  "title": "判据 4：声明的状态文件不护栏出仓",
+  "file": "src/checks/drift.ts",
+  "from": "if (!inside(root, statusPath)) return [outsideRoot(NAME, statusRel)]",
+  "to": ""
+ },
+ {
+  "id": "H5",
+  "title": "判据 4：声明的状态文件不存在时不报",
+  "file": "src/checks/drift.ts",
+  "from": "if (!(isFile(statusPath) || isDir(statusPath))) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "H6",
+  "title": "判据 4：声明的状态路径是目录时视为不存在",
+  "file": "src/checks/drift.ts",
+  "from": "if (!(isFile(statusPath) || isDir(statusPath))) {",
+  "to": "if (!isFile(statusPath)) {"
+ },
+ {
+  "id": "H7",
+  "title": "判据 4：状态源目录取直接一层改成递归",
+  "file": "src/checks/drift.ts",
+  "from": "files.filter((f) => f.toLowerCase().endsWith('.md') && dirnameOf(f) === statusRel) : [statusRel]",
+  "to": "files.filter((f) => f.toLowerCase().endsWith('.md') && under(f, statusRel)) : [statusRel]"
+ },
+ {
+  "id": "H8",
+  "title": "判据 4：状态源是目录时不特殊处理（当文件读）",
+  "file": "src/checks/drift.ts",
+  "from": "const sources = inside(root, statusAbs) && isDir(statusAbs) ?",
+  "to": "const sources = false ?"
+ },
+ {
+  "id": "H9",
+  "title": "判据 4：work_item_id 对目录里的文件也算内联载体",
+  "file": "src/checks/drift.ts",
+  "from": "const m = src === statusRel ? WI_FIELD_RE.exec(line) : null",
+  "to": "const m = WI_FIELD_RE.exec(line)"
+ },
+ {
+  "id": "H10",
+  "title": "判据 4：不认 work_item_id 内联载体",
+  "file": "src/checks/drift.ts",
+  "from": "if (m) inline.add(m[1]!)",
+  "to": ""
+ },
+ {
+  "id": "H11",
+  "title": "判据 4：ID 位置取最后一次出现",
+  "file": "src/checks/drift.ts",
+  "from": "if (!seen.has(m[0])) seen.set(m[0], `${src}:${i + 1}`)",
+  "to": "seen.set(m[0], `${src}:${i + 1}`)"
+ },
+ {
+  "id": "H12",
+  "title": "判据 4：行号从 0 起",
+  "file": "src/checks/drift.ts",
+  "from": "seen.set(m[0], `${src}:${i + 1}`)",
+  "to": "seen.set(m[0], `${src}:${i}`)"
+ },
+ {
+  "id": "H13",
+  "title": "判据 4：读状态源改用 readBytes",
+  "file": "src/checks/drift.ts",
+  "from": "text = readText(join(root, ...src.split('/')), root)\n    } catch (exc) { // 一份读不了只记它自己，不丢其余状态源（B16）",
+  "to": "text = readBytes(join(root, ...src.split('/')), root).toString('utf8')\n    } catch (exc) { // 一份读不了只记它自己，不丢其余状态源（B16）",
+  "unobservable": "等价：Python 实测孤立 \\r 经 readText 归一成 \\n 前后，splitlines 行数相同，行号不变"
+ },
+ {
+  "id": "H14",
+  "title": "判据 4：状态源读不了不记 unreadable（吞掉）",
+  "file": "src/checks/drift.ts",
+  "from": "unread.push(unreadable(NAME, src, exc))\n      continue",
+  "to": "continue"
+ },
+ {
+  "id": "H15",
+  "title": "判据 4：状态源按 \\n 切行",
+  "file": "src/checks/drift.ts",
+  "from": "const lines = splitLinesPy(text)\n    for (let i = 0; i < lines.length; i++) {\n      const line = lines[i]!\n      for (const m of line.matchAll(WI_RE))",
+  "to": "const lines = text.split('\\n')\n    for (let i = 0; i < lines.length; i++) {\n      const line = lines[i]!\n      for (const m of line.matchAll(WI_RE))"
+ },
+ {
+  "id": "H16",
+  "title": "判据 4：一个 ID 都没有时也出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (seen.size === 0) return unread // 一个 ID 都没有：无结论，不产条目",
+  "to": ""
+ },
+ {
+  "id": "H17",
+  "title": "判据 4：work_root 不去尾斜杠",
+  "file": "src/checks/drift.ts",
+  "from": "wroot = normRel(wroot).replace(/\\/+$/, '') // 与 dirname 比较",
+  "to": "wroot = normRel(wroot) // 与 dirname 比较"
+ },
+ {
+  "id": "H18",
+  "title": "判据 4：work_root 为 . 时不转空串",
+  "file": "src/checks/drift.ts",
+  "from": "if (wroot === '.') wroot = ''",
+  "to": ""
+ },
+ {
+  "id": "H19",
+  "title": "判据 4：工作项目录不在时不返回（逐 ID 报）",
+  "file": "src/checks/drift.ts",
+  "from": "if (absent) return [...unread, absent]",
+  "to": ""
+ },
+ {
+  "id": "H20",
+  "title": "判据 4：载体取直接一层改成递归",
+  "file": "src/checks/drift.ts",
+  "from": "if (dirnameOf(rel) !== wroot) continue",
+  "to": ""
+ },
+ {
+  "id": "H21",
+  "title": "判据 4：载体按前缀字符串比（WI-001 被 WI-0010 冒充）",
+  "file": "src/checks/drift.ts",
+  "from": "const m = WORK_ITEM_NAME.exec(basenameOf(rel))\n    if (m) have.add(m[0])",
+  "to": "const bn = basenameOf(rel)\n    for (const k of seen.keys()) if (bn.startsWith(k)) have.add(k)"
+ },
+ {
+  "id": "H22",
+  "title": "判据 4：缺的 ID 不排序",
+  "file": "src/checks/drift.ts",
+  "from": "for (const wid of [...seen.keys()].filter((w) => !have.has(w)).sort(cmpCp)) {",
+  "to": "for (const wid of [...seen.keys()].filter((w) => !have.has(w))) {"
+ },
+ {
+  "id": "H23",
+  "title": "判据 4：缺 ID 记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${wid} 在 ${statusRel} 里声明了",
+  "to": "out.push(finding(NAME, FAIL, `${wid} 在 ${statusRel} 里声明了"
+ },
+ {
+  "id": "H24",
+  "title": "判据 4：状态文件不存在记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `状态文件不存在：${statusRel}`",
+  "to": "return [finding(NAME, FAIL, `状态文件不存在：${statusRel}`"
+ },
+ {
+  "id": "H25",
+  "title": "判据 4：没有状态文件记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "return [finding(NAME, SKIP, '没有状态文件，判据 4（STATUS 声明的工作项）本次未执行'",
+  "to": "return [finding(NAME, FAIL, '没有状态文件，判据 4（STATUS 声明的工作项）本次未执行'"
+ },
+ {
+  "id": "H26",
+  "title": "判据 4：有缺失时也出 PASS",
+  "file": "src/checks/drift.ts",
+  "from": "if (out.length) return [...unread, ...out]\n  return [...unread, finding(NAME, PASS, `work-item：",
+  "to": "return [...unread, ...out, finding(NAME, PASS, `work-item："
+ },
+ {
+  "id": "H27",
+  "title": "判据 4：evidence 不带 work_root 注记",
+  "file": "src/checks/drift.ts",
+  "from": "      evidence: wnote,\n    }))",
+  "to": "      evidence: '',\n    }))"
+ },
+ {
+  "id": "H28",
+  "title": "判据 4：WI 正则不要求词边界",
+  "file": "src/checks/drift.ts",
+  "from": "const WI_RE = new RegExp(`(?<!${WORD})WI-[0-9]{3,}(?!${WORD})`, 'gu')",
+  "to": "const WI_RE = /WI-[0-9]{3,}/gu"
+ },
+ {
+  "id": "H29",
+  "title": "判据 4：WI 正则位数改 2 位以上",
+  "file": "src/checks/drift.ts",
+  "from": "WI-[0-9]{3,}(?!${WORD})`, 'gu')",
+  "to": "WI-[0-9]{2,}(?!${WORD})`, 'gu')"
+ },
+ {
+  "id": "H30",
+  "title": "判据 4：WI 词边界改只看 ASCII 字母数字（中文紧贴也算）",
+  "file": "src/checks/drift.ts",
+  "from": "const WORD = '[\\\\p{L}\\\\p{N}_]'",
+  "to": "const WORD = '[A-Za-z0-9_]'"
+ },
+ {
+  "id": "H31",
+  "title": "判据 4：WI 词边界不含下划线",
+  "file": "src/checks/drift.ts",
+  "from": "const WORD = '[\\\\p{L}\\\\p{N}_]'",
+  "to": "const WORD = '[\\\\p{L}\\\\p{N}]'"
+ },
+ {
+  "id": "H32",
+  "title": "判据 4：work_item_id 字段不认全角冒号",
+  "file": "src/checks/drift.ts",
+  "from": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`",
+  "to": "`^work_item_id[:]${WS}*(WI-[0-9]{3,})(?!${WORD})`"
+ },
+ {
+  "id": "H33",
+  "title": "判据 4：work_item_id 字段不认半角冒号",
+  "file": "src/checks/drift.ts",
+  "from": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`",
+  "to": "`^work_item_id[：]${WS}*(WI-[0-9]{3,})(?!${WORD})`"
+ },
+ {
+  "id": "H34",
+  "title": "判据 4：work_item_id 不要求行首",
+  "file": "src/checks/drift.ts",
+  "from": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`",
+  "to": "`work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`"
+ },
+ {
+  "id": "H35",
+  "title": "判据 4：work_item_id 冒号后不容空白",
+  "file": "src/checks/drift.ts",
+  "from": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`",
+  "to": "`^work_item_id[:：](WI-[0-9]{3,})(?!${WORD})`"
+ },
+ {
+  "id": "H36",
+  "title": "判据 4：work_item_id 的 ID 不要求词边界",
+  "file": "src/checks/drift.ts",
+  "from": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`",
+  "to": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})`"
+ },
+ {
+  "id": "H37",
+  "title": "判据 4：work_item_id 冒号后空白用 \\s（含 U+FEFF 以外的差异）",
+  "file": "src/checks/drift.ts",
+  "from": "`^work_item_id[:：]${WS}*(WI-[0-9]{3,})(?!${WORD})`",
+  "to": "`^work_item_id[:：]\\\\s*(WI-[0-9]{3,})(?!${WORD})`"
+ },
+ {
+  "id": "I1",
+  "title": "外壳：不过 runGuarded",
+  "file": "src/checks/drift.ts",
+  "from": "return runGuarded(NAME, doRun, cfg)",
+  "to": "return doRun(cfg)"
+ },
+ {
+  "id": "I2",
+  "title": "外壳：不去重（once）",
+  "file": "src/checks/drift.ts",
+  "from": "return once(out) // 同一份文件读不了只报一次",
+  "to": "return out // 同一份文件读不了只报一次"
+ },
+ {
+  "id": "I3",
+  "title": "外壳：日期判据异常不兜底（外抛）",
+  "file": "src/checks/drift.ts",
+  "from": "  } catch (exc) { // 契约 §4：run 不抛异常\n    out.push(undeterminedFromException(NAME, exc, '判日期是否晚于提交'))\n  }",
+  "to": "  } catch (exc) { // 契约 §4：run 不抛异常\n    throw exc\n  }"
+ },
+ {
+  "id": "I4",
+  "title": "外壳：ADR 判据异常不兜底",
+  "file": "src/checks/drift.ts",
+  "from": "  } catch (exc) {\n    out.push(undeterminedFromException(NAME, exc, '对账 ADR 索引'))\n  }",
+  "to": "  } catch (exc) {\n    throw exc\n  }"
+ },
+ {
+  "id": "I5",
+  "title": "外壳：工作项判据异常不兜底",
+  "file": "src/checks/drift.ts",
+  "from": "  } catch (exc) {\n    out.push(undeterminedFromException(NAME, exc, '核对 STATUS 声明的工作项'))\n  }",
+  "to": "  } catch (exc) {\n    throw exc\n  }"
+ },
+ {
+  "id": "I6",
+  "title": "外壳：列不出文档记 FAIL",
+  "file": "src/checks/drift.ts",
+  "from": "return [finding(NAME, UNDETERMINED, '列不出 git 跟踪的文档'",
+  "to": "return [finding(NAME, FAIL, '列不出 git 跟踪的文档'"
+ },
+ {
+  "id": "I7",
+  "title": "外壳：跟踪文件不筛 .md（nrm 不做）",
+  "file": "src/checks/drift.ts",
+  "from": "const files = tracked.map((f) => normRel(f)).filter((f) => f.toLowerCase().endsWith('.md'))",
+  "to": "const files = tracked.map((f) => normRel(f))",
+  "unobservable": "冗余防御：`git ls-files \"*.md\"` 已限定后缀（Python 实测 `.MD` 与 `.txt` 都不被列出），后面的 `.md` 筛选对 git 输出不改变任何结果；Python 同一结构"
+ },
+ {
+  "id": "I8",
+  "title": "外壳：.md 后缀筛选区分大小写",
+  "file": "src/checks/drift.ts",
+  "from": "const files = tracked.map((f) => normRel(f)).filter((f) => f.toLowerCase().endsWith('.md'))",
+  "to": "const files = tracked.map((f) => normRel(f)).filter((f) => f.endsWith('.md'))",
+  "unobservable": "冗余防御：同 I7——`git ls-files \"*.md\"` 已限定后缀，筛选里区分大小写与否对输出无影响"
+ },
+ {
+  "id": "I9",
+  "title": "外壳：日期判据整组不补 docs_root 默认注记",
+  "file": "src/checks/drift.ts",
+  "from": "noteDefault(out, dnote) // 日期判据整组依赖 docs_root",
+  "to": "// 日期判据整组依赖 docs_root"
+ },
+ {
+  "id": "I10",
+  "title": "外壳：ADR 判据的注记在声明时也补",
+  "file": "src/checks/drift.ts",
+  "from": "const adrNote = declared ? '' : dnote",
+  "to": "const adrNote = dnote"
+ },
+ {
+  "id": "I11",
+  "title": "外壳：ADR 判据的注记在未声明时不补",
+  "file": "src/checks/drift.ts",
+  "from": "const adrNote = declared ? '' : dnote",
+  "to": "const adrNote = ''"
+ },
+ {
+  "id": "I12",
+  "title": "外壳：未定位 ADR 目录的问题 finding 不补注记",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(noteDefault([problemF], adrNote)[0]!)",
+  "to": "out.push(problemF)"
+ },
+ {
+  "id": "I13",
+  "title": "外壳：日期判据文档只扫 docs_root 改成全仓",
+  "file": "src/checks/drift.ts",
+  "from": "out.push(...checkDates(cfg, root, mdUnder(files, docsRoot), docsRoot))",
+  "to": "out.push(...checkDates(cfg, root, files, docsRoot))"
+ },
+ {
+  "id": "J1",
+  "title": "scope：docs_root 默认时不写「默认」",
+  "file": "src/checks/drift.ts",
+  "from": "${dnote ? '，默认' : ''}）下 git 跟踪",
+  "to": "）下 git 跟踪"
+ },
+ {
+  "id": "J2",
+  "title": "scope：词表条数写死",
+  "file": "src/checks/drift.ts",
+  "from": "日期动作词 ${PAST_ACTS.length} 个、ADR 修订标记词 ${REVISION_MARKERS.length} 个",
+  "to": "日期动作词 18 个、ADR 修订标记词 8 个"
+ },
+ {
+  "id": "J3",
+  "title": "scope：归档区清单不列",
+  "file": "src/checks/drift.ts",
+  "from": "frozenList.map((x) => pyStr(x)).join('、') || '未配置'",
+  "to": "'未配置'"
+ },
+ {
+  "id": "J4",
+  "title": "scope：未覆盖项少一条",
+  "file": "src/checks/drift.ts",
+  "from": "      '反向不报：work_root 下有文件而 STATUS 没提、目录里有 ADR 而索引没列（后者报，前者不报）',\n",
+  "to": ""
+ },
+ {
+  "id": "J5",
+  "title": "scope：未声明 decisions 时不写「（未声明）」",
+  "file": "src/checks/drift.ts",
+  "from": "pyRepr(pyTruthy(decisions) ? decisions : '（未声明）')",
+  "to": "pyRepr(pyTruthy(decisions) ? decisions : '')"
+ },
+ {
+  "id": "J6",
+  "title": "scope：未声明 status 时不写「（未声明）」",
+  "file": "src/checks/drift.ts",
+  "from": "pyRepr(pyTruthy(status) ? status : '（未声明）')",
+  "to": "pyRepr(pyTruthy(status) ? status : '')"
+ }
+]

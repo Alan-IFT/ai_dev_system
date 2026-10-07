@@ -38,6 +38,8 @@ export declare function itemStatus(text: string): string | null;
 export declare function normRel(p: unknown): string;
 /** rel 是否落在 sub 目录下。sub 为空或 '.' 视为整仓。 */
 export declare function under(rel: string, sub: string): boolean;
+/** 工作项文件的命名：01 §3.2 职责卡与 §3.3 阅读路径写作 `state/work/WI-*`；与 drift 认 ID 的 `WI-<三位以上数字>` 同一形式。 */
+export declare const WORK_ITEM_NAME: RegExp;
 export declare function isWorkItemName(rel: unknown): boolean;
 /** 01 §3.1 文档树的根。契约 §5：`layout.docs_root` 缺省取它并在证据里注明。 */
 export declare const DEFAULT_DOCS_ROOT = "docs";

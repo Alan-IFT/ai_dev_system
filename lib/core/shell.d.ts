@@ -24,6 +24,11 @@ export declare function outsideRoot(check: string, rel: string): Finding;
  */
 export declare function workRootAbsent(check: string, cfg: Config): Finding | null;
 /**
+ * 给一组依赖某项缺省的 finding 在 `evidence` 末尾统一补上注记（契约 §5：取了默认就得说）。只改证据不改标题，id 不变。注记为空或已含时不动。返回原列表。
+ * `freshness` 与 `drift` 共用（Python 版在 stdlib）。
+ */
+export declare function noteDefault(findings: Finding[], n: string): Finding[];
+/**
  * 把一批同类路径聚成一条 Finding，证据最多列 LIST_CAP 条。
  * `kind` 必填：标题带份数，不给 kind 时兜底 id 随份数变，登记行就成孤儿（契约 §4、§9；D-123）。
  */

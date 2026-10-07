@@ -36,8 +36,6 @@ export declare function age(today: CalDate, d: CalDate): number;
 /** 预算取值：缺省取默认并注明；布尔不是整数；非正整数返回原因。返回 [值, 是否用默认, 原因]。 */
 export declare function intBudget(cfg: Config, path: string, dflt: number): [number | null, boolean, string | null];
 export declare function note(usedDefault: boolean, name: string, value: number): string;
-/** 给一组依赖某项缺省的 finding 在 `evidence` 末尾统一补上注记（契约 §5：取了默认就得说）。只改证据不改标题，id 不变。注记为空或已含时不动。 */
-export declare function noteDefault(findings: Finding[], n: string): Finding[];
 export declare function scope(cfg: Config): {
     covered: string[];
     not_covered: string[];

@@ -104,6 +104,19 @@ export function workRootAbsent(check: string, cfg: Config): Finding | null {
   })
 }
 
+/**
+ * 给一组依赖某项缺省的 finding 在 `evidence` 末尾统一补上注记（契约 §5：取了默认就得说）。只改证据不改标题，id 不变。注记为空或已含时不动。返回原列表。
+ * `freshness` 与 `drift` 共用（Python 版在 stdlib）。
+ */
+export function noteDefault(findings: Finding[], n: string): Finding[] {
+  if (!n) return findings
+  for (const f of findings) {
+    const ev = f.evidence || ''
+    if (!ev.includes(n)) f.evidence = ev + (ev ? '；' : '') + n
+  }
+  return findings
+}
+
 /** Python 的 `rel.replace("\\", "/").strip()`——`strip` 用 Python 的空白集合，不用 JS 的 `\s`/`trim`（设计 §12.6 D6）。 */
 function pyStripPath(rel: string): string {
   return pyStrip(rel.replaceAll('\\', '/'))

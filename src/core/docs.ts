@@ -134,7 +134,7 @@ export function under(rel: string, sub: string): boolean {
 }
 
 /** 工作项文件的命名：01 §3.2 职责卡与 §3.3 阅读路径写作 `state/work/WI-*`；与 drift 认 ID 的 `WI-<三位以上数字>` 同一形式。 */
-const WORK_ITEM_NAME = /^WI-[0-9]{3,}/
+export const WORK_ITEM_NAME = /^WI-[0-9]{3,}/
 
 /** Python 的 `os.path.basename`：取最后一个路径分隔符之后。Windows 上 `\` 与 `/` 都是分隔符，POSIX 上只有 `/`——黄金样本是在 Windows 上生成的。 */
 function pyBasename(p: string): string {

@@ -32,7 +32,7 @@ import { gitTrack, writeText } from '../core/fixture.js'
 import { __testHooks, exists as pathExists, isDir, isFile, readText } from '../core/fs.js'
 import { hardenedEnv, shallowProblem } from '../core/git.js'
 import { pyRepr } from '../core/repr.js'
-import { agg, once, probe, runGuarded, undeterminedFromException, unreadable, workRootAbsent } from '../core/shell.js'
+import { agg, noteDefault, once, probe, runGuarded, undeterminedFromException, unreadable, workRootAbsent } from '../core/shell.js'
 import { dirnameOf, markdownUnder, workItems } from '../core/tracked.js'
 import { splitLinesPy, parseYamlSubset } from '../core/yaml.js'
 
@@ -180,16 +180,6 @@ export function intBudget(cfg: Config, path: string, dflt: number): [number | nu
 
 export function note(usedDefault: boolean, name: string, value: number): string {
   return usedDefault ? `${name} 用的是本工具默认值 ${value}，项目未校准（契约 §5）` : `${name} = ${value}，取自 project.yaml`
-}
-
-/** 给一组依赖某项缺省的 finding 在 `evidence` 末尾统一补上注记（契约 §5：取了默认就得说）。只改证据不改标题，id 不变。注记为空或已含时不动。 */
-export function noteDefault(findings: Finding[], n: string): Finding[] {
-  if (!n) return findings
-  for (const f of findings) {
-    const ev = f.evidence || ''
-    if (!ev.includes(n)) f.evidence = ev + (ev ? '；' : '') + n
-  }
-  return findings
 }
 
 // --------------------------------------------------------------------------
