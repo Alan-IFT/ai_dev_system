@@ -1,0 +1,21 @@
+{
+  "说明": "TS 版与 Python 黄金样本**有意不一致**的清单，golden-compare / golden-selftest 读它：列在这里的条目不算差异，但每次比对都会把条数与理由打印出来，不静默。只有两类：vanished_*（Python 有、TS 不再产出，对应的机制已废弃）与 added_probes（TS 新增的探针，用来替换随机制一起消失的那一条）。每一条都要写理由。",
+  "adoption": {
+    "vanished_findings": [
+      { "id": "adoption/60a5c980", "reason": "「内嵌目录只读：非内嵌运行，不适用」——它的唯一内容就是在说一个已不存在的机制（采用项目内嵌 .std/，D-135 起不再有）；留着只是给每份报告塞一条永远 SKIP 的噪音。用户 2026-10-07 决定不迁" },
+      { "id": "adoption/settings-absent", "reason": "「免审批清单判据本宿主无对象，未判」——读的是 Claude Code 的 .claude/settings.json，该宿主已废弃；DSH 的审批策略是会话级旋钮，没有项目级入库清单可读。用户 2026-10-07 决定不迁" }
+    ],
+    "renamed_findings": [
+      { "from": "adoption/e4ecca44", "to": "adoption/0a63fe45", "reason": "「项目已裁剪本检查」那条 SKIP 的标题原为「…（内嵌目录只读与 compatibility.policy 不可裁剪，照判）」，去掉「内嵌目录只读」后标题变了；它没给 kind，id 是标题的 sha1 前 8 位，所以 id 跟着变。四个真实仓都没裁剪 adoption，黄金样本里没有这条；SKIP 不可登记（只有未定可登记），所以没有登记会失效的后果" }
+    ],
+    "vanished_probes": [
+      { "id": "adoption/d5d57eb2", "reason": "标题把 compatibility.policy 与免审批清单的通配放行合在一起；通配放行（_wildcard_allow / _settings_allow）随废弃宿主一起删。compatibility.policy 部分由 added_probes 里的新探针接住" },
+      { "id": "adoption/4ae5a1cf", "reason": "内嵌修订号比对（STANDARD_VERSION 与内嵌 .std/标准/README.md 第 3 行比对）——内嵌机制废弃" },
+      { "id": "adoption/2c6591e7", "reason": "内嵌目录只读（git status 查 .std/ 有没有被改）——内嵌机制废弃" },
+      { "id": "adoption/abf28bac", "reason": "「非内嵌运行时不产出内嵌修订号比对」——内嵌机制废弃，没有对象" }
+    ],
+    "added_probes": [
+      { "id": "adoption/f32dd8ac", "reason": "替代 adoption/d5d57eb2 的前一半：compatibility.policy（01 §5.3）缺、空串、空列表、false 判 FAIL，有值（字符串、映射、0）PASS。原探针把它与免审批清单的通配放行合在一条里，后一半随废弃宿主删除，前一半不能跟着丢" }
+    ]
+  }
+}

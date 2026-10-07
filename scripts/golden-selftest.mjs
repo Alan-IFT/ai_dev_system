@@ -20,17 +20,26 @@ let mod
 try { mod = await import(pathToFileURL(join(root, 'lib', 'checks', `${file}.js`)).href) } catch (e) { console.error(`加载失败：${e.message}`); process.exit(2) }
 if (typeof mod.selftest !== 'function') { console.error('模块没有导出 selftest'); process.exit(2) }
 
-const want = JSON.parse(readFileSync(join(root, 'golden', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === (mod.NAME ?? name))
+// 有意不一致的清单（golden/expected-changes.json）：Python 的探针对应的机制已废弃（vanished_probes，从期望里剔除），TS 新增的替代探针（added_probes，从「多」里豁免）。
+// 每一条都要写理由，且每次都把条数与 id 打印出来——不静默。
+const expected = (() => { try { return JSON.parse(readFileSync(join(root, 'golden', 'expected-changes.json'), 'utf8')) } catch { return {} } })()[mod.NAME ?? name] ?? {}
+const vanishedP = new Map((expected.vanished_probes ?? []).map((v) => [v.id, v.reason])), addedP = new Map((expected.added_probes ?? []).map((v) => [v.id, v.reason]))
+const wantAll = JSON.parse(readFileSync(join(root, 'golden', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === (mod.NAME ?? name))
+const want = wantAll.filter((p) => !vanishedP.has(p.id))
 const got = (await mod.selftest()).map((f) => ({ id: f.id, status: f.status, title: f.title }))
 const w = new Map(want.map((p) => [p.id, p])), g = new Map(got.map((p) => [p.id, p]))
-const missing = [...w.keys()].filter((k) => !g.has(k)), extra = [...g.keys()].filter((k) => !w.has(k))
+const missing = [...w.keys()].filter((k) => !g.has(k)), extra = [...g.keys()].filter((k) => !w.has(k) && !addedP.has(k))
 const changed = [...g.keys()].filter((k) => w.has(k) && g.get(k).status !== w.get(k).status)
 const dupes = got.length - g.size
+// 清单里写了 TS 会新增的探针，TS 却没产出：清单与实现脱节，同样算差异
+const addedMissing = [...addedP.keys()].filter((k) => !g.has(k))
 
-if (!missing.length && !extra.length && !changed.length && !dupes) {
-  console.log(`✓ ${name}：selftest ${got.length} 条，与黄金样本的 (id, status) 集合完全相同`)
+if (!missing.length && !extra.length && !changed.length && !dupes && !addedMissing.length) {
+  const note = (vanishedP.size || addedP.size) ? `（按 golden/expected-changes.json：${vanishedP.size} 条预期消失 ${[...vanishedP.keys()].join('、')}；${addedP.size} 条 TS 新增 ${[...addedP.keys()].join('、')}）` : ''
+  console.log(`✓ ${name}：selftest ${got.length} 条，与黄金样本的 (id, status) 集合完全相同${note}`)
   process.exit(0)
 }
+for (const k of addedMissing) console.log(`    清单里写了 TS 新增的探针 ${k}，TS 没有产出`)
 console.log(`✗ ${name}：黄金样本 ${want.length} 条，TS 实得 ${got.length} 条`)
 for (const k of missing) console.log(`    缺：${w.get(k).status} ${k} | ${w.get(k).title}`)
 for (const k of extra) console.log(`    多：${g.get(k).status} ${k} | ${g.get(k).title}`)

@@ -50,6 +50,11 @@ const core = await import(pathToFileURL(join(root, 'lib', 'core', 'config.js')).
 const gitm = await import(pathToFileURL(join(root, 'lib', 'core', 'git.js')).href)
 if (typeof mod.run !== 'function') { console.error('模块没有导出 run'); process.exit(2) }
 
+// 有意不一致的清单（golden/expected-changes.json）：Python 有、TS 不再产出的条目（对应的机制已废弃，如内嵌 .std/、Claude Code 的 settings.json）。
+// 列在清单里的从**期望集**里剔除，但每次都把条数与理由打印出来——不静默。清单里每一条必须写理由。
+const expected = (() => { try { return JSON.parse(readFileSync(join(root, 'golden', 'expected-changes.json'), 'utf8')) } catch { return {} } })()
+const vanished = new Map(((expected[mod.NAME ?? name] ?? {}).vanished_findings ?? []).map((v) => [v.id, v.reason]))
+
 const slim = (f) => ({ check: f.check, id: f.id, status: f.status, where: f.where ?? null, registered: f.registered ?? null })
 const key = (f) => `${f.id}\u0000${f.where ?? ''}`
 let bad = 0, ran = 0
@@ -71,7 +76,9 @@ for (const inp of manifest.inputs) {
     const env = gitm.hardenedEnv(process.env)
     void env
     const got = (await mod.run(cfg)).map(slim)
-    const want = JSON.parse(readFileSync(join(root, 'golden', 'samples', inp.name + '.json'), 'utf8')).filter((f) => f.check === (mod.NAME ?? name))
+    const wantAll = JSON.parse(readFileSync(join(root, 'golden', 'samples', inp.name + '.json'), 'utf8')).filter((f) => f.check === (mod.NAME ?? name))
+    const want = wantAll.filter((f) => !vanished.has(f.id)) // 预期消失的先剔除，下面照常逐条比
+    const droppedHere = wantAll.length - want.length
     const g = new Map(got.map((f) => [key(f), f])), w = new Map(want.map((f) => [key(f), f]))
     const onlyGot = [...g.keys()].filter((k) => !w.has(k)), onlyWant = [...w.keys()].filter((k) => !g.has(k))
     // `registered` 是 check_all 的 `_join_exceptions` 贴上的（检查器自己永远产出 null，Python 上实测：单跑 drift.run 得 null，贴完登记后与整体样本完全相同）。
@@ -81,7 +88,7 @@ for (const inp of manifest.inputs) {
     const skippedRegistered = want.filter((f) => f.registered).length
     const diff = [...g.keys()].filter((k) => w.has(k) && (g.get(k).status !== w.get(k).status || (!REGISTERED_PENDING && (g.get(k).registered ?? null) !== (w.get(k).registered ?? null))))
     ran++
-    if (!onlyGot.length && !onlyWant.length && !diff.length) console.log(`✓ ${inp.name.padEnd(10)} ${name}：${want.length} 条逐条一致${skippedRegistered ? `（其中 ${skippedRegistered} 条样本带登记认领 registered，待汇总层迁完后才比该字段）` : ''}`)
+    if (!onlyGot.length && !onlyWant.length && !diff.length) console.log(`✓ ${inp.name.padEnd(10)} ${name}：${want.length} 条逐条一致${skippedRegistered ? `（其中 ${skippedRegistered} 条样本带登记认领 registered，待汇总层迁完后才比该字段）` : ''}${droppedHere ? `；另有 ${droppedHere} 条样本按 golden/expected-changes.json 预期消失（${[...vanished.keys()].join('、')}），未比` : ''}`)
     else {
       bad++
       console.log(`✗ ${inp.name.padEnd(10)} ${name}：期望 ${want.length} 条、实得 ${got.length} 条`)
