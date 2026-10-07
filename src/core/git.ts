@@ -16,6 +16,7 @@ import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { devNull } from 'node:os'
 import { pyStrip } from './finding.js'
+import { pyRepr } from './repr.js'
 
 /**
  * git 跑钩子时注入的仓库定位变量，取自 `git rev-parse --local-env-vars`（git 自己进入另一个仓库前清掉的就是这张表）。
@@ -86,16 +87,12 @@ export function gitVersionProblem(out?: string): string | null {
   }
   // `[0-9]` 而不是 `\d`：有意只认 ASCII 数字（设计 §12.6 D4）；Python 的 `\d` 会认全角数字，git 不会输出它们
   const m = /([0-9]+)\.([0-9]+)/.exec(text ?? '')
-  if (!m) return `认不出 git 版本（${pyReprShort(pyStrip(text ?? '').slice(0, 40))}）；加固配置要 git ≥ ${GIT_MIN_VERSION[0]}.${GIT_MIN_VERSION[1]} 才生效`
+  if (!m) return `认不出 git 版本（${pyRepr(pyStrip(text ?? '').slice(0, 40))}）；加固配置要 git ≥ ${GIT_MIN_VERSION[0]}.${GIT_MIN_VERSION[1]} 才生效`
   const major = Number(m[1]), minor = Number(m[2])
   if (major < GIT_MIN_VERSION[0] || (major === GIT_MIN_VERSION[0] && minor < GIT_MIN_VERSION[1])) {
     return `git ${m[1]}.${m[2]} 低于 ${GIT_MIN_VERSION[0]}.${GIT_MIN_VERSION[1]}：经 GIT_CONFIG_COUNT 注入的加固（fsmonitor、过滤器、pager 等）会被静默忽略，被扫仓配置里的外部程序可能被执行；请升级 git`
   }
   return null
-}
-
-function pyReprShort(s: string): string {
-  return `'${s.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`
 }
 
 const filterEnvCache = new Map<string, Env | null>()

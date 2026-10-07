@@ -8,6 +8,7 @@
 import { cfgGet, DECLARED_STATES, DOC_STATES, stateList, WORK_ITEM_STATES, pyStr, type Config } from './cfg.js'
 import { PY_WHITESPACE, pyStrip } from './finding.js'
 import { inside, isFile, lexists, readBytes, isReadRefusal } from './fs.js'
+import { pyRepr } from './repr.js'
 import { firstInvalidUtf8 } from './utf8.js'
 import { ConfigError, parseYamlSubset, splitLinesPy, type YamlValue } from './yaml.js'
 import { isAbsolute, join, resolve } from 'node:path'
@@ -196,23 +197,6 @@ function badMetadataRequired(cfg: Config, text: string): Problem | null {
     }
   }
   return null
-}
-
-/** Python `repr(str)`：单引号包裹；含单引号且不含双引号时改用双引号；反斜杠、控制字符转义。 */
-function pyRepr(s: string): string {
-  const q = s.includes("'") && !s.includes('"') ? '"' : "'"
-  let out = ''
-  for (const ch of s) {
-    const cp = ch.codePointAt(0)!
-    if (ch === '\\') out += '\\\\'
-    else if (ch === q) out += '\\' + q
-    else if (ch === '\n') out += '\\n'
-    else if (ch === '\r') out += '\\r'
-    else if (ch === '\t') out += '\\t'
-    else if (cp < 0x20 || cp === 0x7f) out += '\\x' + cp.toString(16).padStart(2, '0')
-    else out += ch
-  }
-  return q + out + q
 }
 
 /**

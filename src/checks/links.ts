@@ -16,6 +16,7 @@ import { inFrozen } from '../core/docs.js'
 import { FAIL, PASS, UNDETERMINED, PY_WHITESPACE, finding, pyStrip, type Finding } from '../core/finding.js'
 import { writeText } from '../core/fixture.js'
 import { __testHooks, exists as pathExists, inside, isDir, readText } from '../core/fs.js'
+import { pyRepr } from '../core/repr.js'
 import { excTypeName, probe, runGuarded, undeterminedFromException, unreadable } from '../core/shell.js'
 import { trackedFiles } from '../core/tracked.js'
 
@@ -559,9 +560,6 @@ const cmpCp = (a: string, b: string): number => {
 }
 const cmpPair = (a: readonly string[], b: readonly string[]): number => cmpCp(a[0]!, b[0]!) || cmpCp(a[1]!, b[1]!)
 
-/** Python 的 `%r % anchor`（anchor 是 str）。 */
-const pyReprStr = (s: string): string => (s.includes("'") && !s.includes('"') ? `"${s}"` : `'${s.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`)
-
 /** 锚点没匹配上。中文锚点判未定，ASCII 锚点判 FAIL。 */
 function anchorMiss(srcRel: string, where: string, target: string, anchor: string, tgtRel: string, frozenNote: string): Finding {
   if (CJK_RE.test(anchor)) {
@@ -569,7 +567,7 @@ function anchorMiss(srcRel: string, where: string, target: string, anchor: strin
       where, kind: 'anchor-cjk', key: `${srcRel}|${target}`,
       reason: '中文标题生成锚点的规则各平台不一致（GitHub、GitLab、静态站生成器各一套），匹配不上不能断定是断链，是平台差异；本工具不猜哪一套',
       why: '01 §3.4 引用：核对方式是 linkcheck，但判不了的按契约 §1 记未定不记通过',
-      evidence: `目标 ${tgtRel}；本工具算出的锚点集合里没有 ${pyReprStr(anchor)}。${frozenNote}`,
+      evidence: `目标 ${tgtRel}；本工具算出的锚点集合里没有 ${pyRepr(anchor)}。${frozenNote}`,
     })
   }
   return finding(NAME, FAIL, `${srcRel} 的锚点不存在：${target}`, {

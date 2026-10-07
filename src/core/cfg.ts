@@ -3,6 +3,7 @@
 // 它们都依赖这里，这里不依赖它们。
 
 import { pyStrip } from './finding.js'
+import { pyRepr } from './repr.js'
 import type { YamlValue } from './yaml.js'
 
 /** 配置对象：`load_config` 的结果。顶层键是任意 YAML 值；`_root`、`_path` 由代码注入（契约 §4）。 */
@@ -74,10 +75,6 @@ function pyFloatStr(n: number): string {
   // Python 的 repr(float)：最短往返表示；整数值带 .0。这里的浮点来自 YAML 的 `-?\d+\.\d+`，不会有指数与 inf/nan。
   const s = String(n)
   return s.includes('.') || s.includes('e') ? s : s + '.0'
-}
-
-function pyRepr(v: unknown): string {
-  return typeof v === 'string' ? `'${v.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'` : pyStr(v)
 }
 
 /**

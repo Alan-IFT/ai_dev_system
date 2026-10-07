@@ -6,6 +6,7 @@
 // 这个决定对真实仓的影响面（实测有没有文档用到被放宽的写法）记在设计文档 §12.6 D1，**不在这里重复数字**——同一数值只放一处（01 §1 G2）。
 
 import { pyStrip } from './finding.js'
+import { pyRepr } from './repr.js'
 
 /** 一个日历日期。不用 `Date`：它按本地时区解释，且 `new Date('2026-02-30')` 会静默进位。 */
 export interface CalDate {
@@ -65,19 +66,3 @@ function timeOk(m: RegExpExecArray): boolean {
   return h <= 23 && mi <= 59 && sec <= 59 && tzh <= 23 && tzm <= 59
 }
 
-/** Python `repr(str)` 的近似：单引号包裹；字符串里含单引号且不含双引号时改用双引号；非 ASCII 可打印字符原样保留。 */
-export function pyRepr(s: string): string {
-  const q = s.includes("'") && !s.includes('"') ? '"' : "'"
-  let out = ''
-  for (const ch of s) {
-    const cp = ch.codePointAt(0)!
-    if (ch === '\\') out += '\\\\'
-    else if (ch === q) out += '\\' + q
-    else if (ch === '\n') out += '\\n'
-    else if (ch === '\r') out += '\\r'
-    else if (ch === '\t') out += '\\t'
-    else if (cp < 0x20 || cp === 0x7f) out += '\\x' + cp.toString(16).padStart(2, '0')
-    else out += ch
-  }
-  return q + out + q
-}

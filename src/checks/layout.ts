@@ -16,6 +16,7 @@ import { FAIL, PASS, SKIP, UNDETERMINED, finding, pyStrip, type Finding } from '
 import { writeText } from '../core/fixture.js'
 import { MAX_READ_BYTES, exists as pathExists, inside, isDir, isFile, readText } from '../core/fs.js'
 import { globAny } from '../core/glob.js'
+import { pyRepr } from '../core/repr.js'
 import { probe, runGuarded, undeterminedFromException, unreadable } from '../core/shell.js'
 import { splitLinesPy } from '../core/yaml.js'
 
@@ -143,9 +144,6 @@ export function run(cfg: Config): Finding[] {
   return runGuarded(NAME, doRun, cfg)
 }
 
-/** Python 的 `%r % tier`：tier 已经是 `str(...).strip().upper()` 的结果，只含 str。 */
-const pyReprStr = (s: string): string => (s.includes("'") && !s.includes('"') ? `"${s}"` : `'${s.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`)
-
 function doRun(cfg: Config): Finding[] {
   const root = (cfg._root as string | undefined) || '.'
 
@@ -159,7 +157,7 @@ function doRun(cfg: Config): Finding[] {
     })]
   }
   if (!(TIER_ORDER as readonly string[]).includes(tier)) {
-    return [finding(NAME, UNDETERMINED, `tier 取值 ${pyReprStr(tier)} 不是 L0/L1/L2/L3`, {
+    return [finding(NAME, UNDETERMINED, `tier 取值 ${pyRepr(tier)} 不是 L0/L1/L2/L3`, {
       reason: '档次取值不认识，本工具不把它归到最近的一档', why: `01 §3.1 / ${TEMPLATE_SOURCE} 只定义了四档`,
     })]
   }

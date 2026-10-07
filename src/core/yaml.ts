@@ -3,6 +3,7 @@
 // 与 Python 版的有意差异见设计 §12.6：D2 递归上限（固定 100 层，同一条消息）、D3 超出安全整数范围抛、D4 \d 只认 ASCII、D6 不用 \s/trim。
 
 import { PY_WHITESPACE, pyStrip } from './finding.js'
+import { pyRepr } from './repr.js'
 
 /** 配置无法被无歧义地解析。 */
 export class ConfigError extends Error {
@@ -19,11 +20,6 @@ const SCALAR_FALSE = new Set(['false', 'no', 'off'])
 const MAX_DEPTH = 100
 
 const WS = `[${PY_WHITESPACE}]`
-
-/** Python 的 `repr(str)` 对本解析器会遇到的单个可见 ASCII 符号的写法：加单引号。 */
-function pyRepr(s: string): string {
-  return `'${s}'`
-}
 
 function scalar(raw: string, lineno: number): YamlValue {
   const s = pyStrip(raw)

@@ -10,6 +10,7 @@ import { cfgGet, pyStr, pyTruthy, type Config } from '../core/cfg.js'
 import { HANDOFF_CANDIDATES, STATUS_CANDIDATES, docsRootOf, entryFiles, inFrozen, itemStatus, rebaseDocs, workRoot } from '../core/docs.js'
 import { FAIL, PASS, SKIP, UNDETERMINED, finding, pyStrip, type Finding } from '../core/finding.js'
 import { countLines, inside, isDir, isFile, readText } from '../core/fs.js'
+import { pyRepr } from '../core/repr.js'
 import { once, probe, runGuarded, unreadable } from '../core/shell.js'
 import { writeText } from '../core/fixture.js'
 
@@ -67,17 +68,6 @@ export function run(cfg: Config): Finding[] {
 
 /** Python 的 `isinstance(budget, int) and not isinstance(budget, bool) and budget > 0` 的 JS 对应：YAML 整数（number 且整数），**不含布尔**。 */
 const isPosInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0
-
-/** Python 的 `%r`：本函数只对 YAML 值（字符串、整数、浮点、布尔、None、列表、映射）用。 */
-function pyRepr(v: unknown): string {
-  if (typeof v === 'string') return `'${v.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`
-  if (v === null || v === undefined) return 'None'
-  if (v === true) return 'True'
-  if (v === false) return 'False'
-  if (Array.isArray(v)) return '[' + v.map(pyRepr).join(', ') + ']'
-  if (typeof v === 'object') return '{' + Object.entries(v as object).map(([k, x]) => `${pyRepr(k)}: ${pyRepr(x)}`).join(', ') + '}'
-  return pyStr(v)
-}
 
 function entry(cfg: Config): Finding[] {
   const root = (cfg._root as string | undefined) || '.'
