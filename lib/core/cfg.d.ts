@@ -14,7 +14,11 @@ export declare const DOC_STATES: ReadonlyArray<readonly [string, readonly string
 export declare function stateList(cfg: unknown, path: string, dflt: readonly string[]): string[];
 /** Python 的真值：None、False、0、0.0、''、[]、{} 为假。 */
 export declare function pyTruthy(v: unknown): boolean;
-/** Python 的 `str(x)`：对本模块会遇到的 YAML 值（字符串、整数、浮点、布尔、None）足够。布尔是 `True`/`False`，None 是 `None`。 */
+/**
+ * Python 的 `str(x)`：字符串返回自身；None 是 `None`，布尔是 `True`/`False`；列表与映射（含嵌套）按 `repr` 写成 `[a, b]`、`{'k': v}`。
+ * 映射曾用 `JSON.stringify`（`{"k":"v"}`）——与 Python 的 `{'k': 'v'}` 不同；此前所有调用点传进来的都是标量或列表，没有暴露，
+ * 直到 `adoption` 把 `compatibility.policy`（常常是映射）原样写进 evidence。
+ */
 export declare function pyStr(v: unknown): string;
 /**
  * status 开头的状态词归到哪一类：别名之后是结尾或非字母数字即命中，长别名优先；认不出返回 null。

@@ -60,15 +60,18 @@ export function pyTruthy(v: unknown): boolean {
   return true
 }
 
-/** Python 的 `str(x)`：对本模块会遇到的 YAML 值（字符串、整数、浮点、布尔、None）足够。布尔是 `True`/`False`，None 是 `None`。 */
+/**
+ * Python 的 `str(x)`：字符串返回自身；None 是 `None`，布尔是 `True`/`False`；列表与映射（含嵌套）按 `repr` 写成 `[a, b]`、`{'k': v}`。
+ * 映射曾用 `JSON.stringify`（`{"k":"v"}`）——与 Python 的 `{'k': 'v'}` 不同；此前所有调用点传进来的都是标量或列表，没有暴露，
+ * 直到 `adoption` 把 `compatibility.policy`（常常是映射）原样写进 evidence。
+ */
 export function pyStr(v: unknown): string {
+  if (typeof v === 'string') return v
   if (v === null || v === undefined) return 'None'
   if (v === true) return 'True'
   if (v === false) return 'False'
   if (typeof v === 'number') return Number.isInteger(v) ? String(v) : pyFloatStr(v)
-  if (typeof v === 'string') return v
-  if (Array.isArray(v)) return '[' + v.map(pyRepr).join(', ') + ']'
-  return JSON.stringify(v)
+  return pyRepr(v)
 }
 
 function pyFloatStr(n: number): string {

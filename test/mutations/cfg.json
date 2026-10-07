@@ -1,0 +1,30 @@
+[
+ {
+  "id": "P1",
+  "title": "pyStr：映射/嵌套容器改回 JSON.stringify",
+  "from": "  return pyRepr(v)\n}\n\nfunction pyFloatStr",
+  "to": "  return Array.isArray(v) ? pyRepr(v) : JSON.stringify(v)\n}\n\nfunction pyFloatStr",
+  "file": "src/core/cfg.ts"
+ },
+ {
+  "id": "P2",
+  "title": "pyStr：字符串先于 null 判（不变）改成字符串也走 repr（带引号）",
+  "from": "  if (typeof v === 'string') return v\n  if (v === null || v === undefined) return 'None'",
+  "to": "  if (typeof v === 'string') return pyRepr(v)\n  if (v === null || v === undefined) return 'None'",
+  "file": "src/core/cfg.ts"
+ },
+ {
+  "id": "P3",
+  "title": "pyStr：None 写成 null",
+  "from": "if (v === null || v === undefined) return 'None'\n  if (v === true) return 'True'",
+  "to": "if (v === null || v === undefined) return 'null'\n  if (v === true) return 'True'",
+  "file": "src/core/cfg.ts"
+ },
+ {
+  "id": "P4",
+  "title": "pyStr：布尔写成小写",
+  "from": "if (v === true) return 'True'\n  if (v === false) return 'False'\n  if (typeof v === 'number')",
+  "to": "if (v === true) return 'true'\n  if (v === false) return 'false'\n  if (typeof v === 'number')",
+  "file": "src/core/cfg.ts"
+ }
+]
