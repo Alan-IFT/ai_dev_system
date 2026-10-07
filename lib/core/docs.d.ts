@@ -12,6 +12,7 @@ export declare const LIST_CAP = 12;
  * 快路径：码元数 ≤ n 时码点数必然 ≤ n，原样返回；否则逐码点数到 n。
  */
 export declare function headChars(s: string, n: number): string;
+export declare function foldRegexSource(name: string): string;
 /**
  * 在文本里找 `名字: 值` 或 `名字：值`。返回 [值, 命中的名字]，找不到返回 [null, null]。
  *

@@ -46,7 +46,7 @@ export function headChars(s: string, n: number): string {
  */
 const EXTRA_FOLD: Readonly<Record<string, string>> = { i: 'İı', I: 'İı' }
 
-function foldRegexSource(name: string): string {
+export function foldRegexSource(name: string): string {
   let out = ''
   for (const ch of name) {
     // 不转义 `-`：正则带 `u` 标志，`u` 模式下 `\-` 在字符类之外是非法转义（抛 SyntaxError），而 `-` 在字符类之外本来就是字面量。

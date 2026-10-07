@@ -1,0 +1,2195 @@
+[
+ {
+  "id": "A1",
+  "title": "证据段标题词：去掉 evidence",
+  "file": "src/checks/evidence.ts",
+  "from": "const EVIDENCE_HEADINGS = ['证据', 'evidence'] as const",
+  "to": "const EVIDENCE_HEADINGS = ['证据'] as const"
+ },
+ {
+  "id": "A2",
+  "title": "证据段标题词：去掉 证据",
+  "file": "src/checks/evidence.ts",
+  "from": "const EVIDENCE_HEADINGS = ['证据', 'evidence'] as const",
+  "to": "const EVIDENCE_HEADINGS = ['evidence'] as const"
+ },
+ {
+  "id": "A3",
+  "title": "证据段标题：不转小写",
+  "file": "src/checks/evidence.ts",
+  "from": "if (EVIDENCE_HEADINGS.some((k) => t.toLowerCase().includes(k)))",
+  "to": "if (EVIDENCE_HEADINGS.some((k) => t.includes(k)))"
+ },
+ {
+  "id": "A4",
+  "title": "证据段标题：只认标题以关键词开头",
+  "file": "src/checks/evidence.ts",
+  "from": "if (EVIDENCE_HEADINGS.some((k) => t.toLowerCase().includes(k)))",
+  "to": "if (EVIDENCE_HEADINGS.some((k) => t.toLowerCase().startsWith(k)))"
+ },
+ {
+  "id": "A5",
+  "title": "围栏：开栏不要求至少 3 个",
+  "file": "src/checks/evidence.ts",
+  "from": "(\\`{3,}|~{3,})",
+  "to": "(\\`{1,}|~{1,})"
+ },
+ {
+  "id": "A6",
+  "title": "围栏：只认反引号（去掉波浪线）",
+  "file": "src/checks/evidence.ts",
+  "from": "(\\`{3,}|~{3,})",
+  "to": "(\\`{3,})"
+ },
+ {
+  "id": "A7",
+  "title": "围栏：只认波浪线（去掉反引号）",
+  "file": "src/checks/evidence.ts",
+  "from": "(\\`{3,}|~{3,})",
+  "to": "(~{3,})"
+ },
+ {
+  "id": "A8",
+  "title": "围栏闭合：不要求不短于开栏",
+  "file": "src/checks/evidence.ts",
+  "from": "${fence[0]}{${[...fence].length},}",
+  "to": "${fence[0]}{3,}"
+ },
+ {
+  "id": "A9",
+  "title": "围栏闭合：不要求同一种字符",
+  "file": "src/checks/evidence.ts",
+  "from": "`^${WS}*${fence[0]}{${[...fence].length},}${WS}*$`",
+  "to": "`^${WS}*[\\`~]{${[...fence].length},}${WS}*$`"
+ },
+ {
+  "id": "A10",
+  "title": "围栏闭合：行尾不允许空白",
+  "file": "src/checks/evidence.ts",
+  "from": "{${[...fence].length},}${WS}*$`",
+  "to": "{${[...fence].length},}$`"
+ },
+ {
+  "id": "A11",
+  "title": "围栏闭合：允许行尾带别的字符",
+  "file": "src/checks/evidence.ts",
+  "from": "{${[...fence].length},}${WS}*$`",
+  "to": "{${[...fence].length},}`"
+ },
+ {
+  "id": "A12",
+  "title": "围栏闭合：前导不允许空白",
+  "file": "src/checks/evidence.ts",
+  "from": "`^${WS}*${fence[0]}{",
+  "to": "`^${fence[0]}{"
+ },
+ {
+  "id": "A13",
+  "title": "围栏开栏：前导不允许空白",
+  "file": "src/checks/evidence.ts",
+  "from": "const FENCE = new RegExp(`^${WS}*(",
+  "to": "const FENCE = new RegExp(`^("
+ },
+ {
+  "id": "A14",
+  "title": "围栏：围栏行内容不进小节也不当标题——改成进小节",
+  "file": "src/checks/evidence.ts",
+  "from": "if (fence === null && m) { fence = m[1]!; continue }",
+  "to": "if (fence === null && m) { fence = m[1]!; if (cur !== null) cur[2].push([i + 1, ln]); continue }"
+ },
+ {
+  "id": "A15",
+  "title": "围栏：围栏里的行也进小节",
+  "file": "src/checks/evidence.ts",
+  "from": "if (fence !== null) { if (fenceClose(fence).test(ln)) fence = null; continue }",
+  "to": "if (fence !== null) { if (fenceClose(fence).test(ln)) fence = null; if (cur !== null) cur[2].push([i + 1, ln]); continue }"
+ },
+ {
+  "id": "A16",
+  "title": "围栏：未闭合的围栏到文件尾也不重置（不变）改成遇到标题就重置",
+  "file": "src/checks/evidence.ts",
+  "from": "if (fence !== null) { if (fenceClose(fence).test(ln)) fence = null; continue }",
+  "to": "if (fence !== null) { if (fenceClose(fence).test(ln) || /^#/.test(ln)) fence = null; continue }"
+ },
+ {
+  "id": "B1",
+  "title": "标题：深度比较 > 改 >=（同级也留在段内）",
+  "file": "src/checks/evidence.ts",
+  "from": "if (cur !== null && depth > level) {",
+  "to": "if (cur !== null && depth >= level) {"
+ },
+ {
+  "id": "B2",
+  "title": "标题：深度比较 > 改 <（反号）",
+  "file": "src/checks/evidence.ts",
+  "from": "if (cur !== null && depth > level) {",
+  "to": "if (cur !== null && depth < level) {"
+ },
+ {
+  "id": "B3",
+  "title": "标题：深度比较 > 改 !=",
+  "file": "src/checks/evidence.ts",
+  "from": "if (cur !== null && depth > level) {",
+  "to": "if (cur !== null && depth !== level) {"
+ },
+ {
+  "id": "B4",
+  "title": "标题：证据段起始行号取标题行而不是下一行",
+  "file": "src/checks/evidence.ts",
+  "from": "cur = [t, i + 2, []]; level = depth",
+  "to": "cur = [t, i + 1, []]; level = depth"
+ },
+ {
+  "id": "B5",
+  "title": "标题：行号从 0 起",
+  "file": "src/checks/evidence.ts",
+  "from": "if (cur !== null && depth > level) { cur[2].push([i + 1, ln]); continue }",
+  "to": "if (cur !== null && depth > level) { cur[2].push([i, ln]); continue }"
+ },
+ {
+  "id": "B6",
+  "title": "标题：标题前允许空白改成不允许",
+  "file": "src/checks/evidence.ts",
+  "from": "const s = pyLstrip(ln)\n    if (s.startsWith('#')) {",
+  "to": "const s = ln\n    if (s.startsWith('#')) {"
+ },
+ {
+  "id": "B7",
+  "title": "标题：深度用去空白前的行算",
+  "file": "src/checks/evidence.ts",
+  "from": "const depth = s.length - title.length",
+  "to": "const depth = ln.length - title.length"
+ },
+ {
+  "id": "B8",
+  "title": "标题：lstrip(#) 改成去掉全部 # 与空白",
+  "file": "src/checks/evidence.ts",
+  "from": "const title = s.replace(/^#+/, '')",
+  "to": "const title = pyLstrip(s.replace(/^#+/, ''))"
+ },
+ {
+  "id": "B9",
+  "title": "标题：非标题行在段外也进小节",
+  "file": "src/checks/evidence.ts",
+  "from": "    if (cur !== null) cur[2].push([i + 1, ln])\n  }\n  if (cur !== null) out.push(cur)",
+  "to": "    cur?.[2].push([i + 1, ln])\n    if (cur === null && out.length) out[out.length - 1]![2].push([i + 1, ln])\n  }\n  if (cur !== null) out.push(cur)"
+ },
+ {
+  "id": "B10",
+  "title": "标题：文件尾的未结束小节不收",
+  "file": "src/checks/evidence.ts",
+  "from": "  }\n  if (cur !== null) out.push(cur)\n  return out\n}",
+  "to": "  }\n  return out\n}"
+ },
+ {
+  "id": "B11",
+  "title": "标题：标题行本身进小节",
+  "file": "src/checks/evidence.ts",
+  "from": "cur = [t, i + 2, []]; level = depth",
+  "to": "cur = [t, i + 2, [[i + 1, ln]]]; level = depth"
+ },
+ {
+  "id": "B12",
+  "title": "标题：小节标题不 strip",
+  "file": "src/checks/evidence.ts",
+  "from": "const t = pyStrip(title)\n      if",
+  "to": "const t = title\n      if"
+ },
+ {
+  "id": "C1",
+  "title": "加粗条目头：不允许前导列表记号",
+  "file": "src/checks/evidence.ts",
+  "from": "`^${WS}*(?:[-*+]${WS}*)?\\\\*\\\\*([^*]+)\\\\*\\\\*`",
+  "to": "`^${WS}*\\\\*\\\\*([^*]+)\\\\*\\\\*`"
+ },
+ {
+  "id": "C2",
+  "title": "加粗条目头：列表记号去掉 +",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:[-*+]${WS}*)?\\\\*\\\\*([^*]+)",
+  "to": "(?:[-*]${WS}*)?\\\\*\\\\*([^*]+)"
+ },
+ {
+  "id": "C3",
+  "title": "加粗条目头：列表记号后必须有空白",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:[-*+]${WS}*)?\\\\*\\\\*([^*]+)",
+  "to": "(?:[-*+]${WS}+)?\\\\*\\\\*([^*]+)"
+ },
+ {
+  "id": "C4",
+  "title": "加粗条目头：名字允许含 *",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\*\\\\*([^*]+)\\\\*\\\\*`)",
+  "to": "\\\\*\\\\*(.+?)\\\\*\\\\*`)"
+ },
+ {
+  "id": "C5",
+  "title": "加粗条目头：名字允许为空",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\*\\\\*([^*]+)\\\\*\\\\*`)",
+  "to": "\\\\*\\\\*([^*]*)\\\\*\\\\*`)"
+ },
+ {
+  "id": "C6",
+  "title": "小标题条目头：级别 3-6 改 2-6",
+  "file": "src/checks/evidence.ts",
+  "from": "#{3,6}${WS}+(.+?)",
+  "to": "#{2,6}${WS}+(.+?)"
+ },
+ {
+  "id": "C7",
+  "title": "小标题条目头：级别 3-6 改 3-7",
+  "file": "src/checks/evidence.ts",
+  "from": "#{3,6}${WS}+(.+?)",
+  "to": "#{3,7}${WS}+(.+?)"
+ },
+ {
+  "id": "C8",
+  "title": "小标题条目头：# 后空白可省",
+  "file": "src/checks/evidence.ts",
+  "from": "#{3,6}${WS}+(.+?)",
+  "to": "#{3,6}${WS}*(.+?)"
+ },
+ {
+  "id": "C9",
+  "title": "小标题条目头：前导不允许空白",
+  "file": "src/checks/evidence.ts",
+  "from": "const SUBHEAD = new RegExp(`^${WS}*#{3,6}",
+  "to": "const SUBHEAD = new RegExp(`^#{3,6}"
+ },
+ {
+  "id": "C10",
+  "title": "条目头：标题行里有字段标签时也当条目头",
+  "file": "src/checks/evidence.ts",
+  "from": "if (m && !labelField(ln)[0]) {",
+  "to": "if (m) {"
+ },
+ {
+  "id": "C11",
+  "title": "条目头：加粗优先于小标题改成小标题优先",
+  "file": "src/checks/evidence.ts",
+  "from": "const m = bold ?? SUBHEAD.exec(ln)",
+  "to": "const m = SUBHEAD.exec(ln) ?? bold",
+  "unobservable": "等价：Python 实测没有任何一行同时匹配加粗条目头与小标题条目头（`### **E-1**` 只匹配小标题；`**x**` 只匹配加粗），二者的先后无差别"
+ },
+ {
+  "id": "C12",
+  "title": "条目头：只认加粗（不认小标题）",
+  "file": "src/checks/evidence.ts",
+  "from": "const m = bold ?? SUBHEAD.exec(ln)",
+  "to": "const m = bold"
+ },
+ {
+  "id": "C13",
+  "title": "条目头：新条目不收旧条目（漏 push）",
+  "file": "src/checks/evidence.ts",
+  "from": "    if (m && !labelField(ln)[0]) {\n      if (cur) blocks.push(cur)",
+  "to": "    if (m && !labelField(ln)[0]) {"
+ },
+ {
+  "id": "C14",
+  "title": "条目：名字不去装饰",
+  "file": "src/checks/evidence.ts",
+  "from": "cur = { name: clean(m[1]!), line: lineno,",
+  "to": "cur = { name: m[1]!, line: lineno,"
+ },
+ {
+  "id": "C15",
+  "title": "条目：行号取下一行",
+  "file": "src/checks/evidence.ts",
+  "from": "cur = { name: clean(m[1]!), line: lineno,",
+  "to": "cur = { name: clean(m[1]!), line: lineno + 1,"
+ },
+ {
+  "id": "C16",
+  "title": "条目：sub 标记取反",
+  "file": "src/checks/evidence.ts",
+  "from": "unknown: 0, sub: !bold }",
+  "to": "unknown: 0, sub: !!bold }"
+ },
+ {
+  "id": "C17",
+  "title": "条目：表格行（以 | 起头）也进列表解析",
+  "file": "src/checks/evidence.ts",
+  "from": "const rows = allRows.filter(([, ln]) => !pyLstrip(ln).startsWith('|'))",
+  "to": "const rows = allRows.slice()"
+ },
+ {
+  "id": "C18",
+  "title": "条目：过滤表格行时不去前导空白",
+  "file": "src/checks/evidence.ts",
+  "from": "const rows = allRows.filter(([, ln]) => !pyLstrip(ln).startsWith('|'))",
+  "to": "const rows = allRows.filter(([, ln]) => !ln.startsWith('|'))"
+ },
+ {
+  "id": "C19",
+  "title": "条目：同一字段后来的值覆盖前面的",
+  "file": "src/checks/evidence.ts",
+  "from": "    if (key && !cur.fields.has(key)) {\n      cur.fields.set(key, val)",
+  "to": "    if (key) {\n      cur.fields.set(key, val)"
+ },
+ {
+  "id": "C20",
+  "title": "条目：认不出的标签行不计数",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!key && unknownLabel(ln)) cur.unknown += 1",
+  "to": ""
+ },
+ {
+  "id": "C21",
+  "title": "条目：认出的字段行也计入认不出",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!key && unknownLabel(ln)) cur.unknown += 1",
+  "to": "if (unknownLabel(ln)) cur.unknown += 1"
+ },
+ {
+  "id": "C22",
+  "title": "条目：限制字样判据去掉 limitation",
+  "file": "src/checks/evidence.ts",
+  "from": "const LIMIT_WORDS = ['限制', 'limitation'] as const",
+  "to": "const LIMIT_WORDS = ['限制'] as const"
+ },
+ {
+  "id": "C23",
+  "title": "条目：限制字样判据去掉 限制",
+  "file": "src/checks/evidence.ts",
+  "from": "const LIMIT_WORDS = ['限制', 'limitation'] as const",
+  "to": "const LIMIT_WORDS = ['limitation'] as const"
+ },
+ {
+  "id": "C24",
+  "title": "条目：限制字样判据不转小写",
+  "file": "src/checks/evidence.ts",
+  "from": "if (key === 'scope' && hasLimitWord(ln.toLowerCase())) cur.limit_cols.push(val)",
+  "to": "if (key === 'scope' && hasLimitWord(ln)) cur.limit_cols.push(val)"
+ },
+ {
+  "id": "C25",
+  "title": "条目：限制列的记录不限于 scope 字段",
+  "file": "src/checks/evidence.ts",
+  "from": "if (key === 'scope' && hasLimitWord(ln.toLowerCase())) cur.limit_cols.push(val)",
+  "to": "if (hasLimitWord(ln.toLowerCase())) cur.limit_cols.push(val)"
+ },
+ {
+  "id": "C26",
+  "title": "条目：无字段的小标题块也保留",
+  "file": "src/checks/evidence.ts",
+  "from": "blocks = blocks.filter((b) => !b.sub || b.fields.size > 0 || b.unknown > 0)",
+  "to": ""
+ },
+ {
+  "id": "C27",
+  "title": "条目：小标题块只要有认不出的行就丢（去掉 unknown 条件）",
+  "file": "src/checks/evidence.ts",
+  "from": "blocks = blocks.filter((b) => !b.sub || b.fields.size > 0 || b.unknown > 0)",
+  "to": "blocks = blocks.filter((b) => !b.sub || b.fields.size > 0)"
+ },
+ {
+  "id": "C28",
+  "title": "条目：小标题块有字段才留（去掉 fields 条件）",
+  "file": "src/checks/evidence.ts",
+  "from": "blocks = blocks.filter((b) => !b.sub || b.fields.size > 0 || b.unknown > 0)",
+  "to": "blocks = blocks.filter((b) => !b.sub || b.unknown > 0)"
+ },
+ {
+  "id": "C29",
+  "title": "条目：加粗条目也按无字段丢弃",
+  "file": "src/checks/evidence.ts",
+  "from": "blocks = blocks.filter((b) => !b.sub || b.fields.size > 0 || b.unknown > 0)",
+  "to": "blocks = blocks.filter((b) => b.fields.size > 0 || b.unknown > 0)"
+ },
+ {
+  "id": "D1",
+  "title": "整段兜底：whole 为假时也兜",
+  "file": "src/checks/evidence.ts",
+  "from": "if (blocks.length === 0 && whole) {",
+  "to": "if (blocks.length === 0) {"
+ },
+ {
+  "id": "D2",
+  "title": "整段兜底：有条目时也兜",
+  "file": "src/checks/evidence.ts",
+  "from": "if (blocks.length === 0 && whole) {",
+  "to": "if (whole) {"
+ },
+ {
+  "id": "D3",
+  "title": "整段兜底：不兜",
+  "file": "src/checks/evidence.ts",
+  "from": "if (blocks.length === 0 && whole) {",
+  "to": "if (false) {",
+  "typeGuarded": "类型系统就是防线：去掉整段兜底的入口后，`one` 与 `labelField` 的 `key` 窄化关系变化，TypeScript 报 `FieldKey | null` 不能赋给 `FieldKey`（TS2345）；该分支的行为由「整段兜底」的 whole 样本钉住（D1、D2、D4–D9）"
+ },
+ {
+  "id": "D4",
+  "title": "整段兜底：名字不是（整段）",
+  "file": "src/checks/evidence.ts",
+  "from": "name: '（整段）'",
+  "to": "name: '整段'"
+ },
+ {
+  "id": "D5",
+  "title": "整段兜底：行号固定 1",
+  "file": "src/checks/evidence.ts",
+  "from": "line: rows.length ? rows[0]![0] : 1,",
+  "to": "line: 1,"
+ },
+ {
+  "id": "D6",
+  "title": "整段兜底：没有字段也留",
+  "file": "src/checks/evidence.ts",
+  "from": "if (one.fields.size > 0) blocks.push(one)",
+  "to": "blocks.push(one)"
+ },
+ {
+  "id": "D7",
+  "title": "整段兜底：认不出的标签行不计数",
+  "file": "src/checks/evidence.ts",
+  "from": "      const [key, val] = labelField(ln)\n      if (!key && unknownLabel(ln)) one.unknown += 1",
+  "to": "      const [key, val] = labelField(ln)"
+ },
+ {
+  "id": "D8",
+  "title": "整段兜底：同一字段取后一个",
+  "file": "src/checks/evidence.ts",
+  "from": "      if (key && !one.fields.has(key)) {",
+  "to": "      if (key) {"
+ },
+ {
+  "id": "D9",
+  "title": "整段兜底：限制列不记",
+  "file": "src/checks/evidence.ts",
+  "from": "        if (key === 'scope' && hasLimitWord(ln.toLowerCase())) one.limit_cols.push(val)",
+  "to": ""
+ },
+ {
+  "id": "E1",
+  "title": "表格：分隔行判定去掉要求含 |",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!ln.includes('|') || !ln.includes('-')) return false",
+  "to": "if (!ln.includes('-')) return false"
+ },
+ {
+  "id": "E2",
+  "title": "表格：分隔行判定去掉要求含 -",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!ln.includes('|') || !ln.includes('-')) return false",
+  "to": "if (!ln.includes('|')) return false"
+ },
+ {
+  "id": "E3",
+  "title": "表格：分隔行字符集少 :",
+  "file": "src/checks/evidence.ts",
+  "from": "'|:- \\t'.includes(ch)",
+  "to": "'|- \\t'.includes(ch)"
+ },
+ {
+  "id": "E4",
+  "title": "表格：分隔行字符集少空格",
+  "file": "src/checks/evidence.ts",
+  "from": "'|:- \\t'.includes(ch)",
+  "to": "'|:-\\t'.includes(ch)"
+ },
+ {
+  "id": "E5",
+  "title": "表格：分隔行字符集少制表符",
+  "file": "src/checks/evidence.ts",
+  "from": "'|:- \\t'.includes(ch)",
+  "to": "'|:- '.includes(ch)"
+ },
+ {
+  "id": "E6",
+  "title": "表格：分隔行字符集多全角空格",
+  "file": "src/checks/evidence.ts",
+  "from": "'|:- \\t'.includes(ch)",
+  "to": "'|:- \\t　'.includes(ch)"
+ },
+ {
+  "id": "E7",
+  "title": "表格：分隔行判定前不去空白",
+  "file": "src/checks/evidence.ts",
+  "from": "for (const ch of pyStrip(ln)) if (!'|:- \\t'.includes(ch)) return false",
+  "to": "for (const ch of ln) if (!'|:- \\t'.includes(ch)) return false"
+ },
+ {
+  "id": "E8",
+  "title": "表格：分隔行判定去空白改用 JS trim",
+  "file": "src/checks/evidence.ts",
+  "from": "for (const ch of pyStrip(ln)) if (!'|:- \\t'.includes(ch)) return false",
+  "to": "for (const ch of ln.trim()) if (!'|:- \\t'.includes(ch)) return false"
+ },
+ {
+  "id": "E9",
+  "title": "表格：行切分不去首竖线",
+  "file": "src/checks/evidence.ts",
+  "from": "if (s.startsWith('|')) s = s.slice(1)",
+  "to": ""
+ },
+ {
+  "id": "E10",
+  "title": "表格：行切分不去尾竖线",
+  "file": "src/checks/evidence.ts",
+  "from": "if (s.endsWith('|')) s = s.slice(0, -1)",
+  "to": ""
+ },
+ {
+  "id": "E11",
+  "title": "表格：单元格不去空白",
+  "file": "src/checks/evidence.ts",
+  "from": "return s.split('|').map((c) => pyStrip(c))",
+  "to": "return s.split('|')"
+ },
+ {
+  "id": "E12",
+  "title": "表格：整行去空白改用 JS trim",
+  "file": "src/checks/evidence.ts",
+  "from": "let s = pyStrip(ln)\n  if (s.startsWith('|'))",
+  "to": "let s = ln.trim()\n  if (s.startsWith('|'))"
+ },
+ {
+  "id": "E13",
+  "title": "表格：单元格去空白改用 JS trim",
+  "file": "src/checks/evidence.ts",
+  "from": "return s.split('|').map((c) => pyStrip(c))",
+  "to": "return s.split('|').map((c) => c.trim())"
+ },
+ {
+  "id": "E14",
+  "title": "表头：_id 列也当字段",
+  "file": "src/checks/evidence.ts",
+  "from": "if (name.endsWith('_id') && !name.includes('acceptance')) return",
+  "to": ""
+ },
+ {
+  "id": "E15",
+  "title": "表头：acceptance_id 也不当字段",
+  "file": "src/checks/evidence.ts",
+  "from": "if (name.endsWith('_id') && !name.includes('acceptance')) return",
+  "to": "if (name.endsWith('_id')) return"
+ },
+ {
+  "id": "E16",
+  "title": "表头：_id 判据不转小写",
+  "file": "src/checks/evidence.ts",
+  "from": "const name = clean(cell).toLowerCase()\n    if (!name) return",
+  "to": "const name = clean(cell)\n    if (!name) return"
+ },
+ {
+  "id": "E17",
+  "title": "表头：匹配取最后一个而不是第一个",
+  "file": "src/checks/evidence.ts",
+  "from": "for (const [token, key] of HEADER_MAP) if (name.includes(token)) { cols.set(idx, key); break }",
+  "to": "for (const [token, key] of HEADER_MAP) if (name.includes(token)) { cols.set(idx, key) }"
+ },
+ {
+  "id": "E18",
+  "title": "表头：匹配要求整格相等",
+  "file": "src/checks/evidence.ts",
+  "from": "for (const [token, key] of HEADER_MAP) if (name.includes(token))",
+  "to": "for (const [token, key] of HEADER_MAP) if (name === token)"
+ },
+ {
+  "id": "E19",
+  "title": "表头：空单元格不跳过",
+  "file": "src/checks/evidence.ts",
+  "from": "const name = clean(cell).toLowerCase()\n    if (!name) return\n",
+  "to": "const name = clean(cell).toLowerCase()\n",
+  "unobservable": "等价：空单元格 `name === \"\"` 时 `\"\".includes(token)` 对每个非空 token 恒假，不跳过也不会映射到任何字段；Python 同一结构（`if not name: continue` 是省一次循环）"
+ },
+ {
+  "id": "E20",
+  "title": "表头映射表：acceptance 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['acceptance', 'assertion'], ['断言', 'assertion']",
+  "to": "['acceptance', 'method'], ['断言', 'assertion']"
+ },
+ {
+  "id": "E21",
+  "title": "表头映射表：time 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['time', 'observed'], ['date', 'observed']",
+  "to": "['time', 'method'], ['date', 'observed']"
+ },
+ {
+  "id": "E22",
+  "title": "表头映射表：date 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['time', 'observed'], ['date', 'observed']",
+  "to": "['time', 'observed'], ['date', 'method']"
+ },
+ {
+  "id": "E23",
+  "title": "表头映射表：确认 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['确认', 'method'], ['方法', 'method']",
+  "to": "['确认', 'observed'], ['方法', 'method']"
+ },
+ {
+  "id": "E24",
+  "title": "表头映射表：分支 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['工作区', 'identity'], ['分支', 'identity']",
+  "to": "['工作区', 'identity'], ['分支', 'method']"
+ },
+ {
+  "id": "E25",
+  "title": "表头映射表：输出 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['证据', 'raw'], ['输出', 'raw']",
+  "to": "['证据', 'raw'], ['输出', 'method']"
+ },
+ {
+  "id": "E26",
+  "title": "表头映射表：环境 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['适用范围', 'scope'], ['环境', 'scope']",
+  "to": "['适用范围', 'scope'], ['环境', 'method']"
+ },
+ {
+  "id": "E27",
+  "title": "表头映射表：limitation 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['limitation', 'scope'], ['限制', 'scope']",
+  "to": "['limitation', 'method'], ['限制', 'scope']"
+ },
+ {
+  "id": "E28",
+  "title": "表头映射表：主张 映射到别的字段",
+  "file": "src/checks/evidence.ts",
+  "from": "['断言', 'assertion'], ['主张', 'assertion']",
+  "to": "['断言', 'assertion'], ['主张', 'method']"
+ },
+ {
+  "id": "E29",
+  "title": "表头映射表：evidence 与 证据 的先后（证据 在 原始证据 之前）",
+  "file": "src/checks/evidence.ts",
+  "from": "['artifact', 'raw'], ['原始证据', 'raw'], ['raw', 'raw'], ['evidence', 'raw'], ['证据', 'raw']",
+  "to": "['artifact', 'raw'], ['证据', 'raw'], ['原始证据', 'raw'], ['raw', 'raw'], ['evidence', 'raw']",
+  "unobservable": "等价：这几个词都映射到同一字段 raw，先后只影响命中哪一个词，而代码只用命中的字段键，不用命中的词"
+ },
+ {
+  "id": "F1",
+  "title": "表格：映射到少于 3 种字段也解析",
+  "file": "src/checks/evidence.ts",
+  "from": "if (new Set(cols.values()).size < 3) { i += 1; continue }",
+  "to": "if (new Set(cols.values()).size < 1) { i += 1; continue }"
+ },
+ {
+  "id": "F2",
+  "title": "表格：要求映射到至少 4 种字段",
+  "file": "src/checks/evidence.ts",
+  "from": "if (new Set(cols.values()).size < 3) { i += 1; continue }",
+  "to": "if (new Set(cols.values()).size < 4) { i += 1; continue }"
+ },
+ {
+  "id": "F3",
+  "title": "表格：按列数而不是种类数判",
+  "file": "src/checks/evidence.ts",
+  "from": "if (new Set(cols.values()).size < 3) { i += 1; continue }",
+  "to": "if (cols.size < 3) { i += 1; continue }"
+ },
+ {
+  "id": "F4",
+  "title": "表格：表头行不要求含 |",
+  "file": "src/checks/evidence.ts",
+  "from": "if (ln.includes('|') && isSep(rows[i + 1]![1])) {",
+  "to": "if (isSep(rows[i + 1]![1])) {",
+  "unobservable": "等价：表头行不含 `|` 时 splitRow 得到单个格（整行），mapHeader 最多映射到 1 种字段，而表要求至少 3 种，所以必然不进表——「表头行要含 |」是冗余防御（实测：单格最多映射 1 种）"
+ },
+ {
+  "id": "F5",
+  "title": "表格：下一行不要求是分隔行",
+  "file": "src/checks/evidence.ts",
+  "from": "if (ln.includes('|') && isSep(rows[i + 1]![1])) {",
+  "to": "if (ln.includes('|')) {"
+ },
+ {
+  "id": "F6",
+  "title": "表格：认不出的列：首列也算",
+  "file": "src/checks/evidence.ts",
+  "from": "if (idx && !cols.has(idx) && cc &&",
+  "to": "if (!cols.has(idx) && cc &&"
+ },
+ {
+  "id": "F7",
+  "title": "表格：认不出的列：说明词也算",
+  "file": "src/checks/evidence.ts",
+  "from": "&& !NOTE_WORDS.has(cc.toLowerCase()) && !cc.toLowerCase().endsWith('_id')) unknown += 1",
+  "to": "&& !cc.toLowerCase().endsWith('_id')) unknown += 1"
+ },
+ {
+  "id": "F8",
+  "title": "表格：认不出的列：_id 列也算",
+  "file": "src/checks/evidence.ts",
+  "from": "&& !NOTE_WORDS.has(cc.toLowerCase()) && !cc.toLowerCase().endsWith('_id')) unknown += 1",
+  "to": "&& !NOTE_WORDS.has(cc.toLowerCase())) unknown += 1"
+ },
+ {
+  "id": "F9",
+  "title": "表格：认不出的列：空列也算",
+  "file": "src/checks/evidence.ts",
+  "from": "if (idx && !cols.has(idx) && cc && !NOTE_WORDS",
+  "to": "if (idx && !cols.has(idx) && !NOTE_WORDS"
+ },
+ {
+  "id": "F10",
+  "title": "表格：认不出的列：说明词不转小写",
+  "file": "src/checks/evidence.ts",
+  "from": "!NOTE_WORDS.has(cc.toLowerCase()) && !cc.toLowerCase().endsWith('_id')",
+  "to": "!NOTE_WORDS.has(cc) && !cc.toLowerCase().endsWith('_id')"
+ },
+ {
+  "id": "F11",
+  "title": "表格：数据行结束条件：不要求含 |",
+  "file": "src/checks/evidence.ts",
+  "from": "while (j < rows.length && rows[j]![1].includes('|') && pyStrip(rows[j]![1])) {",
+  "to": "while (j < rows.length && pyStrip(rows[j]![1])) {"
+ },
+ {
+  "id": "F12",
+  "title": "表格：数据行结束条件：空行不结束",
+  "file": "src/checks/evidence.ts",
+  "from": "while (j < rows.length && rows[j]![1].includes('|') && pyStrip(rows[j]![1])) {",
+  "to": "while (j < rows.length && rows[j]![1].includes('|')) {",
+  "unobservable": "等价（冗余防御）：含 `|` 的行 strip 后必非空（Python 实测 `|`、` | `、`\\u3000|\\u3000`、`|\\x1c`、`\\ufeff|` 都含 | 且 strip 非空），所以 `&& pyStrip(行)` 在 `includes(\"|\")` 已为真时从不改变结论；Python 同一结构"
+ },
+ {
+  "id": "F13",
+  "title": "表格：数据行结束后不跳过（i = j 改 i += 1）",
+  "file": "src/checks/evidence.ts",
+  "from": "      i = j\n      continue",
+  "to": "      i += 1\n      continue"
+ },
+ {
+  "id": "F14",
+  "title": "表格：条目名取第一格（不论空）",
+  "file": "src/checks/evidence.ts",
+  "from": "const first = cells.find((c) => pyStrip(c))",
+  "to": "const first = cells[0]"
+ },
+ {
+  "id": "F15",
+  "title": "表格：条目名取最后一个非空格",
+  "file": "src/checks/evidence.ts",
+  "from": "const first = cells.find((c) => pyStrip(c))",
+  "to": "const first = [...cells].reverse().find((c) => pyStrip(c))"
+ },
+ {
+  "id": "F16",
+  "title": "表格：空行条目名改文案",
+  "file": "src/checks/evidence.ts",
+  "from": "pyStrip(first ?? '（空行）')",
+  "to": "pyStrip(first ?? '空行')"
+ },
+ {
+  "id": "F17",
+  "title": "表格：条目名不去空白",
+  "file": "src/checks/evidence.ts",
+  "from": "name: pyStrip(first ?? '（空行）')",
+  "to": "name: first ?? '（空行）'",
+  "unobservable": "等价：数据行的单元格已在 splitRow 里 strip 过，条目名再 strip 一次不改变任何结果（Python 实测 `|   E-9   |` 条目名为 `E-9`，两边都是）"
+ },
+ {
+  "id": "F18",
+  "title": "表格：单元格不够长时不跳过（取空）",
+  "file": "src/checks/evidence.ts",
+  "from": "if (idx >= cells.length) continue\n          const val = cells[idx]!",
+  "to": "const val = cells[idx] ?? ''"
+ },
+ {
+  "id": "F19",
+  "title": "表格：同字段两列时后来的覆盖前面的",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!blk.fields.has(key) || isPlaceholder(blk.fields.get(key))) blk.fields.set(key, val)",
+  "to": "blk.fields.set(key, val)"
+ },
+ {
+  "id": "F20",
+  "title": "表格：同字段两列时占位也不被覆盖",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!blk.fields.has(key) || isPlaceholder(blk.fields.get(key))) blk.fields.set(key, val)",
+  "to": "if (!blk.fields.has(key)) blk.fields.set(key, val)"
+ },
+ {
+  "id": "F21",
+  "title": "表格：限制列判据不转小写",
+  "file": "src/checks/evidence.ts",
+  "from": "hasLimitWord(clean(header[idx]!).toLowerCase())",
+  "to": "hasLimitWord(clean(header[idx]!))"
+ },
+ {
+  "id": "F22",
+  "title": "表格：限制列判据看单元格而不是表头",
+  "file": "src/checks/evidence.ts",
+  "from": "hasLimitWord(clean(header[idx]!).toLowerCase())",
+  "to": "hasLimitWord(clean(val).toLowerCase())"
+ },
+ {
+  "id": "F23",
+  "title": "表格：限制列不限于 scope 字段",
+  "file": "src/checks/evidence.ts",
+  "from": "if (key === 'scope' && hasLimitWord(clean(header[idx]!).toLowerCase())) blk.limit_cols.push(val)",
+  "to": "if (hasLimitWord(clean(header[idx]!).toLowerCase())) blk.limit_cols.push(val)",
+  "unobservable": "等价：表头里含「限制」「limitation」的列在 HEADER_MAP 里只映射到 scope，所以 `key === \"scope\"` 对这类列恒真，去掉该条件不改变任何结果（Python 实测 `_HEADER_MAP` 里这两个词都映射 scope）"
+ },
+ {
+  "id": "F24",
+  "title": "表格：表行的写法标注改文案",
+  "file": "src/checks/evidence.ts",
+  "from": "kind: '表行', unknown }",
+  "to": "kind: '条目', unknown }"
+ },
+ {
+  "id": "F25",
+  "title": "表格：表行的行号取表头行",
+  "file": "src/checks/evidence.ts",
+  "from": "line: rows[j]![0], fields: new Map(), limit_cols: [], kind: '表行'",
+  "to": "line: rows[i]![0], fields: new Map(), limit_cols: [], kind: '表行'"
+ },
+ {
+  "id": "F26",
+  "title": "表格：循环终止条件 < rows.length - 1 改 < rows.length",
+  "file": "src/checks/evidence.ts",
+  "from": "while (i < rows.length - 1) {",
+  "to": "while (i < rows.length) {"
+ },
+ {
+  "id": "G1",
+  "title": "占位值：转小写去掉",
+  "file": "src/checks/evidence.ts",
+  "from": "const v = clean(value).toLowerCase().replaceAll(' ', '').replaceAll('　', '')",
+  "to": "const v = clean(value).replaceAll(' ', '').replaceAll('　', '')"
+ },
+ {
+  "id": "G2",
+  "title": "占位值：不去半角空格",
+  "file": "src/checks/evidence.ts",
+  "from": ".replaceAll(' ', '').replaceAll('　', '')",
+  "to": ".replaceAll('　', '')"
+ },
+ {
+  "id": "G3",
+  "title": "占位值：不去全角空格",
+  "file": "src/checks/evidence.ts",
+  "from": ".replaceAll(' ', '').replaceAll('　', '')",
+  "to": ".replaceAll(' ', '')"
+ },
+ {
+  "id": "G4",
+  "title": "占位值：不去装饰（clean）",
+  "file": "src/checks/evidence.ts",
+  "from": "const v = clean(value).toLowerCase()",
+  "to": "const v = pyStrip(String(value)).toLowerCase()"
+ },
+ {
+  "id": "G5",
+  "title": "占位值词表：去掉 tbd",
+  "file": "src/checks/evidence.ts",
+  "from": "new Set(['', 'tbd', 'todo',",
+  "to": "new Set(['', 'todo',"
+ },
+ {
+  "id": "G6",
+  "title": "占位值词表：去掉 todo",
+  "file": "src/checks/evidence.ts",
+  "from": "new Set(['', 'tbd', 'todo',",
+  "to": "new Set(['', 'tbd',"
+ },
+ {
+  "id": "G7",
+  "title": "占位值词表：去掉 待补",
+  "file": "src/checks/evidence.ts",
+  "from": "'todo', '待补', '待填',",
+  "to": "'todo', '待填',"
+ },
+ {
+  "id": "G8",
+  "title": "占位值词表：去掉 待填",
+  "file": "src/checks/evidence.ts",
+  "from": "'待补', '待填', '待定',",
+  "to": "'待补', '待定',"
+ },
+ {
+  "id": "G9",
+  "title": "占位值词表：去掉 待定",
+  "file": "src/checks/evidence.ts",
+  "from": "'待填', '待定', '待确认',",
+  "to": "'待填', '待确认',"
+ },
+ {
+  "id": "G10",
+  "title": "占位值词表：去掉 待确认",
+  "file": "src/checks/evidence.ts",
+  "from": "'待定', '待确认', 'na',",
+  "to": "'待定', 'na',"
+ },
+ {
+  "id": "G11",
+  "title": "占位值词表：去掉 na",
+  "file": "src/checks/evidence.ts",
+  "from": "'待确认', 'na', 'n/a',",
+  "to": "'待确认', 'n/a',"
+ },
+ {
+  "id": "G12",
+  "title": "占位值词表：去掉 n/a",
+  "file": "src/checks/evidence.ts",
+  "from": "'na', 'n/a', 'n.a.',",
+  "to": "'na', 'n.a.',"
+ },
+ {
+  "id": "G13",
+  "title": "占位值词表：去掉 n.a.",
+  "file": "src/checks/evidence.ts",
+  "from": "'n/a', 'n.a.', '-',",
+  "to": "'n/a', '-',"
+ },
+ {
+  "id": "G14",
+  "title": "占位值词表：去掉 -",
+  "file": "src/checks/evidence.ts",
+  "from": "'n.a.', '-', '--',",
+  "to": "'n.a.', '--',"
+ },
+ {
+  "id": "G15",
+  "title": "占位值词表：去掉 --",
+  "file": "src/checks/evidence.ts",
+  "from": "'-', '--', '—',",
+  "to": "'-', '—',"
+ },
+ {
+  "id": "G16",
+  "title": "占位值词表：去掉 —",
+  "file": "src/checks/evidence.ts",
+  "from": "'--', '—', '——',",
+  "to": "'--', '——',"
+ },
+ {
+  "id": "G17",
+  "title": "占位值词表：去掉 ——",
+  "file": "src/checks/evidence.ts",
+  "from": "'—', '——', '?',",
+  "to": "'—', '?',"
+ },
+ {
+  "id": "G18",
+  "title": "占位值词表：去掉 ?",
+  "file": "src/checks/evidence.ts",
+  "from": "'——', '?', '？',",
+  "to": "'——', '？',"
+ },
+ {
+  "id": "G19",
+  "title": "占位值词表：去掉 ？",
+  "file": "src/checks/evidence.ts",
+  "from": "'?', '？', '...',",
+  "to": "'?', '...',"
+ },
+ {
+  "id": "G20",
+  "title": "占位值词表：去掉 ...",
+  "file": "src/checks/evidence.ts",
+  "from": "'？', '...', '。',",
+  "to": "'？', '。',"
+ },
+ {
+  "id": "G21",
+  "title": "占位值词表：去掉 。",
+  "file": "src/checks/evidence.ts",
+  "from": "'...', '。', 'xxx',",
+  "to": "'...', 'xxx',"
+ },
+ {
+  "id": "G22",
+  "title": "占位值词表：去掉 xxx",
+  "file": "src/checks/evidence.ts",
+  "from": "'。', 'xxx', '略'",
+  "to": "'。', '略'"
+ },
+ {
+  "id": "G23",
+  "title": "占位值词表：去掉 略",
+  "file": "src/checks/evidence.ts",
+  "from": "'xxx', '略'])",
+  "to": "'xxx'])"
+ },
+ {
+  "id": "G24",
+  "title": "占位值词表：去掉空串",
+  "file": "src/checks/evidence.ts",
+  "from": "new Set(['', 'tbd',",
+  "to": "new Set(['tbd',"
+ },
+ {
+  "id": "G25",
+  "title": "说明词表：去掉 注意",
+  "file": "src/checks/evidence.ts",
+  "from": "new Set(['注意', '备注', '说明', '注', '附注', '提示', 'note', 'notes', 'ps', 'tip', 'todo', 'warning'])",
+  "to": "new Set(['备注', '说明', '注', '附注', '提示', 'note', 'notes', 'ps', 'tip', 'todo', 'warning'])"
+ },
+ {
+  "id": "G26",
+  "title": "说明词表：去掉 备注",
+  "file": "src/checks/evidence.ts",
+  "from": "new Set(['注意', '备注', '说明', '注', '附注', '提示', 'note', 'notes', 'ps', 'tip', 'todo', 'warning'])",
+  "to": "new Set(['注意', '说明', '注', '附注', '提示', 'note', 'notes', 'ps', 'tip', 'todo', 'warning'])"
+ },
+ {
+  "id": "G27",
+  "title": "说明词表：去掉 说明",
+  "file": "src/checks/evidence.ts",
+  "from": "'注意', '备注', '说明', '注', '附注',",
+  "to": "'注意', '备注', '注', '附注',"
+ },
+ {
+  "id": "G28",
+  "title": "说明词表：去掉 注",
+  "file": "src/checks/evidence.ts",
+  "from": "'说明', '注', '附注', '提示',",
+  "to": "'说明', '附注', '提示',"
+ },
+ {
+  "id": "G29",
+  "title": "说明词表：去掉 附注",
+  "file": "src/checks/evidence.ts",
+  "from": "'注', '附注', '提示', 'note',",
+  "to": "'注', '提示', 'note',"
+ },
+ {
+  "id": "G30",
+  "title": "说明词表：去掉 提示",
+  "file": "src/checks/evidence.ts",
+  "from": "'附注', '提示', 'note', 'notes',",
+  "to": "'附注', 'note', 'notes',"
+ },
+ {
+  "id": "G31",
+  "title": "说明词表：去掉 note",
+  "file": "src/checks/evidence.ts",
+  "from": "'提示', 'note', 'notes', 'ps',",
+  "to": "'提示', 'notes', 'ps',"
+ },
+ {
+  "id": "G32",
+  "title": "说明词表：去掉 notes",
+  "file": "src/checks/evidence.ts",
+  "from": "'note', 'notes', 'ps', 'tip',",
+  "to": "'note', 'ps', 'tip',"
+ },
+ {
+  "id": "G33",
+  "title": "说明词表：去掉 ps",
+  "file": "src/checks/evidence.ts",
+  "from": "'notes', 'ps', 'tip', 'todo',",
+  "to": "'notes', 'tip', 'todo',"
+ },
+ {
+  "id": "G34",
+  "title": "说明词表：去掉 tip",
+  "file": "src/checks/evidence.ts",
+  "from": "'ps', 'tip', 'todo', 'warning'])",
+  "to": "'ps', 'todo', 'warning'])"
+ },
+ {
+  "id": "G35",
+  "title": "说明词表：去掉 todo",
+  "file": "src/checks/evidence.ts",
+  "from": "'tip', 'todo', 'warning'])",
+  "to": "'tip', 'warning'])"
+ },
+ {
+  "id": "G36",
+  "title": "说明词表：去掉 warning",
+  "file": "src/checks/evidence.ts",
+  "from": "'todo', 'warning'])",
+  "to": "'todo'])"
+ },
+ {
+  "id": "H1",
+  "title": "认不出标签：不排除纯数字",
+  "file": "src/checks/evidence.ts",
+  "from": "return !isPyDigit(l) && !NOTE_WORDS.has(l.toLowerCase())",
+  "to": "return !NOTE_WORDS.has(l.toLowerCase())"
+ },
+ {
+  "id": "H2",
+  "title": "认不出标签：不排除说明词",
+  "file": "src/checks/evidence.ts",
+  "from": "return !isPyDigit(l) && !NOTE_WORDS.has(l.toLowerCase())",
+  "to": "return !isPyDigit(l)"
+ },
+ {
+  "id": "H3",
+  "title": "认不出标签：说明词不转小写",
+  "file": "src/checks/evidence.ts",
+  "from": "!NOTE_WORDS.has(l.toLowerCase())",
+  "to": "!NOTE_WORDS.has(l)"
+ },
+ {
+  "id": "H4",
+  "title": "认不出标签：数字判据改成只认 ASCII",
+  "file": "src/checks/evidence.ts",
+  "from": "return !isPyDigit(l) && !NOTE_WORDS",
+  "to": "return !/^[0-9]+$/.test(l) && !NOTE_WORDS"
+ },
+ {
+  "id": "H5",
+  "title": "认不出标签：数字判据改成只认 Nd（漏上标与带圈）",
+  "file": "src/checks/evidence.ts",
+  "from": "return !isPyDigit(l) && !NOTE_WORDS",
+  "to": "return !/^\\p{Nd}+$/u.test(l) && !NOTE_WORDS"
+ },
+ {
+  "id": "H6",
+  "title": "认不出标签：标签长度上限 12 改 11",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,11})"
+ },
+ {
+  "id": "H7",
+  "title": "认不出标签：标签长度上限 12 改 13",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,13})"
+ },
+ {
+  "id": "H8",
+  "title": "认不出标签：标签字符类允许空白",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^:：|/*_\\`]{1,12})"
+ },
+ {
+  "id": "H9",
+  "title": "认不出标签：标签字符类允许斜杠",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：|*_\\`]{1,12})"
+ },
+ {
+  "id": "H10",
+  "title": "认不出标签：标签字符类允许竖线",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：/*_\\`]{1,12})"
+ },
+ {
+  "id": "H11",
+  "title": "认不出标签：标签字符类允许下划线",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：|/*\\`]{1,12})"
+ },
+ {
+  "id": "H12",
+  "title": "认不出标签：标签字符类允许反引号",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：|/*_]{1,12})"
+ },
+ {
+  "id": "H13",
+  "title": "认不出标签：标签字符类允许星号",
+  "file": "src/checks/evidence.ts",
+  "from": "(?<l>[^${PY_WHITESPACE}:：|/*_\\`]{1,12})",
+  "to": "(?<l>[^${PY_WHITESPACE}:：|/_\\`]{1,12})"
+ },
+ {
+  "id": "H14",
+  "title": "认不出标签：只认半角冒号",
+  "file": "src/checks/evidence.ts",
+  "from": "[*_\\`]{0,2}[:：](?!//)",
+  "to": "[*_\\`]{0,2}[:](?!//)"
+ },
+ {
+  "id": "H15",
+  "title": "认不出标签：只认全角冒号",
+  "file": "src/checks/evidence.ts",
+  "from": "[*_\\`]{0,2}[:：](?!//)",
+  "to": "[*_\\`]{0,2}[：](?!//)"
+ },
+ {
+  "id": "H16",
+  "title": "认不出标签：不排除 URL（去掉 // 前瞻）",
+  "file": "src/checks/evidence.ts",
+  "from": "[*_\\`]{0,2}[:：](?!//)",
+  "to": "[*_\\`]{0,2}[:：]"
+ },
+ {
+  "id": "H17",
+  "title": "认不出标签：冒号后要求有非空白值（改成不要求）",
+  "file": "src/checks/evidence.ts",
+  "from": "[:：](?!//)${WS}*${NWS}`",
+  "to": "[:：](?!//)${WS}*`"
+ },
+ {
+  "id": "H18",
+  "title": "认不出标签：冒号后空白改成必须有",
+  "file": "src/checks/evidence.ts",
+  "from": "[:：](?!//)${WS}*${NWS}`",
+  "to": "[:：](?!//)${WS}+${NWS}`"
+ },
+ {
+  "id": "H19",
+  "title": "认不出标签：冒号后非空白判据改用 \\S（JS 的）",
+  "file": "src/checks/evidence.ts",
+  "from": "[:：](?!//)${WS}*${NWS}`",
+  "to": "[:：](?!//)${WS}*\\\\S`"
+ },
+ {
+  "id": "H20",
+  "title": "认不出标签：前导装饰 {0,2} 改 {0,1}",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:[-*+]${WS}+|\\\\p{Nd}+[.、)）]${WS}*)?[*_\\`]{0,2}(?<l>",
+  "to": "(?:[-*+]${WS}+|\\\\p{Nd}+[.、)）]${WS}*)?[*_\\`]{0,1}(?<l>"
+ },
+ {
+  "id": "H21",
+  "title": "认不出标签：后装饰 {0,2} 改 {0,1}",
+  "file": "src/checks/evidence.ts",
+  "from": "{1,12})[*_\\`]{0,2}[:：]",
+  "to": "{1,12})[*_\\`]{0,1}[:：]"
+ },
+ {
+  "id": "H22",
+  "title": "认不出标签：列表记号不要求空白",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:[-*+]${WS}+|\\\\p{Nd}+",
+  "to": "(?:[-*+]${WS}*|\\\\p{Nd}+",
+  "unobservable": "等价：认不出标签的前导记号 `(?:[-*+]\\s+|\\d+[.、)）]\\s*)?` 是可选组，记号后是否要求空白不影响「这一行是不是认不出的标签」——可选组不匹配时标签字符类 `[^\\s:：|/*_`]` 本身不含 `-`、`*` 之外的……实测 `-核验：x` 与 `核验：x` 都判认不出（Python 实测两者都为真）"
+ },
+ {
+  "id": "H23",
+  "title": "认不出标签：编号记号去掉 、",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\p{Nd}+[.、)）]${WS}*)?",
+  "to": "\\\\p{Nd}+[.)）]${WS}*)?",
+  "unobservable": "等价：同 H22——编号记号 `、` 去掉后，`1、核验：x` 里 `1` 被当标签字符，`、核验` 仍在 12 字之内，整行仍是「认不出的标签」（Python 实测有无记号都为真）"
+ },
+ {
+  "id": "H24",
+  "title": "认不出标签：编号记号去掉 )",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\p{Nd}+[.、)）]${WS}*)?",
+  "to": "\\\\p{Nd}+[.、）]${WS}*)?"
+ },
+ {
+  "id": "H25",
+  "title": "认不出标签：编号记号去掉 ）",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\p{Nd}+[.、)）]${WS}*)?",
+  "to": "\\\\p{Nd}+[.、)]${WS}*)?",
+  "unobservable": "等价：同 H23（编号记号 `）`）"
+ },
+ {
+  "id": "H26",
+  "title": "认不出标签：编号只认 ASCII 数字",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\p{Nd}+[.、)）]${WS}*)?",
+  "to": "[0-9]+[.、)）]${WS}*)?"
+ },
+ {
+  "id": "H27",
+  "title": "认不出标签：前导空白不允许",
+  "file": "src/checks/evidence.ts",
+  "from": "const LABEL_LINE = new RegExp(\n  `^${WS}*(?:",
+  "to": "const LABEL_LINE = new RegExp(\n  `^(?:"
+ },
+ {
+  "id": "H28",
+  "title": "认不出标签：不带 u 标志（码元数 12 而非码点数）",
+  "file": "src/checks/evidence.ts",
+  "from": "[:：](?!//)${WS}*${NWS}`, 'u')",
+  "to": "[:：](?!//)${WS}*${NWS}`)"
+ },
+ {
+  "id": "I1",
+  "title": "行内标签：同义词前导不含 \\p{Nd}",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>()（）.、])"
+ },
+ {
+  "id": "I2",
+  "title": "行内标签：同义词前导不含 |",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　*>()（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I3",
+  "title": "行内标签：同义词前导不含 *",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|>()（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I4",
+  "title": "行内标签：同义词前导不含 >",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*()（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I5",
+  "title": "行内标签：同义词前导不含 (",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>)（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I6",
+  "title": "行内标签：同义词前导不含 )",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>(（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I7",
+  "title": "行内标签：同义词前导不含 （",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>()）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I8",
+  "title": "行内标签：同义词前导不含 ）",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>()（.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I9",
+  "title": "行内标签：同义词前导不含 .",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>()（）、\\\\p{Nd}])"
+ },
+ {
+  "id": "I10",
+  "title": "行内标签：同义词前导不含 、",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[${PY_WHITESPACE}　|*>()（）.\\\\p{Nd}])"
+ },
+ {
+  "id": "I11",
+  "title": "行内标签：同义词前导不含行首",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I12",
+  "title": "行内标签：同义词前导不含空白",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[　|*>()（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I13",
+  "title": "行内标签：同义词前导的空白用 JS 的 \\s",
+  "file": "src/checks/evidence.ts",
+  "from": "(?:^|[${PY_WHITESPACE}　|*>()（）.、\\\\p{Nd}])",
+  "to": "(?:^|[\\\\s　|*>()（）.、\\\\p{Nd}])"
+ },
+ {
+  "id": "I14",
+  "title": "行内标签：冒号前允许的空白去掉",
+  "file": "src/checks/evidence.ts",
+  "from": "${foldRegexSource(syn)}${WS}*[:：]${WS}*([^\\\\n]*)",
+  "to": "${foldRegexSource(syn)}[:：]${WS}*([^\\\\n]*)"
+ },
+ {
+  "id": "I15",
+  "title": "行内标签：冒号后允许的空白去掉（值带前导空白，再 strip 无差别）",
+  "file": "src/checks/evidence.ts",
+  "from": "[:：]${WS}*([^\\\\n]*)${TO_EOL}`, 'iu')",
+  "to": "[:：]([^\\\\n]*)${TO_EOL}`, 'iu')",
+  "unobservable": "等价：值再经 pyStrip 去空白，冒号后有没有 `${WS}*` 吞前导空白对 strip 后的值没有影响（Python 实测 `断言：   x` 与 `断言：\\u3000x` 都得 `x`）"
+ },
+ {
+  "id": "I16",
+  "title": "行内标签：只认半角冒号",
+  "file": "src/checks/evidence.ts",
+  "from": "${WS}*[:：]${WS}*([^\\\\n]*)",
+  "to": "${WS}*[:]${WS}*([^\\\\n]*)"
+ },
+ {
+  "id": "I17",
+  "title": "行内标签：只认全角冒号",
+  "file": "src/checks/evidence.ts",
+  "from": "${WS}*[:：]${WS}*([^\\\\n]*)",
+  "to": "${WS}*[：]${WS}*([^\\\\n]*)"
+ },
+ {
+  "id": "I18",
+  "title": "行内标签：不区分大小写标志去掉 i",
+  "file": "src/checks/evidence.ts",
+  "from": "${TO_EOL}`, 'iu')",
+  "to": "${TO_EOL}`, 'u')"
+ },
+ {
+  "id": "I19",
+  "title": "行内标签：去掉 u 标志",
+  "file": "src/checks/evidence.ts",
+  "from": "${TO_EOL}`, 'iu')",
+  "to": "${TO_EOL}`, 'i')"
+ },
+ {
+  "id": "I20",
+  "title": "行内标签：值取到行尾改成取到下一个空白",
+  "file": "src/checks/evidence.ts",
+  "from": "[:：]${WS}*([^\\\\n]*)${TO_EOL}`, 'iu')",
+  "to": "[:：]${WS}*([^${PY_WHITESPACE}]*)`, 'iu')"
+ },
+ {
+  "id": "I21",
+  "title": "行内标签：值不去空白",
+  "file": "src/checks/evidence.ts",
+  "from": "if (m) return [key, pyStrip(m[1]!)]",
+  "to": "if (m) return [key, m[1]!]"
+ },
+ {
+  "id": "I22",
+  "title": "行内标签：值去空白改用 JS trim",
+  "file": "src/checks/evidence.ts",
+  "from": "if (m) return [key, pyStrip(m[1]!)]",
+  "to": "if (m) return [key, m[1]!.trim()]"
+ },
+ {
+  "id": "I23",
+  "title": "行内标签：同义词顺序反（按字段逆序）",
+  "file": "src/checks/evidence.ts",
+  "from": "for (const [key, re] of FIELD_RES) {",
+  "to": "for (const [key, re] of [...FIELD_RES].reverse()) {"
+ },
+ {
+  "id": "I24",
+  "title": "行内标签：折叠不处理 İ ı（改成裸转义）",
+  "file": "src/core/docs.ts",
+  "from": "const EXTRA_FOLD: Readonly<Record<string, string>> = { i: 'İı', I: 'İı' }",
+  "to": "const EXTRA_FOLD: Readonly<Record<string, string>> = {}"
+ },
+ {
+  "id": "J1",
+  "title": "同义词表：assertion 组少 claim",
+  "file": "src/checks/evidence.ts",
+  "from": "['断言', 'assertion', 'claim', '主张', 'acceptance']",
+  "to": "['断言', 'assertion', '主张', 'acceptance']"
+ },
+ {
+  "id": "J2",
+  "title": "同义词表：assertion 组少 主张",
+  "file": "src/checks/evidence.ts",
+  "from": "['断言', 'assertion', 'claim', '主张', 'acceptance']",
+  "to": "['断言', 'assertion', 'claim', 'acceptance']"
+ },
+ {
+  "id": "J3",
+  "title": "同义词表：assertion 组少 acceptance",
+  "file": "src/checks/evidence.ts",
+  "from": "['断言', 'assertion', 'claim', '主张', 'acceptance']",
+  "to": "['断言', 'assertion', 'claim', '主张']"
+ },
+ {
+  "id": "J4",
+  "title": "同义词表：raw 组少 raw_evidence",
+  "file": "src/checks/evidence.ts",
+  "from": "['原始证据', 'raw_evidence', 'raw evidence', 'evidence', 'artifact', '证据', '输出']",
+  "to": "['原始证据', 'raw evidence', 'evidence', 'artifact', '证据', '输出']"
+ },
+ {
+  "id": "J5",
+  "title": "同义词表：raw 组少 raw evidence",
+  "file": "src/checks/evidence.ts",
+  "from": "['原始证据', 'raw_evidence', 'raw evidence', 'evidence', 'artifact', '证据', '输出']",
+  "to": "['原始证据', 'raw_evidence', 'evidence', 'artifact', '证据', '输出']"
+ },
+ {
+  "id": "J6",
+  "title": "同义词表：raw 组少 artifact",
+  "file": "src/checks/evidence.ts",
+  "from": "['原始证据', 'raw_evidence', 'raw evidence', 'evidence', 'artifact', '证据', '输出']",
+  "to": "['原始证据', 'raw_evidence', 'raw evidence', 'evidence', '证据', '输出']"
+ },
+ {
+  "id": "J7",
+  "title": "同义词表：raw 组少 输出",
+  "file": "src/checks/evidence.ts",
+  "from": "['原始证据', 'raw_evidence', 'raw evidence', 'evidence', 'artifact', '证据', '输出']",
+  "to": "['原始证据', 'raw_evidence', 'raw evidence', 'evidence', 'artifact', '证据']"
+ },
+ {
+  "id": "J8",
+  "title": "同义词表：identity 组少 工作区身份",
+  "file": "src/checks/evidence.ts",
+  "from": "['版本与工作区身份', '工作区身份', '版本',",
+  "to": "['版本与工作区身份', '版本',"
+ },
+ {
+  "id": "J9",
+  "title": "同义词表：identity 组少 revision",
+  "file": "src/checks/evidence.ts",
+  "from": "'版本', 'revision', 'head', 'commit',",
+  "to": "'版本', 'head', 'commit',"
+ },
+ {
+  "id": "J10",
+  "title": "同义词表：identity 组少 head",
+  "file": "src/checks/evidence.ts",
+  "from": "'revision', 'head', 'commit', 'version',",
+  "to": "'revision', 'commit', 'version',"
+ },
+ {
+  "id": "J11",
+  "title": "同义词表：identity 组少 commit",
+  "file": "src/checks/evidence.ts",
+  "from": "'head', 'commit', 'version', 'workspace',",
+  "to": "'head', 'version', 'workspace',"
+ },
+ {
+  "id": "J12",
+  "title": "同义词表：identity 组少 version",
+  "file": "src/checks/evidence.ts",
+  "from": "'commit', 'version', 'workspace', '分支']",
+  "to": "'commit', 'workspace', '分支']"
+ },
+ {
+  "id": "J13",
+  "title": "同义词表：identity 组少 workspace",
+  "file": "src/checks/evidence.ts",
+  "from": "'version', 'workspace', '分支']",
+  "to": "'version', '分支']"
+ },
+ {
+  "id": "J14",
+  "title": "同义词表：identity 组少 分支",
+  "file": "src/checks/evidence.ts",
+  "from": "'workspace', '分支']]",
+  "to": "'workspace']]"
+ },
+ {
+  "id": "J15",
+  "title": "同义词表：scope 组少 限制",
+  "file": "src/checks/evidence.ts",
+  "from": "['适用范围', '限制', 'limitations', 'limitation',",
+  "to": "['适用范围', 'limitations', 'limitation',"
+ },
+ {
+  "id": "J16",
+  "title": "同义词表：scope 组少 limitations",
+  "file": "src/checks/evidence.ts",
+  "from": "['适用范围', '限制', 'limitations', 'limitation',",
+  "to": "['适用范围', '限制', 'limitation',"
+ },
+ {
+  "id": "J17",
+  "title": "同义词表：scope 组少 limitation",
+  "file": "src/checks/evidence.ts",
+  "from": "'limitations', 'limitation', '范围', 'scope',",
+  "to": "'limitations', '范围', 'scope',"
+ },
+ {
+  "id": "J18",
+  "title": "同义词表：scope 组少 范围",
+  "file": "src/checks/evidence.ts",
+  "from": "'limitation', '范围', 'scope', 'environment',",
+  "to": "'limitation', 'scope', 'environment',"
+ },
+ {
+  "id": "J19",
+  "title": "同义词表：scope 组少 scope",
+  "file": "src/checks/evidence.ts",
+  "from": "'范围', 'scope', 'environment', '环境', 'env']",
+  "to": "'范围', 'environment', '环境', 'env']"
+ },
+ {
+  "id": "J20",
+  "title": "同义词表：scope 组少 environment",
+  "file": "src/checks/evidence.ts",
+  "from": "'scope', 'environment', '环境', 'env']",
+  "to": "'scope', '环境', 'env']"
+ },
+ {
+  "id": "J21",
+  "title": "同义词表：scope 组少 环境",
+  "file": "src/checks/evidence.ts",
+  "from": "'environment', '环境', 'env']]",
+  "to": "'environment', 'env']]"
+ },
+ {
+  "id": "J22",
+  "title": "同义词表：scope 组少 env",
+  "file": "src/checks/evidence.ts",
+  "from": "'环境', 'env']]",
+  "to": "'环境']]"
+ },
+ {
+  "id": "J23",
+  "title": "同义词表：observed 组少 observed_at",
+  "file": "src/checks/evidence.ts",
+  "from": "['观察时间', 'observed_at', 'observed at', '时间', 'time', '时刻']",
+  "to": "['观察时间', 'observed at', '时间', 'time', '时刻']"
+ },
+ {
+  "id": "J24",
+  "title": "同义词表：observed 组少 observed at",
+  "file": "src/checks/evidence.ts",
+  "from": "['观察时间', 'observed_at', 'observed at', '时间', 'time', '时刻']",
+  "to": "['观察时间', 'observed_at', '时间', 'time', '时刻']"
+ },
+ {
+  "id": "J25",
+  "title": "同义词表：observed 组少 时间",
+  "file": "src/checks/evidence.ts",
+  "from": "['观察时间', 'observed_at', 'observed at', '时间', 'time', '时刻']",
+  "to": "['观察时间', 'observed_at', 'observed at', 'time', '时刻']"
+ },
+ {
+  "id": "J26",
+  "title": "同义词表：observed 组少 time",
+  "file": "src/checks/evidence.ts",
+  "from": "['观察时间', 'observed_at', 'observed at', '时间', 'time', '时刻']",
+  "to": "['观察时间', 'observed_at', 'observed at', '时间', '时刻']"
+ },
+ {
+  "id": "J27",
+  "title": "同义词表：observed 组少 时刻",
+  "file": "src/checks/evidence.ts",
+  "from": "['观察时间', 'observed_at', 'observed at', '时间', 'time', '时刻']",
+  "to": "['观察时间', 'observed_at', 'observed at', '时间', 'time']"
+ },
+ {
+  "id": "J28",
+  "title": "同义词表：method 组少 确认方式",
+  "file": "src/checks/evidence.ts",
+  "from": "['确认方法', '确认方式', '方法', 'procedure', 'checker', 'method']",
+  "to": "['确认方法', '方法', 'procedure', 'checker', 'method']"
+ },
+ {
+  "id": "J29",
+  "title": "同义词表：method 组少 方法",
+  "file": "src/checks/evidence.ts",
+  "from": "['确认方法', '确认方式', '方法', 'procedure', 'checker', 'method']",
+  "to": "['确认方法', '确认方式', 'procedure', 'checker', 'method']"
+ },
+ {
+  "id": "J30",
+  "title": "同义词表：method 组少 procedure",
+  "file": "src/checks/evidence.ts",
+  "from": "['确认方法', '确认方式', '方法', 'procedure', 'checker', 'method']",
+  "to": "['确认方法', '确认方式', '方法', 'checker', 'method']"
+ },
+ {
+  "id": "J31",
+  "title": "同义词表：method 组少 checker",
+  "file": "src/checks/evidence.ts",
+  "from": "['确认方法', '确认方式', '方法', 'procedure', 'checker', 'method']",
+  "to": "['确认方法', '确认方式', '方法', 'procedure', 'method']"
+ },
+ {
+  "id": "J32",
+  "title": "同义词表：method 组少 method",
+  "file": "src/checks/evidence.ts",
+  "from": "['确认方法', '确认方式', '方法', 'procedure', 'checker', 'method']",
+  "to": "['确认方法', '确认方式', '方法', 'procedure', 'checker']"
+ },
+ {
+  "id": "K1",
+  "title": "判定：缺字段与占位的先后（占位先判）",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!block.fields.has(key)) missing.push(LABELS[key])\n    else if (isPlaceholder(block.fields.get(key))) empty.push(LABELS[key])",
+  "to": "if (isPlaceholder(block.fields.get(key))) empty.push(LABELS[key])\n    else if (!block.fields.has(key)) missing.push(LABELS[key])",
+  "unobservable": "等价：判定循环里每个 key 只会进「缺」或「占位」两个分支之一（`fields.has` 与否互斥），先后不影响结果"
+ },
+ {
+  "id": "K2",
+  "title": "判定：占位判据去掉",
+  "file": "src/checks/evidence.ts",
+  "from": "else if (isPlaceholder(block.fields.get(key))) empty.push(LABELS[key])",
+  "to": ""
+ },
+ {
+  "id": "K3",
+  "title": "判定：限制列占位判据改成全部都空才算",
+  "file": "src/checks/evidence.ts",
+  "from": "return [missing, empty, block.limit_cols.some((v) => isPlaceholder(v))]",
+  "to": "return [missing, empty, block.limit_cols.length > 0 && block.limit_cols.every((v) => isPlaceholder(v))]"
+ },
+ {
+  "id": "K4",
+  "title": "判定：限制列没有时也算空",
+  "file": "src/checks/evidence.ts",
+  "from": "return [missing, empty, block.limit_cols.some((v) => isPlaceholder(v))]",
+  "to": "return [missing, empty, block.limit_cols.length === 0 || block.limit_cols.some((v) => isPlaceholder(v))]"
+ },
+ {
+  "id": "K5",
+  "title": "判定：六字段顺序里少一个（method）",
+  "file": "src/checks/evidence.ts",
+  "from": "const ORDER: readonly FieldKey[] = FIELDS.map(([k]) => k)",
+  "to": "const ORDER: readonly FieldKey[] = FIELDS.map(([k]) => k).filter((k) => k !== 'method')"
+ },
+ {
+  "id": "K6",
+  "title": "判定：六字段顺序里少一个（assertion）",
+  "file": "src/checks/evidence.ts",
+  "from": "const ORDER: readonly FieldKey[] = FIELDS.map(([k]) => k)",
+  "to": "const ORDER: readonly FieldKey[] = FIELDS.map(([k]) => k).filter((k) => k !== 'assertion')"
+ },
+ {
+  "id": "K7",
+  "title": "判定：字段标签文案改",
+  "file": "src/checks/evidence.ts",
+  "from": "['method', '⑥ 确认方法',",
+  "to": "['method', '⑥ 方法',"
+ },
+ {
+  "id": "L1",
+  "title": "主流程：全齐才 PASS 改成缺字段也 PASS",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!missing.length && !empty.length && !limitsEmpty) {",
+  "to": "if (!empty.length && !limitsEmpty) {"
+ },
+ {
+  "id": "L2",
+  "title": "主流程：PASS 不要求限制非空",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!missing.length && !empty.length && !limitsEmpty) {",
+  "to": "if (!missing.length && !empty.length) {"
+ },
+ {
+  "id": "L3",
+  "title": "主流程：PASS 不要求无占位",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!missing.length && !empty.length && !limitsEmpty) {",
+  "to": "if (!missing.length && !limitsEmpty) {"
+ },
+ {
+  "id": "L4",
+  "title": "主流程：PASS 的 evidence 不带 note",
+  "file": "src/checks/evidence.ts",
+  "from": "evidence: `${blk.kind}（${ORDER.map((k) => LABELS[k]).join('、')}）。${note}` }))",
+  "to": "evidence: `${blk.kind}（${ORDER.map((k) => LABELS[k]).join('、')}）` }))"
+ },
+ {
+  "id": "L5",
+  "title": "主流程：PASS 的 where 不带行号",
+  "file": "src/checks/evidence.ts",
+  "from": "const where = `${rel}:${blk.line}`",
+  "to": "const where = rel"
+ },
+ {
+  "id": "L6",
+  "title": "主流程：认不出的判据：>= 改 >",
+  "file": "src/checks/evidence.ts",
+  "from": "blk.unknown >= missing.length) {",
+  "to": "blk.unknown > missing.length) {"
+ },
+ {
+  "id": "L7",
+  "title": "主流程：认不出的判据：>= 改 >= 1（不顶缺项数）",
+  "file": "src/checks/evidence.ts",
+  "from": "blk.unknown >= missing.length) {",
+  "to": "blk.unknown >= 1) {"
+ },
+ {
+  "id": "L8",
+  "title": "主流程：认不出的判据：不要求无占位",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!empty.length && !limitsEmpty && blk.unknown >= missing.length) {",
+  "to": "if (!limitsEmpty && blk.unknown >= missing.length) {"
+ },
+ {
+  "id": "L9",
+  "title": "主流程：认不出的判据：不要求限制非空",
+  "file": "src/checks/evidence.ts",
+  "from": "if (!empty.length && !limitsEmpty && blk.unknown >= missing.length) {",
+  "to": "if (!empty.length && blk.unknown >= missing.length) {"
+ },
+ {
+  "id": "L10",
+  "title": "主流程：认不出记 FAIL",
+  "file": "src/checks/evidence.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${head} 有字段没认出：",
+  "to": "out.push(finding(NAME, FAIL, `${head} 有字段没认出："
+ },
+ {
+  "id": "L11",
+  "title": "主流程：认不出的 key 不带条目名",
+  "file": "src/checks/evidence.ts",
+  "from": "where, kind: 'fields-unrecognized', key: `${rel}|${blk.name}`,",
+  "to": "where, kind: 'fields-unrecognized', key: rel,"
+ },
+ {
+  "id": "L12",
+  "title": "主流程：认不出的 reason 不写行数",
+  "file": "src/checks/evidence.ts",
+  "from": "reason: `条目里有 ${blk.unknown} 行「标签: 值」",
+  "to": "reason: `条目里有 N 行「标签: 值」"
+ },
+ {
+  "id": "L13",
+  "title": "主流程：认不出的 title 不写缺哪些",
+  "file": "src/checks/evidence.ts",
+  "from": "`${head} 有字段没认出：${missing.join('、')}`",
+  "to": "`${head} 有字段没认出`"
+ },
+ {
+  "id": "L14",
+  "title": "主流程：otherBad 不排除适用范围",
+  "file": "src/checks/evidence.ts",
+  "from": "const otherBad = [...missing, ...empty].filter((x) => x !== LABELS.scope)",
+  "to": "const otherBad = [...missing, ...empty]"
+ },
+ {
+  "id": "L15",
+  "title": "主流程：limits-empty 判据取反",
+  "file": "src/checks/evidence.ts",
+  "from": "if (otherBad.length === 0) {",
+  "to": "if (otherBad.length > 0) {"
+ },
+ {
+  "id": "L16",
+  "title": "主流程：limits-empty 记未定",
+  "file": "src/checks/evidence.ts",
+  "from": "out.push(finding(NAME, FAIL, `${head} 的限制（④ 适用范围）为空，其余五项齐全`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `${head} 的限制（④ 适用范围）为空，其余五项齐全`"
+ },
+ {
+  "id": "L17",
+  "title": "主流程：limits-empty 的 evidence 缺/空 兜底文案改",
+  "file": "src/checks/evidence.ts",
+  "from": "[...missing, ...empty].join('、') || '限制列为空'",
+  "to": "[...missing, ...empty].join('、') || ''"
+ },
+ {
+  "id": "L18",
+  "title": "主流程：limits-empty 的 key 不带条目名",
+  "file": "src/checks/evidence.ts",
+  "from": "where, kind: 'limits-empty', key: `${rel}|${blk.name}`,",
+  "to": "where, kind: 'limits-empty', key: rel,"
+ },
+ {
+  "id": "L19",
+  "title": "主流程：incomplete 的 key 不带条目名",
+  "file": "src/checks/evidence.ts",
+  "from": "where, kind: 'incomplete', key: `${rel}|${blk.name}`,",
+  "to": "where, kind: 'incomplete', key: rel,"
+ },
+ {
+  "id": "L20",
+  "title": "主流程：incomplete 记未定",
+  "file": "src/checks/evidence.ts",
+  "from": "out.push(finding(NAME, FAIL, `${head} 证据六字段不全`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `${head} 证据六字段不全`"
+ },
+ {
+  "id": "L21",
+  "title": "主流程：incomplete 不写缺字段",
+  "file": "src/checks/evidence.ts",
+  "from": "if (missing.length) parts.push(`缺字段：${missing.join('、')}`)",
+  "to": ""
+ },
+ {
+  "id": "L22",
+  "title": "主流程：incomplete 不写占位",
+  "file": "src/checks/evidence.ts",
+  "from": "if (empty.length) parts.push(`值为空或占位：${empty.join('、')}`)",
+  "to": ""
+ },
+ {
+  "id": "L23",
+  "title": "主流程：incomplete 不补「限制列为空」",
+  "file": "src/checks/evidence.ts",
+  "from": "if (limitsEmpty && ![...missing, ...empty].includes(LABELS.scope)) parts.push('限制列为空')",
+  "to": ""
+ },
+ {
+  "id": "L24",
+  "title": "主流程：incomplete 补「限制列为空」不判是否已列",
+  "file": "src/checks/evidence.ts",
+  "from": "if (limitsEmpty && ![...missing, ...empty].includes(LABELS.scope)) parts.push('限制列为空')",
+  "to": "if (limitsEmpty) parts.push('限制列为空')"
+ },
+ {
+  "id": "L25",
+  "title": "主流程：incomplete 的分隔符改",
+  "file": "src/checks/evidence.ts",
+  "from": "evidence: `${parts.join('；')}；写法：${blk.kind}。${note}`,",
+  "to": "evidence: `${parts.join('、')}；写法：${blk.kind}。${note}`,"
+ },
+ {
+  "id": "L26",
+  "title": "主流程：无证据段 where 不带 :1",
+  "file": "src/checks/evidence.ts",
+  "from": "where: `${rel}:1`, kind: 'no-evidence-section'",
+  "to": "where: rel, kind: 'no-evidence-section'"
+ },
+ {
+  "id": "L27",
+  "title": "主流程：无证据段记 FAIL",
+  "file": "src/checks/evidence.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `已完成但认不出证据段：${rel}`",
+  "to": "return [finding(NAME, FAIL, `已完成但认不出证据段：${rel}`"
+ },
+ {
+  "id": "L28",
+  "title": "主流程：无证据段 evidence 不写状态",
+  "file": "src/checks/evidence.ts",
+  "from": "evidence: `状态 ${status}。${note}`,",
+  "to": "evidence: note,"
+ },
+ {
+  "id": "L29",
+  "title": "主流程：无条目 where 取证据段标题行而不是下一行（用 sections[0][1]-1）",
+  "file": "src/checks/evidence.ts",
+  "from": "where: `${rel}:${sections[0]![1]}`,",
+  "to": "where: `${rel}:${sections[0]![1] - 1}`,"
+ },
+ {
+  "id": "L30",
+  "title": "主流程：无条目只看第一个证据段（已是；改成看最后一个）",
+  "file": "src/checks/evidence.ts",
+  "from": "where: `${rel}:${sections[0]![1]}`,",
+  "to": "where: `${rel}:${sections[sections.length - 1]![1]}`,"
+ },
+ {
+  "id": "L31",
+  "title": "主流程：无条目记 FAIL",
+  "file": "src/checks/evidence.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `证据段里认不出证据条目：${rel}`",
+  "to": "return [finding(NAME, FAIL, `证据段里认不出证据条目：${rel}`"
+ },
+ {
+  "id": "L32",
+  "title": "主流程：有表格时不关整段兜底（whole 恒真）",
+  "file": "src/checks/evidence.ts",
+  "from": "blocks.push(...parseListBlocks(rows, table.length === 0))",
+  "to": "blocks.push(...parseListBlocks(rows, true))"
+ },
+ {
+  "id": "L33",
+  "title": "主流程：表格块与列表块的先后（列表在前）",
+  "file": "src/checks/evidence.ts",
+  "from": "    blocks.push(...table)\n    blocks.push(...parseListBlocks(rows, table.length === 0))",
+  "to": "    blocks.push(...parseListBlocks(rows, table.length === 0))\n    blocks.push(...table)"
+ },
+ {
+  "id": "L34",
+  "title": "主流程：多个证据段只看第一个",
+  "file": "src/checks/evidence.ts",
+  "from": "for (const [, , rows] of sections) {",
+  "to": "for (const [, , rows] of sections.slice(0, 1)) {"
+ },
+ {
+  "id": "M1",
+  "title": "主流程：未完成不聚合（直接跳过）",
+  "file": "src/checks/evidence.ts",
+  "from": "if (cls !== 'done') { other.push(`${rel}（${status || '空'}）`); continue }",
+  "to": "if (cls !== 'done') continue"
+ },
+ {
+  "id": "M2",
+  "title": "主流程：未完成的状态空时不写「空」",
+  "file": "src/checks/evidence.ts",
+  "from": "if (cls !== 'done') { other.push(`${rel}（${status || '空'}）`); continue }",
+  "to": "if (cls !== 'done') { other.push(`${rel}（${status}）`); continue }",
+  "unobservable": "不可达：status 是 itemStatus 的返回值，null 已在上面 continue，非 null 时不会是空串（去装饰后为空会返回 null）；`status || \"空\"` 是防御"
+ },
+ {
+  "id": "M3",
+  "title": "主流程：认不出的状态空时不写「空」",
+  "file": "src/checks/evidence.ts",
+  "from": "      ;(freshOff || inFrozen(cfg, rel) ? unknownHere : unknown).push(`${rel}（${status || '空'}）`)",
+  "to": "      ;(freshOff || inFrozen(cfg, rel) ? unknownHere : unknown).push(`${rel}（${status}）`)",
+  "unobservable": "同 M2"
+ },
+ {
+  "id": "M4",
+  "title": "主流程：认不出：去掉 freshness 被裁剪的判据",
+  "file": "src/checks/evidence.ts",
+  "from": "(freshOff || inFrozen(cfg, rel) ? unknownHere : unknown)",
+  "to": "(inFrozen(cfg, rel) ? unknownHere : unknown)"
+ },
+ {
+  "id": "M5",
+  "title": "主流程：认不出：去掉 frozen 的判据",
+  "file": "src/checks/evidence.ts",
+  "from": "(freshOff || inFrozen(cfg, rel) ? unknownHere : unknown)",
+  "to": "(freshOff ? unknownHere : unknown)"
+ },
+ {
+  "id": "M6",
+  "title": "主流程：认不出：判据取反",
+  "file": "src/checks/evidence.ts",
+  "from": "(freshOff || inFrozen(cfg, rel) ? unknownHere : unknown)",
+  "to": "(freshOff || inFrozen(cfg, rel) ? unknown : unknownHere)"
+ },
+ {
+  "id": "M7",
+  "title": "主流程：认不出记 FAIL",
+  "file": "src/checks/evidence.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, '工作项状态不在已知词表', unknownHere,",
+  "to": "out.push(agg(NAME, FAIL, '工作项状态不在已知词表', unknownHere,"
+ },
+ {
+  "id": "M8",
+  "title": "主流程：文档（kind=document）不跳过",
+  "file": "src/checks/evidence.ts",
+  "from": "if (kind === 'document') continue",
+  "to": ""
+ },
+ {
+  "id": "M9",
+  "title": "主流程：状态为空（null）不跳过",
+  "file": "src/checks/evidence.ts",
+  "from": "if (status === null) continue",
+  "to": "if (status === null) { other.push(`${rel}（空）`); continue }"
+ },
+ {
+  "id": "M10",
+  "title": "主流程：读不了不记（吞掉）",
+  "file": "src/checks/evidence.ts",
+  "from": "      out.push(unreadable(NAME, rel, exc))\n      continue",
+  "to": "      continue"
+ },
+ {
+  "id": "M11",
+  "title": "主流程：目录不在时不早退",
+  "file": "src/checks/evidence.ts",
+  "from": "if (absent) return [absent]",
+  "to": ""
+ },
+ {
+  "id": "M12",
+  "title": "主流程：列不出时不早退（继续用空列表）",
+  "file": "src/checks/evidence.ts",
+  "from": "if (problem) return [finding(NAME, UNDETERMINED, '列不出 git 跟踪的工作项', { reason: problem, why: '契约 §1：依赖不可用记未定，不记通过' })]",
+  "to": ""
+ },
+ {
+  "id": "M13",
+  "title": "主流程：空集不记未定",
+  "file": "src/checks/evidence.ts",
+  "from": "  if (out.length === 0) {\n    out.push(finding(NAME, UNDETERMINED, `${wroot} 下没有可判定的工作项`",
+  "to": "  if (false) {\n    out.push(finding(NAME, UNDETERMINED, `${wroot} 下没有可判定的工作项`"
+ },
+ {
+  "id": "M14",
+  "title": "主流程：空集记 PASS",
+  "file": "src/checks/evidence.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${wroot} 下没有可判定的工作项`",
+  "to": "out.push(finding(NAME, PASS, `${wroot} 下没有可判定的工作项`"
+ },
+ {
+  "id": "M15",
+  "title": "主流程：空集判据改成只看有无完成项（聚合也不算）",
+  "file": "src/checks/evidence.ts",
+  "from": "  if (out.length === 0) {",
+  "to": "  if (out.length === 0 && !other.length && !unknown.length && !unknownHere.length) {",
+  "unobservable": "等价：聚合条目一旦存在就已 push 进 out，out.length 不会是 0；这里再排除 other/unknown 只是重复同一个条件"
+ },
+ {
+  "id": "M16",
+  "title": "主流程：note 不写声明的完成态",
+  "file": "src/checks/evidence.ts",
+  "from": "${declared.length ? `，并入 project.yaml 的 work_item_done_states：${declared.join('/')}` : ''}",
+  "to": ""
+ },
+ {
+  "id": "M17",
+  "title": "主流程：note 里声明词用别的分隔符",
+  "file": "src/checks/evidence.ts",
+  "from": "${declared.join('/')}",
+  "to": "${declared.join('、')}"
+ },
+ {
+  "id": "M18",
+  "title": "主流程：不过 runGuarded",
+  "file": "src/checks/evidence.ts",
+  "from": "return runGuarded(NAME, doRun, cfg)",
+  "to": "return doRun(cfg)"
+ },
+ {
+  "id": "M19",
+  "title": "主流程：聚合的 kind 去掉（id 随份数漂）",
+  "file": "src/checks/evidence.ts",
+  "from": "unknown, '状态认不出由 freshness/unknown-state 记未定，报一次（契约 §1）', '', 'unknown-state-by-freshness'))",
+  "to": "unknown, '状态认不出由 freshness/unknown-state 记未定，报一次（契约 §1）', '', ''))"
+ },
+ {
+  "id": "N1",
+  "title": "scope：已覆盖项少一条",
+  "file": "src/checks/evidence.ts",
+  "from": "      '它们证据段里每条证据的六字段（01 §4.2）是否齐全、值是否为空或占位',\n",
+  "to": ""
+ },
+ {
+  "id": "N2",
+  "title": "scope：未覆盖项少一条",
+  "file": "src/checks/evidence.ts",
+  "from": "      '自检覆盖行内标签与字段表两种写法；不依赖 git 时间',\n",
+  "to": ""
+ },
+ {
+  "id": "N3",
+  "title": "scope：work_root 不用 repr 写（去单引号）",
+  "file": "src/checks/evidence.ts",
+  "from": "当前 ${pyRepr(workRoot(cfg)[0])}）",
+  "to": "当前 ${workRoot(cfg)[0]}）"
+ },
+ {
+  "id": "O1",
+  "title": "isPyDigit：去掉额外码点集（只认 Nd）",
+  "file": "src/checks/evidence.ts",
+  "from": "const ALL_DIGITS = new RegExp(`^[\\\\p{Nd}${DIGIT_EXTRA}]+$`, 'u')",
+  "to": "const ALL_DIGITS = new RegExp(`^[\\\\p{Nd}]+$`, 'u')"
+ },
+ {
+  "id": "O2",
+  "title": "isPyDigit：不要求整串",
+  "file": "src/checks/evidence.ts",
+  "from": "const ALL_DIGITS = new RegExp(`^[\\\\p{Nd}${DIGIT_EXTRA}]+$`, 'u')",
+  "to": "const ALL_DIGITS = new RegExp(`[\\\\p{Nd}${DIGIT_EXTRA}]`, 'u')"
+ },
+ {
+  "id": "O3",
+  "title": "isPyDigit：允许空串",
+  "file": "src/checks/evidence.ts",
+  "from": "const ALL_DIGITS = new RegExp(`^[\\\\p{Nd}${DIGIT_EXTRA}]+$`, 'u')",
+  "to": "const ALL_DIGITS = new RegExp(`^[\\\\p{Nd}${DIGIT_EXTRA}]*$`, 'u')"
+ },
+ {
+  "id": "O4",
+  "title": "isPyDigit：额外码点集少上标 ²³¹",
+  "file": "src/checks/evidence.ts",
+  "from": "'\\\\u{b2}\\\\u{b3}\\\\u{b9}\\\\u{1369}-",
+  "to": "'\\\\u{1369}-"
+ },
+ {
+  "id": "O5",
+  "title": "isPyDigit：额外码点集少带圈 ①-⑨",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\u{2460}-\\\\u{2468}",
+  "to": ""
+ },
+ {
+  "id": "O6",
+  "title": "isPyDigit：额外码点集少 ❶-❾",
+  "file": "src/checks/evidence.ts",
+  "from": "'\\\\u{2776}-\\\\u{277e}",
+  "to": "'"
+ },
+ {
+  "id": "O7",
+  "title": "isPyDigit：额外码点集少 U+1F100 段",
+  "file": "src/checks/evidence.ts",
+  "from": "\\\\u{1f100}-\\\\u{1f10a}'",
+  "to": "'"
+ }
+]

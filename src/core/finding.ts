@@ -36,6 +36,12 @@ export function pyStrip(s: string): string {
   return s.replace(PY_WS_EDGE, '')
 }
 
+const PY_WS_LEAD = new RegExp(`^[${PY_WHITESPACE}]+`)
+/** 等价于 Python 的 `str.lstrip()`（不带参数）：只去开头的 Python 空白。 */
+export function pyLstrip(s: string): string {
+  return s.replace(PY_WS_LEAD, '')
+}
+
 /**
  * Finding id 里 key 段的归一化：去首尾空白、内部空白与换行折成 `_`、`|` 换成 `｜`。
  * `|` 要换掉是因为 id 会被人抄进 markdown 表格的「规则」列，裸竖线会把那一行拆成两格。

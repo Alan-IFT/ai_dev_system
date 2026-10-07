@@ -23,6 +23,8 @@ export interface Finding {
 export declare const PY_WHITESPACE = "\\t\\n\\v\\f\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
 /** 等价于 Python 的 `str.strip()`（不带参数）。 */
 export declare function pyStrip(s: string): string;
+/** 等价于 Python 的 `str.lstrip()`（不带参数）：只去开头的 Python 空白。 */
+export declare function pyLstrip(s: string): string;
 /**
  * Finding id 里 key 段的归一化：去首尾空白、内部空白与换行折成 `_`、`|` 换成 `｜`。
  * `|` 要换掉是因为 id 会被人抄进 markdown 表格的「规则」列，裸竖线会把那一行拆成两格。

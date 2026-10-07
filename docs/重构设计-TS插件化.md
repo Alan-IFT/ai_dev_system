@@ -240,7 +240,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/dates`（日期运算 `todayLocal`/`addDays`/`compareDays` 从 `exceptions.ts` 移来，`freshness` 也用）
     - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
     - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）　[x] evidence（2026-10-07，§12.27）
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -543,6 +543,18 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **一个我自己的疏忽，测试写完才发现**：新补的两条断言（源标记子串匹配、整段匹配边界）写好后「跑通过」，其实是调用前就因 `headerDeclares is not defined` 崩了——**测试的失败被我当成了「还没跑到」**。补上导入后才真正通过。新写的断言第一次跑，要先看它是**因为什么**红或绿的。
 - **清单里我写了两条自己承认是「占位」的条目（`H7`、`H36`）**——和上一轮 `C6`、`F24` 同一毛病，跑之前删了；以后写清单时不写占位。
 
+### 12.27 第七个检查器 `evidence`：一个潜伏在已提交 core 里的缺陷、两个新的等价性点
+
+- **证据**：4 个真实仓逐条一致（1、11、16、1 条）；selftest 17 条集合相同；`golden/unit/evidence.json`（`label_field` 169、`unknown_label` 111、`is_sep` 43、`split_row` 29、`map_header` 31、`is_placeholder` 70、证据段 46、条目块 74、`isdigit` 全码点区间 83 个）逐条比对；变异 311 条。
+- **动笔前核对 `core` 里要复用的函数，找出一个潜伏的缺陷（已单独修复并提交，`440d0f5`）**：`foldRegexSource` 把字段名逐字符转义后拼进带 `u` 标志的正则，转义集合里含 `-`；`u` 模式下字符类之外的 `\-` 是非法转义，所以 `metadata_fields` 里写 `updated-at`、`last-transition-at` 这类带连字符的名字时，`findField` **整条抛 SyntaxError**。Python 的 `re.escape` 同样转义 `-` 但合法。已提交的五个检查器与 `core` 的黄金样本里**此前没有一个含 `-` 的字段名**（四个真实仓的 `metadata_fields` 都只有 `updated_at`），所以一直没暴露。修复是转义集合去掉 `-`；`golden/unit/stdlib-docs.json` 的 `field` 样本从 2880 条增到 8178 条，旧的结论一条没变，修复前的 `lib` 对新样本失败、修复后全过；变异 F24b 钉住。**教训**：每迁一个检查器之前，对它要复用的 `core` 函数问一遍「Python 能做、JS 的某个标志下会抛」，这比事后靠变异发现便宜。
+- **`str.isdigit()` 与 `\d` 是两个不同的集合**（Python 3.12 实测）：`\d` 与类别 Nd 完全相同（680 个），`isdigit()` 多 128 个（上标、下标、带圈数字等，`²`、`①`）。`evidence` 里两处都用到：行内标签前导的 `\d` 用 `\p{Nd}`；「认不出的标签」要排除纯数字（时刻 `12:30`），用的是 `isdigit()`——写成 `isPyDigit`（`\p{Nd}` 并上那 128 个）。**逐码点全量核对**：Python 为真而 TS 不认的为零；TS 多认的全是 Unicode 16、17 新增的十进制数字（Python 的 Unicode 15.0 里是未分配），同 D5，是版本差不是写法差。
+- **`re.I` 在 `evidence` 里的用法与 `findField` 不同**：同义词表里含 `i` 的词（`assertion`、`acceptance`、`limitation(s)`、`revision`、`version`、`procedure`、`environment`、`observed_at`）用 `İ`、`ı` 写也要认——复用 `core` 的 `foldRegexSource`（导出），不另起一份。变异验证发现这一分支此前没有样本触发，补了含 `İ/ı` 的 `label_field` 输入 16 条。
+- **`(.*)$` 与 `.+$` 不能照搬成 JS 的 `(.*)$`**：Python 的 `.` 只不匹配 `\n`、`$` 还匹配末尾 `\n` 之前；JS 的 `.` 还不匹配 `\r`、U+2028、U+2029，`$` 默认只匹配串尾。行里不会有 `\n`（先 `splitlines`），但**可以有** `\x0b`、`\x0c`、`\x1c`、`\x85`、`\u2028`、`\r`——Python 实测值里这些字符原样保留。写成 `([^\n]*)(?=\n?$)`，用行内特殊字符的样本钉住。
+- **新增 `pyLstrip`（`core/finding.ts`）**：`freshness.ts` 里原有一份局部的，本检查器也要用，提到 core（`freshness.ts` 的局部版本不动，不碰无关代码，阶段 4 清理时合并）。
+- **覆盖面的诚实说明**：真实仓里 `evidence` 只出现整齐六字段写法的 PASS（reservoir 10 条、cms 15 条），**边界写法（全角、围栏、表格、认不出的标签、各种空白）一个真实输入都没有**，所以与 `derived` 一样，判据靠 selftest 与单元样本守护。
+- **变异验证的三条教训**：①**第一轮 311 条漏 46 条，其中 23 条在补完样本、摘掉标注复验后仍漏**——它们不是「样本不够」，而是我对「这条等价」或「这条能构造」的**判断本身需要用 Python 实测**，而不是凭印象；这一轮我先在 JS 里并排比较原正则与变异后的正则对一批输入的差异，再去 Python 上对照，才分清哪些是真等价（`F4` 表头不含 `|` 时最多映射 1 种字段而表要求 ≥3 种、`F23` 含「限制」的列只会映射到 scope、`K1` 每个 key 只进「缺」或「占位」之一、`C11` 没有任何一行同时匹配两种条目头……）、哪些是真盲区（`B7`/`B8` 要用缩进或 # 后带空白的标题、`E17` 要一格含多个词、`K3` 要两个限制值一空一非空）。②**`F12` 的等价性要靠 Python 实测每个含 `|` 的行 strip 后必非空**才成立，我最初写的「等价」理由是错的（说「只含空格的行」，而那种行含 `|` 时 strip 后非空），摘标注复验时才暴露。③**`mutate.mjs` 的 `typeGuarded` 口径在这里第二次用上**（`D3` 去掉整段兜底入口后 `FieldKey | null` 的窄化变化导致编译失败）。
+- **剩余标注 15 条**，各有 Python 实测证据或等价论证：C11、E19、E29、F4、F12、F17、F23、H22、H23、H25、I15、K1、M2、M3、M15；**类型守住 1 条**：D3。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -601,6 +613,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-07 | **第七个检查器 `evidence` 迁完**，记 §12.27；新增 `isPyDigit`（Python `str.isdigit()` 的等价物，`\\p{Nd}` 并上 128 个非 Nd 的数字码点）、`pyLstrip`（提到 core）、`foldRegexSource` 导出；**修复一个潜伏在已提交 core 里的缺陷**（`findField` 的字段名带连字符时整条抛 SyntaxError，`440d0f5`） | 4 个真实仓 29 条逐条一致、selftest 17 条集合相同、变异 311 条；摘标注复验后又验出一批真盲区；**每迁一个检查器前要先对它复用的 core 函数问「Python 能做而 JS 某标志下会抛」** |
 | 2026-10-07 | **第六个检查器 `derived` 迁完**，记 §12.26；新增 `decodeUtf8Ignore`（Python `decode("utf-8","ignore")` 等价物，保留原文 U+FFFD 与开头 BOM）；`mutate.mjs` 新增 `typeGuarded` 口径；两个 `golden-*` 脚本加 `FILE_OF` 映射 | 4 个真实仓**都没声明 `derived:`**，真实仓比对几乎无覆盖力，判据靠 selftest 9 条与 `golden/unit/derived.json` 单元样本；变异 108 条（Windows 与 Ubuntu 同口径：98 抓住 + 2 类型守住 + 8 标注 + 0 漏）；摘标注单独验证又验出 3 条标错，补了 A3/A4 断言；全量测试 Ubuntu 924 条 0 败 |
 | 2026-10-07 | **第五个检查器 `drift` 迁完**，记 §12.24；`noteDefault` 提到 `core/shell`，`WORK_ITEM_NAME` 导出复用；`golden-compare` 加 `REGISTERED_PENDING`（样本里带 `registered` 的只比 id/status/where，并显式打印条数）；D19 范围扩大 | 4 个真实仓 16 条逐条一致、selftest 27 条集合相同、变异 194 条（Windows 181 抓住 + 13 标注 + 0 漏）；变异三轮才收拢，漏网都是「样本只放在最容易想到的位置」；摘掉 `unobservable` 标注单独验证发现 4 条标错 |
 | 2026-10-06 | **第四个检查器 `freshness` 迁完**，记 §12.23；新增 D19（日期令牌的非 ASCII 数字，Alan 选保持严格）；日期运算从 `exceptions.ts` 移入 `core/dates.ts` | 4 个真实仓 239 条逐条一致、selftest 22 条集合相同、变异 150 条（Windows 146 抓住 + 4 标注 + 0 漏；Ubuntu 首轮 2 漏，补断言后全抓住）；事先对每个 Python 操作做等价性核对，D18 与 D19 都是写 TS 之前发现的；仍有 7 条等价变异是跑完才发现的 |
