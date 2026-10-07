@@ -7,7 +7,8 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSyn
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadExceptions, _exClosed, mdCells, firstMdTable, exField, addDays, compareDays, EXCEPTION_MAX_DAYS } from '../lib/core/exceptions.js'
+import { loadExceptions, _exClosed, mdCells, firstMdTable, exField, EXCEPTION_MAX_DAYS } from '../lib/core/exceptions.js'
+import { addDays, compareDays } from '../lib/core/dates.js'
 import { toIso } from '../lib/core/dates.js'
 import { loadConfig } from '../lib/core/config.js'
 
@@ -180,7 +181,7 @@ test('日期运算：addDays 跨月跨年跨闰日；compareDays 符号；EXCEPT
 
 test('日期运算与时区无关：在有夏令时、有半小时偏移、UTC+14、UTC-12 的时区下，addDays/compareDays 结果相同（变异 X65、X67）', async () => {
   const { spawnSync } = await import('node:child_process')
-  const code = `import { addDays, compareDays } from ${JSON.stringify(new URL('../lib/core/exceptions.js', import.meta.url).href)}
+  const code = `import { addDays, compareDays } from ${JSON.stringify(new URL('../lib/core/dates.js', import.meta.url).href)}
 const out = []
 for (const [y, m, d] of [[2026, 3, 7], [2026, 3, 8], [2026, 3, 28], [2026, 10, 24], [2026, 10, 25], [2026, 11, 1], [2024, 2, 28], [2026, 10, 6], [2026, 12, 31]])
   for (const n of [0, 1, 2, 30, 365, 366]) out.push(JSON.stringify(addDays({ year: y, month: m, day: d }, n)))
@@ -220,7 +221,7 @@ test('项目自有例外的到期按**严格**模式解析：「日期 + 文字�
 test('todayLocal 取**本地**日期而不是 UTC（Python 的 date.today() 同义）：固定一个本地与 UTC 日期必然不同的时刻（变异 X20）', async () => {
   const { spawnSync } = await import('node:child_process')
   // 2026-10-06T20:00:00Z 在 UTC+14（Pacific/Kiritimati）是 10-07 10:00；在 UTC-12（Etc/GMT+12）是 10-06 08:00；在 UTC 是 10-06
-  const code = `import { todayLocal } from ${JSON.stringify(new URL('../lib/core/exceptions.js', import.meta.url).href)}
+  const code = `import { todayLocal } from ${JSON.stringify(new URL('../lib/core/dates.js', import.meta.url).href)}
 console.log(JSON.stringify(todayLocal(new Date('2026-10-06T20:00:00Z'))))`
   const at = (tz) => JSON.parse(spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', env: { ...process.env, TZ: tz } }).stdout)
   assert.deepEqual(at('Pacific/Kiritimati'), { year: 2026, month: 10, day: 7 }, 'UTC+14：本地已是次日')

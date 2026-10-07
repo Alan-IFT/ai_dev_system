@@ -237,9 +237,10 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/shell.ts`（检查器公共外壳：`runGuarded`、`undeterminedFromException`、`probe`、`probeCrashed`、`unreadable`、`outsideRoot`、`once`、`agg`、`workRootAbsent`——每个检查器都用，所以先于任何检查器迁）
     - [x] `core/fixture.ts`（自检夹具：`writeText`、`writeFiles`、`gitFixture`、`gitTrack`——所有检查器的 selftest 共用）
     - [x] `core/glob.ts`（路径通配，只实现 layout 用到的子集；§12.17）
+    - [x] `core/dates`（日期运算 `todayLocal`/`addDays`/`compareDays` 从 `exceptions.ts` 移来，`freshness` 也用）
     - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
     - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[ ] freshness　[ ] drift
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[ ] drift
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -499,6 +500,18 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **防再犯**：`check-py-semantics.mjs` 加第 6 条规则 `slice-cu`：`src/core` 里 `.slice(0, <大写常量>)` 或 `.slice(0, <≥ 3 位数字>)` 一律报。四处既有的纯展示截断（`fixture`、`shell`、`tracked`）加 `// py-semantics-ok: 展示` 并说明——**标注是让「我知道这里在切什么」可见，不是绕过**；`shell.ts` 那处是数组切元素个数，同样标注。脚本测试补 5 条 must-flag、9 条 must-pass。**这是该脚本抓到的第三类真实问题**（先是 `.trim()`、再是 `\s`，现在是码元切分）。
 - **一个值得记下的教训**：这个缺陷躲过了三个检查器的「4 个真实仓逐条一致 + selftest 集合相同 + 变异全抓住」三道关，原因是**样本里没有这类输入**。变异验证只能证明「测试能抓住我想到的改动」，抓不住「我没想到要测的 Python/JS 差异」。**所以每迁一个新检查器前，对它用到的每一个 Python 字符串/正则/容器操作，都要主动问一遍『JS 里对应的操作在非 ASCII、非 BMP、边界值上等价吗』，并用 Python 实测**。这一轮这样问出了 D18；`core/repr`（§12.21）、`links` 的 `$` 与 `re.I`（§12.20）也是这样问出来的。
 
+### 12.23 第四个检查器 `freshness`：规模最大的一个（1132 行 Python），也是第一个**事先对每个操作做等价性核对**的
+
+- **证据**：4 个真实仓 finding 逐条一致（各仓条数 38、26、76、99，共 239 条）；`selftest` 探针 22 条的 `(id, status)` 集合与黄金样本完全相同；纯函数（`sectionBody`、`lastTransition`、`age`、`intBudget`、`note`、`metadataRequirement`）另有 `golden/unit/freshness.json` 逐条比对；变异 150 条，**Windows 146 抓住 + 4 如实标注 + 0 漏**（`G2`/`G9`/`G10` 不可观察，`G4` 仅 POSIX）；Ubuntu 全量 150 条首轮 145 抓住 + 3 标注 + 2 漏（`W5`、`W7`），补断言后这两条与 `G4` 在 Ubuntu 上单独验证全抓住；全量测试 Ubuntu 837 条 0 败。
+- **「动笔前先问」这次起了作用**：写之前对 `freshness` 用到的每个 Python 字符串、正则、容器操作都问了一遍「JS 里对应的在非 ASCII、非 BMP、边界值上等价吗」，并在 Python 上实测。直接结果是 **D18**（`headOf` 按码元截，§12.22）和 **D19**（日期令牌里的全角数字）都是在**写 TS 之前**发现的，不是事后靠变异撞出来的。D19 经 Alan 决定保持 TS 严格（只认 ASCII）。
+- **D19 的实测依据**：四个真实仓固定提交里，日期字段值以非 ASCII 数字开头的文档 0 份；仓里出现过一次「全角数字」字样，是 pmc 一份审计文档在**讨论**这个 Python 行为，不是日期字段。
+- **把日期运算从 `exceptions.ts` 移到 `core/dates.ts`**：`todayLocal`、`addDays`、`compareDays` 原放在例外登记里，`freshness` 也要用。移了之后连带改了 `exceptions` 的测试导入与 4 条落在这些函数里的变异的文件归属，64 条例外变异仍全部抓住（62 + 2 标注），没有回归。同时 `dirnameOf` 在 `tracked.ts` 与 `freshness.ts` 里有了两份一模一样的，导出一份复用。
+- **变异清单的做法这次改了**：上一轮教训是「先证明等价再跑，不跑完才删」。这次落地了：跑之前核对 160 条锚点全部恰好出现一次；对我怀疑等价的先在 Python 上实测。**但仍有 7 条是跑完才发现等价的**（`S5` 关键词是子串匹配、`T17` 全角令牌被 `parseDate` 拒后跳过、`D1`/`D3` noteDefault 的结构性等价、`L5`/`L7`、`W20`/`W24`、`G6`），说明「先证明」只能覆盖我**想到要怀疑**的那部分。
+- **两条被 Windows 上的真实仓比对「顺带抓住」、Ubuntu 上没有的**（本轮第五次同类）：`W5`（blocked 且超龄不报 FAIL）、`W7`（声明工件落在工作项目录且状态是文档四值）。Ubuntu 日志里「没被抓住」的恰是这两条。补了不依赖真实仓的直接断言。**这个模式已经出现五次，每次都靠 Ubuntu 才暴露**——所以 Ubuntu 这一遍不是可选项，是变异验证里唯一能暴露「靠 4 个真实仓顺带抓住」的一环。
+- **我写断言时的毛病又犯了一次，且这次连续三次改同一条没写对**：`scope` 的异常兜底那条，我先后猜了「`_root` 抛」「`metadata_required` 第二次起抛」「第一次就抛」，三次都错——因为我是在**猜** `classifyStats` 里 try 包住哪几行、`layout` 被读几次。第四次才停下来读栈（`scope` 开头读第 1 次、try 之内第 2 次、try 之外 `inFrozen` 第 3 次），让**第 2 次**抛才对。**教训：写这类「让某处抛异常」的断言前，先用 getter 记栈实测读取次序，不猜。**
+- **一些写测试时才知道的 git 事实**（都已按 Python 实测写进断言）：①`git log` 在「当前分支还没有提交」时退出码 128，不是「无输出」——后者是「有提交但该文件没有历史」；②`git log -1 --format=%cI` **不**触发 `core.fsmonitor`（`ls-files`、`status` 才触发），`log.showSignature` + `gpg.program` 只对**已签名**提交验签——所以 `G2`（不经 `hardenedEnv`）在本机不可观察，标 `unobservable` 并写明实测证据；③git 不在 PATH 时 `git ls-files` 先失败，整轮在文件清单一步记未定，走不到取提交时间那一步，`G9` 因此不可达。
+- **探针脚本的清理**：本块用了五个一次性探针，每个用完即删；它们留下的 `frp*`/`frp2-`/`frp3-`/`frp4-` 临时目录逐个核对精确前缀、去只读属性后删除，没有用通配批量删别的东西。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -550,12 +563,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D16 | `glob` 在 Windows 上的大小写 | Python 的 `glob`（经 `fnmatch` 的 `normcase`）在 Windows 上不区分大小写，POSIX 上区分 | 同 Python：Windows 上带 `i` 标志，其它平台不带 | **不是差异，是「两个平台都与该平台上的 Python 一致」**；登记是因为这条靠平台分支实现，样本只在生成它的平台上整份可比。详见 §12.17 | 平台语义 |
 | D17 | `tracked_files` 的 `.std/` 自排除（`embedded_std_rel`） | 工具自身位于被扫仓的子目录（内嵌的 `.std/`）时，把该目录从扫描面里去掉 | **不带这个机制**，被扫仓的全部 `git ls-files` 结果都在扫描面内 | **对黄金样本零影响**：黄金样本在 `TOOL_ROOT` = 本仓下生成，`embedded_std_rel(扫描根)` 对三个采用项目全部返回 `None`，所以 `.std/` 从未被排除；实测 `links`、`single_authority`、`drift` 三个检查器「排除」与「不排除」的 finding 集合在三个采用项目上完全相同。新架构里采用项目不再内嵌 `.std/`（§8），机制失去对象。**这也意味着 `adoption` 里与它配套的 `embedded-*` 判据一并随阶段 4 消失** | 实现约束；已验证零影响 |
 | D18 | 字符串按码点截取（`s[:n]`） | Python 按**码点**计 | 用 `headChars`（按码点）；JS 的 `slice(0, n)` 按 UTF-16 码元计，BMP 之外的字符（emoji、CJK 扩展区）占 2 个码元，会少取 | **这是一个真实缺陷，不是理论差异**：`core/docs.ts` 的 `headOf` 原用 `text.slice(0, HEAD_CHARS)`，头部含 emoji 的文档，日期或状态字段会被挤出头部，进而影响 `findField`/`itemStatus` → `layout`、`entry_budget`、`freshness` 的 status。对 83 条样本，修前 28 条日期与状态与 Python 不同，修后 0 条。4 个真实仓的黄金样本里没有这种输入，所以此前零差异的结论没受影响，但缺陷一直在。`scripts/check-py-semantics.mjs` 新增规则 `slice-cu` 拦住以后再写 `.slice(0, 常量)`；纯展示的截断加 `// py-semantics-ok: 展示` 标注 | 已修复并机械防住 |
+| D19 | 日期令牌里的非 ASCII 数字（`\d{4}-\d{2}-\d{2}`） | Python 的 `\d` 认全角（`２０２６`）与阿拉伯-印度数字，`int()` 也接受，所以 `updated_at: ２０２６-０９-０１` 被读成 2026-09-01 | 只认 ASCII `0-9`：全角日期读不出，`freshness` 对该文档记「日期解析不了」（未定），不静默通过 | **Alan 2026-10-06 选「保持 TS 严格」**（与已登记的 D1、D4 同向，不新增例外）。真实影响面：四个真实仓固定提交里**日期字段值以非 ASCII 数字开头的文档 0 份**；仓里出现过一次「全角数字」字样，是 pmc 一份审计文档在**讨论**这个 Python 行为（`a5-复审.md` 第 481 行），不是日期字段。作者写成全角日期时，TS 版提示改写成 ASCII，比静默接受更不容易让不同工具读出不同日期 | Alan 2026-10-06 决定 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | **第四个检查器 `freshness` 迁完**，记 §12.23；新增 D19（日期令牌的非 ASCII 数字，Alan 选保持严格）；日期运算从 `exceptions.ts` 移入 `core/dates.ts` | 4 个真实仓 239 条逐条一致、selftest 22 条集合相同、变异 150 条（Windows 146 抓住 + 4 标注 + 0 漏；Ubuntu 首轮 2 漏，补断言后全抓住）；事先对每个 Python 操作做等价性核对，D18 与 D19 都是写 TS 之前发现的；仍有 7 条等价变异是跑完才发现的 |
 | 2026-10-06 | **D18：`docs.ts` 的头部截取按码元、Python 按码点，已迁代码里的真实缺陷**，记 §12.22；新增 `headChars`、`check-py-semantics` 第 6 条规则 `slice-cu` | 修前 83 条样本 28 条与 Python 不同，修后 0 条；变异 7 条两平台全抓住；三个已迁检查器对 4 个真实仓与 selftest 仍零差异（样本里本来就没有这类输入，所以此前的零差异结论不受影响，但缺陷一直在）；脚本测试补 5+9 条 |
 | 2026-10-06 | `core/repr.ts` 完成，记 §12.21；统一八份各自为政的 `pyRepr`（迁 `freshness` 前发现）；变异暴露四处代码冗余，直接删除 | 全量 785 条两平台 0 败；三个已迁检查器对 4 个真实仓与 selftest 仍零差异；变异 31 条两平台全抓住；样本第一版逐码点存了 9.7 MB，改成区间 25 KB |
 | 2026-10-06 | **第三个检查器 `links` 迁完**，记 §12.20；`unquote` 自己实现；`$` 匹配末尾换行之前（D4/D11 的又一处表现） | 4 个真实仓逐条一致、selftest 8 条集合相同、变异 124 条（Windows 123 抓住 + 1 标注）；变异第一轮 130 条跑近 40 分钟，其中 6 条是等价变异——以后写变异清单时先证明等价再跑 |

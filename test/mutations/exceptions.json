@@ -135,7 +135,7 @@
  {
   "id": "X20",
   "title": "todayLocal 改成 UTC 日期",
-  "file": "src/core/exceptions.ts",
+  "file": "src/core/dates.ts",
   "from": "return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }",
   "to": "return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1, day: now.getUTCDate() }"
  },
@@ -431,21 +431,21 @@
  {
   "id": "X65",
   "title": "dayNumber 用本地时区构造日期",
-  "file": "src/core/exceptions.ts",
+  "file": "src/core/dates.ts",
   "from": "return Math.floor(Date.UTC(d.year, d.month - 1, d.day) / 86_400_000)",
   "to": "return Math.floor(new Date(d.year, d.month - 1, d.day).getTime() / 86_400_000)"
  },
  {
   "id": "X66",
   "title": "compareDays 反号",
-  "file": "src/core/exceptions.ts",
+  "file": "src/core/dates.ts",
   "from": "return dayNumber(a) - dayNumber(b)",
   "to": "return dayNumber(b) - dayNumber(a)"
  },
  {
   "id": "X67",
   "title": "fromDayNumber 用本地时区取分量",
-  "file": "src/core/exceptions.ts",
+  "file": "src/core/dates.ts",
   "from": "return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() }",
   "to": "return { year: dt.getFullYear(), month: dt.getMonth() + 1, day: dt.getDate() }"
  }

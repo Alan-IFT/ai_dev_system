@@ -81,7 +81,7 @@ export function workItems(root: string, wroot: string): [string[] | null, string
 }
 
 /** Python 的 `os.path.dirname`（本函数的入参已规范成 `/` 分隔）：最后一个 `/` 之前，没有则空串。 */
-const dirnameOf = (r: string): string => { const i = r.lastIndexOf('/'); return i < 0 ? '' : r.slice(0, i) }
+export const dirnameOf = (r: string): string => { const i = r.lastIndexOf('/'); return i < 0 ? '' : r.slice(0, i) }
 
 /** Python 的 `sorted(list_of_str)` 按码点；JS 的默认 `sort()` 按 UTF-16 码元，BMP 之外的字符次序不同。 */
 export function cmpCodepoint(a: string, b: string): number {

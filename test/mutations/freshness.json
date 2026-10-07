@@ -1,0 +1,1056 @@
+[
+ {
+  "id": "Q1",
+  "title": "五值：命中改为不判 `!` 排除（not_required 与 declared_none 的判据反）",
+  "file": "src/checks/freshness.ts",
+  "from": "return hit ? 'required' : pyTruthy(cfgGet(cfg, 'metadata_required')) ? 'not_required' : 'declared_none'",
+  "to": "return hit ? 'required' : 'not_required'"
+ },
+ {
+  "id": "Q2",
+  "title": "五值：空列表也当 not_required（declared_none 永不出现）",
+  "file": "src/checks/freshness.ts",
+  "from": "pyTruthy(cfgGet(cfg, 'metadata_required')) ? 'not_required' : 'declared_none'",
+  "to": "'not_required'"
+ },
+ {
+  "id": "Q3",
+  "title": "五值：目录名约定连文件名那一段也看（slice(0,-1) 去掉）",
+  "file": "src/checks/freshness.ts",
+  "from": "if (parts.slice(0, -1).some((seg) => IMPORTANT_DIRS.has(seg))) return 'convention'",
+  "to": "if (parts.some((seg) => IMPORTANT_DIRS.has(seg))) return 'convention'"
+ },
+ {
+  "id": "Q4",
+  "title": "五值：目录名约定不命中（恒 unknown）",
+  "file": "src/checks/freshness.ts",
+  "from": "if (parts.slice(0, -1).some((seg) => IMPORTANT_DIRS.has(seg))) return 'convention'",
+  "to": "if (false) return 'convention'"
+ },
+ {
+  "id": "Q5",
+  "title": "五值：路径不把反斜杠换成斜杠",
+  "file": "src/checks/freshness.ts",
+  "from": "const parts = pyStr(rel).replaceAll('\\\\', '/').split('/').filter((p) => p)",
+  "to": "const parts = pyStr(rel).split('/').filter((p) => p)"
+ },
+ {
+  "id": "Q6",
+  "title": "五值：目录名词表少一个（runbooks）",
+  "file": "src/checks/freshness.ts",
+  "from": "'contracts', 'decisions', 'runbooks'])",
+  "to": "'contracts', 'decisions'])"
+ },
+ {
+  "id": "Q7",
+  "title": "五值：目录名词表多一个（docs）",
+  "file": "src/checks/freshness.ts",
+  "from": "'contracts', 'decisions', 'runbooks'])",
+  "to": "'contracts', 'decisions', 'runbooks', 'docs'])"
+ },
+ {
+  "id": "S1",
+  "title": "sectionBody：不认缩进的标题（不 lstrip）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (!pyLstrip(ln).startsWith('#')) continue\n    const title",
+  "to": "    if (!ln.startsWith('#')) continue\n    const title"
+ },
+ {
+  "id": "S2",
+  "title": "sectionBody：标题不转小写（大写 Transition 对不上）",
+  "file": "src/checks/freshness.ts",
+  "from": "const title = pyStrip(pyLstrip(ln).replace(/^#+/, '')).toLowerCase()",
+  "to": "const title = pyStrip(pyLstrip(ln).replace(/^#+/, ''))"
+ },
+ {
+  "id": "S3",
+  "title": "sectionBody：关键词不转小写",
+  "file": "src/checks/freshness.ts",
+  "from": "title.includes(pyStr(k).toLowerCase())",
+  "to": "title.includes(pyStr(k))"
+ },
+ {
+  "id": "S6",
+  "title": "sectionBody：到下一个标题为止改成到文件末尾",
+  "file": "src/checks/freshness.ts",
+  "from": "  for (const ln of lines.slice(start)) {\n    if (pyLstrip(ln).startsWith('#')) break\n    out.push(ln)\n  }",
+  "to": "  for (const ln of lines.slice(start)) {\n    out.push(ln)\n  }"
+ },
+ {
+  "id": "S7",
+  "title": "sectionBody：下一个标题要求不缩进",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (pyLstrip(ln).startsWith('#')) break\n    out.push(ln)",
+  "to": "    if (ln.startsWith('#')) break\n    out.push(ln)"
+ },
+ {
+  "id": "S8",
+  "title": "sectionBody：从标题行本身开始（含标题行）",
+  "file": "src/checks/freshness.ts",
+  "from": "      start = i + 1\n      break",
+  "to": "      start = i\n      break"
+ },
+ {
+  "id": "S9",
+  "title": "sectionBody：取最后一个匹配的标题而不是第一个",
+  "file": "src/checks/freshness.ts",
+  "from": "      start = i + 1\n      break",
+  "to": "      start = i + 1"
+ },
+ {
+  "id": "S10",
+  "title": "sectionBody：按 \\n 切行而不是 Python 的行终止符",
+  "file": "src/checks/freshness.ts",
+  "from": "  const lines = splitLinesPy(text)\n  let start",
+  "to": "  const lines = text.split('\\n')\n  let start"
+ },
+ {
+  "id": "S11",
+  "title": "sectionBody：行之间用 \\r\\n 拼接",
+  "file": "src/checks/freshness.ts",
+  "from": "  return out.join('\\n')\n}",
+  "to": "  return out.join('\\r\\n')\n}"
+ },
+ {
+  "id": "S12",
+  "title": "sectionBody：找不到返回空串而不是 null",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (start === null) return null\n  const out: string[] = []",
+  "to": "  if (start === null) return ''\n  const out: string[] = []"
+ },
+ {
+  "id": "S13",
+  "title": "sectionBody：lstrip 不去全角空格（只去 ASCII 空白）",
+  "file": "src/checks/freshness.ts",
+  "from": "const pyLstrip = (s: string): string => s.replace(new RegExp(`^${WS}+`), '')",
+  "to": "const pyLstrip = (s: string): string => s.replace(/^[ \\t]+/, '')"
+ },
+ {
+  "id": "T1",
+  "title": "转换：显式字段名少一个（状态更新时间）",
+  "file": "src/checks/freshness.ts",
+  "from": "'最后状态转换时间', '状态更新时间'] as const",
+  "to": "'最后状态转换时间'] as const"
+ },
+ {
+  "id": "T2",
+  "title": "转换：显式字段名少一个（state_changed_at）",
+  "file": "src/checks/freshness.ts",
+  "from": "'last_transition_at', 'state_changed_at', ",
+  "to": "'last_transition_at', "
+ },
+ {
+  "id": "T3",
+  "title": "转换：小节标题词表少一个（transition）",
+  "file": "src/checks/freshness.ts",
+  "from": "'转换记录', 'transition'] as const",
+  "to": "'转换记录'] as const"
+ },
+ {
+  "id": "T4",
+  "title": "转换：小节标题词表少一个（状态转换）",
+  "file": "src/checks/freshness.ts",
+  "from": "['状态转换记录', '状态转换', '转换记录', 'transition']",
+  "to": "['状态转换记录', '转换记录', 'transition']"
+ },
+ {
+  "id": "T5",
+  "title": "转换：显式字段解析失败也退到小节（应记 bad）",
+  "file": "src/checks/freshness.ts",
+  "from": "    return { d: null, how: null, err: ['bad', `字段 ${name} 的值解析不了（${err}）`] }\n  }",
+  "to": "  }"
+ },
+ {
+  "id": "T6",
+  "title": "转换：显式字段取值用 cleaned 之前的原文",
+  "file": "src/checks/freshness.ts",
+  "from": "how: `取自显式字段 ${name} = ${clean(val)}`",
+  "to": "how: `取自显式字段 ${name} = ${val}`"
+ },
+ {
+  "id": "T7",
+  "title": "转换：记录行的行首只认 | 不认列表项",
+  "file": "src/checks/freshness.ts",
+  "from": "`^${WS}*(?:\\\\||[-*+]${WS})`",
+  "to": "`^${WS}*(?:\\\\|)`"
+ },
+ {
+  "id": "T8",
+  "title": "转换：记录行的行首只认列表项不认 |",
+  "file": "src/checks/freshness.ts",
+  "from": "`^${WS}*(?:\\\\||[-*+]${WS})`",
+  "to": "`^${WS}*(?:[-*+]${WS})`"
+ },
+ {
+  "id": "T9",
+  "title": "转换：列表项符号少一个（+）",
+  "file": "src/checks/freshness.ts",
+  "from": "[-*+]${WS})`)",
+  "to": "[-*]${WS})`)"
+ },
+ {
+  "id": "T10",
+  "title": "转换：列表项符号后要求空格而不是 Python 空白（只认 ' '）",
+  "file": "src/checks/freshness.ts",
+  "from": "[-*+]${WS})`)",
+  "to": "[-*+] )`)"
+ },
+ {
+  "id": "T11",
+  "title": "转换：行首不容空白",
+  "file": "src/checks/freshness.ts",
+  "from": "`^${WS}*(?:\\\\||[-*+]${WS})`",
+  "to": "`^(?:\\\\||[-*+]${WS})`"
+ },
+ {
+  "id": "T12",
+  "title": "转换：只认第一段连续记录行改成扫全节（取到后面的备注）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (!RECORD_LINE.test(ln)) {\n      if (started) break\n      continue\n    }",
+  "to": "    if (!RECORD_LINE.test(ln)) {\n      continue\n    }"
+ },
+ {
+  "id": "T13",
+  "title": "转换：遇到非记录行不 continue（直接停）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (!RECORD_LINE.test(ln)) {\n      if (started) break\n      continue\n    }",
+  "to": "    if (!RECORD_LINE.test(ln)) {\n      break\n    }"
+ },
+ {
+  "id": "T14",
+  "title": "转换：取一行里最后一个日期而不是第一个",
+  "file": "src/checks/freshness.ts",
+  "from": "      if (d) {\n        last = d\n        break\n      }",
+  "to": "      if (d) {\n        last = d\n      }"
+ },
+ {
+  "id": "T15",
+  "title": "转换：取第一条记录而不是最后一条",
+  "file": "src/checks/freshness.ts",
+  "from": "      if (d) {\n        last = d\n        break\n      }",
+  "to": "      if (d) {\n        if (last === null) last = d\n        break\n      }"
+ },
+ {
+  "id": "T16",
+  "title": "转换：取全节最大日期",
+  "file": "src/checks/freshness.ts",
+  "from": "      if (d) {\n        last = d\n        break\n      }",
+  "to": "      if (d) {\n        if (last === null || compareDays(d, last) > 0) last = d\n        break\n      }"
+ },
+ {
+  "id": "T18",
+  "title": "转换：日期令牌不要求 4-2-2 位（宽松）",
+  "file": "src/checks/freshness.ts",
+  "from": "const DATE_TOKEN = /[0-9]{4}-[0-9]{2}-[0-9]{2}/g",
+  "to": "const DATE_TOKEN = /[0-9]+-[0-9]+-[0-9]+/g"
+ },
+ {
+  "id": "T19",
+  "title": "转换：小节无日期记 absent（会退到提交时间）",
+  "file": "src/checks/freshness.ts",
+  "from": "    return { d: null, how: null, err: ['bad', '状态转换记录小节里找不到带日期的记录行（表格行或列表项）'] }",
+  "to": "    return { d: null, how: null, err: ['absent', '状态转换记录小节里找不到带日期的记录行（表格行或列表项）'] }"
+ },
+ {
+  "id": "T20",
+  "title": "转换：无小节记 bad（不退到提交时间）",
+  "file": "src/checks/freshness.ts",
+  "from": "err: ['absent', '文件里没有状态转换记录小节，也没有显式转换时间字段']",
+  "to": "err: ['bad', '文件里没有状态转换记录小节，也没有显式转换时间字段']"
+ },
+ {
+  "id": "T21",
+  "title": "转换：how 文案不写日期",
+  "file": "src/checks/freshness.ts",
+  "from": "how: `取自状态转换记录的最后一条（${toIso(last)}）`",
+  "to": "how: '取自状态转换记录的最后一条'"
+ },
+ {
+  "id": "A1",
+  "title": "age：晚一天不按当天算",
+  "file": "src/checks/freshness.ts",
+  "from": "  return a === -1 ? 0 : a",
+  "to": "  return a"
+ },
+ {
+  "id": "A2",
+  "title": "age：晚两天也按当天算（-2 → 0）",
+  "file": "src/checks/freshness.ts",
+  "from": "  return a === -1 ? 0 : a",
+  "to": "  return a >= -2 ? Math.max(a, 0) : a"
+ },
+ {
+  "id": "A3",
+  "title": "age：符号取反",
+  "file": "src/checks/freshness.ts",
+  "from": "  const a = compareDays(today, d)\n",
+  "to": "  const a = compareDays(d, today)\n"
+ },
+ {
+  "id": "B1",
+  "title": "预算：缺省不取默认（当错）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (raw === undefined || raw === null) return [dflt, true, null]",
+  "to": "  if (raw === undefined || raw === null) return [null, false, `${path} 未配`]"
+ },
+ {
+  "id": "B2",
+  "title": "预算：缺省时不标注用了默认",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (raw === undefined || raw === null) return [dflt, true, null]",
+  "to": "  if (raw === undefined || raw === null) return [dflt, false, null]"
+ },
+ {
+  "id": "B3",
+  "title": "预算：浮点整数值也收（typeof number 即收）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) return",
+  "to": "  if (typeof raw !== 'number' || raw <= 0) return"
+ },
+ {
+  "id": "B4",
+  "title": "预算：0 也收",
+  "file": "src/checks/freshness.ts",
+  "from": "|| !Number.isInteger(raw) || raw <= 0) return",
+  "to": "|| !Number.isInteger(raw) || raw < 0) return"
+ },
+ {
+  "id": "B5",
+  "title": "预算：布尔也收（真当 1）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) return [null",
+  "to": "  if (raw === true) return [1, false, null]\n  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) return [null"
+ },
+ {
+  "id": "B6",
+  "title": "预算：原因里的值不 repr",
+  "file": "src/checks/freshness.ts",
+  "from": "`${path} = ${pyRepr(raw)}，不是正整数`",
+  "to": "`${path} = ${raw}，不是正整数`"
+ },
+ {
+  "id": "B7",
+  "title": "note：默认与声明两种文案写反",
+  "file": "src/checks/freshness.ts",
+  "from": "return usedDefault ? `${name} 用的是本工具默认值",
+  "to": "return !usedDefault ? `${name} 用的是本工具默认值"
+ },
+ {
+  "id": "D2",
+  "title": "noteDefault：evidence 为空时也加分号",
+  "file": "src/checks/freshness.ts",
+  "from": "f.evidence = ev + (ev ? '；' : '') + n",
+  "to": "f.evidence = ev + '；' + n"
+ },
+ {
+  "id": "F1",
+  "title": "扫描面：只扫 docs_root（不并上 metadata_required 前缀）",
+  "file": "src/checks/freshness.ts",
+  "from": "files!.filter((r) => under(r, docsRoot) || metadataRequirement(cfg, r) === 'required')",
+  "to": "files!.filter((r) => under(r, docsRoot))"
+ },
+ {
+  "id": "F2",
+  "title": "扫描面：只扫 metadata_required 命中（不含 docs_root）",
+  "file": "src/checks/freshness.ts",
+  "from": "files!.filter((r) => under(r, docsRoot) || metadataRequirement(cfg, r) === 'required')",
+  "to": "files!.filter((r) => metadataRequirement(cfg, r) === 'required')"
+ },
+ {
+  "id": "F3",
+  "title": "扫描面：整仓",
+  "file": "src/checks/freshness.ts",
+  "from": "files!.filter((r) => under(r, docsRoot) || metadataRequirement(cfg, r) === 'required')",
+  "to": "files!"
+ },
+ {
+  "id": "L1",
+  "title": "layout 已查：不判 layout 被裁（总当 layout 查了）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (isTailoredOut(cfg, 'layout')[0]) return new Set()",
+  "to": ""
+ },
+ {
+  "id": "L2",
+  "title": "layout 已查：不判工件被裁",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (artifactTailored(cfg, role)[0]) continue\n    const paths",
+  "to": "    const paths"
+ },
+ {
+  "id": "L3",
+  "title": "layout 已查：只算验收不算状态",
+  "file": "src/checks/freshness.ts",
+  "from": "[['acceptance', ACCEPTANCE_CANDIDATES], ['status', STATUS_CANDIDATES]] as const",
+  "to": "[['acceptance', ACCEPTANCE_CANDIDATES]] as const"
+ },
+ {
+  "id": "L4",
+  "title": "layout 已查：只算状态不算验收",
+  "file": "src/checks/freshness.ts",
+  "from": "[['acceptance', ACCEPTANCE_CANDIDATES], ['status', STATUS_CANDIDATES]] as const",
+  "to": "[['status', STATUS_CANDIDATES]] as const"
+ },
+ {
+  "id": "L6",
+  "title": "layout 已查：.md 后缀判断区分大小写",
+  "file": "src/checks/freshness.ts",
+  "from": "p.toLowerCase().endsWith('.md')) out.add(p)",
+  "to": "p.endsWith('.md')) out.add(p)"
+ },
+ {
+  "id": "L8",
+  "title": "layout 已查：存在就 break 改成继续找下一个候选",
+  "file": "src/checks/freshness.ts",
+  "from": "        if (isFile(full) && p.toLowerCase().endsWith('.md')) out.add(p)\n        break",
+  "to": "        if (isFile(full) && p.toLowerCase().endsWith('.md')) out.add(p)"
+ },
+ {
+  "id": "L9",
+  "title": "layout 已查：声明的落点不优先（总用候选）",
+  "file": "src/checks/freshness.ts",
+  "from": "const paths = pyTruthy(a[role]) ? [a[role]] : cands.map(",
+  "to": "const paths = cands.map("
+ },
+ {
+  "id": "L10",
+  "title": "layout 已查：候选不随 docs_root 改基",
+  "file": "src/checks/freshness.ts",
+  "from": "cands.map((c) => rebaseDocs(c, docsRootOf(cfg)[0]))",
+  "to": "cands.map((c) => c)"
+ },
+ {
+  "id": "L11",
+  "title": "layout 已查：落点不去首尾斜杠",
+  "file": "src/checks/freshness.ts",
+  "from": "const p = normRel(p0).replace(/^\\/+|\\/+$/g, '')",
+  "to": "const p = normRel(p0)"
+ },
+ {
+  "id": "C1",
+  "title": "分类统计：归档区不单列（归入某类）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (inFrozen(cfg, rel)) {\n      stats.frozen++\n      continue\n    }\n    const need",
+  "to": "    const need"
+ },
+ {
+  "id": "C2",
+  "title": "分类统计：declared_none 不并入 not_required",
+  "file": "src/checks/freshness.ts",
+  "from": "const key = need === 'declared_none' ? 'not_required' : need === 'convention' ? 'required' : need",
+  "to": "const key = need === 'convention' ? 'required' : need === 'declared_none' ? 'unknown' : need"
+ },
+ {
+  "id": "C3",
+  "title": "分类统计：convention 不并入 required",
+  "file": "src/checks/freshness.ts",
+  "from": "const key = need === 'declared_none' ? 'not_required' : need === 'convention' ? 'required' : need",
+  "to": "const key = need === 'declared_none' ? 'not_required' : need === 'convention' ? 'unknown' : need"
+ },
+ {
+  "id": "C4",
+  "title": "分类统计：scanned 把归档区也算进去",
+  "file": "src/checks/freshness.ts",
+  "from": "  stats.scanned = stats.required + stats.not_required + stats.unknown",
+  "to": "  stats.scanned = stats.required + stats.not_required + stats.unknown + stats.frozen"
+ },
+ {
+  "id": "C5",
+  "title": "分类统计：取不到时不返回 null（返回零）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (problem || files === null) return null\n  const stats",
+  "to": "  if (problem || files === null) return { required: 0, not_required: 0, unknown: 0, frozen: 0, scanned: 0 }\n  const stats"
+ },
+ {
+  "id": "C6",
+  "title": "分类统计：异常时抛出而不是返回 null",
+  "file": "src/checks/freshness.ts",
+  "from": "  } catch {\n    return null // 覆盖边界不该把主流程带崩\n  }",
+  "to": "  } catch (e) {\n    throw e\n  }"
+ },
+ {
+  "id": "R1",
+  "title": "文档：阈值判据 > 改 >=（刚好等于阈值算超期）",
+  "file": "src/checks/freshness.ts",
+  "from": "    } else if (a > days!) {\n      out.push(finding(NAME, UNDETERMINED, `${rel} 已",
+  "to": "    } else if (a >= days!) {\n      out.push(finding(NAME, UNDETERMINED, `${rel} 已"
+ },
+ {
+  "id": "R2",
+  "title": "文档：超期记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${rel} 已 ${a} 天未更新",
+  "to": "out.push(finding(NAME, FAIL, `${rel} 已 ${a} 天未更新"
+ },
+ {
+  "id": "R3",
+  "title": "文档：stale 的 kind 改名（id 变）",
+  "file": "src/checks/freshness.ts",
+  "from": "where: `${rel}:1`, kind: 'stale', key: rel,",
+  "to": "where: `${rel}:1`, kind: 'stale_doc', key: rel,"
+ },
+ {
+  "id": "R4",
+  "title": "文档：stale 的 key 丢掉",
+  "file": "src/checks/freshness.ts",
+  "from": "where: `${rel}:1`, kind: 'stale', key: rel,",
+  "to": "where: `${rel}:1`, kind: 'stale',"
+ },
+ {
+  "id": "R5",
+  "title": "文档：未来日期记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `日期晚于基准日：${rel}`",
+  "to": "out.push(finding(NAME, FAIL, `日期晚于基准日：${rel}`"
+ },
+ {
+  "id": "R6",
+  "title": "文档：日期解析不了记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `日期解析不了：${rel}`",
+  "to": "out.push(finding(NAME, FAIL, `日期解析不了：${rel}`"
+ },
+ {
+  "id": "R7",
+  "title": "文档：缺日期（项目声明）记未定而不是 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, FAIL, `缺日期字段：${rel}`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `缺日期字段：${rel}`"
+ },
+ {
+  "id": "R8",
+  "title": "文档：值为空不当缺（直接解析空串）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (value === null || !clean(value)) {\n      if (byLayout.has(rel)) continue",
+  "to": "    if (value === null) {\n      if (byLayout.has(rel)) continue"
+ },
+ {
+  "id": "R9",
+  "title": "文档：日期字段只在头部找改成全文找",
+  "file": "src/checks/freshness.ts",
+  "from": "findField(headChars(text, HEAD_CHARS), names)",
+  "to": "findField(text, names)"
+ },
+ {
+  "id": "R10",
+  "title": "文档：头部按码元截（D18）",
+  "file": "src/checks/freshness.ts",
+  "from": "findField(headChars(text, HEAD_CHARS), names)",
+  "to": "findField(text.slice(0, HEAD_CHARS), names)"
+ },
+ {
+  "id": "R11",
+  "title": "文档：缺日期的 where 不带 :1",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, FAIL, `缺日期字段：${rel}`, {\n        where: `${rel}:1`,",
+  "to": "out.push(finding(NAME, FAIL, `缺日期字段：${rel}`, {\n        where: rel,"
+ },
+ {
+  "id": "R12",
+  "title": "文档：PASS 的 where 带 :1",
+  "file": "src/checks/freshness.ts",
+  "from": "距今 ${a} 天，在阈值 ${days} 天内`, { where: rel,",
+  "to": "距今 ${a} 天，在阈值 ${days} 天内`, { where: `${rel}:1`,"
+ },
+ {
+  "id": "R13",
+  "title": "文档：layout 已查的缺日期不跳过（重报）",
+  "file": "src/checks/freshness.ts",
+  "from": "      if (byLayout.has(rel)) continue // layout 已查这件的日期字段",
+  "to": "      // layout 已查这件的日期字段"
+ },
+ {
+  "id": "R14",
+  "title": "文档：not_required 记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, SKIP, `不要求元信息：${rel}`",
+  "to": "out.push(finding(NAME, FAIL, `不要求元信息：${rel}`"
+ },
+ {
+  "id": "R15",
+  "title": "文档：字段名是默认时也判 FAIL（不分 fieldGuessed）",
+  "file": "src/checks/freshness.ts",
+  "from": "      if (namesDefault) { fieldGuessed.push(rel); continue }",
+  "to": ""
+ },
+ {
+  "id": "R16",
+  "title": "文档：状态字段只对 required 查改成对所有查",
+  "file": "src/checks/freshness.ts",
+  "from": "metadataRequirement(cfg, rel) === 'required' && itemStatus(text) === null) noStatus.push(rel)",
+  "to": "itemStatus(text) === null) noStatus.push(rel)"
+ },
+ {
+  "id": "R17",
+  "title": "文档：状态字段不排除 layout 已查的",
+  "file": "src/checks/freshness.ts",
+  "from": "if (!byLayout.has(rel) && !(inWdir && isWorkItemName(rel))",
+  "to": "if (!(inWdir && isWorkItemName(rel))"
+ },
+ {
+  "id": "R18",
+  "title": "文档：状态字段不排除 WI-*",
+  "file": "src/checks/freshness.ts",
+  "from": "if (!byLayout.has(rel) && !(inWdir && isWorkItemName(rel)) &&",
+  "to": "if (!byLayout.has(rel) &&"
+ },
+ {
+  "id": "R19",
+  "title": "文档：工作项目录判据只看是否 WI-*（不看是否在工作项目录里）",
+  "file": "src/checks/freshness.ts",
+  "from": "!(inWdir && isWorkItemName(rel))",
+  "to": "!isWorkItemName(rel)"
+ },
+ {
+  "id": "R20",
+  "title": "文档：工作项目录的判据 dirname === wdir 改成 under",
+  "file": "src/checks/freshness.ts",
+  "from": "const inWdir = dirnameOf(rel) === wdir",
+  "to": "const inWdir = under(rel, wdir)"
+ },
+ {
+  "id": "R21",
+  "title": "文档：读过的工作项不留给活性巡检（读两遍）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (inWdir) texts.set(rel, text)\n",
+  "to": ""
+ },
+ {
+  "id": "R22",
+  "title": "文档：读不了不记 unreadable（吞掉）",
+  "file": "src/checks/freshness.ts",
+  "from": "      out.push(unreadable(NAME, rel, exc))\n      continue\n    }\n    const inWdir",
+  "to": "      continue\n    }\n    const inWdir"
+ },
+ {
+  "id": "R23",
+  "title": "文档：归档区不跳过",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (inFrozen(cfg, rel)) {\n      frozen.push(rel)\n      continue\n    }\n    let text: string\n    try {\n      text = readText(join(root, ...rel.split('/')), root)",
+  "to": "    let text: string\n    try {\n      text = readText(join(root, ...rel.split('/')), root)"
+ },
+ {
+  "id": "R24",
+  "title": "文档：文档根不存在不返回（继续往下）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (!isDir(path)) {\n    return [finding(NAME, UNDETERMINED, `文档根目录不存在：${docsRoot}`",
+  "to": "  if (false) {\n    return [finding(NAME, UNDETERMINED, `文档根目录不存在：${docsRoot}`"
+ },
+ {
+  "id": "R25",
+  "title": "文档：文档根不存在的 reason 默认与声明写反",
+  "file": "src/checks/freshness.ts",
+  "from": "      reason: !dnote ? 'layout.docs_root 指向的目录不在",
+  "to": "      reason: dnote ? 'layout.docs_root 指向的目录不在"
+ },
+ {
+  "id": "R26",
+  "title": "文档：空集记 PASS",
+  "file": "src/checks/freshness.ts",
+  "from": "    return [finding(NAME, UNDETERMINED, `${docsRoot} 下没有 git 跟踪的 markdown`",
+  "to": "    return [finding(NAME, PASS, `${docsRoot} 下没有 git 跟踪的 markdown`"
+ },
+ {
+  "id": "R27",
+  "title": "文档：列不出时记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "return [finding(NAME, UNDETERMINED, '列不出 git 跟踪的文档'",
+  "to": "return [finding(NAME, FAIL, '列不出 git 跟踪的文档'"
+ },
+ {
+  "id": "R28",
+  "title": "文档：聚合 SKIP 归档区的 kind 改名",
+  "file": "src/checks/freshness.ts",
+  "from": "'落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务', '', 'frozen-docs'))",
+  "to": "'落在 layout.frozen 内；01 §3.1：一次性对齐工件不承担更新义务', '', 'frozen_docs'))"
+ },
+ {
+  "id": "R29",
+  "title": "文档：unclassified 的 kind 改名",
+  "file": "src/checks/freshness.ts",
+  "from": "'01 §3.5 元信息要求覆盖六类重要文档；01 §2 N1 判不了的不记通过也不记不适用', 'undated-unclassified'))",
+  "to": "'01 §3.5 元信息要求覆盖六类重要文档；01 §2 N1 判不了的不记通过也不记不适用', 'undated_unclassified'))"
+ },
+ {
+  "id": "R30",
+  "title": "文档：unclassified 记 SKIP（拿没看冒充不适用）",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, '缺日期字段，且判不了它们属不属于 01 §3.5 的六类', unclassified,",
+  "to": "out.push(agg(NAME, SKIP, '缺日期字段，且判不了它们属不属于 01 §3.5 的六类', unclassified,"
+ },
+ {
+  "id": "R31",
+  "title": "文档：convention 记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, '缺日期字段，按目录名约定像是 01 §3.5 的六类', byConvention,",
+  "to": "out.push(agg(NAME, FAIL, '缺日期字段，按目录名约定像是 01 §3.5 的六类', byConvention,"
+ },
+ {
+  "id": "R32",
+  "title": "文档：declared_none 记未定",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, SKIP, '缺日期字段，项目声明没有需要日期元数据的文档类', declaredNone,",
+  "to": "out.push(agg(NAME, UNDETERMINED, '缺日期字段，项目声明没有需要日期元数据的文档类', declaredNone,"
+ },
+ {
+  "id": "R33",
+  "title": "文档：no-status-field 记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, 'metadata_required 命中的文档头部没认出状态字段', noStatus,",
+  "to": "out.push(agg(NAME, FAIL, 'metadata_required 命中的文档头部没认出状态字段', noStatus,"
+ },
+ {
+  "id": "R34",
+  "title": "文档：fieldGuessed 记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, `metadata_required 要求带日期，但没认出默认日期字段 ${names.join('/')}`, fieldGuessed,",
+  "to": "out.push(agg(NAME, FAIL, `metadata_required 要求带日期，但没认出默认日期字段 ${names.join('/')}`, fieldGuessed,"
+ },
+ {
+  "id": "R35",
+  "title": "文档：fnote 默认与声明文案写反",
+  "file": "src/checks/freshness.ts",
+  "from": "const fnote = namesDefault ? `日期字段名用的是默认",
+  "to": "const fnote = !namesDefault ? `日期字段名用的是默认"
+ },
+ {
+  "id": "R36",
+  "title": "文档：阈值错记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "return [finding(NAME, UNDETERMINED, '文档新鲜度阈值不是正整数'",
+  "to": "return [finding(NAME, FAIL, '文档新鲜度阈值不是正整数'"
+ },
+ {
+  "id": "W1",
+  "title": "工作项：阈值判据 > 改 >=",
+  "file": "src/checks/freshness.ts",
+  "from": "    } else if (a > days!) {\n      out.push(finding(NAME, FAIL, `进行中工作项",
+  "to": "    } else if (a >= days!) {\n      out.push(finding(NAME, FAIL, `进行中工作项"
+ },
+ {
+  "id": "W2",
+  "title": "工作项：超龄记未定而不是 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, FAIL, `进行中工作项 ${a} 天无状态转换，需核实：${rel}`, {",
+  "to": "out.push(finding(NAME, UNDETERMINED, `进行中工作项 ${a} 天无状态转换，需核实：${rel}`, { reason: 'x',"
+ },
+ {
+  "id": "W3",
+  "title": "工作项：work-item-stale 的 kind 改名",
+  "file": "src/checks/freshness.ts",
+  "from": "where: rel, kind: 'work-item-stale', key: rel,",
+  "to": "where: rel, kind: 'work_item_stale', key: rel,"
+ },
+ {
+  "id": "W4",
+  "title": "工作项：work-item-stale 的 key 丢掉（id 随标题天数漂）",
+  "file": "src/checks/freshness.ts",
+  "from": "where: rel, kind: 'work-item-stale', key: rel,",
+  "to": "where: rel, kind: 'work-item-stale',"
+ },
+ {
+  "id": "W5",
+  "title": "工作项：只巡检 in_progress 改成也巡检 blocked",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (cls !== 'in_progress') {",
+  "to": "    if (cls !== 'in_progress' && cls !== 'blocked') {"
+ },
+ {
+  "id": "W6",
+  "title": "工作项：所有状态都巡检",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (cls !== 'in_progress') {",
+  "to": "    if (false) {"
+ },
+ {
+  "id": "W7",
+  "title": "工作项：文档类不跳过（当工作项巡检）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (kind === 'document') {\n      docs.push(",
+  "to": "    if (false) {\n      docs.push("
+ },
+ {
+  "id": "W8",
+  "title": "工作项：未知状态词不记 unknown（跳过）",
+  "file": "src/checks/freshness.ts",
+  "from": "    if (cls === null) {\n      ;(kind === 'document' ? unknownDocs : unknown).push(`${rel}（${status || '空'}）`)\n      continue\n    }",
+  "to": "    if (cls === null) {\n      continue\n    }"
+ },
+ {
+  "id": "W9",
+  "title": "工作项：未知状态的文档与工作项归类反了",
+  "file": "src/checks/freshness.ts",
+  "from": ";(kind === 'document' ? unknownDocs : unknown).push(",
+  "to": ";(kind === 'document' ? unknown : unknownDocs).push("
+ },
+ {
+  "id": "W10",
+  "title": "工作项：无状态的 WI-* 与非 WI-* 归类反了",
+  "file": "src/checks/freshness.ts",
+  "from": ";(isWorkItemName(rel) ? nostatus : notItems).push(rel)",
+  "to": ";(isWorkItemName(rel) ? notItems : nostatus).push(rel)"
+ },
+ {
+  "id": "W11",
+  "title": "工作项：无状态一律记 nostatus",
+  "file": "src/checks/freshness.ts",
+  "from": ";(isWorkItemName(rel) ? nostatus : notItems).push(rel)",
+  "to": ";nostatus.push(rel)"
+ },
+ {
+  "id": "W12",
+  "title": "工作项：状态认不出时不用 statusKind（直接当工作项）",
+  "file": "src/checks/freshness.ts",
+  "from": "const [kind, cls] = statusKind(cfg, rel, status) // 工作项还是文档，只在 core/docs 一处分（D-134）",
+  "to": "const kind: string = 'work_item'; const cls: string | null = status === 'in_progress' ? 'in_progress' : 'planned' // 工作项还是文档，只在 core/docs 一处分（D-134）"
+ },
+ {
+  "id": "W13",
+  "title": "工作项：无转换时间且无小节时不退 git（直接未定）",
+  "file": "src/checks/freshness.ts",
+  "from": "    } else if (lt.err[0] === 'absent') {",
+  "to": "    } else if ((lt.err[0] as string) === '__never__') {"
+ },
+ {
+  "id": "W14",
+  "title": "工作项：退 git 取到时间后不标 usedGit（caveat 不写注意）",
+  "file": "src/checks/freshness.ts",
+  "from": "      d = gd\n      usedGit = true",
+  "to": "      d = gd\n      usedGit = false"
+ },
+ {
+  "id": "W15",
+  "title": "工作项：退 git 的 how 文案不带路径",
+  "file": "src/checks/freshness.ts",
+  "from": "how = `用的是提交时间，不是显式状态时间戳（git log -1 --format=%cI -- ${rel}）`",
+  "to": "how = '用的是提交时间，不是显式状态时间戳'"
+ },
+ {
+  "id": "W16",
+  "title": "工作项：git 取不到时记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `取不到最后状态转换时间：${rel}`",
+  "to": "out.push(finding(NAME, FAIL, `取不到最后状态转换时间：${rel}`"
+ },
+ {
+  "id": "W17",
+  "title": "工作项：转换时间解析不了记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `状态转换时间解析不了：${rel}`",
+  "to": "out.push(finding(NAME, FAIL, `状态转换时间解析不了：${rel}`"
+ },
+ {
+  "id": "W18",
+  "title": "工作项：未来日期记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `状态转换时间晚于基准日：${rel}`",
+  "to": "out.push(finding(NAME, FAIL, `状态转换时间晚于基准日：${rel}`"
+ },
+ {
+  "id": "W19",
+  "title": "工作项：读文本不从缓存取（读两遍）",
+  "file": "src/checks/freshness.ts",
+  "from": "      text = cached === undefined ? readText(join(root, ...rel.split('/')), root) : cached",
+  "to": "      text = readText(join(root, ...rel.split('/')), root)"
+ },
+ {
+  "id": "W21",
+  "title": "工作项：读不了不记 unreadable（吞掉）（需 __testHooks 注入读失败且工作项目录在文档根之外）",
+  "file": "src/checks/freshness.ts",
+  "from": "      out.push(unreadable(NAME, rel, exc))\n      continue\n    }\n\n    const status = itemStatus(text)",
+  "to": "      continue\n    }\n\n    const status = itemStatus(text)"
+ },
+ {
+  "id": "W22",
+  "title": "工作项：归档区不跳过",
+  "file": "src/checks/freshness.ts",
+  "from": "  for (const rel of files!) {\n    if (inFrozen(cfg, rel)) {\n      frozen.push(rel)\n      continue\n    }\n    let text: string",
+  "to": "  for (const rel of files!) {\n    let text: string"
+ },
+ {
+  "id": "W23",
+  "title": "工作项：目录不在时不返回 SKIP（继续）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (absent) return [absent]",
+  "to": ""
+ },
+ {
+  "id": "W25",
+  "title": "工作项：空集不记未定（返回空）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (out.length === 0) {\n    out.push(finding(NAME, UNDETERMINED, `${wroot} 下没有可判定的工作项`",
+  "to": "  if (false) {\n    out.push(finding(NAME, UNDETERMINED, `${wroot} 下没有可判定的工作项`"
+ },
+ {
+  "id": "W26",
+  "title": "工作项：非进行中记未定而不是 SKIP",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, SKIP, '非进行中状态的工作项', other,",
+  "to": "out.push(agg(NAME, UNDETERMINED, '非进行中状态的工作项', other,"
+ },
+ {
+  "id": "W27",
+  "title": "工作项：nostatus 记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, 'WI-* 工作项读不到状态字段', nostatus,",
+  "to": "out.push(agg(NAME, FAIL, 'WI-* 工作项读不到状态字段', nostatus,"
+ },
+ {
+  "id": "W28",
+  "title": "工作项：unknown-state 记 SKIP",
+  "file": "src/checks/freshness.ts",
+  "from": "out.push(agg(NAME, UNDETERMINED, '工作项状态不在已知词表', unknown,",
+  "to": "out.push(agg(NAME, SKIP, '工作项状态不在已知词表', unknown,"
+ },
+ {
+  "id": "W29",
+  "title": "工作项：阈值错记 FAIL",
+  "file": "src/checks/freshness.ts",
+  "from": "return [finding(NAME, UNDETERMINED, '工作项活性阈值不是正整数'",
+  "to": "return [finding(NAME, FAIL, '工作项活性阈值不是正整数'"
+ },
+ {
+  "id": "W30",
+  "title": "工作项：阈值默认 14 改 15",
+  "file": "src/checks/freshness.ts",
+  "from": "const DEFAULT_WORK_ITEM_STALE_DAYS = 14",
+  "to": "const DEFAULT_WORK_ITEM_STALE_DAYS = 15"
+ },
+ {
+  "id": "W31",
+  "title": "文档：阈值默认 90 改 91",
+  "file": "src/checks/freshness.ts",
+  "from": "const DEFAULT_STALE_DAYS = 90",
+  "to": "const DEFAULT_STALE_DAYS = 91"
+ },
+ {
+  "id": "G1",
+  "title": "git：路径不按字面（去 --literal-pathspecs）",
+  "file": "src/checks/freshness.ts",
+  "from": "spawnSync('git', ['--literal-pathspecs', '-C', root, 'log',",
+  "to": "spawnSync('git', ['-C', root, 'log',"
+ },
+ {
+  "id": "G2",
+  "title": "git：不经 hardenedEnv",
+  "file": "src/checks/freshness.ts",
+  "from": "env: hardenedEnv(process.env) as NodeJS.ProcessEnv })\n  } catch (exc) {\n    return [null, `跑不了 git log",
+  "to": "env: process.env })\n  } catch (exc) {\n    return [null, `跑不了 git log",
+  "unobservable": "防御纵深，本机不可观察：实测 `git log -1 --format=%cI` 不触发 core.fsmonitor（`ls-files`、`status` 才触发——那一路由 core/tracked 的恶意仓测试钉死）；log.showSignature+gpg.program 只对**已签名**提交验签，未签名提交不调用 gpg（实测）；diff.external 只在 -p 下。hardenedEnv 对这一路仍应保留（Python 版同样加固），但没有可构造的输入让它的有无改变 run() 输出"
+ },
+ {
+  "id": "G3",
+  "title": "git：浅克隆不探测",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (memo.length === 0) memo.push(shallowCheck(root))\n  if (memo[0]) return [null, memo[0]]",
+  "to": "  if (false) return [null, 'x']"
+ },
+ {
+  "id": "G4",
+  "title": "【仅 POSIX】git：浅克隆每份都探测（不记忆）（靠 PATH 上放计数的 git 包装，Windows 上无扩展名 sh 脚本不能执行）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (memo.length === 0) memo.push(shallowCheck(root))",
+  "to": "  memo.length = 0\n  memo.push(shallowCheck(root))",
+  "posixOnly": true
+ },
+ {
+  "id": "G5",
+  "title": "git：用作者时间 %aI 而不是提交时间 %cI",
+  "file": "src/checks/freshness.ts",
+  "from": "'log', '-1', '--format=%cI', '--', rel]",
+  "to": "'log', '-1', '--format=%aI', '--', rel]"
+ },
+ {
+  "id": "G7",
+  "title": "git：退出码非 0 当成功",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (r.status !== 0) return [null, `git log 退出码",
+  "to": "  if (false) return [null, `git log 退出码"
+ },
+ {
+  "id": "G8",
+  "title": "git：无输出不判（直接解析空串）",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (!s) return [null, 'git log 无输出：该文件没有提交历史']\n",
+  "to": ""
+ },
+ {
+  "id": "G9",
+  "title": "git：spawn 出错不判",
+  "file": "src/checks/freshness.ts",
+  "from": "  if (r.error) return [null, `跑不了 git log：${r.error.message}`]\n",
+  "to": "",
+  "unobservable": "路径不可达：git 不可执行时 `git ls-files` 先失败，整轮在文件清单一步记未定（实测「跑不了 git ls-files：spawnSync git ENOENT」），走不到 gitCommitDate；Python 同一结构"
+ },
+ {
+  "id": "G10",
+  "title": "git：输出不去空白（用 trim 则 U+FEFF 被去）",
+  "file": "src/checks/freshness.ts",
+  "from": "  const s = pyStrip(r.stdout ?? '')\n  if (!s) return [null, 'git log 无输出",
+  "to": "  const s = (r.stdout ?? '').trim()\n  if (!s) return [null, 'git log 无输出",
+  "unobservable": "git log --format=%cI 的输出是 ASCII 的 ISO 时间加换行，pyStrip 与 trim 的差别只在 U+FEFF、U+001C-1F、U+0085，这些字符不会出现在它的输出里；改用 pyStrip 是为了不违反 D6（check-py-semantics 机械检查要求）"
+ },
+ {
+  "id": "X1",
+  "title": "外壳：不过 runGuarded",
+  "file": "src/checks/freshness.ts",
+  "from": "  return runGuarded(NAME, doRun, cfg)",
+  "to": "  return doRun(cfg)"
+ },
+ {
+  "id": "X2",
+  "title": "外壳：不去重（once）",
+  "file": "src/checks/freshness.ts",
+  "from": "  return once(out) // 工作项在文档根下且读不了时",
+  "to": "  return out // 工作项在文档根下且读不了时"
+ },
+ {
+  "id": "X3",
+  "title": "外壳：docs_root 默认注记不加（noteDefault 传空）",
+  "file": "src/checks/freshness.ts",
+  "from": "checkDocs(cfg, root, today, base, texts), docsRootOf(cfg)[1])",
+  "to": "checkDocs(cfg, root, today, base, texts), '')"
+ },
+ {
+  "id": "X4",
+  "title": "外壳：基准日文案不写来源",
+  "file": "src/checks/freshness.ts",
+  "from": "const base = `比较基准日 ${toIso(today)}（取自运行时系统日期）`",
+  "to": "const base = `比较基准日 ${toIso(today)}`"
+ },
+ {
+  "id": "X5",
+  "title": "外壳：文档与活性巡检顺序反了",
+  "file": "src/checks/freshness.ts",
+  "from": "const out = [...noteDefault(checkDocs(cfg, root, today, base, texts), docsRootOf(cfg)[1]), ...checkWorkItems(cfg, root, today, base, texts)]",
+  "to": "const out = [...checkWorkItems(cfg, root, today, base, texts), ...noteDefault(checkDocs(cfg, root, today, base, texts), docsRootOf(cfg)[1])]"
+ },
+ {
+  "id": "P1",
+  "title": "scope：docs_root 默认时不写「默认」",
+  "file": "src/checks/freshness.ts",
+  "from": "${dnote ? '，默认' : ''}）与 metadata_required",
+  "to": "）与 metadata_required"
+ },
+ {
+  "id": "P2",
+  "title": "scope：分类统计写成一个固定句（不带数字）",
+  "file": "src/checks/freshness.ts",
+  "from": "`本次参与分类的 ${stats.scanned} 份文档里（另有归档区 ${stats.frozen} 份不参与），判定为需要元信息 ${stats.required} 份、项目声明不需要 ${stats.not_required} 份、**未能分类 ${stats.unknown} 份**`",
+  "to": "'本次参与分类的若干份文档'"
+ },
+ {
+  "id": "P3",
+  "title": "scope：目录名词表不排序",
+  "file": "src/checks/freshness.ts",
+  "from": "`${[...IMPORTANT_DIRS].sort().join('/')}）识别",
+  "to": "`${[...IMPORTANT_DIRS].join('/')}）识别"
+ },
+ {
+  "id": "P4",
+  "title": "scope：未覆盖项少一条",
+  "file": "src/checks/freshness.ts",
+  "from": "      '不判断谁该处置超龄工作项，也不代为转 blocked（01 §4.1：巡检只通知负责人核实）',\n",
+  "to": ""
+ }
+]

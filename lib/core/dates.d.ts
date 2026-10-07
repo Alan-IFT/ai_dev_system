@@ -5,6 +5,10 @@ export interface CalDate {
     readonly day: number;
 }
 export declare function toIso(d: CalDate): string;
+/** 运行日（取系统日期，**本地时区**，与 Python 的 `datetime.date.today()` 同义）。 */
+export declare function todayLocal(now?: Date): CalDate;
+export declare function addDays(d: CalDate, days: number): CalDate;
+export declare function compareDays(a: CalDate, b: CalDate): number;
 /** 公历日期是否存在（含闰年）。`2026-02-30`、`2026-13-01` 都不存在。 */
 export declare function validDate(y: number, m: number, d: number): boolean;
 /**

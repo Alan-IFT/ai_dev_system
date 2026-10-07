@@ -19,6 +19,25 @@ export function toIso(d: CalDate): string {
   return `${String(d.year).padStart(4, '0')}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
 }
 
+/** 以 UTC 午夜的毫秒数表示的日历日，只用于加天数与比较；不经过本地时区。 */
+function dayNumber(d: CalDate): number {
+  return Math.floor(Date.UTC(d.year, d.month - 1, d.day) / 86_400_000)
+}
+function fromDayNumber(n: number): CalDate {
+  const dt = new Date(n * 86_400_000)
+  return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() }
+}
+/** 运行日（取系统日期，**本地时区**，与 Python 的 `datetime.date.today()` 同义）。 */
+export function todayLocal(now: Date = new Date()): CalDate {
+  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }
+}
+export function addDays(d: CalDate, days: number): CalDate {
+  return fromDayNumber(dayNumber(d) + days)
+}
+export function compareDays(a: CalDate, b: CalDate): number {
+  return dayNumber(a) - dayNumber(b)
+}
+
 /** 公历日期是否存在（含闰年）。`2026-02-30`、`2026-13-01` 都不存在。 */
 export function validDate(y: number, m: number, d: number): boolean {
   if (y < 1 || y > 9999 || m < 1 || m > 12 || d < 1) return false
