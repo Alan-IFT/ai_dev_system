@@ -1,0 +1,871 @@
+[
+ {
+  "id": "R1",
+  "title": "链接正则：不认 <> 包裹的目标",
+  "file": "src/checks/links.ts",
+  "from": "(?:<([^<>\\\\n]+)>|([^()<>${PY_WHITESPACE}]+))",
+  "to": "(?:<(\\\\0)>|([^()<>${PY_WHITESPACE}]+))"
+ },
+ {
+  "id": "R2",
+  "title": "链接正则：裸写法允许圆括号",
+  "file": "src/checks/links.ts",
+  "from": "([^()<>${PY_WHITESPACE}]+)",
+  "to": "([^<>${PY_WHITESPACE}]+)"
+ },
+ {
+  "id": "R3",
+  "title": "链接正则：不认可选 title",
+  "file": "src/checks/links.ts",
+  "from": "(?:${WS}+\"[^\"]*\"|${WS}+'[^']*')?${WS}*\\\\)`",
+  "to": "${WS}*\\\\)`"
+ },
+ {
+  "id": "R4",
+  "title": "链接正则：只认双引号 title",
+  "file": "src/checks/links.ts",
+  "from": "(?:${WS}+\"[^\"]*\"|${WS}+'[^']*')?",
+  "to": "(?:${WS}+\"[^\"]*\")?"
+ },
+ {
+  "id": "R5",
+  "title": "链接正则：括号内首空白不容",
+  "file": "src/checks/links.ts",
+  "from": "`\\\\(${WS}*(?:<(",
+  "to": "`\\\\((?:<("
+ },
+ {
+  "id": "R6",
+  "title": "链接正则：文字里的嵌套方括号不认",
+  "file": "src/checks/links.ts",
+  "from": "'\\\\[(?:[^\\\\[\\\\]]|\\\\[[^\\\\[\\\\]]*\\\\])*\\\\]'",
+  "to": "'\\\\[(?:[^\\\\[\\\\]])*\\\\]'"
+ },
+ {
+  "id": "S1",
+  "title": "scheme：不跳过 tel:",
+  "file": "src/checks/links.ts",
+  "from": "(?:(?:[Tt][Ee][Ll]|[Ss\\u017f][Mm][Ss\\u017f]):|",
+  "to": "(?:(?:[Ss\\u017f][Mm][Ss\\u017f]):|"
+ },
+ {
+  "id": "S2",
+  "title": "scheme：不跳过 sms:",
+  "file": "src/checks/links.ts",
+  "from": "(?:(?:[Tt][Ee][Ll]|[Ss\\u017f][Mm][Ss\\u017f]):|",
+  "to": "(?:(?:[Tt][Ee][Ll]):|"
+ },
+ {
+  "id": "S3",
+  "title": "scheme：冒号后纯数字也跳过（`a.py:12` 误当 scheme）",
+  "file": "src/checks/links.ts",
+  "from": "+:(?!${NUM_TAIL}))`,",
+  "to": "+:)`,"
+ },
+ {
+  "id": "S4",
+  "title": "scheme：冒号后的行号用 ASCII 数字（全角数字不算行号）",
+  "file": "src/checks/links.ts",
+  "from": "const ND = '\\\\p{Nd}'",
+  "to": "const ND = '[0-9]'"
+ },
+ {
+  "id": "S5",
+  "title": "scheme：行号不允许 :行:列",
+  "file": "src/checks/links.ts",
+  "from": "const NUM_TAIL = `${ND}+(?::${ND}+)?(?=\\\\n?$)`",
+  "to": "const NUM_TAIL = `${ND}+(?=\\\\n?$)`"
+ },
+ {
+  "id": "S6",
+  "title": "scheme：行号结尾不容许末尾换行（改严格 $）",
+  "file": "src/checks/links.ts",
+  "from": "const NUM_TAIL = `${ND}+(?::${ND}+)?(?=\\\\n?$)`",
+  "to": "const NUM_TAIL = `${ND}+(?::${ND}+)?$`"
+ },
+ {
+  "id": "S7",
+  "title": "scheme：首字符少 ı（re.I 折叠）",
+  "file": "src/checks/links.ts",
+  "from": "const FOLD_EXTRA = '\\u0130\\u0131\\u017f\\u212a'",
+  "to": "const FOLD_EXTRA = '\\u0130\\u017f\\u212a'"
+ },
+ {
+  "id": "S8",
+  "title": "scheme：首字符少 K（Kelvin）",
+  "file": "src/checks/links.ts",
+  "from": "const FOLD_EXTRA = '\\u0130\\u0131\\u017f\\u212a'",
+  "to": "const FOLD_EXTRA = '\\u0130\\u0131\\u017f'"
+ },
+ {
+  "id": "S9",
+  "title": "scheme：至少两个字符改一个（盘符 `C:` 被当 scheme）",
+  "file": "src/checks/links.ts",
+  "from": "[A-Za-z0-9+${FOLD_EXTRA}-]+:(?!",
+  "to": "[A-Za-z0-9+${FOLD_EXTRA}-]*:(?!"
+ },
+ {
+  "id": "S10",
+  "title": "scheme：后续字符不含点（`a.b:c` 误当 scheme）",
+  "file": "src/checks/links.ts",
+  "from": "[A-Za-z0-9+${FOLD_EXTRA}-]+:(?!",
+  "to": "[A-Za-z0-9+.${FOLD_EXTRA}-]+:(?!"
+ },
+ {
+  "id": "S11",
+  "title": "scheme：后续字符不含加号",
+  "file": "src/checks/links.ts",
+  "from": "[A-Za-z0-9+${FOLD_EXTRA}-]+:(?!",
+  "to": "[A-Za-z0-9${FOLD_EXTRA}-]+:(?!"
+ },
+ {
+  "id": "S12",
+  "title": "scheme：不锚定开头",
+  "file": "src/checks/links.ts",
+  "from": "`^(?:(?:[Tt][Ee][Ll]",
+  "to": "`(?:(?:[Tt][Ee][Ll]"
+ },
+ {
+  "id": "W1",
+  "title": "盘符：不认反斜杠",
+  "file": "src/checks/links.ts",
+  "from": "const WIN_ABS_RE = /^[A-Za-z]:[\\\\/]/",
+  "to": "const WIN_ABS_RE = /^[A-Za-z]:[/]/"
+ },
+ {
+  "id": "W2",
+  "title": "盘符：不认斜杠",
+  "file": "src/checks/links.ts",
+  "from": "const WIN_ABS_RE = /^[A-Za-z]:[\\\\/]/",
+  "to": "const WIN_ABS_RE = /^[A-Za-z]:[\\\\]/"
+ },
+ {
+  "id": "W3",
+  "title": "盘符：不锚定开头",
+  "file": "src/checks/links.ts",
+  "from": "const WIN_ABS_RE = /^[A-Za-z]:[\\\\/]/",
+  "to": "const WIN_ABS_RE = /[A-Za-z]:[\\\\/]/"
+ },
+ {
+  "id": "M1",
+  "title": "涂白：不涂围栏",
+  "file": "src/checks/links.ts",
+  "from": "  let t = text.replace(/```[\\s\\S]*?```/g, blank)",
+  "to": "  let t = text"
+ },
+ {
+  "id": "M2",
+  "title": "涂白：不涂波浪围栏",
+  "file": "src/checks/links.ts",
+  "from": "  t = t.replace(/~~~[\\s\\S]*?~~~/g, blank)\n",
+  "to": ""
+ },
+ {
+  "id": "M3",
+  "title": "涂白：不涂行内代码",
+  "file": "src/checks/links.ts",
+  "from": "  t = t.replace(/`+[^`\\n]*`+/g, blank)\n",
+  "to": ""
+ },
+ {
+  "id": "M4",
+  "title": "涂白：连换行也涂（行号错位）",
+  "file": "src/checks/links.ts",
+  "from": "[...m].map((c) => (c === NL ? c : ' ')).join('')",
+  "to": "[...m].map(() => ' ').join('')"
+ },
+ {
+  "id": "M5",
+  "title": "涂白：行内代码允许跨行",
+  "file": "src/checks/links.ts",
+  "from": "t.replace(/`+[^`\\n]*`+/g, blank)",
+  "to": "t.replace(/`+[^`]*`+/g, blank)"
+ },
+ {
+  "id": "M6",
+  "title": "涂白：围栏改成贪婪",
+  "file": "src/checks/links.ts",
+  "from": "text.replace(/```[\\s\\S]*?```/g, blank)",
+  "to": "text.replace(/```[\\s\\S]*```/g, blank)"
+ },
+ {
+  "id": "G1",
+  "title": "slug：不转小写",
+  "file": "src/checks/links.ts",
+  "from": "const pyLower = (s: string): string => s.toLowerCase()",
+  "to": "const pyLower = (s: string): string => s"
+ },
+ {
+  "id": "G2",
+  "title": "slug：不去强调标记里的下划线",
+  "file": "src/checks/links.ts",
+  "from": "    h = h.replace(/[`*_~]/g, '') // 去强调标记",
+  "to": "    h = h.replace(/[`*~]/g, '') // 去强调标记"
+ },
+ {
+  "id": "G3",
+  "title": "slug：词中下划线模式不保留（与另一模式相同）",
+  "file": "src/checks/links.ts",
+  "from": "    h = h.replace(/(?<![\\p{L}\\p{N}_])_+|(?<!_)_+(?![\\p{L}\\p{N}_])/gu, '')",
+  "to": "    h = h.replace(/_+/gu, '')"
+ },
+ {
+  "id": "G4",
+  "title": "slug：不去内联 HTML",
+  "file": "src/checks/links.ts",
+  "from": "  h = h.replace(/<[^<>]+>/g, '') // 去内联 HTML\n",
+  "to": ""
+ },
+ {
+  "id": "G5",
+  "title": "slug：链接不取文字",
+  "file": "src/checks/links.ts",
+  "from": "  h = h.replace(/\\[([^[\\]]*)\\]\\([^()]*\\)/g, '$1') // 链接取其文字\n",
+  "to": ""
+ },
+ {
+  "id": "G6",
+  "title": "slug：标点去得不够（保留全角）——只去 ASCII 标点",
+  "file": "src/checks/links.ts",
+  "from": "[^\\\\p{L}\\\\p{N}_${PY_WHITESPACE}-]",
+  "to": "[\\\\x21-\\\\x2c\\\\x2e\\\\x2f\\\\x3a-\\\\x40\\\\x5b-\\\\x5e\\\\x60\\\\x7b-\\\\x7e]"
+ },
+ {
+  "id": "G7",
+  "title": "slug：\\w 用 ASCII（中文被去掉）",
+  "file": "src/checks/links.ts",
+  "from": "[^\\\\p{L}\\\\p{N}_${PY_WHITESPACE}-]",
+  "to": "[^a-zA-Z0-9_${PY_WHITESPACE}-]"
+ },
+ {
+  "id": "G8",
+  "title": "slug：空白折叠成连字符少一步（只换第一个）",
+  "file": "src/checks/links.ts",
+  "from": "  h = pyStrip(h).replace(new RegExp(`${WS}+`, 'g'), '-')",
+  "to": "  h = pyStrip(h).replace(new RegExp(`${WS}+`), '-')"
+ },
+ {
+  "id": "G9",
+  "title": "slug：每个空白各换一个连字符（不折叠）",
+  "file": "src/checks/links.ts",
+  "from": "  h = pyStrip(h).replace(new RegExp(`${WS}+`, 'g'), '-')",
+  "to": "  h = pyStrip(h).replace(new RegExp(`${WS}`, 'g'), '-')"
+ },
+ {
+  "id": "G12",
+  "title": "slug：去标点前不去强调标记",
+  "file": "src/checks/links.ts",
+  "from": "    h = h.replace(/[`*_~]/g, '') // 去强调标记",
+  "to": ""
+ },
+ {
+  "id": "A1",
+  "title": "标题：ATX 级别 1-6 改 1-5",
+  "file": "src/checks/links.ts",
+  "from": "const HEADING_RE = /^(#{1,6})[ \\t]+(.*)$/",
+  "to": "const HEADING_RE = /^(#{1,5})[ \\t]+(.*)$/"
+ },
+ {
+  "id": "A2",
+  "title": "标题：ATX 级别 1-6 改 2-6",
+  "file": "src/checks/links.ts",
+  "from": "const HEADING_RE = /^(#{1,6})[ \\t]+(.*)$/",
+  "to": "const HEADING_RE = /^(#{2,6})[ \\t]+(.*)$/"
+ },
+ {
+  "id": "A3",
+  "title": "标题：# 后只认空格不认制表符",
+  "file": "src/checks/links.ts",
+  "from": "const HEADING_RE = /^(#{1,6})[ \\t]+(.*)$/",
+  "to": "const HEADING_RE = /^(#{1,6}) +(.*)$/"
+ },
+ {
+  "id": "A4",
+  "title": "标题：# 后可无空白",
+  "file": "src/checks/links.ts",
+  "from": "const HEADING_RE = /^(#{1,6})[ \\t]+(.*)$/",
+  "to": "const HEADING_RE = /^(#{1,6})[ \\t]*(.*)$/"
+ },
+ {
+  "id": "A5",
+  "title": "标题：收尾 # 不剥",
+  "file": "src/checks/links.ts",
+  "from": "  if (body !== t && (body === '' || body.endsWith(' ') || body.endsWith('\\t'))) t = body.replace(/[ \\t]+$/, '')",
+  "to": ""
+ },
+ {
+  "id": "A6",
+  "title": "标题：收尾 # 不要求前面有空白",
+  "file": "src/checks/links.ts",
+  "from": "if (body !== t && (body === '' || body.endsWith(' ') || body.endsWith('\\t')))",
+  "to": "if (body !== t)"
+ },
+ {
+  "id": "A7",
+  "title": "标题：收尾 # 前只认空格不认制表符",
+  "file": "src/checks/links.ts",
+  "from": "(body === '' || body.endsWith(' ') || body.endsWith('\\t'))",
+  "to": "(body === '' || body.endsWith(' '))"
+ },
+ {
+  "id": "A8",
+  "title": "标题：整行只有 # 时不算收尾（body 空判据去掉）",
+  "file": "src/checks/links.ts",
+  "from": "(body === '' || body.endsWith(' ') || body.endsWith('\\t'))",
+  "to": "(body.endsWith(' ') || body.endsWith('\\t'))"
+ },
+ {
+  "id": "A9",
+  "title": "标题：先去空白的字符集多一个（\\u3000）",
+  "file": "src/checks/links.ts",
+  "from": "  let t = raw.replace(/[ \\t]+$/, '')",
+  "to": "  let t = raw.replace(/[ \\t\\u3000]+$/, '')"
+ },
+ {
+  "id": "T1",
+  "title": "setext：不认",
+  "file": "src/checks/links.ts",
+  "from": "    if (pyStrip(prev) && SETEXT_RE.test(line) &&",
+  "to": "    if (false && pyStrip(prev) && SETEXT_RE.test(line) &&"
+ },
+ {
+  "id": "T2",
+  "title": "setext：缩进代码块也算正文（4 空格不排除）",
+  "file": "src/checks/links.ts",
+  "from": " && !(prev.startsWith('    ') || prev.startsWith('\\t'))) {",
+  "to": ") {"
+ },
+ {
+  "id": "T3",
+  "title": "setext：制表符缩进不排除",
+  "file": "src/checks/links.ts",
+  "from": "!(prev.startsWith('    ') || prev.startsWith('\\t'))",
+  "to": "!(prev.startsWith('    '))"
+ },
+ {
+  "id": "T4",
+  "title": "setext：下划线前缀缩进上限 3 改 4",
+  "file": "src/checks/links.ts",
+  "from": "const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \\t]*$/",
+  "to": "const SETEXT_RE = /^ {0,4}(?:=+|-+)[ \\t]*$/"
+ },
+ {
+  "id": "T5",
+  "title": "setext：只认 =",
+  "file": "src/checks/links.ts",
+  "from": "const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \\t]*$/",
+  "to": "const SETEXT_RE = /^ {0,3}(?:=+)[ \\t]*$/"
+ },
+ {
+  "id": "T6",
+  "title": "setext：只认 -",
+  "file": "src/checks/links.ts",
+  "from": "const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \\t]*$/",
+  "to": "const SETEXT_RE = /^ {0,3}(?:-+)[ \\t]*$/"
+ },
+ {
+  "id": "T7",
+  "title": "setext：上一行为空白也算",
+  "file": "src/checks/links.ts",
+  "from": "    if (pyStrip(prev) && SETEXT_RE.test(line)",
+  "to": "    if (SETEXT_RE.test(line)"
+ },
+ {
+  "id": "T8",
+  "title": "setext：识别后不清 prev（连续两行都当标题）",
+  "file": "src/checks/links.ts",
+  "from": "      out.push(pyStrip(prev))\n      prev = ''\n      continue",
+  "to": "      out.push(pyStrip(prev))\n      continue"
+ },
+ {
+  "id": "T9",
+  "title": "ATX：识别后不清 prev",
+  "file": "src/checks/links.ts",
+  "from": "      out.push(atxTitle(m[2]!))\n      prev = ''\n      continue",
+  "to": "      out.push(atxTitle(m[2]!))\n      continue"
+ },
+ {
+  "id": "T10",
+  "title": "标题：按 \\n 切行（\\r 行尾的文档全成一行）——这里本来就是 \\n，变异改成按 \\r\\n 切",
+  "file": "src/checks/links.ts",
+  "from": "  for (const line of masked.split(NL)) {",
+  "to": "  for (const line of masked.split('\\r\\n')) {"
+ },
+ {
+  "id": "N1",
+  "title": "锚点：不认显式 <a id>",
+  "file": "src/checks/links.ts",
+  "from": "  for (const m of text.matchAll(EXPLICIT_ANCHOR_PY)) found.add(m[1]!)\n",
+  "to": ""
+ },
+ {
+  "id": "N2",
+  "title": "锚点：显式只认 id 不认 name",
+  "file": "src/checks/links.ts",
+  "from": "(?:[Ii\\u0130\\u0131][Dd]|[Nn][Aa][Mm][Ee])",
+  "to": "(?:[Ii\\u0130\\u0131][Dd])"
+ },
+ {
+  "id": "N3",
+  "title": "锚点：显式只认 name 不认 id",
+  "file": "src/checks/links.ts",
+  "from": "(?:[Ii\\u0130\\u0131][Dd]|[Nn][Aa][Mm][Ee])",
+  "to": "(?:[Nn][Aa][Mm][Ee])"
+ },
+ {
+  "id": "N4",
+  "title": "锚点：显式区分大小写（<A ID> 不认）",
+  "file": "src/checks/links.ts",
+  "from": "`<[Aa]${WS}+(?:[Ii\\u0130\\u0131][Dd]|[Nn][Aa][Mm][Ee])${WS}*=${WS}*[\"']([^\"']+)[\"']`",
+  "to": "`<a${WS}+(?:id|name)${WS}*=${WS}*[\"']([^\"']+)[\"']`"
+ },
+ {
+  "id": "N5",
+  "title": "锚点：显式的引号只认双引号",
+  "file": "src/checks/links.ts",
+  "from": "${WS}*=${WS}*[\"']([^\"']+)[\"']`",
+  "to": "${WS}*=${WS}*[\"]([^\"]+)[\"]`"
+ },
+ {
+  "id": "N6",
+  "title": "锚点：显式的等号两侧不容空白",
+  "file": "src/checks/links.ts",
+  "from": "${WS}*=${WS}*[\"']([^\"']+)",
+  "to": "=[\"']([^\"']+)"
+ },
+ {
+  "id": "N7",
+  "title": "锚点：重复标题不加 -N 后缀",
+  "file": "src/checks/links.ts",
+  "from": "      found.add(n === 0 ? s : `${s}-${n}`)",
+  "to": "      found.add(s)"
+ },
+ {
+  "id": "N8",
+  "title": "锚点：重复标题后缀从 -2 起",
+  "file": "src/checks/links.ts",
+  "from": "      found.add(n === 0 ? s : `${s}-${n}`)",
+  "to": "      found.add(n === 0 ? s : `${s}-${n + 1}`)"
+ },
+ {
+  "id": "N9",
+  "title": "锚点：重复计数不累加",
+  "file": "src/checks/links.ts",
+  "from": "      seen.set(s, n + 1)",
+  "to": "      seen.set(s, 1)"
+ },
+ {
+  "id": "N10",
+  "title": "锚点：空 slug 也算锚点",
+  "file": "src/checks/links.ts",
+  "from": "      if (!s) continue\n",
+  "to": ""
+ },
+ {
+  "id": "N11",
+  "title": "锚点：只用一种下划线模式",
+  "file": "src/checks/links.ts",
+  "from": "for (const s of new Set([slug(title), slug(title, true)])) {",
+  "to": "for (const s of new Set([slug(title)])) {"
+ },
+ {
+  "id": "N12",
+  "title": "锚点：只用词中保留模式",
+  "file": "src/checks/links.ts",
+  "from": "for (const s of new Set([slug(title), slug(title, true)])) {",
+  "to": "for (const s of new Set([slug(title, true)])) {"
+ },
+ {
+  "id": "N13",
+  "title": "锚点：masked 参数不用（总是重新涂白）也应等价——变异成「用原文不涂白」",
+  "file": "src/checks/links.ts",
+  "from": "titles(masked ?? maskCode(text))",
+  "to": "titles(text)"
+ },
+ {
+  "id": "U1",
+  "title": "unquote：不解码",
+  "file": "src/checks/links.ts",
+  "from": "  if (!s.includes('%')) return s\n",
+  "to": "  return s\n"
+ },
+ {
+  "id": "U2",
+  "title": "unquote：十六进制只认小写",
+  "file": "src/checks/links.ts",
+  "from": "  const hex = /[0-9A-Fa-f]/",
+  "to": "  const hex = /[0-9a-f]/"
+ },
+ {
+  "id": "U3",
+  "title": "unquote：十六进制只认大写",
+  "file": "src/checks/links.ts",
+  "from": "  const hex = /[0-9A-Fa-f]/",
+  "to": "  const hex = /[0-9A-F]/"
+ },
+ {
+  "id": "U4",
+  "title": "unquote：十六进制认全角数字",
+  "file": "src/checks/links.ts",
+  "from": "  const hex = /[0-9A-Fa-f]/",
+  "to": "  const hex = /[\\p{Nd}A-Fa-f]/u"
+ },
+ {
+  "id": "U5",
+  "title": "unquote：末尾的 `%XX` 不处理（边界 off-by-one）",
+  "file": "src/checks/links.ts",
+  "from": "i + 2 < s.length && hex",
+  "to": "i + 3 < s.length && hex"
+ },
+ {
+  "id": "U6",
+  "title": "unquote：末尾 `%X` 越界也处理",
+  "file": "src/checks/links.ts",
+  "from": "i + 2 < s.length && hex",
+  "to": "i + 1 < s.length && hex"
+ },
+ {
+  "id": "U7",
+  "title": "unquote：连续 %XX 不攒成一段（逐字节解码，多字节字符变乱码）",
+  "file": "src/checks/links.ts",
+  "from": "      bytes.push(parseInt(s.slice(i + 1, i + 3), 16))\n      i += 3\n      continue",
+  "to": "      out.push(Buffer.from([parseInt(s.slice(i + 1, i + 3), 16)]).toString('utf8'))\n      i += 3\n      continue"
+ },
+ {
+  "id": "U8",
+  "title": "unquote：非法序列用 latin1 解码",
+  "file": "src/checks/links.ts",
+  "from": "out.push(Buffer.from(bytes).toString('utf8'))",
+  "to": "out.push(Buffer.from(bytes).toString('latin1'))"
+ },
+ {
+  "id": "U9",
+  "title": "unquote：+ 当空格",
+  "file": "src/checks/links.ts",
+  "from": "    flush()\n    const cp = s.codePointAt(i)!",
+  "to": "    flush()\n    if (c === '+') { out.push(' '); i++; continue }\n    const cp = s.codePointAt(i)!"
+ },
+ {
+  "id": "H1",
+  "title": "链接：目标不去首尾空白",
+  "file": "src/checks/links.ts",
+  "from": "const target = pyStrip(m[1] ?? m[2] ?? '')",
+  "to": "const target = (m[1] ?? m[2] ?? '')"
+ },
+ {
+  "id": "H3",
+  "title": "链接：协议相对 // 不跳过",
+  "file": "src/checks/links.ts",
+  "from": "|| SKIP_SCHEME_RE.test(target) || target.startsWith('//')) continue",
+  "to": "|| SKIP_SCHEME_RE.test(target)) continue"
+ },
+ {
+  "id": "H4",
+  "title": "链接：scheme 不跳过",
+  "file": "src/checks/links.ts",
+  "from": "|| SKIP_SCHEME_RE.test(target) || target.startsWith('//')) continue",
+  "to": "|| target.startsWith('//')) continue"
+ },
+ {
+  "id": "H5",
+  "title": "链接：没有 `](` 的行也扫（只是慢）→ 等价；改成只扫含 `](` 的另一种写法：行首判据反了",
+  "file": "src/checks/links.ts",
+  "from": "      if (!line.includes('](')) continue",
+  "to": "      if (line.includes('](')) continue"
+ },
+ {
+  "id": "H6",
+  "title": "链接：计数把跳过的也算",
+  "file": "src/checks/links.ts",
+  "from": "        if (!target || SKIP_SCHEME_RE.test(target) || target.startsWith('//')) continue\n        nLinks++",
+  "to": "        nLinks++\n        if (!target || SKIP_SCHEME_RE.test(target) || target.startsWith('//')) continue"
+ },
+ {
+  "id": "H7",
+  "title": "链接：问题计数不加",
+  "file": "src/checks/links.ts",
+  "from": "          nBad++\n          mergeFinding(out, merged, lineno, finding(NAME, FAIL, `${rel} 指向不存在的路径",
+  "to": "          mergeFinding(out, merged, lineno, finding(NAME, FAIL, `${rel} 指向不存在的路径"
+ },
+ {
+  "id": "H8",
+  "title": "链接：host-abs 判据放到 split 之后（盘符后的冒号被当行号剥掉）",
+  "file": "src/checks/links.ts",
+  "from": "        if (WIN_ABS_RE.test(target)) {",
+  "to": "        if (false) {"
+ },
+ {
+  "id": "H9",
+  "title": "链接：host-abs 记 FAIL",
+  "file": "src/checks/links.ts",
+  "from": "finding(NAME, UNDETERMINED, `${rel} 里是本机绝对路径：${target}`, {",
+  "to": "finding(NAME, FAIL, `${rel} 里是本机绝对路径：${target}`, {"
+ },
+ {
+  "id": "H10",
+  "title": "路径：查询串不剥",
+  "file": "src/checks/links.ts",
+  "from": "        pathPart = unquote(qAt < 0 ? pathPart : pathPart.slice(0, qAt))",
+  "to": "        pathPart = unquote(pathPart)"
+ },
+ {
+  "id": "H11",
+  "title": "路径：先剥 ? 再解码改成先解码再剥 ?（%3F 被当查询串）",
+  "file": "src/checks/links.ts",
+  "from": "        pathPart = unquote(qAt < 0 ? pathPart : pathPart.slice(0, qAt))",
+  "to": "        pathPart = unquote(pathPart); pathPart = pathPart.split('?')[0]!"
+ },
+ {
+  "id": "H12",
+  "title": "路径：行号后缀不剥",
+  "file": "src/checks/links.ts",
+  "from": "        pathPart = pathPart.replace(LINE_SUFFIX_RE, '')",
+  "to": ""
+ },
+ {
+  "id": "H13",
+  "title": "路径：只有查询串也核（不跳过）",
+  "file": "src/checks/links.ts",
+  "from": "        if (!pathPart && !anchor) continue",
+  "to": ""
+ },
+ {
+  "id": "H14",
+  "title": "锚点：不解码",
+  "file": "src/checks/links.ts",
+  "from": "        anchor = unquote(anchor)",
+  "to": ""
+ },
+ {
+  "id": "H15",
+  "title": "锚点：取第一个 # 之后改成最后一个 #",
+  "file": "src/checks/links.ts",
+  "from": "        const hashAt = target.indexOf('#')",
+  "to": "        const hashAt = target.lastIndexOf('#')"
+ },
+ {
+  "id": "H16",
+  "title": "纯锚点：不核本文件",
+  "file": "src/checks/links.ts",
+  "from": "          if (srcAnchors.has(anchor)) continue\n          nBad++",
+  "to": "          continue\n          nBad++"
+ },
+ {
+  "id": "H17",
+  "title": "仓根：以 / 开头也按文件所在目录解析",
+  "file": "src/checks/links.ts",
+  "from": "        if (pathPart.startsWith('/')) {",
+  "to": "        if (false) {"
+ },
+ {
+  "id": "H18",
+  "title": "仓根：找不到判 FAIL 而不是未定",
+  "file": "src/checks/links.ts",
+  "from": "finding(NAME, UNDETERMINED, `${rel} 的仓根路径链接按仓根找不到：${target}`, {",
+  "to": "finding(NAME, FAIL, `${rel} 的仓根路径链接按仓根找不到：${target}`, {"
+ },
+ {
+  "id": "H19",
+  "title": "仓根：先探测存在性再判越界",
+  "file": "src/checks/links.ts",
+  "from": "        if (!inside(root, absTgt)) {",
+  "to": "        if (!inside(root, absTgt) && !cache.pathKind(absTgt)[0] && false) {"
+ },
+ {
+  "id": "H20",
+  "title": "出仓：不判（直接探测）",
+  "file": "src/checks/links.ts",
+  "from": "        if (!inside(root, absTgt)) {",
+  "to": "        if (false) {"
+ },
+ {
+  "id": "H21",
+  "title": "出仓：记 FAIL",
+  "file": "src/checks/links.ts",
+  "from": "finding(NAME, UNDETERMINED, `${rel} 的链接指向被扫项目之外：${target}`, {",
+  "to": "finding(NAME, FAIL, `${rel} 的链接指向被扫项目之外：${target}`, {"
+ },
+ {
+  "id": "H22",
+  "title": "不存在：记未定而不是 FAIL",
+  "file": "src/checks/links.ts",
+  "from": "finding(NAME, FAIL, `${rel} 指向不存在的路径：${target}`, {",
+  "to": "finding(NAME, UNDETERMINED, `${rel} 指向不存在的路径：${target}`, { reason: 'x',"
+ },
+ {
+  "id": "H23",
+  "title": "不存在：归档区的不报（以为归档区免检）",
+  "file": "src/checks/links.ts",
+  "from": "        if (!exists) {\n          nBad++",
+  "to": "        if (!exists && !frozenNote) {\n          nBad++"
+ },
+ {
+  "id": "H24",
+  "title": "目录：带锚点也核",
+  "file": "src/checks/links.ts",
+  "from": "        if (isdir || !hasMdExt(pathPart)) continue",
+  "to": "        if (!hasMdExt(pathPart)) continue"
+ },
+ {
+  "id": "H25",
+  "title": "非 markdown：带锚点也核",
+  "file": "src/checks/links.ts",
+  "from": "        if (isdir || !hasMdExt(pathPart)) continue",
+  "to": "        if (isdir) continue"
+ },
+ {
+  "id": "H26",
+  "title": "目标后缀判断区分大小写",
+  "file": "src/checks/links.ts",
+  "from": "const hasMdExt = (s: string): boolean => MD_EXT.some((e) => s.toLowerCase().endsWith(e))",
+  "to": "const hasMdExt = (s: string): boolean => MD_EXT.some((e) => s.endsWith(e))"
+ },
+ {
+  "id": "H27",
+  "title": "目标后缀少 .markdown",
+  "file": "src/checks/links.ts",
+  "from": "const MD_EXT = ['.md', '.markdown'] as const",
+  "to": "const MD_EXT = ['.md'] as const"
+ },
+ {
+  "id": "H28",
+  "title": "目标锚点读不了：记 FAIL",
+  "file": "src/checks/links.ts",
+  "from": "finding(NAME, UNDETERMINED, `读不了 ${pathPart}，锚点 ${target} 判不了`, {",
+  "to": "finding(NAME, FAIL, `读不了 ${pathPart}，锚点 ${target} 判不了`, {"
+ },
+ {
+  "id": "H29",
+  "title": "目标锚点读不了：吞掉",
+  "file": "src/checks/links.ts",
+  "from": "        if (tgtAnchors === null) {\n          nBad++",
+  "to": "        if (tgtAnchors === null) {\n          continue\n          nBad++"
+ },
+ {
+  "id": "H30",
+  "title": "归档区注记不写",
+  "file": "src/checks/links.ts",
+  "from": "const frozenNote = inFrozen(cfg, rel) ? '该文件在 layout.frozen 归档区，断链照报，是否修由人定' : ''",
+  "to": "const frozenNote = ''"
+ },
+ {
+  "id": "H31",
+  "title": "对象读不了：吞掉",
+  "file": "src/checks/links.ts",
+  "from": "      out.push(unreadable(NAME, rel, exc)) // 对象读不了，不是检查器故障（R1-10）\n      continue",
+  "to": "      continue"
+ },
+ {
+  "id": "H32",
+  "title": "合并：不按 id 合并（同一链接多次各出一条）",
+  "file": "src/checks/links.ts",
+  "from": "  const hit = merged.get(f.id)\n  if (hit === undefined) {",
+  "to": "  const hit = undefined as [Finding, number[], string] | undefined\n  if (hit === undefined) {"
+ },
+ {
+  "id": "H33",
+  "title": "合并：行号不累加",
+  "file": "src/checks/links.ts",
+  "from": "  const [prev, lines, base] = hit\n  lines.push(lineno)",
+  "to": "  const [prev, lines, base] = hit"
+ },
+ {
+  "id": "H34",
+  "title": "合并：证据的行号分隔用逗号",
+  "file": "src/checks/links.ts",
+  "from": "`出现在第 ${lines.join('、')} 行（共 ${lines.length} 处）`",
+  "to": "`出现在第 ${lines.join(',')} 行（共 ${lines.length} 处）`"
+ },
+ {
+  "id": "H35",
+  "title": "合并：base 为空时也写分号",
+  "file": "src/checks/links.ts",
+  "from": "  return base ? `${base}；${note}` : note",
+  "to": "  return `${base}；${note}`"
+ },
+ {
+  "id": "H36",
+  "title": "文件清单：不把反斜杠换成斜杠",
+  "file": "src/checks/links.ts",
+  "from": "(override as unknown[]).map((x) => pyStr(x).replaceAll('\\\\', '/'))",
+  "to": "(override as unknown[]).map((x) => pyStr(x))"
+ },
+ {
+  "id": "H38",
+  "title": "文件清单：列不出时不报未定（当成空）",
+  "file": "src/checks/links.ts",
+  "from": "    return [finding(NAME, UNDETERMINED, '列不出 git 跟踪的 markdown', {",
+  "to": "    return [finding(NAME, FAIL, '列不出 git 跟踪的 markdown', {"
+ },
+ {
+  "id": "H39",
+  "title": "文件清单：空时记 PASS",
+  "file": "src/checks/links.ts",
+  "from": "    return [finding(NAME, UNDETERMINED, '没有找到任何 git 跟踪的 markdown', {",
+  "to": "    return [finding(NAME, PASS, '没有找到任何 git 跟踪的 markdown', {"
+ },
+ {
+  "id": "H40",
+  "title": "缓存：目标锚点每次都重读（不缓存）",
+  "file": "src/checks/links.ts",
+  "from": "    if (this.anchors.has(key)) return [this.anchors.get(key)!, this.errors.get(key) ?? null]",
+  "to": ""
+ },
+ {
+  "id": "H41",
+  "title": "缓存：扫描对象的正文不从 pending 取（读两遍）",
+  "file": "src/checks/links.ts",
+  "from": "    return text === undefined ? readText(abspath, this.root) : text",
+  "to": "    return readText(abspath, this.root)"
+ },
+ {
+  "id": "H42",
+  "title": "缓存：先当目标读的不留 pending",
+  "file": "src/checks/links.ts",
+  "from": "    if (this.todo.has(key)) this.pending.set(key, text)",
+  "to": ""
+ },
+ {
+  "id": "H44",
+  "title": "外壳：不过 runGuarded",
+  "file": "src/checks/links.ts",
+  "from": "  return runGuarded(NAME, doRun, cfg)",
+  "to": "  return doRun(cfg)"
+ },
+ {
+  "id": "H45",
+  "title": "中文锚点判据：改成只看是否全是中文",
+  "file": "src/checks/links.ts",
+  "from": "const CJK_RE = /[^\\x00-\\x7f]/",
+  "to": "const CJK_RE = /^[^\\x00-\\x7f]+$/"
+ },
+ {
+  "id": "H46",
+  "title": "中文锚点判据：不判（都记 FAIL）",
+  "file": "src/checks/links.ts",
+  "from": "  if (CJK_RE.test(anchor)) {",
+  "to": "  if (false) {"
+ },
+ {
+  "id": "H47",
+  "title": "锚点缺失 evidence：不写 <a id>",
+  "file": "src/checks/links.ts",
+  "from": "里既无 <a id=\"${anchor}\">，也没有能生成该锚点的标题。${frozenNote}",
+  "to": "里没有能生成该锚点的标题。${frozenNote}"
+ },
+ {
+  "id": "H48",
+  "title": "scope：归档区列表分隔用逗号",
+  "file": "src/checks/links.ts",
+  "from": "frozen.map(pyStr).join('、') || '未配置'",
+  "to": "frozen.map(pyStr).join(',') || '未配置'"
+ },
+ {
+  "id": "H49",
+  "title": "scope：归档区非列表时不当空",
+  "file": "src/checks/links.ts",
+  "from": "  const frozen = Array.isArray(fr) ? fr : []",
+  "to": "  const frozen = fr as unknown[]",
+  "unobservable": "真实入口走不到：load_config 对 layout.frozen 做 strs 形状校验，写成非列表整份拒收（同 D12）；直接调 scope() 时 Python 逐字符迭代、TS 当空，两版在非法形状上本就不同，不据此收紧"
+ }
+]
