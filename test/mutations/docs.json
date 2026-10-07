@@ -769,5 +769,12 @@
   "file": "src/core/docs.ts",
   "from": "const EXTRA_FOLD: Readonly<Record<string, string>> = { i: 'İı', I: 'İı' }",
   "to": "const EXTRA_FOLD: Readonly<Record<string, string>> = { i: 'İı', I: 'İı', s: 'ß', S: 'ß' }"
+ },
+ {
+  "id": "F24b",
+  "title": "字段：名字转义集合里加回 `-`（u 模式下字符类之外的 `\\-` 是非法转义，带连字符的字段名整条抛 SyntaxError）",
+  "file": "src/core/docs.ts",
+  "from": "ch.replace(/[.*+?^${}()|[\\]\\\\/]/g, '\\\\$&')",
+  "to": "ch.replace(/[.*+?^${}()|[\\]\\\\/-]/g, '\\\\$&')"
  }
 ]

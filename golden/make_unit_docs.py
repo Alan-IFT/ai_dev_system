@@ -44,6 +44,9 @@ FIELD_TEXTS = [
     "", "\n", "状态", "：", "状态：\n", "\ufeff状态：x", "状态：x\r\n", "状态：x\r下一", "a\r状态：x",
     "---\nstatus: active\n---\n正文", "status: a\n状态: b\nstate: c", "state: c\n状态: b\nstatus: a",
     # —— 变异验证发现的盲区：这些输入此前没有，对应的实现分支没有被任何样本触发 ——
+    # —— 字段名含连字符等字符（对应 FIELD_NAME_SETS 末尾那一批）——
+    "updated-at: 2026-01-01", "Updated-At：2026-01-01", "last-transition-at: x", "a-b: 1", "- : 1", "a#b: 1", "a&b: 1", "a~b: 1", "a!b: 1", "a'b: 1", 'a"b: 1', "a%b: 1", "a,b: 1", "a;b: 1", "a<b: 1", "a=b: 1",
+    "a>b: 1", "a@b: 1", "a/b: 1", "a\\b: 1", "a:b: 1", "a_b: 1", "a{b}: 1", "a^b: 1", "a$b: 1", "a*b: 1", "a?b: 1", "a b: 1", "axb: 1", "a-b: 1\na_b: 2",
     "state: a\n状态: b", "state: a\nstatus: b", "status: a\nstate: b", "x|status: z", "xstatus: z", "|status: z", "a|状态：z",
     "****status****: z", "*****status*****: z", "****status***: z", "***status****: z", "___状态___：z", "____状态____：z", "`status`: z", "``status``: z", "``````status``````: z",
     "status\t:\tz", "status\t: z", "status :\tz", "status:\t\tz", "状态\t：\tz",
@@ -52,7 +55,9 @@ FIELD_TEXTS = [
     "status: \ufeff", "status: \ufeffx\ufeff", "status:\ufeffx", "status: x\ufeff", "status: \u001cx", "status: x\u0085", "status: \u0085x",
     "ſtatus: z", "ſtate: z", "STATUS: z", "\u212aey: z", "ke\u212a: z", "\u0130d: z", "\u0131d: z", "ß: 1", "ẞ: 1", "straße: 1",
 ]
-FIELD_NAME_SETS = [["状态", "status", "state"], ["status"], ["状态"], ["updated_at"], ["更新于", "updated_at"], ["k"], ["s"], ["i"], ["key"], ["id"], ["ss"], ["a.b"], ["a+b"], ["(x)"], ["[x]"], ["x|y"], ["中 文"], [""], ["状态", ""], []]
+FIELD_NAME_SETS = [["状态", "status", "state"], ["status"], ["状态"], ["updated_at"], ["更新于", "updated_at"], ["k"], ["s"], ["i"], ["key"], ["id"], ["ss"], ["a.b"], ["a+b"], ["(x)"], ["[x]"], ["x|y"], ["中 文"], [""], ["状态", ""], [],
+                   # 带连字符等字符的名字：Python 的 re.escape 转义它们都合法，JS 的 `u` 模式不许在字符类之外写 `\-`——曾整条抛 SyntaxError（evidence 迁移时发现，样本里此前没有一个含 `-` 的名字）
+                   ["updated-at"], ["last-transition-at"], ["a-b"], ["-"], ["a#b"], ["a&b"], ["a~b"], ["a!b"], ["a'b"], ['a"b'], ["a%b"], ["a,b"], ["a;b"], ["a<b"], ["a=b"], ["a>b"], ["a@b"], ["a/b"], ["a\\b"], ["a:b"], ["a_b"], ["a{b}"], ["a^b"], ["a$b"], ["a*b"], ["a?b"], ["a b"]]
 
 HEAD_TEXTS = [
     "---\nstatus: active\n---\n# T\n正文", "---\nstatus: active\n---\n# T\n\n## 背景\n状态：old", "---\ntitle: x\n---\n# T\n状态：active\n## s\n状态：old",
