@@ -61,6 +61,7 @@ if (r.status !== 0 || base.size) { console.error(`基线测试不是全绿（失
 
 let bad = 0
 let unverified = 0          // 清单里标了 unobservable 的变异：性质没有可观察的副作用，测试抓不住是**已知**的——如实计数，既不算通过也不算失败
+let typeGuarded = 0         // 清单里标了 typeGuarded 的变异：编译器拒绝它——防线是类型系统，不是测试；单独计数，不并入「被抓住」
 try {
   for (const m of muts) {
     const abs = join(root, m.file)
@@ -78,7 +79,12 @@ try {
       for (const s of steps) mutated = mutated.replace(s.from, () => s.to)
       writeFileSync(abs, mutated)
       const b = build()
-      if (b.status !== 0) { console.log(`? ${m.id.padEnd(6)} ${m.title ?? ''}  变异后编译不过，无效（换一种写法）`); bad++; continue }
+      // typeGuarded：这条变异改的恰是**类型系统守着的决策**（例如去掉 null 窄化后编译器拒绝）。编译不过本身就是这道防线在起作用，如实报告为「由类型守住」，
+      // 不计入「被测试抓住」，也不当作无效；没标 typeGuarded 的编译不过仍按无效处理（那是变异写得有问题，要换写法）。
+      if (b.status !== 0) {
+        if (m.typeGuarded) { console.log(`◇ ${m.id.padEnd(6)} ${m.title ?? ''}  由类型系统守住（编译即拒绝）：${m.typeGuarded}`); typeGuarded++; continue }
+        console.log(`? ${m.id.padEnd(6)} ${m.title ?? ''}  变异后编译不过，无效（换一种写法）`); bad++; continue
+      }
       const t = runTests()
       const f = failed(t.stdout)
       if (f.size > 0) console.log(`✓ ${m.id.padEnd(6)} ${m.title ?? ''}  失败 ${f.size} 条`)
@@ -95,5 +101,5 @@ const drift = verify()
 build()
 rmSync(tmp, { recursive: true, force: true })
 if (drift.length) { console.error('还原后文件哈希与开始前不一致：' + drift.join(', ')); process.exit(3) }
-console.log(`\n${muts.length} 条变异；${muts.length - bad - unverified} 条被抓住，${unverified} 条已知未验证（unobservable，不折算通过），${bad} 条没被抓住或无效。文件已还原并校验哈希。`)
+console.log(`\n${muts.length} 条变异；${muts.length - bad - unverified - typeGuarded} 条被抓住，${typeGuarded} 条由类型系统守住（编译即拒绝，不算测试抓住），${unverified} 条已知未验证（unobservable，不折算通过），${bad} 条没被抓住或无效。文件已还原并校验哈希。`)
 process.exit(bad ? 1 : 0)

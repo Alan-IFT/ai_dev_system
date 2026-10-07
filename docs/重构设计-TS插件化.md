@@ -240,7 +240,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/dates`（日期运算 `todayLocal`/`addDays`/`compareDays` 从 `exceptions.ts` 移来，`freshness` 也用）
     - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
     - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -531,6 +531,18 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **对采用项目的仓必须只读**。原来 `golden-compare` 用 `git worktree add`，它会往被扫仓的 `.git/worktrees/` 写元数据（用完即清，但确实写了）。这与「只改本仓与插件，采用项目只写步骤与脚本」的约束不符。改为 `git clone --shared --no-checkout` 到自己的临时目录再检出固定提交：`--shared` 只读源仓的对象库，源仓一字节不动。**实测**：三个采用项目仓的 `.git`（文件数、最新修改时间、总字节）在比对前后完全一致，worktree 数仍是 1（只有主工作区），临时目录全部清理。我之前几轮用 worktree 时没把这点当成要先问的事，是我对约束的理解偏松，现已改。
 - **一个澄清（用户问：为什么还保留 Python）**：Python 版是**迁移期的对照答案**，不是产品。TS 版只有对着 Python 在同样输入上逐条比，才能证明「没有悄悄判错」——这个工具判定的是别人项目的文档有没有过期、ADR 有没有被改，悄悄漏掉一个边界不会报错，只会在某个采用项目里少报一次本该报出来的问题。这轮实际发现的缺陷（D18 emoji 截取错位、D19 全角数字、`latestDay` 随机器时区漂、blame 行号取错）没有一个是「读代码能看出来」的。**全部迁完、全部对齐后，Python 版、`golden/`、`tools/dsh-std/` 都删（阶段 4）**；这也是最初要求的「废弃技术栈直接清理，不再遗留」。
 
+### 12.26 第六个检查器 `derived`（NAME 是 `derived-artifacts`，文件是 `derived.ts`）：真实仓对它几乎没有覆盖力
+
+- **一个先要说清的事实**：4 个真实仓的 `project.yaml` 都**没有声明 `derived:`**，每个仓只出一条 `SKIP`。所以「4 个仓逐条一致」对这个检查器的覆盖力几乎为零——**判据靠 selftest（9 条探针）与自己的单元样本守护**。这是前面几次「顺带被真实仓抓住」的反面：这里一条都靠不上，必须每条判据有自己的、不依赖外部数据的断言。
+- **证据**：4 个仓各 1 条 SKIP 一致；selftest 9 条集合相同；`golden/unit/derived.json`（`mentions` 62、`header_declares` 37、`header_generation_hint` 49、头部字节 46、`decode("utf-8","ignore")` 42 条）逐条比对；变异 108 条，**Windows 与 Ubuntu 同口径：98 抓住 + 2 由类型系统守住 + 8 如实标注 + 0 漏**；全量测试 Ubuntu 924 条 0 败。
+- **新增核心函数 `decodeUtf8Ignore`（`core/utf8.ts`）**：Python 的 `decode("utf-8","ignore")` 等价物。不能用 Node 的宽松 `TextDecoder`，两处不一致（都已用 Python 实测）：①宽松解码把无效字节换成 U+FFFD，**原文自带的 U+FFFD 必须保留**，事后「去掉 U+FFFD」会误伤；②Node 默认吞掉开头的 BOM，Python 的 `utf-8` 编解码器保留它。实现是用 `diagnoseUtf8` 给的 `[start, end)`（§12.11 已与 Python 逐字节核对）把每个无效序列整个丢掉。测试里放了对照组，证明「Node 宽松解码 + 去 U+FFFD」在这两处确实与 Python 不同。
+- **`NAME` 与文件名不一致**：检查器名是 `derived-artifacts`（进 finding id），文件是 `derived.ts`。`golden-compare.mjs` 与 `golden-selftest.mjs` 原先用「名字里的 `-` 换 `_`」当文件名，这一个对不上，加了 `FILE_OF` 映射。
+- **`mutate.mjs` 新增 `typeGuarded` 口径**：两条变异（`H10` 去掉 null 窄化、`H15` 去掉 `if (gen)`）改的恰是**类型系统守着的决策**，变异后编译即被拒绝。原来只有「无效（换写法）」一种解读，会让人误以为是变异写得不对。现在显式标 `typeGuarded`，单独计数，**不并入「被测试抓住」**。TypeScript 的 null 窄化迫使这两处「必须先判再用」，Python 没有这层保护，行为由别的断言覆盖。
+- **摘掉标注单独验证——又验出 3 条标错**：14 条标了 `unobservable` 的，摘掉后跑一遍，`E6`、`G5`、`G10` 其实被抓住了（标注是错的），已摘；`A3`/`A4`（头部字节上限 8192 改 8191/8193）我自己写的是「可构造但未补」，**不该用标注糊过去**，补了断言：源路径（10 字节）起于第 8182 字节、恰好结束在第 8192 字节 → PASS，起于第 8183 字节 → FAIL（Python 实测）。`I1`（把常量 `HEADER_LINES` 换成同值字面量）是等价变异，删除而不是标注。这是**第二轮**同样的教训（上一轮在 `drift` 里验出 4 条标错）：**标注 `unobservable` 前必须先摘掉标注跑一遍**，这应该成为写变异清单的默认动作，而不是事后补救。
+- **剩余 8 条标注，各有 Python 实测的证据**：`C13`（空 name：`header_declares(任意头部, "a/")` 与 `("a")` 都是 None；声明写成 `src/` 时 `isFile` 先判「source 不存在」，到不了）、`D8`（`lastIndexOf` 为 -1 时 `slice(0)` 就是整串）、`E9`（两张词表的每一项已是小写）、`F7`（头部读失败只在 `isFile` 通过之后 `readBytes` 抛错才出现；Windows 上无稳定构造，Ubuntu 容器里测试以 root 运行，`chmod 000` 对 root 无效）、`G3`（不带 `-1` 时仍取第一行）、`G4`（`git log -1 --format=%ct` 不触发 `core.fsmonitor`，与 `freshness` 的 `G2` 同一证据）、`G6`（git 不可执行时 `shallowProblem` 先失败，走不到 spawn 出错这一支）、`G9`（`%ct` 恒是 ASCII 数字）。
+- **一个我自己的疏忽，测试写完才发现**：新补的两条断言（源标记子串匹配、整段匹配边界）写好后「跑通过」，其实是调用前就因 `headerDeclares is not defined` 崩了——**测试的失败被我当成了「还没跑到」**。补上导入后才真正通过。新写的断言第一次跑，要先看它是**因为什么**红或绿的。
+- **清单里我写了两条自己承认是「占位」的条目（`H7`、`H36`）**——和上一轮 `C6`、`F24` 同一毛病，跑之前删了；以后写清单时不写占位。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -589,6 +601,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-07 | **第六个检查器 `derived` 迁完**，记 §12.26；新增 `decodeUtf8Ignore`（Python `decode("utf-8","ignore")` 等价物，保留原文 U+FFFD 与开头 BOM）；`mutate.mjs` 新增 `typeGuarded` 口径；两个 `golden-*` 脚本加 `FILE_OF` 映射 | 4 个真实仓**都没声明 `derived:`**，真实仓比对几乎无覆盖力，判据靠 selftest 9 条与 `golden/unit/derived.json` 单元样本；变异 108 条（Windows 与 Ubuntu 同口径：98 抓住 + 2 类型守住 + 8 标注 + 0 漏）；摘标注单独验证又验出 3 条标错，补了 A3/A4 断言；全量测试 Ubuntu 924 条 0 败 |
 | 2026-10-07 | **第五个检查器 `drift` 迁完**，记 §12.24；`noteDefault` 提到 `core/shell`，`WORK_ITEM_NAME` 导出复用；`golden-compare` 加 `REGISTERED_PENDING`（样本里带 `registered` 的只比 id/status/where，并显式打印条数）；D19 范围扩大 | 4 个真实仓 16 条逐条一致、selftest 27 条集合相同、变异 194 条（Windows 181 抓住 + 13 标注 + 0 漏）；变异三轮才收拢，漏网都是「样本只放在最容易想到的位置」；摘掉 `unobservable` 标注单独验证发现 4 条标错 |
 | 2026-10-06 | **第四个检查器 `freshness` 迁完**，记 §12.23；新增 D19（日期令牌的非 ASCII 数字，Alan 选保持严格）；日期运算从 `exceptions.ts` 移入 `core/dates.ts` | 4 个真实仓 239 条逐条一致、selftest 22 条集合相同、变异 150 条（Windows 146 抓住 + 4 标注 + 0 漏；Ubuntu 首轮 2 漏，补断言后全抓住）；事先对每个 Python 操作做等价性核对，D18 与 D19 都是写 TS 之前发现的；仍有 7 条等价变异是跑完才发现的 |
 | 2026-10-06 | **D18：`docs.ts` 的头部截取按码元、Python 按码点，已迁代码里的真实缺陷**，记 §12.22；新增 `headChars`、`check-py-semantics` 第 6 条规则 `slice-cu` | 修前 83 条样本 28 条与 Python 不同，修后 0 条；变异 7 条两平台全抓住；三个已迁检查器对 4 个真实仓与 selftest 仍零差异（样本里本来就没有这类输入，所以此前的零差异结论不受影响，但缺陷一直在）；脚本测试补 5+9 条 |

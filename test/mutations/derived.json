@@ -1,0 +1,784 @@
+[
+ {
+  "id": "A1",
+  "title": "头部行数 30 改 29",
+  "file": "src/checks/derived.ts",
+  "from": "const HEADER_LINES = 30 //",
+  "to": "const HEADER_LINES = 29 //"
+ },
+ {
+  "id": "A2",
+  "title": "头部行数 30 改 31",
+  "file": "src/checks/derived.ts",
+  "from": "const HEADER_LINES = 30 //",
+  "to": "const HEADER_LINES = 31 //"
+ },
+ {
+  "id": "A3",
+  "title": "头部字节上限 8192 改 8191",
+  "file": "src/checks/derived.ts",
+  "from": "const HEADER_MAX_BYTES = 8192",
+  "to": "const HEADER_MAX_BYTES = 8191"
+ },
+ {
+  "id": "A4",
+  "title": "头部字节上限 8192 改 8193",
+  "file": "src/checks/derived.ts",
+  "from": "const HEADER_MAX_BYTES = 8192",
+  "to": "const HEADER_MAX_BYTES = 8193"
+ },
+ {
+  "id": "A5",
+  "title": "头部字节上限改成不限（读整个文件）",
+  "file": "src/checks/derived.ts",
+  "from": "data = readBytes(path, root, HEADER_MAX_BYTES)",
+  "to": "data = readBytes(path, root)"
+ },
+ {
+  "id": "B1",
+  "title": "源标记词少一个（source-rev）",
+  "file": "src/checks/derived.ts",
+  "from": "['source_rev', 'source-rev', 'sourcerev']",
+  "to": "['source_rev', 'sourcerev']"
+ },
+ {
+  "id": "B2",
+  "title": "源标记词少一个（sourcerev）",
+  "file": "src/checks/derived.ts",
+  "from": "['source_rev', 'source-rev', 'sourcerev']",
+  "to": "['source_rev', 'source-rev']"
+ },
+ {
+  "id": "B3",
+  "title": "源标记词少一个（source_rev）",
+  "file": "src/checks/derived.ts",
+  "from": "['source_rev', 'source-rev', 'sourcerev']",
+  "to": "['source-rev', 'sourcerev']"
+ },
+ {
+  "id": "B4",
+  "title": "源标记比较不转小写",
+  "file": "src/checks/derived.ts",
+  "from": "if (low.includes(mark.toLowerCase())) return `头部出现标记 ${mark}`",
+  "to": "if (header.includes(mark)) return `头部出现标记 ${mark}`"
+ },
+ {
+  "id": "B5",
+  "title": "命中标记的说明文案不带标记名",
+  "file": "src/checks/derived.ts",
+  "from": "return `头部出现标记 ${mark}`",
+  "to": "return '头部出现标记'"
+ },
+ {
+  "id": "B6",
+  "title": "源标记命中也要求边界（当成路径处理）",
+  "file": "src/checks/derived.ts",
+  "from": "for (const mark of SOURCE_MARKERS) if (low.includes(mark.toLowerCase())) return",
+  "to": "for (const mark of SOURCE_MARKERS) if (mentions(low, mark)) return"
+ },
+ {
+  "id": "C1",
+  "title": "整段匹配：前边界去掉 `.`",
+  "file": "src/checks/derived.ts",
+  "from": "new RegExp('(?<![A-Za-z0-9_.-])",
+  "to": "new RegExp('(?<![A-Za-z0-9_-])"
+ },
+ {
+  "id": "C2",
+  "title": "整段匹配：前边界去掉 `-`",
+  "file": "src/checks/derived.ts",
+  "from": "new RegExp('(?<![A-Za-z0-9_.-])",
+  "to": "new RegExp('(?<![A-Za-z0-9_.])"
+ },
+ {
+  "id": "C3",
+  "title": "整段匹配：前边界去掉 `_`",
+  "file": "src/checks/derived.ts",
+  "from": "new RegExp('(?<![A-Za-z0-9_.-])",
+  "to": "new RegExp('(?<![A-Za-z0-9.-])"
+ },
+ {
+  "id": "C4",
+  "title": "整段匹配：前边界去掉数字",
+  "file": "src/checks/derived.ts",
+  "from": "new RegExp('(?<![A-Za-z0-9_.-])",
+  "to": "new RegExp('(?<![A-Za-z_.-])"
+ },
+ {
+  "id": "C5",
+  "title": "整段匹配：前边界去掉字母",
+  "file": "src/checks/derived.ts",
+  "from": "new RegExp('(?<![A-Za-z0-9_.-])",
+  "to": "new RegExp('(?<![0-9_.-])"
+ },
+ {
+  "id": "C6",
+  "title": "整段匹配：前边界认 Unicode 字母数字（中文紧贴不再算）",
+  "file": "src/checks/derived.ts",
+  "from": "new RegExp('(?<![A-Za-z0-9_.-])",
+  "to": "new RegExp('(?<![\\\\p{L}\\\\p{N}_.-])"
+ },
+ {
+  "id": "C7",
+  "title": "整段匹配：后边界允许 `.` 后接扩展名（`.md` 也算命中）",
+  "file": "src/checks/derived.ts",
+  "from": "'(?!\\\\.?[A-Za-z0-9_-])",
+  "to": "'(?![A-Za-z0-9_-])"
+ },
+ {
+  "id": "C8",
+  "title": "整段匹配：后边界不容句末句号（`.` 后无字母也不算）",
+  "file": "src/checks/derived.ts",
+  "from": "'(?!\\\\.?[A-Za-z0-9_-])",
+  "to": "'(?!\\\\.|[A-Za-z0-9_-])"
+ },
+ {
+  "id": "C9",
+  "title": "整段匹配：后边界去掉 `-`",
+  "file": "src/checks/derived.ts",
+  "from": "'(?!\\\\.?[A-Za-z0-9_-])",
+  "to": "'(?!\\\\.?[A-Za-z0-9_])"
+ },
+ {
+  "id": "C10",
+  "title": "整段匹配：后边界去掉 `_`",
+  "file": "src/checks/derived.ts",
+  "from": "'(?!\\\\.?[A-Za-z0-9_-])",
+  "to": "'(?!\\\\.?[A-Za-z0-9-])"
+ },
+ {
+  "id": "C11",
+  "title": "整段匹配：不转义正则元字符",
+  "file": "src/checks/derived.ts",
+  "from": "escapeRe(name.toLowerCase())",
+  "to": "name.toLowerCase()"
+ },
+ {
+  "id": "C12",
+  "title": "整段匹配：name 不转小写",
+  "file": "src/checks/derived.ts",
+  "from": "escapeRe(name.toLowerCase())",
+  "to": "escapeRe(name)"
+ },
+ {
+  "id": "C13",
+  "title": "整段匹配：空 name 也匹配",
+  "file": "src/checks/derived.ts",
+  "from": "return !!name && new RegExp(",
+  "to": "return new RegExp(",
+  "unobservable": "路径不可达：Python 实测 `header_declares(任意头部, \"a/\")` 与 `(\"a\")` 都是 None；声明 source 写成 `src/`（目录）时 isFile 先判「source 不存在」，到不了 headerDeclares；base 为空只发生在 source 以 / 结尾，而那样的声明被前一步拦下"
+ },
+ {
+  "id": "C14",
+  "title": "转义漏掉 `[`",
+  "file": "src/checks/derived.ts",
+  "from": "/[.*+?^${}()|[\\]\\\\]/g",
+  "to": "/[.*+?^${}()|\\]\\\\]/g"
+ },
+ {
+  "id": "C15",
+  "title": "转义漏掉 `+`",
+  "file": "src/checks/derived.ts",
+  "from": "/[.*+?^${}()|[\\]\\\\]/g",
+  "to": "/[.*?^${}()|[\\]\\\\]/g"
+ },
+ {
+  "id": "C16",
+  "title": "转义漏掉 `.`",
+  "file": "src/checks/derived.ts",
+  "from": "/[.*+?^${}()|[\\]\\\\]/g",
+  "to": "/[*+?^${}()|[\\]\\\\]/g"
+ },
+ {
+  "id": "D1",
+  "title": "headerDeclares：源路径不把反斜杠换斜杠",
+  "file": "src/checks/derived.ts",
+  "from": "const src = pyStr(sourceRel).replaceAll('\\\\', '/')",
+  "to": "const src = pyStr(sourceRel)"
+ },
+ {
+  "id": "D2",
+  "title": "headerDeclares：不查源文件名（只查路径）",
+  "file": "src/checks/derived.ts",
+  "from": "if (mentions(low, base)) return `头部出现源文件名 ${base}`",
+  "to": ""
+ },
+ {
+  "id": "D3",
+  "title": "headerDeclares：不查源路径（只查文件名）",
+  "file": "src/checks/derived.ts",
+  "from": "if (mentions(low, src)) return `头部出现源路径 ${src}`",
+  "to": ""
+ },
+ {
+  "id": "D4",
+  "title": "headerDeclares：不查 source_rev 标记",
+  "file": "src/checks/derived.ts",
+  "from": "for (const mark of SOURCE_MARKERS) if (low.includes(mark.toLowerCase())) return `头部出现标记 ${mark}`",
+  "to": ""
+ },
+ {
+  "id": "D5",
+  "title": "headerDeclares：头部不转小写",
+  "file": "src/checks/derived.ts",
+  "from": "const low = header.toLowerCase()\n  const src = pyStr(sourceRel)",
+  "to": "const low = header\n  const src = pyStr(sourceRel)"
+ },
+ {
+  "id": "D6",
+  "title": "headerDeclares：路径说明用原文而不是归一后的",
+  "file": "src/checks/derived.ts",
+  "from": "return `头部出现源路径 ${src}`",
+  "to": "return `头部出现源路径 ${pyStr(sourceRel)}`"
+ },
+ {
+  "id": "D7",
+  "title": "headerDeclares：文件名取法改成取最后一个反斜杠之后",
+  "file": "src/checks/derived.ts",
+  "from": "const base = pyBasename(src)",
+  "to": "const base = src.slice(src.lastIndexOf('\\\\') + 1)"
+ },
+ {
+  "id": "D8",
+  "title": "pyBasename：不处理没有斜杠的情形",
+  "file": "src/checks/derived.ts",
+  "from": "const pyBasename = (p: string): string => { const i = p.lastIndexOf('/'); return i < 0 ? p : p.slice(i + 1) }",
+  "to": "const pyBasename = (p: string): string => p.slice(p.lastIndexOf('/') + 1)",
+  "unobservable": "等价：Python 实测 `os.path.basename(\"a\")` 与 `rfind(\"/\")` 为 -1 时 slice(0) 都是整串；与 `i < 0 ? p : p.slice(i+1)` 逐输入相同"
+ },
+ {
+  "id": "E1",
+  "title": "生成痕迹：署名与措辞的优先级反了",
+  "file": "src/checks/derived.ts",
+  "from": "[[GENERATOR_HINTS, '生成器署名'], [GENERATED_MARKERS, '生成/派生措辞']]",
+  "to": "[[GENERATED_MARKERS, '生成/派生措辞'], [GENERATOR_HINTS, '生成器署名']]"
+ },
+ {
+  "id": "E2",
+  "title": "生成痕迹：行号从 0 起",
+  "file": "src/checks/derived.ts",
+  "from": "return [kind, i + 1, headChars(pyStrip(lines[i]!), 200)]",
+  "to": "return [kind, i, headChars(pyStrip(lines[i]!), 200)]"
+ },
+ {
+  "id": "E3",
+  "title": "生成痕迹：原文行不 strip",
+  "file": "src/checks/derived.ts",
+  "from": "headChars(pyStrip(lines[i]!), 200)",
+  "to": "headChars(lines[i]!, 200)"
+ },
+ {
+  "id": "E4",
+  "title": "生成痕迹：原文行取 199 个码点",
+  "file": "src/checks/derived.ts",
+  "from": "headChars(pyStrip(lines[i]!), 200)",
+  "to": "headChars(pyStrip(lines[i]!), 199)"
+ },
+ {
+  "id": "E5",
+  "title": "生成痕迹：原文行取 201 个码点",
+  "file": "src/checks/derived.ts",
+  "from": "headChars(pyStrip(lines[i]!), 200)",
+  "to": "headChars(pyStrip(lines[i]!), 201)"
+ },
+ {
+  "id": "E6",
+  "title": "生成痕迹：原文行按码元截 200（违反 D18）",
+  "file": "src/checks/derived.ts",
+  "from": "headChars(pyStrip(lines[i]!), 200)",
+  "to": "pyStrip(lines[i]!).slice(0, 200)"
+ },
+ {
+  "id": "E7",
+  "title": "生成痕迹：不按 Python 行终止符切（用 \\n）",
+  "file": "src/checks/derived.ts",
+  "from": "const lines = splitLinesPy(header)\n  for (const [group, kind]",
+  "to": "const lines = header.split('\\n')\n  for (const [group, kind]"
+ },
+ {
+  "id": "E8",
+  "title": "生成痕迹：行内不转小写",
+  "file": "src/checks/derived.ts",
+  "from": "const low = lines[i]!.toLowerCase()",
+  "to": "const low = lines[i]!"
+ },
+ {
+  "id": "E9",
+  "title": "生成痕迹：标记不转小写",
+  "file": "src/checks/derived.ts",
+  "from": "if (low.includes(mark.toLowerCase())) return [kind, i + 1,",
+  "to": "if (low.includes(mark)) return [kind, i + 1,",
+  "unobservable": "等价：Python 实测 GENERATED_MARKERS 与 GENERATOR_HINTS 的每一项都已是小写（含大写项的列表为空），`mark.toLowerCase() === mark`"
+ },
+ {
+  "id": "E10",
+  "title": "生成痕迹：措辞词表少一个（do not edit）",
+  "file": "src/checks/derived.ts",
+  "from": "'source:', 'source =', 'sources:', 'generated', 'do not edit', 'regen',",
+  "to": "'source:', 'source =', 'sources:', 'generated', 'regen',"
+ },
+ {
+  "id": "E11",
+  "title": "生成痕迹：措辞词表少一个（权威在）",
+  "file": "src/checks/derived.ts",
+  "from": "'请勿编辑', '权威是', '权威在',",
+  "to": "'请勿编辑', '权威是',"
+ },
+ {
+  "id": "E12",
+  "title": "生成痕迹：措辞词表少一个（勿手改）",
+  "file": "src/checks/derived.ts",
+  "from": "'不要手改', '勿手改', '不要手工修改',",
+  "to": "'不要手改', '不要手工修改',"
+ },
+ {
+  "id": "E13",
+  "title": "生成痕迹：署名词表少一个（generator:）",
+  "file": "src/checks/derived.ts",
+  "from": "['name=\"generator\"', \"name='generator'\", 'x-generator', 'generated-by', 'generator:']",
+  "to": "['name=\"generator\"', \"name='generator'\", 'x-generator', 'generated-by']"
+ },
+ {
+  "id": "E14",
+  "title": "生成痕迹：署名词表少一个（单引号）",
+  "file": "src/checks/derived.ts",
+  "from": "\"name='generator'\", 'x-generator'",
+  "to": "'x-generator'"
+ },
+ {
+  "id": "E15",
+  "title": "生成痕迹：找不到返回空数组而不是 null",
+  "file": "src/checks/derived.ts",
+  "from": "  }\n  return null\n}\n\n// --------------------------------------------------------------------------\n// 接口",
+  "to": "  }\n  return ['', 0, '']\n}\n\n// --------------------------------------------------------------------------\n// 接口"
+ },
+ {
+  "id": "F1",
+  "title": "头部字节：含 NUL 不判二进制",
+  "file": "src/checks/derived.ts",
+  "from": "if (data.includes(0)) return [null, '是二进制文件，头部声明判不了']",
+  "to": ""
+ },
+ {
+  "id": "F2",
+  "title": "头部字节：二进制的原因文案改",
+  "file": "src/checks/derived.ts",
+  "from": "'是二进制文件，头部声明判不了'",
+  "to": "'二进制'"
+ },
+ {
+  "id": "F3",
+  "title": "头部字节：不用 decodeUtf8Ignore（改 Node 宽松解码）",
+  "file": "src/checks/derived.ts",
+  "from": "splitLinesPy(decodeUtf8Ignore(data))",
+  "to": "splitLinesPy(new TextDecoder('utf-8').decode(data))"
+ },
+ {
+  "id": "F4",
+  "title": "头部字节：不按 Python 行终止符切（用 \\n）",
+  "file": "src/checks/derived.ts",
+  "from": "splitLinesPy(decodeUtf8Ignore(data)).slice(0, HEADER_LINES)",
+  "to": "decodeUtf8Ignore(data).split('\\n').slice(0, HEADER_LINES)"
+ },
+ {
+  "id": "F5",
+  "title": "头部字节：行之间用 \\r\\n 拼",
+  "file": "src/checks/derived.ts",
+  "from": ".slice(0, HEADER_LINES).join('\\n'), null] //",
+  "to": ".slice(0, HEADER_LINES).join('\\r\\n'), null] //"
+ },
+ {
+  "id": "F6",
+  "title": "头部字节：不截 HEADER_LINES",
+  "file": "src/checks/derived.ts",
+  "from": "splitLinesPy(decodeUtf8Ignore(data)).slice(0, HEADER_LINES).join('\\n')",
+  "to": "splitLinesPy(decodeUtf8Ignore(data)).join('\\n')"
+ },
+ {
+  "id": "F7",
+  "title": "读头部：读不了不返回（继续）",
+  "file": "src/checks/derived.ts",
+  "from": "    return [null, `读不了：${(exc as Error).message}`]\n  }\n  return headerOfBytes(data)",
+  "to": "    data = Buffer.alloc(0)\n  }\n  return headerOfBytes(data)",
+  "unobservable": "路径不可达：readHeader 的读失败只在 isFile 通过之后 readBytes 抛错才出现（权限、竞态）；Windows 上无稳定构造，Ubuntu 容器里测试以 root 运行，chmod 000 对 root 无效——两个平台都构造不出"
+ },
+ {
+  "id": "G1",
+  "title": "提交时间：不加 --literal-pathspecs",
+  "file": "src/checks/derived.ts",
+  "from": "spawnSync('git', ['--literal-pathspecs', '-C', root, 'log',",
+  "to": "spawnSync('git', ['-C', root, 'log',"
+ },
+ {
+  "id": "G2",
+  "title": "提交时间：取作者时间 %at 而不是提交时间 %ct",
+  "file": "src/checks/derived.ts",
+  "from": "'--format=%ct'",
+  "to": "'--format=%at'"
+ },
+ {
+  "id": "G3",
+  "title": "提交时间：不取 -1（全部历史，取首行仍是最近一次）",
+  "file": "src/checks/derived.ts",
+  "from": "'log', '-1', '--format=%ct'",
+  "to": "'log', '--format=%ct'",
+  "unobservable": "等价：git log 不带 -1 时按时间倒序输出全部提交，代码只取第一行（splitLinesPy(...)[0]），第一行仍是最近一次"
+ },
+ {
+  "id": "G4",
+  "title": "提交时间：不经 hardenedEnv",
+  "file": "src/checks/derived.ts",
+  "from": "timeout: GIT_TIMEOUT_MS, env: hardenedEnv(process.env) as NodeJS.ProcessEnv })",
+  "to": "timeout: GIT_TIMEOUT_MS })",
+  "unobservable": "防御纵深，本机不可观察：实测 `git log -1 --format=%ct` 不触发 core.fsmonitor（`ls-files`、`status` 才触发）；与 freshness 的 G2 同一证据"
+ },
+ {
+  "id": "G5",
+  "title": "提交时间：退出码非 0 当成功",
+  "file": "src/checks/derived.ts",
+  "from": "if (r.status !== 0) return [null, `git log 退出码",
+  "to": "if (false) return [null, `git log 退出码"
+ },
+ {
+  "id": "G6",
+  "title": "提交时间：spawn 出错不判",
+  "file": "src/checks/derived.ts",
+  "from": "  if (r.error) return [null, `跑不了 git log：${r.error.message}`]\n",
+  "to": "",
+  "unobservable": "路径不可达：git 不可执行时 shallowProblem 先失败（记在 shallow 里），gitLastCommitEpoch 在 `if (shallow) return` 处就返回了，走不到 spawn 出错这一支；Python 同一结构"
+ },
+ {
+  "id": "G7",
+  "title": "提交时间：浅克隆不短路（继续跑 git log）",
+  "file": "src/checks/derived.ts",
+  "from": "if (shallow) return [null, shallow]",
+  "to": ""
+ },
+ {
+  "id": "G8",
+  "title": "提交时间：输出为空不判（直接 Number）",
+  "file": "src/checks/derived.ts",
+  "from": "if (first === undefined || !/^[0-9]+$/.test(pyStrip(first)))",
+  "to": "if (false)"
+ },
+ {
+  "id": "G9",
+  "title": "提交时间：非数字不判",
+  "file": "src/checks/derived.ts",
+  "from": "|| !/^[0-9]+$/.test(pyStrip(first))",
+  "to": "",
+  "unobservable": "等价：git `%ct` 恒输出 ASCII 数字或空，非数字输出不可能；Python 的 isdigit 判据是防御"
+ },
+ {
+  "id": "G10",
+  "title": "提交时间：取第二行（而不是第一行）",
+  "file": "src/checks/derived.ts",
+  "from": "const first = splitLinesPy(pyStrip(r.stdout ?? ''))[0]",
+  "to": "const first = splitLinesPy(pyStrip(r.stdout ?? ''))[1]"
+ },
+ {
+  "id": "G11",
+  "title": "提交时间：「没有提交记录」改成记 0（不报未定）",
+  "file": "src/checks/derived.ts",
+  "from": "return [null, `${relpath} 没有提交记录（未提交或路径写错）`]",
+  "to": "return [0, null]"
+ },
+ {
+  "id": "H1",
+  "title": "主流程：陈旧判据 < 改 <=（同一秒也算落后）",
+  "file": "src/checks/derived.ts",
+  "from": "} else if (aEpoch < sEpoch) {",
+  "to": "} else if (aEpoch <= sEpoch) {"
+ },
+ {
+  "id": "H2",
+  "title": "主流程：陈旧判据 < 改 >（反号）",
+  "file": "src/checks/derived.ts",
+  "from": "} else if (aEpoch < sEpoch) {",
+  "to": "} else if (aEpoch > sEpoch) {"
+ },
+ {
+  "id": "H3",
+  "title": "主流程：落后记未定而不是 FAIL",
+  "file": "src/checks/derived.ts",
+  "from": "out.push(finding(NAME, FAIL, `${label} 落后于源 ${source}`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `${label} 落后于源 ${source}`"
+ },
+ {
+  "id": "H4",
+  "title": "主流程：落后的 key 不带源",
+  "file": "src/checks/derived.ts",
+  "from": "where: artifact, kind: 'behind', key: `${artifact}|${source}`,",
+  "to": "where: artifact, kind: 'behind', key: artifact,"
+ },
+ {
+  "id": "H5",
+  "title": "主流程：不落后的 key 不带源",
+  "file": "src/checks/derived.ts",
+  "from": "where: artifact, kind: 'not-behind', key: `${artifact}|${source}`, why: '01 §3.4',",
+  "to": "where: artifact, kind: 'not-behind', key: artifact, why: '01 §3.4',"
+ },
+ {
+  "id": "H6",
+  "title": "主流程：落后的秒差写反",
+  "file": "src/checks/derived.ts",
+  "from": "晚 ${sEpoch - aEpoch} 秒",
+  "to": "晚 ${aEpoch - sEpoch} 秒"
+ },
+ {
+  "id": "H8",
+  "title": "主流程：取不到时间时 reason 只取 aWhy",
+  "file": "src/checks/derived.ts",
+  "from": "reason: [aWhy, sWhy].filter((x) => x).join('；'),",
+  "to": "reason: aWhy ?? '',"
+ },
+ {
+  "id": "H9",
+  "title": "主流程：取不到时间记 FAIL",
+  "file": "src/checks/derived.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${label} 取不到 git 提交时间，陈旧与否未定`",
+  "to": "out.push(finding(NAME, FAIL, `${label} 取不到 git 提交时间，陈旧与否未定`"
+ },
+ {
+  "id": "H10",
+  "title": "主流程：任一取不到才记未定改成两个都取不到才记",
+  "file": "src/checks/derived.ts",
+  "from": "if (aEpoch === null || sEpoch === null) {",
+  "to": "if (aEpoch === null && sEpoch === null) {",
+  "typeGuarded": "类型系统就是防线：把「任一取不到」改成「两个都取不到」后，后面的 `aEpoch < sEpoch` 比较里 aEpoch 可能是 null，TypeScript 拒绝编译（TS18047）；该决策由类型而不是测试守住（Python 无此保护，由 H9 等断言覆盖行为）"
+ },
+ {
+  "id": "H11",
+  "title": "主流程：头部只在第一条声明上判（不 delete）改成每条都判",
+  "file": "src/checks/derived.ts",
+  "from": "const sources = srcs.get(artifact)\n  srcs.delete(artifact)",
+  "to": "const sources = srcs.get(artifact)"
+ },
+ {
+  "id": "H12",
+  "title": "主流程：头部判据只取第一个源（不是任一）",
+  "file": "src/checks/derived.ts",
+  "from": "for (const x of sources) { const h = headerDeclares(header, x); if (h) { hit = h; break } }",
+  "to": "{ const h = headerDeclares(header, sources[0]!); if (h) hit = h }"
+ },
+ {
+  "id": "H13",
+  "title": "主流程：头部判据取最后一个命中而不是第一个",
+  "file": "src/checks/derived.ts",
+  "from": "for (const x of sources) { const h = headerDeclares(header, x); if (h) { hit = h; break } }",
+  "to": "for (const x of sources) { const h = headerDeclares(header, x); if (h) hit = h }"
+ },
+ {
+  "id": "H14",
+  "title": "主流程：头部读不了记 FAIL",
+  "file": "src/checks/derived.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `${label} 的头部读不了，自我声明未定`",
+  "to": "out.push(finding(NAME, FAIL, `${label} 的头部读不了，自我声明未定`"
+ },
+ {
+  "id": "H15",
+  "title": "主流程：头部有生成痕迹也判 PASS",
+  "file": "src/checks/derived.ts",
+  "from": "  const gen = headerGenerationHint(header)\n  if (gen) {",
+  "to": "  const gen = headerGenerationHint(header) as [string, number, string] | null\n  if (gen && false) {",
+  "typeGuarded": "类型系统就是防线：`gen` 的类型是 `[string, number, string] | null`，去掉 `if (gen)` 的窄化后下面对 gen 的解构不能编译；行为由「有生成痕迹 → header-undeclared 带行号」的断言覆盖（H16）"
+ },
+ {
+  "id": "H16",
+  "title": "主流程：有生成痕迹的 FAIL 的 where 不带行号",
+  "file": "src/checks/derived.ts",
+  "from": "where: `${artifact}:${lineno}`, kind: 'header-undeclared'",
+  "to": "where: `${artifact}:1`, kind: 'header-undeclared'"
+ },
+ {
+  "id": "H17",
+  "title": "主流程：无痕迹的 FAIL 的 where 不带 :1",
+  "file": "src/checks/derived.ts",
+  "from": "where: `${artifact}:1`, kind: 'header-undeclared', key: artifact, why,\n      evidence: `前 ${HEADER_LINES} 行里既没有源路径",
+  "to": "where: artifact, kind: 'header-undeclared', key: artifact, why,\n      evidence: `前 ${HEADER_LINES} 行里既没有源路径"
+ },
+ {
+  "id": "H18",
+  "title": "主流程：两种 FAIL 共用一个 kind（id 相同）",
+  "file": "src/checks/derived.ts",
+  "from": "where: `${artifact}:${lineno}`, kind: 'header-undeclared', key: artifact, why,",
+  "to": "where: `${artifact}:${lineno}`, kind: 'header-undeclared2', key: artifact, why,"
+ },
+ {
+  "id": "H19",
+  "title": "主流程：头部 PASS 的 key 丢掉",
+  "file": "src/checks/derived.ts",
+  "from": "where: artifact, kind: 'header-declared', key: artifact, why: '02 §9.1', evidence: hit",
+  "to": "where: artifact, kind: 'header-declared', why: '02 §9.1', evidence: hit"
+ },
+ {
+  "id": "H20",
+  "title": "主流程：源标签用声明序号（label 不带 artifact）",
+  "file": "src/checks/derived.ts",
+  "from": "const label = `derived[${idx}]（${artifact || '未写 artifact'}）`",
+  "to": "const label = `derived[${idx}]`"
+ },
+ {
+  "id": "H21",
+  "title": "主流程：序号从 0 起",
+  "file": "src/checks/derived.ts",
+  "from": "items.forEach((item, i) => out.push(...checkOne(root, i + 1, item, shallow, srcs)))",
+  "to": "items.forEach((item, i) => out.push(...checkOne(root, i, item, shallow, srcs)))"
+ },
+ {
+  "id": "H22",
+  "title": "主流程：声明不完整记 FAIL",
+  "file": "src/checks/derived.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `${label} 的声明不完整`",
+  "to": "return [finding(NAME, FAIL, `${label} 的声明不完整`"
+ },
+ {
+  "id": "H23",
+  "title": "主流程：声明不完整的 key 不带 artifact",
+  "file": "src/checks/derived.ts",
+  "from": "where: artifact || null, kind: 'incomplete-decl', key: artifact || label,",
+  "to": "where: artifact || null, kind: 'incomplete-decl', key: label,"
+ },
+ {
+  "id": "H24",
+  "title": "主流程：声明不完整的 where 丢掉",
+  "file": "src/checks/derived.ts",
+  "from": "where: artifact || null, kind: 'incomplete-decl'",
+  "to": "where: null, kind: 'incomplete-decl'"
+ },
+ {
+  "id": "H25",
+  "title": "主流程：缺哪项的顺序反了",
+  "file": "src/checks/derived.ts",
+  "from": "[['artifact', artifact], ['source', source], ['regen', regen]]",
+  "to": "[['regen', regen], ['source', source], ['artifact', artifact]]"
+ },
+ {
+  "id": "H26",
+  "title": "主流程：缺项分隔符改成逗号",
+  "file": "src/checks/derived.ts",
+  "from": "reason: `缺：${missing.join('、')}`",
+  "to": "reason: `缺：${missing.join(',')}`"
+ },
+ {
+  "id": "H27",
+  "title": "主流程：regen 缺失不算缺（只查 artifact 与 source）",
+  "file": "src/checks/derived.ts",
+  "from": "[['artifact', artifact], ['source', source], ['regen', regen]].filter",
+  "to": "[['artifact', artifact], ['source', source]].filter"
+ },
+ {
+  "id": "H28",
+  "title": "主流程：artifact 不存在不判",
+  "file": "src/checks/derived.ts",
+  "from": "if (!isFile(apath)) problems.push(`artifact 不存在：${artifact}`)",
+  "to": ""
+ },
+ {
+  "id": "H29",
+  "title": "主流程：source 不存在不判",
+  "file": "src/checks/derived.ts",
+  "from": "if (!isFile(spath)) problems.push(`source 不存在：${source}`)",
+  "to": ""
+ },
+ {
+  "id": "H30",
+  "title": "主流程：artifact 的存在性判据改成路径存在（目录也算文件）",
+  "file": "src/checks/derived.ts",
+  "multi": [
+   {
+    "from": "import { isFile, readBytes } from '../core/fs.js'",
+    "to": "import { exists, isFile, readBytes } from '../core/fs.js'"
+   },
+   {
+    "from": "if (!isFile(apath)) problems.push(`artifact 不存在：${artifact}`)",
+    "to": "if (!exists(apath)) problems.push(`artifact 不存在：${artifact}`)"
+   }
+  ]
+ },
+ {
+  "id": "H31",
+  "title": "主流程：文件不在记 FAIL",
+  "file": "src/checks/derived.ts",
+  "from": "return [finding(NAME, UNDETERMINED, `${label} 声明的文件不在`",
+  "to": "return [finding(NAME, FAIL, `${label} 声明的文件不在`"
+ },
+ {
+  "id": "H32",
+  "title": "主流程：文件不在的 key 带上 source",
+  "file": "src/checks/derived.ts",
+  "from": "where: artifact, kind: 'missing-file', key: artifact,",
+  "to": "where: artifact, kind: 'missing-file', key: `${artifact}|${source}`,"
+ },
+ {
+  "id": "H33",
+  "title": "主流程：文件不在的 evidence 丢掉 regen",
+  "file": "src/checks/derived.ts",
+  "from": "evidence: `regen: ${regen}`,",
+  "to": "evidence: '',"
+ },
+ {
+  "id": "H34",
+  "title": "主流程：无声明记 PASS",
+  "file": "src/checks/derived.ts",
+  "from": "return [finding(NAME, SKIP, '项目未声明派生工件'",
+  "to": "return [finding(NAME, PASS, '项目未声明派生工件'"
+ },
+ {
+  "id": "H35",
+  "title": "主流程：不过 runGuarded",
+  "file": "src/checks/derived.ts",
+  "from": "return runGuarded(NAME, doRun, cfg)",
+  "to": "return doRun(cfg)"
+ },
+ {
+  "id": "H37",
+  "title": "主流程：不探测浅克隆",
+  "file": "src/checks/derived.ts",
+  "from": "const shallow = shallowProblem(root, hardenedEnv(process.env))",
+  "to": "const shallow: string | null = null"
+ },
+ {
+  "id": "H38",
+  "title": "主流程：同一 artifact 的源登记不按 trim 后的 artifact 分组",
+  "file": "src/checks/derived.ts",
+  "from": "const a = field(item, 'artifact')\n    srcs.set(a,",
+  "to": "const a = pyStr(item['artifact'])\n    srcs.set(a,"
+ },
+ {
+  "id": "I2",
+  "title": "scope：条数不随声明",
+  "file": "src/checks/derived.ts",
+  "from": "`只看 project.yaml 的 derived: 声明（本次 ${n} 条）`",
+  "to": "`只看 project.yaml 的 derived: 声明（本次 0 条）`"
+ },
+ {
+  "id": "I3",
+  "title": "scope：非列表也取长度",
+  "file": "src/checks/derived.ts",
+  "from": "const n = Array.isArray(list) ? list.length : 0",
+  "to": "const n = (list as unknown as { length?: number }).length ?? 0"
+ },
+ {
+  "id": "I4",
+  "title": "scope：未覆盖项少一条",
+  "file": "src/checks/derived.ts",
+  "from": "      '不看人工批注区（02 §9.3）的隔离是否正确',\n",
+  "to": ""
+ },
+ {
+  "id": "H30b",
+  "title": "主流程：source 的存在性判据改成路径存在（目录也算文件）",
+  "file": "src/checks/derived.ts",
+  "multi": [
+   {
+    "from": "import { isFile, readBytes } from '../core/fs.js'",
+    "to": "import { exists, isFile, readBytes } from '../core/fs.js'"
+   },
+   {
+    "from": "if (!isFile(spath)) problems.push(`source 不存在：${source}`)",
+    "to": "if (!exists(spath)) problems.push(`source 不存在：${source}`)"
+   }
+  ]
+ }
+]

@@ -1,0 +1,1278 @@
+{
+ "declares": [
+  {
+   "header": "权威是 SRC/MAP.JSON",
+   "out": "头部出现源路径 src/map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "source_rev: 1",
+   "out": "头部出现标记 source_rev",
+   "src": "x"
+  },
+  {
+   "header": "SOURCE-REV",
+   "out": "头部出现标记 source-rev",
+   "src": "x"
+  },
+  {
+   "header": "sourcerev",
+   "out": "头部出现标记 sourcerev",
+   "src": "x"
+  },
+  {
+   "header": "SOURCEREV",
+   "out": "头部出现标记 sourcerev",
+   "src": "x"
+  },
+  {
+   "header": "İ source_rev",
+   "out": "头部出现标记 source_rev",
+   "src": "x"
+  },
+  {
+   "header": "Kelvin source_rev",
+   "out": "头部出现标记 source_rev",
+   "src": "x"
+  },
+  {
+   "header": "see map.json",
+   "out": "头部出现源文件名 map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "src\\map.json",
+   "out": "头部出现源文件名 map.json",
+   "src": "src\\map.json"
+  },
+  {
+   "header": "a/b/c.json",
+   "out": "头部出现源路径 a/b/c.json",
+   "src": "a\\b\\c.json"
+  },
+  {
+   "header": "rapid prototype, generated",
+   "out": null,
+   "src": "src/api"
+  },
+  {
+   "header": "权威是src/map.json",
+   "out": "头部出现源路径 src/map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "source: ../map.json.",
+   "out": "头部出现源文件名 map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "see api.md",
+   "out": null,
+   "src": "src/api"
+  },
+  {
+   "header": "src/map.json.bak",
+   "out": null,
+   "src": "src/map.json"
+  },
+  {
+   "header": "",
+   "out": null,
+   "src": "src/x"
+  },
+  {
+   "header": "source",
+   "out": "头部出现源文件名 source",
+   "src": "src/source"
+  },
+  {
+   "header": "source_re",
+   "out": null,
+   "src": "x"
+  },
+  {
+   "header": "sourcer ev",
+   "out": null,
+   "src": "x"
+  },
+  {
+   "header": "source rev",
+   "out": null,
+   "src": "x"
+  },
+  {
+   "header": "SOURCE_REV",
+   "out": "头部出现标记 source_rev",
+   "src": "x"
+  },
+  {
+   "header": "src/a.json src/b.json",
+   "out": "头部出现源路径 src/b.json",
+   "src": "src/b.json"
+  },
+  {
+   "header": "a😀src/map.json",
+   "out": "头部出现源路径 src/map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "src/map.json😀",
+   "out": "头部出现源路径 src/map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "权威是 src/map.json；不要手改",
+   "out": "头部出现源路径 src/map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "<!-- src/m[1].json -->",
+   "out": "头部出现源路径 src/m[1].json",
+   "src": "src/m[1].json"
+  },
+  {
+   "header": "<!-- src/m1.json -->",
+   "out": null,
+   "src": "src/m[1].json"
+  },
+  {
+   "header": "map.json",
+   "out": "头部出现源文件名 map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "amap.json",
+   "out": null,
+   "src": "src/map.json"
+  },
+  {
+   "header": "map.jsonx",
+   "out": null,
+   "src": "src/map.json"
+  },
+  {
+   "header": "src//map.json",
+   "out": "头部出现源路径 src//map.json",
+   "src": "src//map.json"
+  },
+  {
+   "header": "./src/map.json",
+   "out": "头部出现源路径 ./src/map.json",
+   "src": "./src/map.json"
+  },
+  {
+   "header": "../src/map.json",
+   "out": "头部出现源路径 src/map.json",
+   "src": "src/map.json"
+  },
+  {
+   "header": "x",
+   "out": null,
+   "src": ""
+  },
+  {
+   "header": "x",
+   "out": null,
+   "src": "/"
+  },
+  {
+   "header": "x",
+   "out": null,
+   "src": "src/"
+  },
+  {
+   "header": "src/",
+   "out": "头部出现源路径 src/",
+   "src": "src/"
+  }
+ ],
+ "decode_ignore": [
+  {
+   "hex": "6162ff6364",
+   "out": "abcd"
+  },
+  {
+   "hex": "e4bd",
+   "out": ""
+  },
+  {
+   "hex": "610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a",
+   "out": "a\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\n"
+  },
+  {
+   "hex": "efbbbf68656c6c6f",
+   "out": "﻿hello"
+  },
+  {
+   "hex": "78e280a8790c7a0d0a770d760a",
+   "out": "x y\fz\r\nw\rv\n"
+  },
+  {
+   "hex": "",
+   "out": ""
+  },
+  {
+   "hex": "eda080",
+   "out": ""
+  },
+  {
+   "hex": "c080",
+   "out": ""
+  },
+  {
+   "hex": "f09f98",
+   "out": ""
+  },
+  {
+   "hex": "61e4bd62",
+   "out": "ab"
+  },
+  {
+   "hex": "61efbfbd62",
+   "out": "a�b"
+  },
+  {
+   "hex": "efbfbd",
+   "out": "�"
+  },
+  {
+   "hex": "61efbfbdff62",
+   "out": "a�b"
+  },
+  {
+   "hex": "f4908080",
+   "out": ""
+  },
+  {
+   "hex": "e08080",
+   "out": ""
+  },
+  {
+   "hex": "f888808080",
+   "out": ""
+  },
+  {
+   "hex": "e7acace4b880e8a18c0ae7acace4ba8ce8a18c0a",
+   "out": "第一行\n第二行\n"
+  },
+  {
+   "hex": "6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a",
+   "out": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\n"
+  },
+  {
+   "hex": "6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a",
+   "out": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\n"
+  },
+  {
+   "hex": "6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a",
+   "out": "l\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\nl\r\n"
+  },
+  {
+   "hex": "6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d",
+   "out": "l\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\rl\r"
+  },
+  {
+   "hex": "6ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a8",
+   "out": "l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l l "
+  },
+  {
+   "hex": "ffffffffffffffffffff",
+   "out": ""
+  },
+  {
+   "hex": "61ff62ff63",
+   "out": "abc"
+  },
+  {
+   "hex": "e4bda0e5a5",
+   "out": "你"
+  },
+  {
+   "hex": "e4bda0e5a5",
+   "out": "你"
+  },
+  {
+   "hex": "e4bda0e5",
+   "out": "你"
+  },
+  {
+   "hex": "f09f98",
+   "out": ""
+  },
+  {
+   "hex": "f09f98800af09f98800af09f98800a",
+   "out": "😀\n😀\n😀\n"
+  },
+  {
+   "hex": "efbbbfefbbbf78",
+   "out": "﻿﻿x"
+  },
+  {
+   "hex": "feff",
+   "out": ""
+  },
+  {
+   "hex": "c2",
+   "out": ""
+  },
+  {
+   "hex": "c2a078",
+   "out": " x"
+  },
+  {
+   "hex": "0a0a0a",
+   "out": "\n\n\n"
+  },
+  {
+   "hex": "0d0a",
+   "out": "\r\n"
+  },
+  {
+   "hex": "780b0c79",
+   "out": "x\u000b\fy"
+  },
+  {
+   "hex": "1c1d1e",
+   "out": "\u001c\u001d\u001e"
+  },
+  {
+   "hex": "61c3",
+   "out": "a"
+  },
+  {
+   "hex": "61c3a9",
+   "out": "aé"
+  },
+  {
+   "hex": "e282",
+   "out": ""
+  },
+  {
+   "hex": "e282ac",
+   "out": "€"
+  },
+  {
+   "hex": "e282ac78",
+   "out": "€x"
+  }
+ ],
+ "header_bytes": [
+  {
+   "binary": false,
+   "hex": "6162ff6364",
+   "text": "abcd"
+  },
+  {
+   "binary": false,
+   "hex": "e4bd",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a610a",
+   "text": "a\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na\na"
+  },
+  {
+   "binary": true,
+   "hex": "610062",
+   "text": null
+  },
+  {
+   "binary": false,
+   "hex": "efbbbf68656c6c6f",
+   "text": "﻿hello"
+  },
+  {
+   "binary": false,
+   "hex": "78e280a8790c7a0d0a770d760a",
+   "text": "x\ny\nz\nw\nv"
+  },
+  {
+   "binary": false,
+   "hex": "",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "eda080",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "c080",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "f09f98",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "61e4bd62",
+   "text": "ab"
+  },
+  {
+   "binary": false,
+   "hex": "61efbfbd62",
+   "text": "a�b"
+  },
+  {
+   "binary": false,
+   "hex": "efbfbd",
+   "text": "�"
+  },
+  {
+   "binary": false,
+   "hex": "61efbfbdff62",
+   "text": "a�b"
+  },
+  {
+   "binary": false,
+   "hex": "f4908080",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "e08080",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "f888808080",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "e7acace4b880e8a18c0ae7acace4ba8ce8a18c0a",
+   "text": "第一行\n第二行"
+  },
+  {
+   "binary": false,
+   "hex": "6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a",
+   "text": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl"
+  },
+  {
+   "binary": false,
+   "hex": "6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a6c0a",
+   "text": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl"
+  },
+  {
+   "binary": false,
+   "hex": "6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a6c0d0a",
+   "text": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl"
+  },
+  {
+   "binary": false,
+   "hex": "6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d6c0d",
+   "text": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl"
+  },
+  {
+   "binary": false,
+   "hex": "6ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a86ce280a8",
+   "text": "l\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl\nl"
+  },
+  {
+   "binary": false,
+   "hex": "ffffffffffffffffffff",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "61ff62ff63",
+   "text": "abc"
+  },
+  {
+   "binary": false,
+   "hex": "e4bda0e5a5",
+   "text": "你"
+  },
+  {
+   "binary": false,
+   "hex": "e4bda0e5a5",
+   "text": "你"
+  },
+  {
+   "binary": false,
+   "hex": "e4bda0e5",
+   "text": "你"
+  },
+  {
+   "binary": false,
+   "hex": "f09f98",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "f09f98800af09f98800af09f98800a",
+   "text": "😀\n😀\n😀"
+  },
+  {
+   "binary": false,
+   "hex": "efbbbfefbbbf78",
+   "text": "﻿﻿x"
+  },
+  {
+   "binary": false,
+   "hex": "feff",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "c2",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "c2a078",
+   "text": " x"
+  },
+  {
+   "binary": true,
+   "hex": "6100",
+   "text": null
+  },
+  {
+   "binary": true,
+   "hex": "00",
+   "text": null
+  },
+  {
+   "binary": true,
+   "hex": "ff00",
+   "text": null
+  },
+  {
+   "binary": false,
+   "hex": "0a0a0a",
+   "text": "\n\n"
+  },
+  {
+   "binary": false,
+   "hex": "0d0a",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "780b0c79",
+   "text": "x\n\ny"
+  },
+  {
+   "binary": false,
+   "hex": "1c1d1e",
+   "text": "\n\n"
+  },
+  {
+   "binary": false,
+   "hex": "61c3",
+   "text": "a"
+  },
+  {
+   "binary": false,
+   "hex": "61c3a9",
+   "text": "aé"
+  },
+  {
+   "binary": false,
+   "hex": "e282",
+   "text": ""
+  },
+  {
+   "binary": false,
+   "hex": "e282ac",
+   "text": "€"
+  },
+  {
+   "binary": false,
+   "hex": "e282ac78",
+   "text": "€x"
+  }
+ ],
+ "hint": [
+  {
+   "in": "<meta name=\"generator\" content=\"x\">",
+   "out": [
+    "生成器署名",
+    1,
+    "<meta name=\"generator\" content=\"x\">"
+   ]
+  },
+  {
+   "in": "<META NAME='GENERATOR'>",
+   "out": [
+    "生成器署名",
+    1,
+    "<META NAME='GENERATOR'>"
+   ]
+  },
+  {
+   "in": "X-Generator: y",
+   "out": [
+    "生成器署名",
+    1,
+    "X-Generator: y"
+   ]
+  },
+  {
+   "in": "generated-by foo",
+   "out": [
+    "生成器署名",
+    1,
+    "generated-by foo"
+   ]
+  },
+  {
+   "in": "Generator: z",
+   "out": [
+    "生成器署名",
+    1,
+    "Generator: z"
+   ]
+  },
+  {
+   "in": "本文件由工具生成",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "本文件由工具生成"
+   ]
+  },
+  {
+   "in": "权威是 x",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "权威是 x"
+   ]
+  },
+  {
+   "in": "a\fDO NOT EDIT",
+   "out": [
+    "生成/派生措辞",
+    2,
+    "DO NOT EDIT"
+   ]
+  },
+  {
+   "in": "a 生成",
+   "out": [
+    "生成/派生措辞",
+    2,
+    "生成"
+   ]
+  },
+  {
+   "in": "",
+   "out": null
+  },
+  {
+   "in": "   ",
+   "out": null
+  },
+  {
+   "in": "generated 😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "generated 😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+   ]
+  },
+  {
+   "in": "生成xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "生成xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ]
+  },
+  {
+   "in": "　生成　",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "生成"
+   ]
+  },
+  {
+   "in": "﻿生成",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "﻿生成"
+   ]
+  },
+  {
+   "in": "REGEN",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "REGEN"
+   ]
+  },
+  {
+   "in": "Regenerate",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "Regenerate"
+   ]
+  },
+  {
+   "in": "source:",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "source:"
+   ]
+  },
+  {
+   "in": "SOURCES:",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "SOURCES:"
+   ]
+  },
+  {
+   "in": "İ generated",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "İ generated"
+   ]
+  },
+  {
+   "in": "GENERATEDK",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "GENERATEDK"
+   ]
+  },
+  {
+   "in": "source =",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "source ="
+   ]
+  },
+  {
+   "in": "Source = x",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "Source = x"
+   ]
+  },
+  {
+   "in": "do not edit",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "do not edit"
+   ]
+  },
+  {
+   "in": "DO NOT EDIT",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "DO NOT EDIT"
+   ]
+  },
+  {
+   "in": "派生缓存",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "派生缓存"
+   ]
+  },
+  {
+   "in": "自动产出",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "自动产出"
+   ]
+  },
+  {
+   "in": "不要手改",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "不要手改"
+   ]
+  },
+  {
+   "in": "勿手改",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "勿手改"
+   ]
+  },
+  {
+   "in": "不要手工修改",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "不要手工修改"
+   ]
+  },
+  {
+   "in": "请勿编辑",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "请勿编辑"
+   ]
+  },
+  {
+   "in": "权威在 x",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "权威在 x"
+   ]
+  },
+  {
+   "in": "x\n生成\n署名 generator:",
+   "out": [
+    "生成器署名",
+    3,
+    "署名 generator:"
+   ]
+  },
+  {
+   "in": "generator:\n生成",
+   "out": [
+    "生成器署名",
+    1,
+    "generator:"
+   ]
+  },
+  {
+   "in": "生成\n<meta name=\"generator\">",
+   "out": [
+    "生成器署名",
+    2,
+    "<meta name=\"generator\">"
+   ]
+  },
+  {
+   "in": "a\n\n生成",
+   "out": [
+    "生成/派生措辞",
+    3,
+    "生成"
+   ]
+  },
+  {
+   "in": "a\r\n生成",
+   "out": [
+    "生成/派生措辞",
+    2,
+    "生成"
+   ]
+  },
+  {
+   "in": "a\r生成",
+   "out": [
+    "生成/派生措辞",
+    2,
+    "生成"
+   ]
+  },
+  {
+   "in": "a\u001c生成",
+   "out": [
+    "生成/派生措辞",
+    2,
+    "生成"
+   ]
+  },
+  {
+   "in": "a生成",
+   "out": [
+    "生成/派生措辞",
+    2,
+    "生成"
+   ]
+  },
+  {
+   "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx生成",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx生"
+   ]
+  },
+  {
+   "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx生成",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ]
+  },
+  {
+   "in": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀生成",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀生"
+   ]
+  },
+  {
+   "in": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀生成",
+   "out": [
+    "生成/派生措辞",
+    1,
+    "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+   ]
+  },
+  {
+   "in": "　xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx　",
+   "out": null
+  },
+  {
+   "in": "  generator:  ",
+   "out": [
+    "生成器署名",
+    1,
+    "generator:"
+   ]
+  },
+  {
+   "in": "name = \"generator\"",
+   "out": null
+  },
+  {
+   "in": "name=\"Generator\"",
+   "out": [
+    "生成器署名",
+    1,
+    "name=\"Generator\""
+   ]
+  },
+  {
+   "in": "name = 'generator'",
+   "out": null
+  }
+ ],
+ "mentions": [
+  {
+   "low": "权威是src/map.json",
+   "name": "src/map.json",
+   "out": true
+  },
+  {
+   "low": "rapid",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api.md",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api。",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "xapi",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "a-api",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api-b",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api_b",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api.",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "api.b",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "src/map.json.bak",
+   "name": "src/map.json",
+   "out": false
+  },
+  {
+   "low": "src/map.json,",
+   "name": "src/map.json",
+   "out": true
+  },
+  {
+   "low": "src/map.json。",
+   "name": "src/map.json",
+   "out": true
+  },
+  {
+   "low": "é api",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "éapi",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "api é",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "apié",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "src/m[1].json",
+   "name": "src/m[1].json",
+   "out": true
+  },
+  {
+   "low": "src/m1.json",
+   "name": "src/m[1].json",
+   "out": false
+  },
+  {
+   "low": "SRC/MAP.JSON",
+   "name": "src/map.json",
+   "out": false
+  },
+  {
+   "low": "src\\map.json",
+   "name": "src/map.json",
+   "out": false
+  },
+  {
+   "low": "",
+   "name": "x",
+   "out": false
+  },
+  {
+   "low": "x",
+   "name": "",
+   "out": false
+  },
+  {
+   "low": "İapi",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "api٣",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "٣api",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "api１",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "a.api",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": ".api",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "-api",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api.-",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api-",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api--",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "api\n",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "\napi",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "(api)",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "'api'",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "api/x",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "x/api",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "a+b",
+   "name": "a+b",
+   "out": true
+  },
+  {
+   "low": "a+b",
+   "name": "a.b",
+   "out": false
+  },
+  {
+   "low": "a.b",
+   "name": "a.b",
+   "out": true
+  },
+  {
+   "low": "axb",
+   "name": "a.b",
+   "out": false
+  },
+  {
+   "low": "a*b",
+   "name": "a*b",
+   "out": true
+  },
+  {
+   "low": "(x)",
+   "name": "(x)",
+   "out": true
+  },
+  {
+   "low": "a|b",
+   "name": "a|b",
+   "out": true
+  },
+  {
+   "low": "a^b$",
+   "name": "a^b$",
+   "out": true
+  },
+  {
+   "low": "a{1}",
+   "name": "a{1}",
+   "out": true
+  },
+  {
+   "low": "a\\b",
+   "name": "a\\b",
+   "out": true
+  },
+  {
+   "low": "a b",
+   "name": "a b",
+   "out": true
+  },
+  {
+   "low": "a#b",
+   "name": "a#b",
+   "out": true
+  },
+  {
+   "low": "a-b",
+   "name": "a-b",
+   "out": true
+  },
+  {
+   "low": "a&b",
+   "name": "a&b",
+   "out": true
+  },
+  {
+   "low": "docs/map.html.md",
+   "name": "docs/map.html",
+   "out": false
+  },
+  {
+   "low": "docs/map.html.",
+   "name": "docs/map.html",
+   "out": true
+  },
+  {
+   "low": "docs/map.html..",
+   "name": "docs/map.html",
+   "out": true
+  },
+  {
+   "low": "docs/map.html.x",
+   "name": "docs/map.html",
+   "out": false
+  },
+  {
+   "low": "api😀",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "😀api",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "apiǅ",
+   "name": "api",
+   "out": true
+  },
+  {
+   "low": "API",
+   "name": "api",
+   "out": false
+  },
+  {
+   "low": "Api.",
+   "name": "api",
+   "out": false
+  }
+ ],
+ "python": "3.12.14"
+}

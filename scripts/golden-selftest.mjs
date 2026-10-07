@@ -13,8 +13,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const name = process.argv[2]
 if (!name) { console.error('用法：node scripts/golden-selftest.mjs <检查器名>'); process.exit(2) }
 
+// 检查器名（NAME，进 finding id）与文件名不总一致：`derived-artifacts` 对应 check_derived.py / derived.ts。命令行两种写法都收。
+const FILE_OF = { 'derived-artifacts': 'derived' }
+const file = FILE_OF[name] ?? name.replaceAll('-', '_')
 let mod
-try { mod = await import(pathToFileURL(join(root, 'lib', 'checks', `${name.replaceAll('-', '_')}.js`)).href) } catch (e) { console.error(`加载失败：${e.message}`); process.exit(2) }
+try { mod = await import(pathToFileURL(join(root, 'lib', 'checks', `${file}.js`)).href) } catch (e) { console.error(`加载失败：${e.message}`); process.exit(2) }
 if (typeof mod.selftest !== 'function') { console.error('模块没有导出 selftest'); process.exit(2) }
 
 const want = JSON.parse(readFileSync(join(root, 'golden', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === (mod.NAME ?? name))

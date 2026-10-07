@@ -44,6 +44,25 @@ export function diagnoseUtf8(b: Uint8Array): Utf8Problem | null {
   return null
 }
 
+/**
+ * Python 的 `data.decode("utf-8", "ignore")`：把每个**无效序列**整个丢掉，其余原样解码。
+ * 不能用 Node 的宽松 `TextDecoder`：①它把无效字节换成 U+FFFD，而原文自带的 U+FFFD 必须保留，事后「去掉 U+FFFD」会误伤；②它默认吞掉开头的 BOM，Python 的 `utf-8` 编解码器保留（U+FEFF）。
+ * 无效序列的边界直接用 `diagnoseUtf8` 给的 [start, end)（已与 Python 逐字节核对，见设计 §12.11），下一轮从 end 起继续——与 CPython 的 ignore 处理同一规则。
+ */
+export function decodeUtf8Ignore(b: Uint8Array): string {
+  const parts: string[] = []
+  const dec = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+  let from = 0
+  while (from <= b.length) {
+    const rest = b.subarray(from)
+    const p = diagnoseUtf8(rest)
+    if (p === null) { parts.push(dec.decode(rest)); break }
+    parts.push(dec.decode(rest.subarray(0, p.start)))
+    from += p.end
+  }
+  return parts.join('')
+}
+
 /** 首个无效序列的起点；整段合法返回 -1。 */
 export function firstInvalidUtf8(b: Uint8Array): number {
   return diagnoseUtf8(b)?.start ?? -1

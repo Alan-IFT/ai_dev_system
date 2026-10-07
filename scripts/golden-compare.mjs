@@ -41,8 +41,11 @@ globalThis.Date = class extends RealDate {
   static now() { return FROZEN_MS }
 }
 
+// 检查器名（NAME，进 finding id）与文件名不总一致：`derived-artifacts` 对应 check_derived.py / derived.ts。
+const FILE_OF = { 'derived-artifacts': 'derived' }
+const file = FILE_OF[name] ?? name.replaceAll('-', '_')
 let mod
-try { mod = await import(pathToFileURL(join(root, 'lib', 'checks', `${name.replaceAll('-', '_')}.js`)).href) } catch (e) { console.error(`加载 lib/checks/${name.replaceAll('-', '_')}.js 失败：${e.message}`); process.exit(2) }
+try { mod = await import(pathToFileURL(join(root, 'lib', 'checks', `${file}.js`)).href) } catch (e) { console.error(`加载 lib/checks/${file}.js 失败：${e.message}`); process.exit(2) }
 const core = await import(pathToFileURL(join(root, 'lib', 'core', 'config.js')).href)
 const gitm = await import(pathToFileURL(join(root, 'lib', 'core', 'git.js')).href)
 if (typeof mod.run !== 'function') { console.error('模块没有导出 run'); process.exit(2) }

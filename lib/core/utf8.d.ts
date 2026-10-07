@@ -7,6 +7,12 @@ export interface Utf8Problem {
 }
 /** 首个无效序列的诊断；整段合法返回 null。 */
 export declare function diagnoseUtf8(b: Uint8Array): Utf8Problem | null;
+/**
+ * Python 的 `data.decode("utf-8", "ignore")`：把每个**无效序列**整个丢掉，其余原样解码。
+ * 不能用 Node 的宽松 `TextDecoder`：①它把无效字节换成 U+FFFD，而原文自带的 U+FFFD 必须保留，事后「去掉 U+FFFD」会误伤；②它默认吞掉开头的 BOM，Python 的 `utf-8` 编解码器保留（U+FEFF）。
+ * 无效序列的边界直接用 `diagnoseUtf8` 给的 [start, end)（已与 Python 逐字节核对，见设计 §12.11），下一轮从 end 起继续——与 CPython 的 ignore 处理同一规则。
+ */
+export declare function decodeUtf8Ignore(b: Uint8Array): string;
 /** 首个无效序列的起点；整段合法返回 -1。 */
 export declare function firstInvalidUtf8(b: Uint8Array): number;
 /**
