@@ -30,12 +30,18 @@ const MUST_FLAG = [
   ['\\w', "const re = /\\w+/"], ['\\W', "const re = /\\W/"], ['\\b', "const re = /\\bWI-/"], ['\\d', "const re = /\\d+/"], ['\\D', "const re = /\\D/"],
   ['m 标志（字面量）', "const re = /^#{2,6} /m"], ['im 标志', "const re = /x/im"], ['new RegExp 带 m', "const re = new RegExp('^x', 'm')"], ['new RegExp 带 imu', "const re = new RegExp('^x', 'imu')"],
   ['\\s 在字符类里', "const re = /[\\s|>]/"], ['py-semantics-ok 不带理由', "const a = s.trim() // py-semantics-ok:"],
+  ['slice(0, 大写常量)', "const t = text.slice(0, HEAD_CHARS)"], ['slice(0, 下划线大写常量)', "const t = text.slice(0, MAX_READ_BYTES)"], ['slice(0, 4 位数字)', "const t = text.slice(0, 4000)"],
+  ['slice(0, 3 位数字)', "const t = text.slice(0, 200)"], ['slice 参数两侧有空白', "const t = text.slice( 0 , HEAD )".replace('HEAD', 'HEAD_CHARS')],
 ]
 const MUST_PASS = [
   ['pyStrip', "const a = pyStrip(s)"], ['[0-9]', "const re = /[0-9]+/"], ['显式空白类', "const re = new RegExp(`[${PY_WHITESPACE}]+`)"], ['(?<![^\\n])', "const re = new RegExp('(?<![^\\\\n])x', 'iu')"],
   ['[\\s\\S] 任意字符', "const re = /^---([\\s\\S]*?)---/"], ['整行注释里的 trim', "// 不要用 s.trim()"], ['块注释里的 \\s', "/* 用 \\s 会错 */"], ['行尾注释里的 trim', "const a = 1 // 别用 trim()"],
   ['带理由的例外', "const a = s.trim() // py-semantics-ok: 输入是 git 自己的输出，只含 ASCII"], ['字符串里的 .trim( 文字', "const m = '不要写 .trim( 这样'"],
   ['无关代码', "const x = [1, 2, 3].map((n) => n * 2)"], ['u 标志', "const re = /[\\p{L}\\p{N}_]/u"],
+  ['slice(0, 小写变量)', "const t = s.slice(0, i)"], ['slice(0, 1 位数字)', "const t = s.slice(0, 1)"], ['slice(0, 2 位数字)', "const t = s.slice(0, 40)"],
+  ['slice 不从 0 起', "const t = s.slice(1, HEAD_CHARS)"], ['slice(-N)', "const t = s.slice(-120)"], ['headChars 本身', "const t = headChars(text, HEAD_CHARS)"],
+  ['slice(0, 常量) 带展示标注', "const t = s.slice(0, LIST_CAP) // py-semantics-ok: 展示"], ['注释里的 slice(0, HEAD_CHARS)', "// 不要写 text.slice(0, HEAD_CHARS)"],
+  ['字符串里的 slice 文字', "const m = '不要写 .slice(0, HEAD_CHARS) 这样'"],
 ]
 
 test('脚本必须报告的违规写法（每一种都被抓住，退出码 1 且信息里点名位置）', () => {

@@ -26,7 +26,7 @@ function listFiles(root: string, patterns?: readonly string[]): [string[] | null
     return [null, `跑不了 git ls-files：${(exc as Error).message}`]
   }
   if (r.error) return [null, `跑不了 git ls-files：${r.error.message}`]
-  if (r.status !== 0) return [null, `git ls-files 退出码 ${r.status}：${pyStrip((r.stderr ?? Buffer.alloc(0)).toString('utf8')).slice(0, 200)}`]
+  if (r.status !== 0) return [null, `git ls-files 退出码 ${r.status}：${pyStrip((r.stderr ?? Buffer.alloc(0)).toString('utf8')).slice(0, 200)}`] // py-semantics-ok: 展示——进 reason 的文字，不进判据；git 的 stderr 是 ASCII
   const raw = (r.stdout ?? Buffer.alloc(0)).toString('utf8')
   return [raw.split('\0').filter((p) => pyStrip(p) !== ''), null] // Python 的 `if p.strip()`：只含 Python 空白的「路径」丢掉（D6）
 }

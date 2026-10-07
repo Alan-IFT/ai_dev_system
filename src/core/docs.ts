@@ -18,6 +18,23 @@ export const DEFAULT_DATE_FIELDS: readonly string[] = ['updated_at']
 export const HEAD_CHARS = 4000 // 元信息只在文件头找；正文里再出现同名字段不算
 export const LIST_CAP = 12 // 聚合类 Finding 的证据里最多列几条路径
 
+/**
+ * Python 的 `s[:n]`：按**码点**取前 n 个字符。JS 的 `s.slice(0, n)` 按 UTF-16 码元计，BMP 之外的字符（emoji、CJK 扩展区）占 2 个码元，
+ * 含这类字符的文本会被少取（设计 §12.6 D18）。进判据的截取（头部区域、日期字段查找范围）必须用这个。
+ * 纯展示的截断（evidence 里的前 N 字）不进判据，不要求等价，但同一处用它也无妨。
+ * 快路径：码元数 ≤ n 时码点数必然 ≤ n，原样返回；否则逐码点数到 n。
+ */
+export function headChars(s: string, n: number): string {
+  if (s.length <= n) return s
+  let i = 0, count = 0
+  while (i < s.length && count < n) {
+    const cp = s.codePointAt(i)!
+    i += cp > 0xffff ? 2 : 1
+    count++
+  }
+  return s.slice(0, i)
+}
+
 // ---------------------------------------------------------------------------------------------
 // 字段查找
 // ---------------------------------------------------------------------------------------------
@@ -82,7 +99,7 @@ const SECTION_PY = new RegExp(`${LINE_START}#{2,6}[${PY_WHITESPACE}]`)
  * 顺序（状态→status→state）逐个找，不是取位置上第一次出现，YAML 写 `status:` 、正文写 `状态：` 时会读到正文。
  */
 export function headOf(text: string): string {
-  const t = text.slice(0, HEAD_CHARS)
+  const t = headChars(text, HEAD_CHARS)
   const m = FRONT_MATTER.exec(t)
   if (m && findField(m[1]!, STATUS_FIELDS)[0] !== null) return m[1]!
   const s = SECTION_PY.exec(t)

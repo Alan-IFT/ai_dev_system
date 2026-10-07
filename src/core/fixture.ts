@@ -25,7 +25,7 @@ export const GIT_FIXTURE_ID: readonly string[] = [
 /** 在本工具自建的夹具仓里跑一条 git；退出码非 0 即抛。 */
 export function gitFixture(repo: string, args: readonly string[], env?: NodeJS.ProcessEnv): void {
   const r = spawnSync('git', ['-C', repo, '-c', 'init.defaultBranch=main', ...GIT_FIXTURE_ID, ...args], { timeout: 60_000, env: env ?? process.env })
-  if (r.status !== 0) throw new Error(`git ${args.join(' ')} 退出码 ${r.status}：${(r.stderr ?? Buffer.alloc(0)).toString('utf8').slice(0, 200)}`)
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')} 退出码 ${r.status}：${(r.stderr ?? Buffer.alloc(0)).toString('utf8').slice(0, 200)}`) // py-semantics-ok: 展示——夹具报错文字，不进判据
 }
 
 /**
@@ -45,7 +45,7 @@ export function gitTrack(tmp: string, when?: string): string | null {
   for (const cmd of cmds) {
     const r = spawnSync(cmd[0]!, cmd.slice(1), { timeout: 60_000, encoding: 'utf8', env: env ?? process.env })
     if (r.error) return `${cmd[0]} 跑不了：${r.error.message}`
-    if (r.status !== 0) return `${cmd.slice(0, 3).join(' ')} 退出码 ${r.status}：${(r.stderr || '').slice(0, 200)}`
+    if (r.status !== 0) return `${cmd.slice(0, 3).join(' ')} 退出码 ${r.status}：${(r.stderr || '').slice(0, 200)}` // py-semantics-ok: 展示——夹具报错文字；cmd 是数组，不是字符串切分
   }
   return null
 }

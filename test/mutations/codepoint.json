@@ -1,0 +1,51 @@
+[
+ {
+  "id": "C1",
+  "title": "headOf：回到按码元截（slice）",
+  "file": "src/core/docs.ts",
+  "from": "  const t = headChars(text, HEAD_CHARS)",
+  "to": "  const t = text.slice(0, HEAD_CHARS)"
+ },
+ {
+  "id": "C4",
+  "title": "headChars：非 BMP 字符只前进 1 个码元（把代理对劈开）",
+  "file": "src/core/docs.ts",
+  "from": "    i += cp > 0xffff ? 2 : 1",
+  "to": "    i += 1"
+ },
+ {
+  "id": "C5",
+  "title": "headChars：非 BMP 判据 > 0xffff 改成 >= 0xffff",
+  "file": "src/core/docs.ts",
+  "from": "    i += cp > 0xffff ? 2 : 1",
+  "to": "    i += cp >= 0xffff ? 2 : 1"
+ },
+ {
+  "id": "C6",
+  "title": "headChars：计数多一个（取 n+1 个码点）",
+  "file": "src/core/docs.ts",
+  "from": "  while (i < s.length && count < n) {",
+  "to": "  while (i < s.length && count <= n) {"
+ },
+ {
+  "id": "C7",
+  "title": "headChars：计数少一个（取 n-1 个码点）",
+  "file": "src/core/docs.ts",
+  "from": "  while (i < s.length && count < n) {",
+  "to": "  while (i < s.length && count < n - 1) {"
+ },
+ {
+  "id": "C9",
+  "title": "headChars：返回整串而不是前缀",
+  "file": "src/core/docs.ts",
+  "from": "  return s.slice(0, i)\n}",
+  "to": "  return s\n}"
+ },
+ {
+  "id": "C10",
+  "title": "headChars：用 codePointAt 的高位半区而不是整码点判宽度",
+  "file": "src/core/docs.ts",
+  "from": "    const cp = s.codePointAt(i)!\n    i += cp > 0xffff ? 2 : 1",
+  "to": "    const cp = s.charCodeAt(i)\n    i += cp > 0xffff ? 2 : 1"
+ }
+]

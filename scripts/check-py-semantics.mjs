@@ -10,6 +10,9 @@
 //   3. 正则里的 `\w` `\W` `\b`                 —— Python 的 `\w` 认 Unicode 15 的字母数字，JS 的 `\w` 只认 ASCII（D5）；用 `[\p{L}\p{N}_]` 并带 `u`
 //   4. 正则里的 `\d`                           —— Python 的 `\d` 认全角数字，JS 只认 ASCII（D4）；有意用 ASCII 的写 `[0-9]`，让意图可见
 //   5. 正则标志 `m`                            —— `^` 认的行终止符与 Python 不同（D13）；用 `(?<![^\n])`
+//   6. `.slice(0, <大写常量>)` 与 `.slice(0, <≥ 3 位的数字>)` —— Python 的 `s[:n]` 按码点，JS 的 slice 按 UTF-16 码元，BMP 之外的字符少取（D18）；
+//      进判据的截取用 `headChars`。纯展示的截断（evidence 里的前 N 字）加 `// py-semantics-ok: 展示` 并说明。列表元素个数的 slice（`paths.slice(0, LIST_CAP)`）不是字符串切分，
+//      同样加标注——**标注是让「我知道这里在切什么」可见**，不是绕过。
 // 例外：写在**注释里**的不算；确有理由的在那一行末尾加 `// py-semantics-ok: 理由`（理由必填）。
 //
 // 用法：node scripts/check-py-semantics.mjs        退出码 0 通过、1 有违规、2 脚本自己跑不了
@@ -35,6 +38,7 @@ function stripLine(line) {
 
 const RULES = [
   { id: 'trim', re: /\.(trim|trimStart|trimEnd)\(/, why: 'JS 的 trim 与 Python 的 strip 空白集合不同（D6）；用 pyStrip' },
+  { id: 'slice-cu', re: /\.slice\(\s*0\s*,\s*([A-Z][A-Z0-9_]*|[0-9]{3,})\s*\)/, why: '`.slice(0, N)` 按 UTF-16 码元截，Python 的 `[:N]` 按码点（D18）；进判据的截取用 headChars，展示用的加 `// py-semantics-ok: 展示`' },
 ]
 // 正则字面量与 new RegExp 里的转义要在**字符串/正则内部**看，所以对原行（只去掉 // 注释）另做一遍
 const REGEX_RULES = [

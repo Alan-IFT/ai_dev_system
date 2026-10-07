@@ -491,6 +491,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **变异首轮 35 条里 4 条没抓住，全是等价变异，且其中三条暴露的是代码里的真冗余**：`DEL`（0x7f）不必单列（它落到「不可打印」分支同样转义）；`cp < 0x7f` 的边界换成 `0x7e` 输出相同（`~` 可打印）；`isPrintable` 里的 `ch === ' ' ||` 永远走不到（空格是 ASCII，在此之前已分流）；浮点的 `.0` 分支永远走不到（只对非整数调用）。我没有把它们标 `unobservable` 或留着，而是**直接删掉了冗余代码**，再让变异清单对应更新——这是变异验证最有价值的用法：不只是证明测试够强，也在指出「这行代码从来没起过作用」。
 - **一个我踩到的循环依赖**：`cfg.ts` 的 `pyStr` 需要 `pyRepr`（列表元素），而新 `repr.ts` 最初借用了 `cfg.ts` 的 `pyStr`。改成 `repr.ts` 自己处理 None、True、False、数字，不再依赖 `cfg.ts`，`cfg.ts` 单向依赖它。
 
+### 12.22 D18：`slice` 按码元、`[:n]` 按码点——写 `freshness` 时顺手核对出的一个**已迁代码里的真实缺陷**
+
+- **怎么发现的**：`freshness` 里有 `find_field(text[:HEAD_CHARS], names)`。照例先问「JS 里对应的 `slice` 与 Python 的 `[:n]` 等价吗」——不等价：Python 按码点，JS 按 UTF-16 码元，BMP 之外的字符占 2 个码元。再 grep 我已迁的代码，`core/docs.ts` 的 `headOf` 早就用了 `text.slice(0, HEAD_CHARS)`。**它在 `layout`、`entry_budget` 迁移时就存在，三个检查器的变异验证与 4 个真实仓的比对都没抓到**，因为样本里没有含 emoji 的头部。
+- **后果**：头部含 emoji 或 CJK 扩展区字符的文档，字段被挤出头部，`findField`/`itemStatus` 找不到，进而 `layout`（头部元信息）、`entry_budget`（状态判定）、`freshness` 的结论都可能不同。对 `golden/unit/codepoint.json` 的 83 条输入（emoji 与 CJK 扩展 B；前缀 0、1、5、20、100 个；字段结束在边界内、恰在边界上、越界一点），**修前 28 条日期与状态与 Python 不同，修后 0 条**。
+- **修法**：`core/docs.ts` 新增 `headChars(s, n)`（按码点取前 n 个，快路径：码元数 ≤ n 时原样返回），`headOf` 改用它。变异 7 条全抓住（含 `>`/`>=` 0xffff 的边界：U+FFFF 是 BMP 最后一个码点，占 1 个码元，紧挨着的 U+10000 占 2 个）。
+- **防再犯**：`check-py-semantics.mjs` 加第 6 条规则 `slice-cu`：`src/core` 里 `.slice(0, <大写常量>)` 或 `.slice(0, <≥ 3 位数字>)` 一律报。四处既有的纯展示截断（`fixture`、`shell`、`tracked`）加 `// py-semantics-ok: 展示` 并说明——**标注是让「我知道这里在切什么」可见，不是绕过**；`shell.ts` 那处是数组切元素个数，同样标注。脚本测试补 5 条 must-flag、9 条 must-pass。**这是该脚本抓到的第三类真实问题**（先是 `.trim()`、再是 `\s`，现在是码元切分）。
+- **一个值得记下的教训**：这个缺陷躲过了三个检查器的「4 个真实仓逐条一致 + selftest 集合相同 + 变异全抓住」三道关，原因是**样本里没有这类输入**。变异验证只能证明「测试能抓住我想到的改动」，抓不住「我没想到要测的 Python/JS 差异」。**所以每迁一个新检查器前，对它用到的每一个 Python 字符串/正则/容器操作，都要主动问一遍『JS 里对应的操作在非 ASCII、非 BMP、边界值上等价吗』，并用 Python 实测**。这一轮这样问出了 D18；`core/repr`（§12.21）、`links` 的 `$` 与 `re.I`（§12.20）也是这样问出来的。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -541,12 +549,14 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | D15 | Windows 上路径名末尾的空格与点 | Python 在 Windows 上按 Win32 规则去掉它们（`f.md ` 读到 `f.md`，`isfile` 为真） | 不复现：`f.md ` 与 `f.md.` 是另外两个名字，不存在即「不是文件」 | 同一份脚本在 Linux 上 Python 的结论也是「不存在」，这是 Windows 文件系统的怪癖，不是契约。配置里能写出这样的路径（YAML 引号内的尾空格，`load_config` 不拦），但**四个真实仓的路径值里没有**。详见 §12.16 | 实现约束；影响面为零 |
 | D16 | `glob` 在 Windows 上的大小写 | Python 的 `glob`（经 `fnmatch` 的 `normcase`）在 Windows 上不区分大小写，POSIX 上区分 | 同 Python：Windows 上带 `i` 标志，其它平台不带 | **不是差异，是「两个平台都与该平台上的 Python 一致」**；登记是因为这条靠平台分支实现，样本只在生成它的平台上整份可比。详见 §12.17 | 平台语义 |
 | D17 | `tracked_files` 的 `.std/` 自排除（`embedded_std_rel`） | 工具自身位于被扫仓的子目录（内嵌的 `.std/`）时，把该目录从扫描面里去掉 | **不带这个机制**，被扫仓的全部 `git ls-files` 结果都在扫描面内 | **对黄金样本零影响**：黄金样本在 `TOOL_ROOT` = 本仓下生成，`embedded_std_rel(扫描根)` 对三个采用项目全部返回 `None`，所以 `.std/` 从未被排除；实测 `links`、`single_authority`、`drift` 三个检查器「排除」与「不排除」的 finding 集合在三个采用项目上完全相同。新架构里采用项目不再内嵌 `.std/`（§8），机制失去对象。**这也意味着 `adoption` 里与它配套的 `embedded-*` 判据一并随阶段 4 消失** | 实现约束；已验证零影响 |
+| D18 | 字符串按码点截取（`s[:n]`） | Python 按**码点**计 | 用 `headChars`（按码点）；JS 的 `slice(0, n)` 按 UTF-16 码元计，BMP 之外的字符（emoji、CJK 扩展区）占 2 个码元，会少取 | **这是一个真实缺陷，不是理论差异**：`core/docs.ts` 的 `headOf` 原用 `text.slice(0, HEAD_CHARS)`，头部含 emoji 的文档，日期或状态字段会被挤出头部，进而影响 `findField`/`itemStatus` → `layout`、`entry_budget`、`freshness` 的 status。对 83 条样本，修前 28 条日期与状态与 Python 不同，修后 0 条。4 个真实仓的黄金样本里没有这种输入，所以此前零差异的结论没受影响，但缺陷一直在。`scripts/check-py-semantics.mjs` 新增规则 `slice-cu` 拦住以后再写 `.slice(0, 常量)`；纯展示的截断加 `// py-semantics-ok: 展示` 标注 | 已修复并机械防住 |
 
 ## 13. 变更记录
 
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-06 | **D18：`docs.ts` 的头部截取按码元、Python 按码点，已迁代码里的真实缺陷**，记 §12.22；新增 `headChars`、`check-py-semantics` 第 6 条规则 `slice-cu` | 修前 83 条样本 28 条与 Python 不同，修后 0 条；变异 7 条两平台全抓住；三个已迁检查器对 4 个真实仓与 selftest 仍零差异（样本里本来就没有这类输入，所以此前的零差异结论不受影响，但缺陷一直在）；脚本测试补 5+9 条 |
 | 2026-10-06 | `core/repr.ts` 完成，记 §12.21；统一八份各自为政的 `pyRepr`（迁 `freshness` 前发现）；变异暴露四处代码冗余，直接删除 | 全量 785 条两平台 0 败；三个已迁检查器对 4 个真实仓与 selftest 仍零差异；变异 31 条两平台全抓住；样本第一版逐码点存了 9.7 MB，改成区间 25 KB |
 | 2026-10-06 | **第三个检查器 `links` 迁完**，记 §12.20；`unquote` 自己实现；`$` 匹配末尾换行之前（D4/D11 的又一处表现） | 4 个真实仓逐条一致、selftest 8 条集合相同、变异 124 条（Windows 123 抓住 + 1 标注）；变异第一轮 130 条跑近 40 分钟，其中 6 条是等价变异——以后写变异清单时先证明等价再跑 |
 | 2026-10-06 | `core/tracked.ts` 完成，记 §12.19，新增 D17（不带 `.std/` 自排除）；推迟四轮的一块，迁时实测推翻了「黄金样本排除了 `.std/`」的假设 | 三个采用项目上排除与否 finding 集合相同；`git ls-files` 会执行被扫仓的 `core.fsmonitor`（对照实验）；变异 44 条 Ubuntu 全抓住；Windows 上 `col:on.md` 建出备用数据流的陷阱；探针脚本留下临时仓、核对路径后手动清理 |
