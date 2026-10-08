@@ -1,0 +1,2252 @@
+[
+ {
+  "id": "A1",
+  "title": "默认规则文件：多一项 CLAUDE.md（回到废弃宿主）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const DEFAULT_RULE_FILES: readonly string[] = ['.harness/rules/', 'AGENTS.md']",
+  "to": "const DEFAULT_RULE_FILES: readonly string[] = ['.harness/rules/', 'AGENTS.md', 'CLAUDE.md']"
+ },
+ {
+  "id": "A2",
+  "title": "默认规则文件：少 .harness/rules/",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const DEFAULT_RULE_FILES: readonly string[] = ['.harness/rules/', 'AGENTS.md']",
+  "to": "const DEFAULT_RULE_FILES: readonly string[] = ['AGENTS.md']"
+ },
+ {
+  "id": "A3",
+  "title": "默认规则文件：少 AGENTS.md",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const DEFAULT_RULE_FILES: readonly string[] = ['.harness/rules/', 'AGENTS.md']",
+  "to": "const DEFAULT_RULE_FILES: readonly string[] = ['.harness/rules/']"
+ },
+ {
+  "id": "A4",
+  "title": "失效标记只看前 20 行→19 行",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MARKER_HEAD_LINES = 20",
+  "to": "const MARKER_HEAD_LINES = 19"
+ },
+ {
+  "id": "A5",
+  "title": "失效标记只看前 20 行→21 行",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MARKER_HEAD_LINES = 20",
+  "to": "const MARKER_HEAD_LINES = 21"
+ },
+ {
+  "id": "A6",
+  "title": "中文失效标记：少 已退役",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['已退役', '失效', '不再生效', '已归档', '已停用']",
+  "to": "['失效', '不再生效', '已归档', '已停用']"
+ },
+ {
+  "id": "A7",
+  "title": "中文失效标记：少 失效",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['已退役', '失效', '不再生效', '已归档', '已停用']",
+  "to": "['已退役', '不再生效', '已归档', '已停用']"
+ },
+ {
+  "id": "A8",
+  "title": "中文失效标记：少 不再生效",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['已退役', '失效', '不再生效', '已归档', '已停用']",
+  "to": "['已退役', '失效', '已归档', '已停用']"
+ },
+ {
+  "id": "A9",
+  "title": "中文失效标记：少 已归档",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['已退役', '失效', '不再生效', '已归档', '已停用']",
+  "to": "['已退役', '失效', '不再生效', '已停用']"
+ },
+ {
+  "id": "A10",
+  "title": "中文失效标记：少 已停用",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['已退役', '失效', '不再生效', '已归档', '已停用']",
+  "to": "['已退役', '失效', '不再生效', '已归档']"
+ },
+ {
+  "id": "A11",
+  "title": "英文失效标记：少 retired",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['retired', 'archived', 'deprecated']",
+  "to": "['archived', 'deprecated']"
+ },
+ {
+  "id": "A12",
+  "title": "英文失效标记：少 archived",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['retired', 'archived', 'deprecated']",
+  "to": "['retired', 'deprecated']"
+ },
+ {
+  "id": "A13",
+  "title": "英文失效标记：少 deprecated",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['retired', 'archived', 'deprecated']",
+  "to": "['retired', 'archived']"
+ },
+ {
+  "id": "A14",
+  "title": "角色表：少 system",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const ROLES: readonly string[] = ['system', 'app', 'retired', 'archived']",
+  "to": "const ROLES: readonly string[] = ['app', 'retired', 'archived']"
+ },
+ {
+  "id": "A15",
+  "title": "角色表：少 app",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const ROLES: readonly string[] = ['system', 'app', 'retired', 'archived']",
+  "to": "const ROLES: readonly string[] = ['system', 'retired', 'archived']"
+ },
+ {
+  "id": "A16",
+  "title": "角色表：多 library",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const ROLES: readonly string[] = ['system', 'app', 'retired', 'archived']",
+  "to": "const ROLES: readonly string[] = ['system', 'app', 'retired', 'archived', 'library']"
+ },
+ {
+  "id": "A17",
+  "title": "死亡角色：少 archived",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const DEAD_ROLES: readonly string[] = ['retired', 'archived']",
+  "to": "const DEAD_ROLES: readonly string[] = ['retired']"
+ },
+ {
+  "id": "A18",
+  "title": "死亡角色：少 retired",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const DEAD_ROLES: readonly string[] = ['retired', 'archived']",
+  "to": "const DEAD_ROLES: readonly string[] = ['archived']"
+ },
+ {
+  "id": "A19",
+  "title": "改名标记：少 前身",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['前身', '曾用名', '改名', '更名', 'formerly', 'renamed']",
+  "to": "['曾用名', '改名', '更名', 'formerly', 'renamed']"
+ },
+ {
+  "id": "A20",
+  "title": "改名标记：少 曾用名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['前身', '曾用名', '改名', '更名', 'formerly', 'renamed']",
+  "to": "['前身', '改名', '更名', 'formerly', 'renamed']"
+ },
+ {
+  "id": "A21",
+  "title": "改名标记：少 改名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['前身', '曾用名', '改名', '更名', 'formerly', 'renamed']",
+  "to": "['前身', '曾用名', '更名', 'formerly', 'renamed']"
+ },
+ {
+  "id": "A22",
+  "title": "改名标记：少 更名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['前身', '曾用名', '改名', '更名', 'formerly', 'renamed']",
+  "to": "['前身', '曾用名', '改名', 'formerly', 'renamed']"
+ },
+ {
+  "id": "A23",
+  "title": "改名标记：少 formerly",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['前身', '曾用名', '改名', '更名', 'formerly', 'renamed']",
+  "to": "['前身', '曾用名', '改名', '更名', 'renamed']"
+ },
+ {
+  "id": "A24",
+  "title": "改名标记：少 renamed",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['前身', '曾用名', '改名', '更名', 'formerly', 'renamed']",
+  "to": "['前身', '曾用名', '改名', '更名', 'formerly']"
+ },
+ {
+  "id": "A25",
+  "title": "状态词：少 active",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['active', 'retired', 'archived', '现行',",
+  "to": "['retired', 'archived', '现行',"
+ },
+ {
+  "id": "A26",
+  "title": "状态词：少 retired",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['active', 'retired', 'archived', '现行',",
+  "to": "['active', 'archived', '现行',"
+ },
+ {
+  "id": "A27",
+  "title": "状态词：少 archived",
+  "file": "src/checks/cross_repo.ts",
+  "from": "['active', 'retired', 'archived', '现行',",
+  "to": "['active', 'retired', '现行',"
+ },
+ {
+  "id": "A28",
+  "title": "状态词：少 现行",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A29",
+  "title": "状态词：少 在用",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A30",
+  "title": "状态词：少 已退役",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A31",
+  "title": "状态词：少 退役",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A32",
+  "title": "状态词：少 已归档",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '退役', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "unobservable": "等价：状态词表里同时有「已归档」与「归档」，而「已归档」是「归档」的超串，任何含「已归档」的行必含「归档」；少了前者命中集合不变"
+ },
+ {
+  "id": "A33",
+  "title": "状态词：少 归档",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '退役', '已归档', '停用', 'system', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A34",
+  "title": "状态词：少 停用",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '退役', '已归档', '归档', 'system', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A35",
+  "title": "状态词：少 system",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', '应用仓', '控制平面']"
+ },
+ {
+  "id": "A36",
+  "title": "状态词：少 应用仓",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '控制平面']"
+ },
+ {
+  "id": "A37",
+  "title": "状态词：少 控制平面",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓', '控制平面']",
+  "to": "'现行', '在用', '已退役', '退役', '已归档', '归档', '停用', 'system', '应用仓']"
+ },
+ {
+  "id": "A38",
+  "title": "md 上限 6000→5999",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_MD_FILES = 6000",
+  "to": "const MAX_MD_FILES = 5999"
+ },
+ {
+  "id": "A39",
+  "title": "md 上限 6000→6001",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_MD_FILES = 6000",
+  "to": "const MAX_MD_FILES = 6001"
+ },
+ {
+  "id": "A40",
+  "title": "规则文件上限 300→299",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_RULE_FILES = 300",
+  "to": "const MAX_RULE_FILES = 299"
+ },
+ {
+  "id": "A41",
+  "title": "规则文件上限 300→301",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_RULE_FILES = 300",
+  "to": "const MAX_RULE_FILES = 301"
+ },
+ {
+  "id": "A42",
+  "title": "第二跳上限 60→59",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_HOP2_LINKS = 60",
+  "to": "const MAX_HOP2_LINKS = 59"
+ },
+ {
+  "id": "A43",
+  "title": "第二跳上限 60→61",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_HOP2_LINKS = 60",
+  "to": "const MAX_HOP2_LINKS = 61"
+ },
+ {
+  "id": "A44",
+  "title": "列出条数上限 10→9",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_LISTED = 10",
+  "to": "const MAX_LISTED = 9"
+ },
+ {
+  "id": "A45",
+  "title": "列出条数上限 10→11",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const MAX_LISTED = 10",
+  "to": "const MAX_LISTED = 11"
+ },
+ {
+  "id": "A46",
+  "title": "跳过目录：少 .git",
+  "file": "src/checks/cross_repo.ts",
+  "from": "new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])",
+  "to": "new Set(['node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])"
+ },
+ {
+  "id": "A47",
+  "title": "跳过目录：少 node_modules",
+  "file": "src/checks/cross_repo.ts",
+  "from": "new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])",
+  "to": "new Set(['.git', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])"
+ },
+ {
+  "id": "A48",
+  "title": "跳过目录：少 dist",
+  "file": "src/checks/cross_repo.ts",
+  "from": "new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])",
+  "to": "new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])"
+ },
+ {
+  "id": "A49",
+  "title": "跳过目录：多 .hidden",
+  "file": "src/checks/cross_repo.ts",
+  "from": "new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea'])",
+  "to": "new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', '.next', '.mypy_cache', '.pytest_cache', '.idea', '.hidden'])"
+ },
+ {
+  "id": "B1",
+  "title": "失效标记：中文也按小写后的文本找",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const m of MARKERS_CN) if (text.includes(m)) return m",
+  "to": "for (const m of MARKERS_CN) if (low.includes(m)) return m",
+  "unobservable": "等价：中文失效标记的 lower() 是恒等（中文字符没有大小写），`low.includes(m)` 与 `text.includes(m)` 对 5 个中文标记结果相同"
+ },
+ {
+  "id": "B2",
+  "title": "失效标记：英文按原文找（不转小写）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const m of MARKERS_EN) if (low.includes(m)) return m",
+  "to": "for (const m of MARKERS_EN) if (text.includes(m)) return m"
+ },
+ {
+  "id": "B3",
+  "title": "失效标记：中文优先改英文优先",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  for (const m of MARKERS_CN) if (text.includes(m)) return m\n  for (const m of MARKERS_EN) if (low.includes(m)) return m",
+  "to": "  for (const m of MARKERS_EN) if (low.includes(m)) return m\n  for (const m of MARKERS_CN) if (text.includes(m)) return m"
+ },
+ {
+  "id": "B4",
+  "title": "失效标记：没命中返回空串而不是 null",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  for (const m of MARKERS_EN) if (low.includes(m)) return m\n  return null",
+  "to": "  for (const m of MARKERS_EN) if (low.includes(m)) return m\n  return ''"
+ },
+ {
+  "id": "B5",
+  "title": "名字匹配：给空名字加守卫（偏离 Python：Python 的空名字在空白、标点、中文旁都匹配）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "export function nameAppears(text: string, name: string): boolean {\n  const re",
+  "to": "export function nameAppears(text: string, name: string): boolean {\n  if (name === '') return false\n  const re"
+ },
+ {
+  "id": "B6",
+  "title": "名字匹配：不带 u 标志",
+  "file": "src/checks/cross_repo.ts",
+  "from": "(?!${BOUNDARY})`, 'iu')",
+  "to": "(?!${BOUNDARY})`, 'i')"
+ },
+ {
+  "id": "B7",
+  "title": "名字匹配：不带 i 标志（区分大小写）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "(?!${BOUNDARY})`, 'iu')",
+  "to": "(?!${BOUNDARY})`, 'u')"
+ },
+ {
+  "id": "B8",
+  "title": "名字匹配：前边界去掉",
+  "file": "src/checks/cross_repo.ts",
+  "from": "`(?<!${BOUNDARY})${foldRegexSource(name)}(?!${BOUNDARY})`",
+  "to": "`${foldRegexSource(name)}(?!${BOUNDARY})`"
+ },
+ {
+  "id": "B9",
+  "title": "名字匹配：后边界去掉",
+  "file": "src/checks/cross_repo.ts",
+  "from": "`(?<!${BOUNDARY})${foldRegexSource(name)}(?!${BOUNDARY})`",
+  "to": "`(?<!${BOUNDARY})${foldRegexSource(name)}`"
+ },
+ {
+  "id": "B10",
+  "title": "名字匹配：边界类少下划线",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[0-9A-Za-z\\\\-\\\\u0130\\\\u0131]'"
+ },
+ {
+  "id": "B11",
+  "title": "名字匹配：边界类少连字符",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[0-9A-Za-z_\\\\u0130\\\\u0131]'"
+ },
+ {
+  "id": "B12",
+  "title": "名字匹配：边界类少数字",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[A-Za-z_\\\\-\\\\u0130\\\\u0131]'"
+ },
+ {
+  "id": "B13",
+  "title": "名字匹配：边界类少字母",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[0-9_\\\\-\\\\u0130\\\\u0131]'"
+ },
+ {
+  "id": "B14",
+  "title": "名字匹配：边界类少 İ",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0131]'"
+ },
+ {
+  "id": "B15",
+  "title": "名字匹配：边界类少 ı",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130]'"
+ },
+ {
+  "id": "B16",
+  "title": "名字匹配：边界类用 \\w（Unicode 字母数字）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const BOUNDARY = '[0-9A-Za-z_\\\\-\\\\u0130\\\\u0131]'",
+  "to": "const BOUNDARY = '[\\\\p{L}\\\\p{N}_\\\\-]'"
+ },
+ {
+  "id": "B17",
+  "title": "名字匹配：不折叠 İ ı（用 escape 代替 foldRegexSource）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "${foldRegexSource(name)}(?!${BOUNDARY})`, 'iu')",
+  "to": "${name.replace(/[.*+?^${}()|[\\]\\\\/]/g, '\\\\$&')}(?!${BOUNDARY})`, 'iu')"
+ },
+ {
+  "id": "C1",
+  "title": "状态词：英文也按子串",
+  "file": "src/checks/cross_repo.ts",
+  "from": "STATUS_TOKENS.some((t) => (isAscii(t) ? nameAppears(line, t) : line.includes(t)))",
+  "to": "STATUS_TOKENS.some((t) => line.includes(t))"
+ },
+ {
+  "id": "C2",
+  "title": "状态词：中文也按记号",
+  "file": "src/checks/cross_repo.ts",
+  "from": "STATUS_TOKENS.some((t) => (isAscii(t) ? nameAppears(line, t) : line.includes(t)))",
+  "to": "STATUS_TOKENS.some((t) => nameAppears(line, t))"
+ },
+ {
+  "id": "C3",
+  "title": "状态词：ASCII 判断改成只看首字符",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const isAscii = (s: string): boolean => { for (let i = 0; i < s.length; i++) if (s.charCodeAt(i) > 0x7f) return false; return true }",
+  "to": "const isAscii = (s: string): boolean => s.charCodeAt(0) <= 0x7f",
+  "unobservable": "等价：状态词表里没有混合（ASCII 加非 ASCII）的词，每个词要么全 ASCII 要么全非 ASCII（Python 实测），只看首字符与逐字符判断的结论相同"
+ },
+ {
+  "id": "C4",
+  "title": "状态词：ASCII 判断改成 > 0x7e",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (s.charCodeAt(i) > 0x7f) return false",
+  "to": "if (s.charCodeAt(i) > 0x7e) return false",
+  "unobservable": "等价：状态词表里的 ASCII 词都不含 0x7f，非 ASCII 词的每个字符都大于 0x7e；`> 0x7e` 与 `> 0x7f` 在表内词上结论相同（Python 实测）"
+ },
+ {
+  "id": "C5",
+  "title": "规范化：不归一反斜杠",
+  "file": "src/checks/cross_repo.ts",
+  "from": "export const norm = (p: string): string => normalize(resolve(p)).replaceAll('\\\\', '/')",
+  "to": "export const norm = (p: string): string => normalize(resolve(p))",
+  "winOnly": "norm 里的反斜杠只在 Windows 路径里出现（POSIX 上 resolve 的结果本来就不含反斜杠）；Windows 上被 79 个场景抓住"
+ },
+ {
+  "id": "C6",
+  "title": "规范化：不取绝对路径",
+  "file": "src/checks/cross_repo.ts",
+  "from": "export const norm = (p: string): string => normalize(resolve(p)).replaceAll('\\\\', '/')",
+  "to": "export const norm = (p: string): string => normalize(p).replaceAll('\\\\', '/')",
+  "unobservable": "等价：norm 的 4 个调用点传入的都已是绝对路径（loadRepos 的 abspath 来自 resolve(join(root, path))、ownerRepo 的参数来自 join/normalize 的结果、规则展开的结果来自 join(绝对仓根, …)、mentionsSystem 里 join(dirname(绝对入口路径), 链接)），resolve 对已绝对路径是恒等"
+ },
+ {
+  "id": "C7",
+  "title": "仓身份：.git 必须是目录",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const isGitRepo = (p: string): boolean => exists(join(p, '.git'))",
+  "to": "const isGitRepo = (p: string): boolean => isDir(join(p, '.git'))"
+ },
+ {
+  "id": "C8",
+  "title": "仓身份：.git 必须是文件",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const isGitRepo = (p: string): boolean => exists(join(p, '.git'))",
+  "to": "const isGitRepo = (p: string): boolean => isFile(join(p, '.git'))"
+ },
+ {
+  "id": "C9",
+  "title": "archived 无检出：不要求 archived",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const archivedAbsent = (r: Repo): boolean => r.role === 'archived' && !r._exists",
+  "to": "const archivedAbsent = (r: Repo): boolean => !r._exists"
+ },
+ {
+  "id": "C10",
+  "title": "archived 无检出：不要求不存在",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const archivedAbsent = (r: Repo): boolean => r.role === 'archived' && !r._exists",
+  "to": "const archivedAbsent = (r: Repo): boolean => r.role === 'archived'"
+ },
+ {
+  "id": "D1",
+  "title": "链接抽取：先引用式后内联",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  for (const m of text.matchAll(INLINE_LINK)) hits.push(m[1]!)\n  for (const ln of splitRefLines(text)) { const m = REF_LINK_LINE.exec(ln.text); if (m) hits.push(m[1]!) }",
+  "to": "  for (const ln of splitRefLines(text)) { const m = REF_LINK_LINE.exec(ln.text); if (m) hits.push(m[1]!) }\n  for (const m of text.matchAll(INLINE_LINK)) hits.push(m[1]!)"
+ },
+ {
+  "id": "D2",
+  "title": "链接抽取：不去重",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!seen.has(t)) { seen.add(t); out.push(t) }",
+  "to": "    out.push(t)"
+ },
+ {
+  "id": "D3",
+  "title": "链接抽取：不去首尾空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    let t = pyStrip(raw)\n    if (!t || t.startsWith('#')) continue",
+  "to": "    let t = raw\n    if (!t || t.startsWith('#')) continue",
+  "unobservable": "等价（穷举）：内联链接与引用式定义的目标捕获组 `[^()WS>]+`、`[^WS>]+` 都排除了 Python 的全部 29 个空白码点（逐码点验证，能混进捕获组的 0 个），所以捕获内容两端不可能有空白，strip 恒等"
+ },
+ {
+  "id": "D4",
+  "title": "链接抽取：纯锚点不跳过",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!t || t.startsWith('#')) continue",
+  "to": "    if (!t) continue",
+  "unobservable": "等价：以 # 开头的串 `split(\"#\")` 的首段恒为空，随后 `if (!t) continue` 同样丢弃；先判纯锚点与不先判，结果相同"
+ },
+ {
+  "id": "D5",
+  "title": "链接抽取：不去锚点",
+  "file": "src/checks/cross_repo.ts",
+  "from": "t = pyStrip(t.split('#', 2)[0]!.split('?', 2)[0]!)",
+  "to": "t = pyStrip(t.split('?', 2)[0]!)"
+ },
+ {
+  "id": "D6",
+  "title": "链接抽取：不去查询串",
+  "file": "src/checks/cross_repo.ts",
+  "from": "t = pyStrip(t.split('#', 2)[0]!.split('?', 2)[0]!)",
+  "to": "t = pyStrip(t.split('#', 2)[0]!)"
+ },
+ {
+  "id": "D7",
+  "title": "链接抽取：先去查询再去锚点",
+  "file": "src/checks/cross_repo.ts",
+  "from": "t = pyStrip(t.split('#', 2)[0]!.split('?', 2)[0]!)",
+  "to": "t = pyStrip(t.split('?', 2)[0]!.split('#', 2)[0]!)",
+  "unobservable": "等价（穷举）：`先 # 后 ?` 与 `先 ? 后 #` 在 {x # ? .} 的 1–6 位共 5460 个串上结果完全相同（Python 同款穷举 0 个不等价）"
+ },
+ {
+  "id": "D8",
+  "title": "链接抽取：去锚点/查询后不再去空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "t = pyStrip(t.split('#', 2)[0]!.split('?', 2)[0]!)",
+  "to": "t = t.split('#', 2)[0]!.split('?', 2)[0]!",
+  "unobservable": "等价：同 D3，捕获组本身不含空白，去掉锚点与查询串之后剩下的是原串的前缀，仍不含空白；strip 恒等"
+ },
+ {
+  "id": "D9",
+  "title": "链接抽取：协议头不过滤",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!t || SCHEME.test(t)) continue",
+  "to": "    if (!t) continue"
+ },
+ {
+  "id": "D10",
+  "title": "链接抽取：空串不过滤",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!t || SCHEME.test(t)) continue",
+  "to": "    if (SCHEME.test(t)) continue"
+ },
+ {
+  "id": "D11",
+  "title": "协议头：首字符允许数字",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const SCHEME = /^[A-Za-z][A-Za-z0-9+.\\-]*:/",
+  "to": "const SCHEME = /^[A-Za-z0-9][A-Za-z0-9+.\\-]*:/"
+ },
+ {
+  "id": "D12",
+  "title": "协议头：后续字符少 +",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const SCHEME = /^[A-Za-z][A-Za-z0-9+.\\-]*:/",
+  "to": "const SCHEME = /^[A-Za-z][A-Za-z0-9.\\-]*:/"
+ },
+ {
+  "id": "D13",
+  "title": "协议头：后续字符少 .",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const SCHEME = /^[A-Za-z][A-Za-z0-9+.\\-]*:/",
+  "to": "const SCHEME = /^[A-Za-z][A-Za-z0-9+\\-]*:/"
+ },
+ {
+  "id": "D14",
+  "title": "协议头：后续字符少 -",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const SCHEME = /^[A-Za-z][A-Za-z0-9+.\\-]*:/",
+  "to": "const SCHEME = /^[A-Za-z][A-Za-z0-9+.]*:/"
+ },
+ {
+  "id": "D15",
+  "title": "协议头：后续字符少数字",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const SCHEME = /^[A-Za-z][A-Za-z0-9+.\\-]*:/",
+  "to": "const SCHEME = /^[A-Za-z][A-Za-z+.\\-]*:/"
+ },
+ {
+  "id": "D16",
+  "title": "内联链接：目标前不吃空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const INLINE_LINK = new RegExp(`\\\\]\\\\([${WS_CLASS}]*<?([^()${WS_CLASS}>]+)>?",
+  "to": "const INLINE_LINK = new RegExp(`\\\\]\\\\(<?([^()${WS_CLASS}>]+)>?"
+ },
+ {
+  "id": "D17",
+  "title": "内联链接：不认尖括号",
+  "file": "src/checks/cross_repo.ts",
+  "from": "[${WS_CLASS}]*<?([^()${WS_CLASS}>]+)>?(?:[${WS_CLASS}][^()]*)?\\\\)`, 'gu')",
+  "to": "[${WS_CLASS}]*([^()${WS_CLASS}>]+)(?:[${WS_CLASS}][^()]*)?\\\\)`, 'gu')"
+ },
+ {
+  "id": "D18",
+  "title": "内联链接：不认标题部分",
+  "file": "src/checks/cross_repo.ts",
+  "from": ">?(?:[${WS_CLASS}][^()]*)?\\\\)`, 'gu')",
+  "to": ">?\\\\)`, 'gu')"
+ },
+ {
+  "id": "D19",
+  "title": "内联链接：用 JS \\s 代替 Python 空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const INLINE_LINK = new RegExp(`\\\\]\\\\([${WS_CLASS}]*<?([^()${WS_CLASS}>]+)>?(?:[${WS_CLASS}][^()]*)?\\\\)`, 'gu')",
+  "to": "const INLINE_LINK = new RegExp(`\\\\]\\\\(\\\\s*<?([^()\\\\s>]+)>?(?:\\\\s[^()]*)?\\\\)`, 'gu')"
+ },
+ {
+  "id": "D20",
+  "title": "引用式定义：行首缩进允许任意空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const REF_LINK_LINE = new RegExp(`^[ \\\\t]*\\\\[",
+  "to": "const REF_LINK_LINE = new RegExp(`^[${WS_CLASS}]*\\\\["
+ },
+ {
+  "id": "D21",
+  "title": "引用式定义：标签允许跨行",
+  "file": "src/checks/cross_repo.ts",
+  "from": "\\\\[[^\\\\]\\\\n]+\\\\]:",
+  "to": "\\\\[[^\\\\]]+\\\\]:"
+ },
+ {
+  "id": "D22",
+  "title": "引用式定义：冒号后不吃空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "\\\\]:[${WS_CLASS}]*<?([^${WS_CLASS}>]+)`, 'u')",
+  "to": "\\\\]:<?([^${WS_CLASS}>]+)`, 'u')"
+ },
+ {
+  "id": "D23",
+  "title": "引用式定义：不认尖括号",
+  "file": "src/checks/cross_repo.ts",
+  "from": "\\\\]:[${WS_CLASS}]*<?([^${WS_CLASS}>]+)`, 'u')",
+  "to": "\\\\]:[${WS_CLASS}]*([^${WS_CLASS}>]+)`, 'u')"
+ },
+ {
+  "id": "D24",
+  "title": "引用式定义：用带 m 标志的整串匹配（行起点认 \\r）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const REF_LINK_LINE = new RegExp(`^[ \\\\t]*\\\\[[^\\\\]\\\\n]+\\\\]:[${WS_CLASS}]*<?([^${WS_CLASS}>]+)`, 'u')",
+  "to": "const REF_LINK_LINE = new RegExp(`^[ \\\\t]*\\\\[[^\\\\]\\\\n]+\\\\]:[${WS_CLASS}]*<?([^${WS_CLASS}>]+)`, 'um')"
+ },
+ {
+  "id": "D25",
+  "title": "引用式定义：行起点只在文首",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    const nl = text.indexOf('\\n', start)\n    if (nl < 0) break\n    start = nl + 1",
+  "to": "    break"
+ },
+ {
+  "id": "D26",
+  "title": "引用式定义：行起点在 \\r 之后也算",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    const nl = text.indexOf('\\n', start)\n    if (nl < 0) break",
+  "to": "    const nl = text.slice(start).search(/[\\r\\n]/) < 0 ? -1 : start + text.slice(start).search(/[\\r\\n]/)\n    if (nl < 0) break"
+ },
+ {
+  "id": "E1",
+  "title": "md 遍历：不跳过 SKIP_DIRS",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const keep = dirs.filter((d: string) => !SKIP_DIRS.has(d))",
+  "to": "const keep = dirs"
+ },
+ {
+  "id": "E2",
+  "title": "md 遍历：不排除嵌套声明仓",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (owner !== null && owner._abs !== repo._abs) return false\n    for (const fn of names) {",
+  "to": "    for (const fn of names) {"
+ },
+ {
+  "id": "E3",
+  "title": "md 遍历：嵌套判据改成只要有 owner 就跳（含本仓）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (owner !== null && owner._abs !== repo._abs) return false",
+  "to": "if (owner !== null) return false"
+ },
+ {
+  "id": "E4",
+  "title": "md 遍历：后缀区分大小写",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (fn.toLowerCase().endsWith('.md')) {",
+  "to": "if (fn.endsWith('.md')) {"
+ },
+ {
+  "id": "E5",
+  "title": "md 遍历：后缀改成 includes",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (fn.toLowerCase().endsWith('.md')) {",
+  "to": "if (fn.toLowerCase().includes('.md')) {"
+ },
+ {
+  "id": "E6",
+  "title": "md 遍历：上限判断 >= 改 >",
+  "file": "src/checks/cross_repo.ts",
+  "from": "files.push(join(dir, fn)); if (files.length >= MAX_MD_FILES) return true",
+  "to": "files.push(join(dir, fn)); if (files.length > MAX_MD_FILES) return true"
+ },
+ {
+  "id": "E7",
+  "title": "md 遍历：进入符号链接目录",
+  "file": "src/checks/cross_repo.ts",
+  "from": "      if (lstatSync(join(dir, d)).isSymbolicLink()) continue\n      if (walk(join(dir, d))) return true",
+  "to": "      if (walk(join(dir, d))) return true"
+ },
+ {
+  "id": "E8",
+  "title": "md 遍历：符号链接目录当文件",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const e of ents) (e.isDirectory() || (e.isSymbolicLink() && isDir(join(dir, e.name))) ? dirs : names).push(e.name)",
+  "to": "for (const e of ents) (e.isDirectory() ? dirs : names).push(e.name)"
+ },
+ {
+  "id": "E9",
+  "title": "md 遍历：目录不存在不吞（抛出）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if ((exc as NodeJS.ErrnoException).code === 'ENOENT' || (exc as NodeJS.ErrnoException).code === 'ENOTDIR') return [files, false]; throw exc",
+  "to": "throw exc",
+  "unobservable": "等价（竞态保护）：listMd 只在 _exists 为真（isDir 刚判过）后被调用；ENOENT/ENOTDIR 只在判定与读取之间目录被删时出现，无法稳定构造。Python 对不存在目录的 _list_md 返回 ([], False)（实测），TS 的 catch 分支与之对应"
+ },
+ {
+  "id": "E11",
+  "title": "规则展开：空串不跳过",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!pat) continue\n    const target = join(repoAbs, pat.replace(/\\/+$/, ''))",
+  "to": "    const target = join(repoAbs, pat.replace(/\\/+$/, ''))"
+ },
+ {
+  "id": "E12",
+  "title": "规则展开：条目不去首尾空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const pat = pyStrip(String(raw).replaceAll('\\\\', '/'))",
+  "to": "const pat = String(raw).replaceAll('\\\\', '/')"
+ },
+ {
+  "id": "E13",
+  "title": "规则展开：反斜杠不归一",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const pat = pyStrip(String(raw).replaceAll('\\\\', '/'))",
+  "to": "const pat = pyStrip(String(raw))",
+  "posixOnly": "Windows 上 path.join 认反斜杠，归一与否结果相同；POSIX 上由 check-cross-repo.test.mjs 直接断言"
+ },
+ {
+  "id": "E14",
+  "title": "规则展开：出仓不记（吞掉）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!inside(repoAbs, target)) { outside.push(pat); continue }",
+  "to": "if (!inside(repoAbs, target)) { continue }"
+ },
+ {
+  "id": "E15",
+  "title": "规则展开：出仓照读",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!inside(repoAbs, target)) { outside.push(pat); continue }",
+  "to": "if (false) { outside.push(pat); continue }"
+ },
+ {
+  "id": "E16",
+  "title": "规则展开：以 / 结尾不算目录",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (pat.endsWith('/') || isDir(target)) {",
+  "to": "if (isDir(target)) {"
+ },
+ {
+  "id": "E17",
+  "title": "规则展开：目录不递归（只当文件）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (pat.endsWith('/') || isDir(target)) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "E18",
+  "title": "规则展开：文件名不排序",
+  "file": "src/checks/cross_repo.ts",
+  "from": ".map((e) => e.name).sort(cmpCodepoint)",
+  "to": ".map((e) => e.name)",
+  "winOnly": "在 Ubuntu 容器的文件系统上 readdirSync 的次序恰好就是码点序（实测：含 60 个乱名与 é ～ 😀 的目录，Linux 上 readdirSync 次序 == 码点序为 true，Windows 上为 false），所以去掉 sort 在容器里与原代码等价；Windows 上被 rules-order-many 与 rules-order-unicode 抓住。换一种文件系统（ext4 的哈希序）可能不同，但容器里没有，也不为了造差异去换文件系统"
+ },
+ {
+  "id": "E19",
+  "title": "规则展开：文件名按码元排序",
+  "file": "src/checks/cross_repo.ts",
+  "from": ".map((e) => e.name).sort(cmpCodepoint)",
+  "to": ".map((e) => e.name).sort()"
+ },
+ {
+  "id": "E20",
+  "title": "规则展开：不跳过 SKIP_DIRS",
+  "file": "src/checks/cross_repo.ts",
+  "from": ".map((e) => e.name).filter((n) => !SKIP_DIRS.has(n))",
+  "to": ".map((e) => e.name)"
+ },
+ {
+  "id": "E21",
+  "title": "规则展开：上限判断 >= 改 >",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(join(d, fn)); if (out.length >= MAX_RULE_FILES) return true",
+  "to": "out.push(join(d, fn)); if (out.length > MAX_RULE_FILES) return true"
+ },
+ {
+  "id": "E22",
+  "title": "规则展开：截断不标记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (stack(target)) return [out, true, outside]",
+  "to": "if (stack(target)) return [out, false, outside]"
+ },
+ {
+  "id": "E23",
+  "title": "规则展开：进入符号链接目录",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const sd of dirs) { if (lstatSync(join(d, sd)).isSymbolicLink()) continue; if (stack(join(d, sd))) return true }",
+  "to": "for (const sd of dirs) { if (stack(join(d, sd))) return true }"
+ },
+ {
+  "id": "E24",
+  "title": "规则展开：不去重",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  const seen = new Set<string>(), uniq: string[] = []\n  for (const p of out) { const k = norm(p); if (!seen.has(k)) { seen.add(k); uniq.push(p) } }\n  return [uniq, false, outside]",
+  "to": "  return [out, false, outside]"
+ },
+ {
+  "id": "E25",
+  "title": "规则展开：去重键不规范化",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const p of out) { const k = norm(p); if (!seen.has(k))",
+  "to": "for (const p of out) { const k = p; if (!seen.has(k))",
+  "unobservable": "等价：规则展开产出的路径都经 path.join 生成（已做 . 与 // 与 .. 的规范化），同一路径不会出现两种写法；去重键 norm(p) 与 p 本身仅在 Windows 上斜杠方向不同，而同一次展开里同一路径的斜杠方向一致"
+ },
+ {
+  "id": "E26",
+  "title": "规则展开：单个文件条目不要求是文件",
+  "file": "src/checks/cross_repo.ts",
+  "from": "} else if (isFile(target)) {\n      out.push(target)",
+  "to": "} else {\n      out.push(target)"
+ },
+ {
+  "id": "E27",
+  "title": "归属：取最浅而不是最深",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (best === null || r._abs.length > best._abs!.length) best = r",
+  "to": "if (best === null || r._abs.length < best._abs!.length) best = r"
+ },
+ {
+  "id": "E28",
+  "title": "归属：取第一个命中",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (best === null || r._abs.length > best._abs!.length) best = r",
+  "to": "if (best === null) best = r"
+ },
+ {
+  "id": "E29",
+  "title": "归属：前缀不加斜杠（sys2 归 sys）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const base = r._abs.replace(/\\/+$/, '') + '/'\n    if (p === r._abs || p.startsWith(base)) {",
+  "to": "const base = r._abs.replace(/\\/+$/, '')\n    if (p === r._abs || p.startsWith(base)) {"
+ },
+ {
+  "id": "E30",
+  "title": "归属：不认等于仓根",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (p === r._abs || p.startsWith(base)) {",
+  "to": "if (p.startsWith(base)) {"
+ },
+ {
+  "id": "E32",
+  "title": "配置：repos 假值不当未声明",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!pyTruthy(raw)) return [null, 'repos 未声明']",
+  "to": "if (raw === undefined) return [null, 'repos 未声明']"
+ },
+ {
+  "id": "E33",
+  "title": "配置：只有 1 个仓的门槛 < 2 改 < 1",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (raw.length < 2) return",
+  "to": "if (raw.length < 1) return"
+ },
+ {
+  "id": "E34",
+  "title": "配置：只有 1 个仓的门槛 < 2 改 < 3",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (raw.length < 2) return",
+  "to": "if (raw.length < 3) return"
+ },
+ {
+  "id": "E35",
+  "title": "配置：数组元素是数组也接受",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (item === null || typeof item !== 'object' || Array.isArray(item)) return",
+  "to": "if (item === null || typeof item !== 'object') return"
+ },
+ {
+  "id": "E36",
+  "title": "配置：name 不去空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const name = pyStrip(pyTruthy(it.name) ? pyStr(it.name) : '')",
+  "to": "const name = pyTruthy(it.name) ? pyStr(it.name) : ''"
+ },
+ {
+  "id": "E37",
+  "title": "配置：path 不去空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const path = pyStrip(pyTruthy(it.path) ? pyStr(it.path) : '')",
+  "to": "const path = pyTruthy(it.path) ? pyStr(it.path) : ''"
+ },
+ {
+  "id": "E38",
+  "title": "配置：role 不去空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const role = pyStrip(pyTruthy(it.role) ? pyStr(it.role) : '')",
+  "to": "const role = pyTruthy(it.role) ? pyStr(it.role) : ''"
+ },
+ {
+  "id": "E39",
+  "title": "配置：name 假值不当空（0 变成 '0'）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const name = pyStrip(pyTruthy(it.name) ? pyStr(it.name) : '')",
+  "to": "const name = pyStrip(it.name === undefined || it.name === null ? '' : pyStr(it.name))"
+ },
+ {
+  "id": "E40",
+  "title": "配置：path 假值不当空",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const path = pyStrip(pyTruthy(it.path) ? pyStr(it.path) : '')",
+  "to": "const path = pyStrip(it.path === undefined || it.path === null ? '' : pyStr(it.path))"
+ },
+ {
+  "id": "E41",
+  "title": "配置：重名判断不做",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (seen.has(name)) return [null,",
+  "to": "    if (false) return [null,"
+ },
+ {
+  "id": "E42",
+  "title": "配置：重名序号写错（写当前序号）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "项与第 ${seen.get(name)} 项同名",
+  "to": "项与第 ${i} 项同名"
+ },
+ {
+  "id": "E43",
+  "title": "配置：缺 path 对 retired 也放过",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!path && role !== 'archived') return",
+  "to": "if (!path && role !== 'archived' && role !== 'retired') return"
+ },
+ {
+  "id": "E44",
+  "title": "配置：缺 path 对任何 role 都不放过",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!path && role !== 'archived') return",
+  "to": "if (!path) return"
+ },
+ {
+  "id": "E46",
+  "title": "配置：存在性按文件而不是目录",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const ex = abspath !== null && isDir(abspath)",
+  "to": "const ex = abspath !== null && isFile(abspath)"
+ },
+ {
+  "id": "E47",
+  "title": "配置：存在性按 exists",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const ex = abspath !== null && isDir(abspath)",
+  "to": "const ex = abspath !== null && exists(abspath)"
+ },
+ {
+  "id": "E48",
+  "title": "配置：_where 缺省文案",
+  "file": "src/checks/cross_repo.ts",
+  "from": "_where: path || '（未声明 path）'",
+  "to": "_where: path || ''"
+ },
+ {
+  "id": "E49",
+  "title": "配置：former_names 缺省不是 null",
+  "file": "src/checks/cross_repo.ts",
+  "from": "former_names: Object.hasOwn(it, 'former_names') ? it.former_names : null",
+  "to": "former_names: it.former_names",
+  "unobservable": "等价：former_names 缺省时 TS 取 undefined、变异后同样是 undefined 与 null 的区别——下游唯一的使用点是 `fn === null || fn === undefined` 一并跳过，两者行为相同"
+ },
+ {
+  "id": "E51",
+  "title": "入口：出仓的也当找到",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!inside(repo._real, p) || isFile(p)) return [p, String(nm)]",
+  "to": "if (isFile(p)) return [p, String(nm)]"
+ },
+ {
+  "id": "E52",
+  "title": "入口：不要求是文件",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!inside(repo._real, p) || isFile(p)) return [p, String(nm)]",
+  "to": "if (!inside(repo._real, p) || exists(p)) return [p, String(nm)]"
+ },
+ {
+  "id": "E53",
+  "title": "入口：取最后一个存在的",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  for (const nm of entryNames) {\n    const p = join(repo._real!, String(nm))",
+  "to": "  for (const nm of [...entryNames].reverse()) {\n    const p = join(repo._real!, String(nm))"
+ },
+ {
+  "id": "F1",
+  "title": "总入口：单仓判断少 repos 未声明",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (problem === 'repos 未声明' || problem.startsWith('repos 只有')) {",
+  "to": "if (problem.startsWith('repos 只有')) {"
+ },
+ {
+  "id": "F2",
+  "title": "总入口：单仓判断少 repos 只有",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (problem === 'repos 未声明' || problem.startsWith('repos 只有')) {",
+  "to": "if (problem === 'repos 未声明') {"
+ },
+ {
+  "id": "F3",
+  "title": "总入口：单仓记未定而不是 SKIP",
+  "file": "src/checks/cross_repo.ts",
+  "from": "return [finding(NAME, SKIP, '单仓项目，§3.8 记不适用'",
+  "to": "return [finding(NAME, UNDETERMINED, '单仓项目，§3.8 记不适用'"
+ },
+ {
+  "id": "F4",
+  "title": "总入口：配置读不出记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "return [finding(NAME, UNDETERMINED, 'repos 配置读不出来'",
+  "to": "return [finding(NAME, FAIL, 'repos 配置读不出来'"
+ },
+ {
+  "id": "F5",
+  "title": "总入口：入口没配记 PASS",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, '未配置入口文件，入口相关的四条判不了'",
+  "to": "out.push(finding(NAME, PASS, '未配置入口文件，入口相关的四条判不了'"
+ },
+ {
+  "id": "F6",
+  "title": "总入口：入口没配时仍跑入口相关判据（用空列表）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (!pyTruthy(rawEntry)) {\n    out.push(finding(NAME, UNDETERMINED, '未配置入口文件",
+  "to": "  if (false) {\n    out.push(finding(NAME, UNDETERMINED, '未配置入口文件"
+ },
+ {
+  "id": "F7",
+  "title": "总入口：不存在的仓也找入口",
+  "file": "src/checks/cross_repo.ts",
+  "from": "      if (!r._exists) continue\n      entries.set(r.name, findEntry(r, entryNames))",
+  "to": "      entries.set(r.name, findEntry(r, entryNames))"
+ },
+ {
+  "id": "F8",
+  "title": "总入口：入口名不转成字符串",
+  "file": "src/checks/cross_repo.ts",
+  "from": "entryNames = (rawEntry as unknown[]).map((x) => pyStr(x))",
+  "to": "entryNames = (rawEntry as string[])",
+  "unobservable": "等价：入口名是数字 123 时，模板字符串、`join(\"、\")` 对数字与字符串 \"123\" 的输出完全相同（实测 `[123,\"A\"].join(\"、\")` 与 `[\"123\",\"A\"].join(\"、\")` 都是 `123、A`）；TS 里这处 String(nm) 只是类型收窄，不改变任何输出"
+ },
+ {
+  "id": "F9",
+  "title": "总入口：判据先后（链接在退役前）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  out.push(...checkRetired(cfg, repos, entryNames ?? []))\n  out.push(...checkLinks(repos))",
+  "to": "  out.push(...checkLinks(repos))\n  out.push(...checkRetired(cfg, repos, entryNames ?? []))"
+ },
+ {
+  "id": "F10",
+  "title": "总入口：退役仓判据不带入口名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "checkRetired(cfg, repos, entryNames ?? [])",
+  "to": "checkRetired(cfg, repos, [])"
+ },
+ {
+  "id": "F11",
+  "title": "总入口：不过 runGuarded",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  return runGuarded(NAME, doRun, cfg)",
+  "to": "  return doRun(cfg)"
+ },
+ {
+  "id": "G1",
+  "title": "判据一：bad-role 不记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (badRole.length) {\n    out.push(finding(NAME, UNDETERMINED, `有 ${badRole.length} 个仓的 role",
+  "to": "  if (false) {\n    out.push(finding(NAME, UNDETERMINED, `有 ${badRole.length} 个仓的 role"
+ },
+ {
+  "id": "G2",
+  "title": "判据一：bad-role 记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `有 ${badRole.length} 个仓的 role",
+  "to": "out.push(finding(NAME, FAIL, `有 ${badRole.length} 个仓的 role"
+ },
+ {
+  "id": "G3",
+  "title": "判据一：bad-role 的 reason 不列 role 值",
+  "file": "src/checks/cross_repo.ts",
+  "from": "`${r.name} 的 role = ${pyReprStr(r.role)}`",
+  "to": "`${r.name} 的 role`"
+ },
+ {
+  "id": "G4",
+  "title": "判据一：bad-role 的 reason 只列前 9 个",
+  "file": "src/checks/cross_repo.ts",
+  "from": "badRole.slice(0, MAX_LISTED).map(",
+  "to": "badRole.slice(0, 9).map("
+ },
+ {
+  "id": "G5",
+  "title": "判据一：bad-role 的 reason 列全部",
+  "file": "src/checks/cross_repo.ts",
+  "from": "badRole.slice(0, MAX_LISTED).map(",
+  "to": "badRole.map("
+ },
+ {
+  "id": "G6",
+  "title": "判据一：恰好一个记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, PASS, `承载系统级工件的仓恰好一个：",
+  "to": "out.push(finding(NAME, FAIL, `承载系统级工件的仓恰好一个："
+ },
+ {
+  "id": "G7",
+  "title": "判据一：恰好一个的 where 丢掉",
+  "file": "src/checks/cross_repo.ts",
+  "from": "{ where: systems[0]!.path, evidence: `repos 共 ${repos.length} 个，role: system 的 1 个` }",
+  "to": "{ evidence: `repos 共 ${repos.length} 个，role: system 的 1 个` }"
+ },
+ {
+  "id": "G8",
+  "title": "判据一：没有 system 记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, '没有任何仓声明 role: system'",
+  "to": "out.push(finding(NAME, UNDETERMINED, '没有任何仓声明 role: system'"
+ },
+ {
+  "id": "G9",
+  "title": "判据一：没有 system 的 evidence 空 role 不写（空）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "`${r.name}=${r.role || '（空）'}`",
+  "to": "`${r.name}=${r.role}`"
+ },
+ {
+  "id": "G10",
+  "title": "判据一：多个 system 记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, `有 ${systems.length} 个仓声明 role: system：",
+  "to": "out.push(finding(NAME, UNDETERMINED, `有 ${systems.length} 个仓声明 role: system："
+ },
+ {
+  "id": "G11",
+  "title": "判据一：多个 system 的 where 取最后一个",
+  "file": "src/checks/cross_repo.ts",
+  "from": "      where: systems[0]!.path,\n      why: \"01 §3.8'指定一个承载系统级工件的仓'是单数。",
+  "to": "      where: systems[systems.length - 1]!.path,\n      why: \"01 §3.8'指定一个承载系统级工件的仓'是单数。"
+ },
+ {
+  "id": "G12",
+  "title": "判据一：多个 system 的 evidence 不写路径",
+  "file": "src/checks/cross_repo.ts",
+  "from": "`${r.name}（${r.path}）`).join('、')}`",
+  "to": "`${r.name}`).join('、')}`"
+ },
+ {
+  "id": "H1",
+  "title": "判据二：archived 无检出记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, PASS, `仓 ${r.name} 声明 role: archived，本机无检出即符合定义`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 声明 role: archived，本机无检出即符合定义`"
+ },
+ {
+  "id": "H2",
+  "title": "判据二：archived 的证据不分有无 path",
+  "file": "src/checks/cross_repo.ts",
+  "from": "（${!r.path ? '条目未给 path' : `给了 path ${r.path} 但本机没有这个目录`}）",
+  "to": "（条目未给 path）"
+ },
+ {
+  "id": "H3",
+  "title": "判据二：path 不存在记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的 path 在本机不存在：${r.path}`",
+  "to": "out.push(finding(NAME, FAIL, `仓 ${r.name} 的 path 在本机不存在：${r.path}`"
+ },
+ {
+  "id": "H4",
+  "title": "判据二：path 不存在的 where 丢掉",
+  "file": "src/checks/cross_repo.ts",
+  "from": "        where: r.path, reason: '本机没有这个目录；",
+  "to": "        reason: '本机没有这个目录；"
+ },
+ {
+  "id": "H5",
+  "title": "判据二：无 .git 记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的目录存在但根下没有 .git`",
+  "to": "out.push(finding(NAME, FAIL, `仓 ${r.name} 的目录存在但根下没有 .git`"
+ },
+ {
+  "id": "H6",
+  "title": "判据二：无 .git 记 PASS",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的目录存在但根下没有 .git`",
+  "to": "out.push(finding(NAME, PASS, `仓 ${r.name} 的目录存在但根下没有 .git`"
+ },
+ {
+  "id": "H7",
+  "title": "判据二：可定位的证据不写路径",
+  "file": "src/checks/cross_repo.ts",
+  "from": "{ where: r.path, evidence: r._real! }",
+  "to": "{ where: r.path }"
+ },
+ {
+  "id": "H8",
+  "title": "判据二：先判存在再判 archived（archived 有目录时走 archived）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (archivedAbsent(r)) {\n      out.push(finding(NAME, PASS, `仓 ${r.name} 声明 role: archived",
+  "to": "    if (r.role === 'archived') {\n      out.push(finding(NAME, PASS, `仓 ${r.name} 声明 role: archived"
+ },
+ {
+  "id": "I1",
+  "title": "判据三：archived 入口记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, SKIP, `仓 ${r.name} 的入口记不适用（archived，本地无检出）`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的入口记不适用（archived，本地无检出）`"
+ },
+ {
+  "id": "I2",
+  "title": "判据三：archived 入口后不 continue",
+  "file": "src/checks/cross_repo.ts",
+  "from": "既不记通过也不记未定',\n      }))\n      continue\n    }\n    if (!r._exists) continue\n    const [path, nm]",
+  "to": "既不记通过也不记未定',\n      }))\n    }\n    if (!r._exists) continue\n    const [path, nm]",
+  "unobservable": "等价：archivedAbsent 蕴含 !_exists，紧随其后的 `if (!r._exists) continue` 同样跳过；该仓是否 continue 两条路径都到同一处"
+ },
+ {
+  "id": "I3",
+  "title": "判据三：不存在的仓也判入口",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!r._exists) continue\n    const [path, nm] = entries.get(r.name) ?? [null, null]\n    if (path && !inside(r._real, path)) {",
+  "to": "    const [path, nm] = entries.get(r.name) ?? [null, null]\n    if (path && !inside(r._real, path)) {"
+ },
+ {
+  "id": "I4",
+  "title": "判据三：出仓入口不记未定（当通过）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (path && !inside(r._real, path)) {\n      out.push(outsideRoot(NAME, `${r.path.replace(/\\/+$/, '')}/${nm}`))\n    } else if (path) {",
+  "to": "    if (false) {\n      out.push(outsideRoot(NAME, `${r.path.replace(/\\/+$/, '')}/${nm}`))\n    } else if (path) {"
+ },
+ {
+  "id": "I5",
+  "title": "判据三：出仓入口的 where 不去尾斜杠",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(outsideRoot(NAME, `${r.path.replace(/\\/+$/, '')}/${nm}`))",
+  "to": "out.push(outsideRoot(NAME, `${r.path}/${nm}`))"
+ },
+ {
+  "id": "I6",
+  "title": "判据三：有入口的 where 不去尾斜杠",
+  "file": "src/checks/cross_repo.ts",
+  "from": "`仓 ${r.name} 有自己的入口：${nm}`, { where: `${r.path.replace(/\\/+$/, '')}/${nm}` }",
+  "to": "`仓 ${r.name} 有自己的入口：${nm}`, { where: `${r.path}/${nm}` }"
+ },
+ {
+  "id": "I7",
+  "title": "判据三：没入口记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, `仓 ${r.name} 没有自己的入口文件`",
+  "to": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 没有自己的入口文件`"
+ },
+ {
+  "id": "I8",
+  "title": "判据三：没入口的 where 丢掉",
+  "file": "src/checks/cross_repo.ts",
+  "from": "        where: r.path,\n        why: \"01 §3.8'每个仓必须有自己的入口文件'",
+  "to": "        why: \"01 §3.8'每个仓必须有自己的入口文件'"
+ },
+ {
+  "id": "I9",
+  "title": "判据三：没入口的 evidence 不列候选",
+  "file": "src/checks/cross_repo.ts",
+  "from": "找过：${entryNames.join('、')}，都不存在",
+  "to": "找过：，都不存在"
+ },
+ {
+  "id": "I10",
+  "title": "判据三：没入口的 evidence 候选用逗号连",
+  "file": "src/checks/cross_repo.ts",
+  "from": "找过：${entryNames.join('、')}，都不存在",
+  "to": "找过：${entryNames.join(',')}，都不存在"
+ },
+ {
+  "id": "J1",
+  "title": "判据四：系统记号不含目录名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (base && !toks.includes(base)) toks.push(base)",
+  "to": ""
+ },
+ {
+  "id": "J2",
+  "title": "判据四：目录名与 name 相同也重复列",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (base && !toks.includes(base)) toks.push(base)",
+  "to": "  if (base) toks.push(base)"
+ },
+ {
+  "id": "J3",
+  "title": "判据四：目录名不去尾分隔符",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const base = basename(sysrepo._real!.replace(/[/\\\\]+$/, ''))",
+  "to": "const base = basename(sysrepo._real!)",
+  "unobservable": "等价：`_real` 来自 resolve(join(root, path))，已规范、无尾分隔符（根目录除外），所以 replace 尾分隔符再 basename 与直接 basename 相同"
+ },
+ {
+  "id": "J4",
+  "title": "判据四：记号不过滤 . 与 ..",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  return toks.filter((t) => t && t !== '.' && t !== '..')",
+  "to": "  return toks.filter((t) => t)"
+ },
+ {
+  "id": "J5",
+  "title": "判据四：记号不过滤空串",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  return toks.filter((t) => t && t !== '.' && t !== '..')",
+  "to": "  return toks.filter((t) => t !== '.' && t !== '..')",
+  "unobservable": "等价：记号列表的元素来自 sysrepo.name（loadRepos 已保证非空）与 basename(_real)（`base &&` 已挡空串），所以 toks 里不会有空串；filter 里的 `t &&` 是 Python 版的防御，不可达"
+ },
+ {
+  "id": "J6",
+  "title": "判据四：只过滤 .（不过滤 ..）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  return toks.filter((t) => t && t !== '.' && t !== '..')",
+  "to": "  return toks.filter((t) => t && t !== '.')"
+ },
+ {
+  "id": "J7",
+  "title": "判据四：命中记号的证据不用 repr",
+  "file": "src/checks/cross_repo.ts",
+  "from": "return `出现记号 ${pyReprStr(tok)}`",
+  "to": "return `出现记号 ${tok}`"
+ },
+ {
+  "id": "J8",
+  "title": "判据四：相对链接不跳过绝对路径",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (t.startsWith('/') || isAbsolute(t)) continue\n    const resolved = norm(join(dirname(srcFile), t))\n    if (resolved === sysrepo._abs",
+  "to": "    const resolved = norm(join(dirname(srcFile), t))\n    if (resolved === sysrepo._abs"
+ },
+ {
+  "id": "J9",
+  "title": "判据四：相对链接解析不认等于仓根",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (resolved === sysrepo._abs || resolved.startsWith(base)) return `链接",
+  "to": "if (resolved.startsWith(base)) return `链接"
+ },
+ {
+  "id": "J10",
+  "title": "判据四：相对链接前缀不加斜杠",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  const base = sysrepo._abs!.replace(/\\/+$/, '') + '/'\n  for (const t of linkTargets(text)) {",
+  "to": "  const base = sysrepo._abs!.replace(/\\/+$/, '')\n  for (const t of linkTargets(text)) {"
+ },
+ {
+  "id": "J11",
+  "title": "判据四：相对链接相对于仓根而不是入口所在目录",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const resolved = norm(join(dirname(srcFile), t))\n    if (resolved === sysrepo._abs",
+  "to": "const resolved = norm(join(sysrepo._abs!, t))\n    if (resolved === sysrepo._abs"
+ },
+ {
+  "id": "J12",
+  "title": "判据四：链接命中的证据不用 repr",
+  "file": "src/checks/cross_repo.ts",
+  "from": "return `链接 ${pyReprStr(t)} 解析进系统仓`",
+  "to": "return `链接 ${t} 解析进系统仓`"
+ },
+ {
+  "id": "K1",
+  "title": "判据四：系统仓不唯一的门槛 !== 1 改 > 1",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (systems.length !== 1) {",
+  "to": "if (systems.length > 1) {"
+ },
+ {
+  "id": "K2",
+  "title": "判据四：只判 app，改成不区分 role（退役仓也判）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (r.role !== 'app' || !r._exists) continue",
+  "to": "if (!r._exists) continue"
+ },
+ {
+  "id": "K3",
+  "title": "判据四：只判 app，改成不要求存在",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (r.role !== 'app' || !r._exists) continue",
+  "to": "if (r.role !== 'app') continue",
+  "unobservable": "等价：只判 app 的循环里，app 目录不在时 entries 里没有它，`entries.get(r.name) ?? [null, null]` 得到 `[null, null]`，随后 `if (!entryPath) continue` 同样跳过"
+ },
+ {
+  "id": "K4",
+  "title": "判据四：第一跳通过记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, PASS, `仓 ${r.name} 的入口第一跳即指向系统仓",
+  "to": "out.push(finding(NAME, FAIL, `仓 ${r.name} 的入口第一跳即指向系统仓"
+ },
+ {
+  "id": "K5",
+  "title": "判据四：第二跳上限 >= 改 >",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (followed >= MAX_HOP2_LINKS) break",
+  "to": "if (followed > MAX_HOP2_LINKS) break"
+ },
+ {
+  "id": "K6",
+  "title": "判据四：第二跳不护栏出仓",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!inside(r._real, nxt) || !isFile(nxt)) continue",
+  "to": "if (!isFile(nxt)) continue"
+ },
+ {
+  "id": "K7",
+  "title": "判据四：第二跳不计数 followed",
+  "file": "src/checks/cross_repo.ts",
+  "from": "      followed++\n      try {",
+  "to": "      try {"
+ },
+ {
+  "id": "K8",
+  "title": "判据四：第二跳命中不 break",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (hop2) { hop2 = `第二跳 ${t}：${hop2}`; break }",
+  "to": "if (hop2) { hop2 = `第二跳 ${t}：${hop2}` }"
+ },
+ {
+  "id": "K9",
+  "title": "判据四：第二跳通过记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, PASS, `仓 ${r.name} 的入口第二跳到达系统仓",
+  "to": "out.push(finding(NAME, FAIL, `仓 ${r.name} 的入口第二跳到达系统仓"
+ },
+ {
+  "id": "K10",
+  "title": "判据四：两跳到不了记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, `仓 ${r.name} 的入口两跳内到不了系统仓",
+  "to": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的入口两跳内到不了系统仓"
+ },
+ {
+  "id": "K11",
+  "title": "判据四：evidence 写死跟随 0 个",
+  "file": "src/checks/cross_repo.ts",
+  "from": "跟随了 ${followed} 个本仓内链接做第二跳",
+  "to": "跟随了 0 个本仓内链接做第二跳"
+ },
+ {
+  "id": "K12",
+  "title": "判据四：入口读不了不记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "catch (exc) { out.push(unreadable(NAME, `${r.name}/${nm}`, exc)); continue }",
+  "to": "catch (exc) { continue }"
+ },
+ {
+  "id": "L1",
+  "title": "判据五：系统仓不唯一的门槛 !== 1 改 === 0",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (systems.length !== 1) return out // 判据四已记未定",
+  "to": "if (systems.length === 0) return out // 判据四已记未定"
+ },
+ {
+  "id": "L2",
+  "title": "判据五：系统仓不存在也往下判",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (!sysrepo._exists) return out // 判据二已记未定\n",
+  "to": ""
+ },
+ {
+  "id": "L3",
+  "title": "判据五：名字按裸子串找",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const hits = lines.filter((ln) => nameAppears(ln, r.name))",
+  "to": "const hits = lines.filter((ln) => ln.includes(r.name))"
+ },
+ {
+  "id": "L4",
+  "title": "判据五：状态词 some 改 every",
+  "file": "src/checks/cross_repo.ts",
+  "from": "else if (hits.some((ln) => hasStatusToken(ln))) ok.push(r)",
+  "to": "else if (hits.every((ln) => hasStatusToken(ln))) ok.push(r)"
+ },
+ {
+  "id": "L5",
+  "title": "判据五：命中行截 160 改 159",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(hits[0]!), 160)",
+  "to": "headChars(pyStrip(hits[0]!), 159)"
+ },
+ {
+  "id": "L6",
+  "title": "判据五：命中行截 160 改 161",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(hits[0]!), 160)",
+  "to": "headChars(pyStrip(hits[0]!), 161)"
+ },
+ {
+  "id": "L7",
+  "title": "判据五：命中行不去首尾空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(hits[0]!), 160)",
+  "to": "headChars(hits[0]!, 160)"
+ },
+ {
+  "id": "L8",
+  "title": "判据五：命中行取最后一行",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(hits[0]!), 160)",
+  "to": "headChars(pyStrip(hits[hits.length - 1]!), 160)"
+ },
+ {
+  "id": "L9",
+  "title": "判据五：未登记记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, `系统级入口未登记",
+  "to": "out.push(finding(NAME, UNDETERMINED, `系统级入口未登记"
+ },
+ {
+  "id": "L10",
+  "title": "判据五：字符数按码元",
+  "file": "src/checks/cross_repo.ts",
+  "from": "（${[...text].length} 字符 / ${lines.length} 行）",
+  "to": "（${text.length} 字符 / ${lines.length} 行）"
+ },
+ {
+  "id": "L11",
+  "title": "判据五：行数按 \\n 切",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const lines = splitLinesPyLocal(text)",
+  "to": "const lines = text.split('\\n')"
+ },
+ {
+  "id": "L12",
+  "title": "判据五：只有名字记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `系统级入口里有 ${bare.length}",
+  "to": "out.push(finding(NAME, FAIL, `系统级入口里有 ${bare.length}"
+ },
+ {
+  "id": "L13",
+  "title": "判据五：reason 只列 5 个状态词",
+  "file": "src/checks/cross_repo.ts",
+  "from": "STATUS_TOKENS.slice(0, 6).join('/')",
+  "to": "STATUS_TOKENS.slice(0, 5).join('/')"
+ },
+ {
+  "id": "L14",
+  "title": "判据五：只有名字的 evidence 列全部",
+  "file": "src/checks/cross_repo.ts",
+  "from": "evidence: bare.slice(0, MAX_LISTED).map(([r, ln])",
+  "to": "evidence: bare.map(([r, ln])"
+ },
+ {
+  "id": "L15",
+  "title": "判据五：全部登记 PASS 不要求没有 bare",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (ok.length && !missing.length && !bare.length) {",
+  "to": "if (ok.length && !missing.length) {"
+ },
+ {
+  "id": "L16",
+  "title": "判据五：全部登记 PASS 不要求没有 missing",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (ok.length && !missing.length && !bare.length) {",
+  "to": "if (ok.length && !bare.length) {"
+ },
+ {
+  "id": "M1",
+  "title": "判据六：rule_files 缺省只认 undefined（null 不走默认）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const usedDefault = patterns === undefined || patterns === null",
+  "to": "const usedDefault = patterns === undefined"
+ },
+ {
+  "id": "M2",
+  "title": "判据六：rule_files 不是列表也往下",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!Array.isArray(patterns)) {\n    return [finding(NAME, UNDETERMINED, 'layout.rule_files 不是列表",
+  "to": "if (false) {\n    return [finding(NAME, UNDETERMINED, 'layout.rule_files 不是列表"
+ },
+ {
+  "id": "M3",
+  "title": "判据六：扫描清单不并入入口名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const pats = [...new Set([...(patterns as unknown[]).map((p) => pyStr(p)), ...entryNames.map((e) => pyStr(e))])]",
+  "to": "const pats = [...new Set([...(patterns as unknown[]).map((p) => pyStr(p))])]"
+ },
+ {
+  "id": "M4",
+  "title": "判据六：扫描清单不去重",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const pats = [...new Set([...(patterns as unknown[]).map((p) => pyStr(p)), ...entryNames.map((e) => pyStr(e))])]",
+  "to": "const pats = [...(patterns as unknown[]).map((p) => pyStr(p)), ...entryNames.map((e) => pyStr(e))]"
+ },
+ {
+  "id": "M5",
+  "title": "判据六：note 的缺省与配置写反",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const note = usedDefault ?",
+  "to": "const note = !usedDefault ?"
+ },
+ {
+  "id": "M6",
+  "title": "判据六：archived 无检出记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, SKIP, `退役仓 ${r.name} 的失效标记记不适用",
+  "to": "out.push(finding(NAME, UNDETERMINED, `退役仓 ${r.name} 的失效标记记不适用"
+ },
+ {
+  "id": "M7",
+  "title": "判据六：仓目录不存在也往下判",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!r._exists) continue // 判据二已记未定\n    let files",
+  "to": "    let files"
+ },
+ {
+  "id": "M8",
+  "title": "判据六：有失效标记反而算 live",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!hasInvalidationMarker(head)) live.push(",
+  "to": "if (hasInvalidationMarker(head)) live.push("
+ },
+ {
+  "id": "M9",
+  "title": "判据六：live 路径不归一反斜杠",
+  "file": "src/checks/cross_repo.ts",
+  "from": "live.push(relative(r._real!, p).replaceAll('\\\\', '/'))",
+  "to": "live.push(relative(r._real!, p))",
+  "winOnly": true
+ },
+ {
+  "id": "M10",
+  "title": "判据六：出仓条目不记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "unread: string[] = outside.map((p) => `${p}（真实位置在该仓之外，未读）`)",
+  "to": "unread: string[] = []"
+ },
+ {
+  "id": "M11",
+  "title": "判据六：读不了不记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (unread.length) {\n      out.push(finding(NAME, UNDETERMINED, `退役仓 ${r.name} 有 ${unread.length} 份规则文件读不了`",
+  "to": "if (false) {\n      out.push(finding(NAME, UNDETERMINED, `退役仓 ${r.name} 有 ${unread.length} 份规则文件读不了`"
+ },
+ {
+  "id": "M12",
+  "title": "判据六：超上限不记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (truncated) {\n      out.push(finding(NAME, UNDETERMINED, `退役仓 ${r.name} 的规则文件超过",
+  "to": "if (false) {\n      out.push(finding(NAME, UNDETERMINED, `退役仓 ${r.name} 的规则文件超过"
+ },
+ {
+  "id": "M13",
+  "title": "判据六：读不了的 id 不带仓名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "kind: 'unreadable-rules', key: r.name,",
+  "to": "kind: 'unreadable-rules',"
+ },
+ {
+  "id": "M14",
+  "title": "判据六：where 取最后一份",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where: `${r.path.replace(/\\/+$/, '')}/${live[0]}`",
+  "to": "where: `${r.path.replace(/\\/+$/, '')}/${live[live.length - 1]}`"
+ },
+ {
+  "id": "M15",
+  "title": "判据六：列前 N 写死 MAX_LISTED",
+  "file": "src/checks/cross_repo.ts",
+  "from": "（共 ${live.length} 份，列前 ${Math.min(live.length, MAX_LISTED)}）",
+  "to": "（共 ${live.length} 份，列前 ${MAX_LISTED}）"
+ },
+ {
+  "id": "M16",
+  "title": "判据六：live 列全部",
+  "file": "src/checks/cross_repo.ts",
+  "from": "${live.slice(0, MAX_LISTED).join('、')}；${note}",
+  "to": "${live.join('、')}；${note}"
+ },
+ {
+  "id": "M17",
+  "title": "判据六：PASS 不要求没截断",
+  "file": "src/checks/cross_repo.ts",
+  "from": "} else if (!unread.length && !truncated) {",
+  "to": "} else if (!unread.length) {"
+ },
+ {
+  "id": "M18",
+  "title": "判据六：PASS 不要求没读不了的",
+  "file": "src/checks/cross_repo.ts",
+  "from": "} else if (!unread.length && !truncated) {",
+  "to": "} else if (!truncated) {"
+ },
+ {
+  "id": "N1",
+  "title": "判据七：本机仓不足的门槛 < 2 改 < 3",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (known.length < 2) {",
+  "to": "if (known.length < 3) {"
+ },
+ {
+  "id": "N2",
+  "title": "判据七：本机仓不足的门槛 < 2 改 < 1",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (known.length < 2) {",
+  "to": "if (known.length < 1) {"
+ },
+ {
+  "id": "N3",
+  "title": "判据七：missing 不排除 archived",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const missing = repos.filter((r) => !r._exists && !archivedAbsent(r))",
+  "to": "const missing = repos.filter((r) => !r._exists)"
+ },
+ {
+  "id": "N4",
+  "title": "判据七：理由不写 archived 分支",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (archived.length) reason +=",
+  "to": "if (false) reason +="
+ },
+ {
+  "id": "N5",
+  "title": "判据七：理由不写 path 不在分支",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (missing.length) reason +=",
+  "to": "if (false) reason +="
+ },
+ {
+  "id": "N6",
+  "title": "判据七：本机仓不足记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, SKIP, '本机可读的仓不足两个，跨仓引用记不适用'",
+  "to": "out.push(finding(NAME, UNDETERMINED, '本机可读的仓不足两个，跨仓引用记不适用'"
+ },
+ {
+  "id": "N7",
+  "title": "判据七：本机仓不足后不 return",
+  "file": "src/checks/cross_repo.ts",
+  "from": "跨仓引用按契约处理'：本机没有第二个仓的文件可比对\" }))\n    return out",
+  "to": "跨仓引用按契约处理'：本机没有第二个仓的文件可比对\" }))"
+ },
+ {
+  "id": "N8",
+  "title": "判据七：不处理 isAbsolute（Windows 盘符与 UNC）",
+  "file": "src/checks/cross_repo.ts",
+  "from": "        if (isAbsolute(t)) { hostAbs.push(`${relF} -> ${t}`); continue }\n",
+  "to": "",
+  "winOnly": "Windows 盘符（C:/x）与 UNC（\\\\srv\\s）形态的链接才会走到 isAbsolute：POSIX 上盘符形态被协议头判断先丢掉、UNC 形态 isAbsolute 为假，所以去掉这一行在 POSIX 上与原代码等价；Windows 上已被场景抓住"
+ },
+ {
+  "id": "N9",
+  "title": "判据七：本仓内链接不跳过",
+  "file": "src/checks/cross_repo.ts",
+  "from": "        if (owner !== null && owner._abs === r._abs) continue // 仍在本仓内，不归本检查器\n",
+  "to": ""
+ },
+ {
+  "id": "N10",
+  "title": "判据七：不计 total",
+  "file": "src/checks/cross_repo.ts",
+  "from": "        total++\n        if (!exists(resolved))",
+  "to": "        if (!exists(resolved))"
+ },
+ {
+  "id": "N11",
+  "title": "判据七：存在判断写反",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (!exists(resolved)) broken.push",
+  "to": "if (exists(resolved)) broken.push"
+ },
+ {
+  "id": "N12",
+  "title": "判据七：md 超上限不记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (truncated) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的 md 文件超过",
+  "to": "if (false) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的 md 文件超过"
+ },
+ {
+  "id": "N13",
+  "title": "判据七：绝对路径引用不记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (hostAbs.length) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "N14",
+  "title": "判据七：出声明仓之外的不记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (outside.length) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 有 ${outside.length}",
+  "to": "if (false) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 有 ${outside.length}"
+ },
+ {
+  "id": "N15",
+  "title": "判据七：md 读不了不记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (unread.length) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 有 ${unread.length} 份 *.md",
+  "to": "if (false) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 有 ${unread.length} 份 *.md"
+ },
+ {
+  "id": "N16",
+  "title": "判据七：abs-refs 的 id 不带仓名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where, kind: 'abs-refs', key: r.name,",
+  "to": "where, kind: 'abs-refs',"
+ },
+ {
+  "id": "N17",
+  "title": "判据七：outside-repos 的 id 不带仓名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where, kind: 'outside-repos', key: r.name,",
+  "to": "where, kind: 'outside-repos',"
+ },
+ {
+  "id": "N18",
+  "title": "判据七：unreadable 的 id 不带仓名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where, kind: 'unreadable', key: r.name,",
+  "to": "where, kind: 'unreadable',"
+ },
+ {
+  "id": "N19",
+  "title": "判据七：no-refs 的 id 不带仓名",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where, kind: 'no-refs', key: r.name,",
+  "to": "where, kind: 'no-refs',"
+ },
+ {
+  "id": "N20",
+  "title": "判据七：断链记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, `仓 ${r.name} 有 ${broken.length} 处跨仓引用解析后不存在",
+  "to": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 有 ${broken.length} 处跨仓引用解析后不存在"
+ },
+ {
+  "id": "N21",
+  "title": "判据七：断链 where 取最后一个",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where: `${r.path.replace(/\\/+$/, '')}/${broken[0]!.split(' -> ')[0]}`",
+  "to": "where: `${r.path.replace(/\\/+$/, '')}/${broken[broken.length - 1]!.split(' -> ')[0]}`"
+ },
+ {
+  "id": "N22",
+  "title": "判据七：PASS 的门槛 total 改 total > 1",
+  "file": "src/checks/cross_repo.ts",
+  "from": "} else if (total) {",
+  "to": "} else if (total > 1) {"
+ },
+ {
+  "id": "N23",
+  "title": "判据七：no-refs 不要求没有 outside",
+  "file": "src/checks/cross_repo.ts",
+  "from": "} else if (!outside.length) {",
+  "to": "} else {"
+ },
+ {
+  "id": "O1",
+  "title": "判据八：former_names 为 null 也往下",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (fn === null || fn === undefined) continue",
+  "to": "if (fn === undefined) continue"
+ },
+ {
+  "id": "O2",
+  "title": "判据八：别名不是列表也往下",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!Array.isArray(fn)) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的历史别名读不出来`",
+  "to": "    if (!Array.isArray(fn) && Math.abs(0) > 1) {\n      out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的历史别名读不出来`",
+  "typeGuarded": "别名不是列表时跳过 Array.isArray 的收窄，后面的 fn.map 在类型 {} 上不存在，TypeScript 编译即拒绝（实测 TS2339）——类型系统守住，不是测试守住"
+ },
+ {
+  "id": "O3",
+  "title": "判据八：别名空串不过滤",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const a of fn.map((x) => pyStrip(pyStr(x))).filter((x) => x)) {",
+  "to": "for (const a of fn.map((x) => pyStrip(pyStr(x)))) {"
+ },
+ {
+  "id": "O4",
+  "title": "判据八：别名不去首尾空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const a of fn.map((x) => pyStrip(pyStr(x))).filter((x) => x)) {",
+  "to": "for (const a of fn.map((x) => pyStr(x)).filter((x) => x)) {"
+ },
+ {
+  "id": "O5",
+  "title": "判据八：仓名集合区分大小写",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const names = new Set(repos.map((r) => r.name.toLowerCase()))",
+  "to": "const names = new Set(repos.map((r) => r.name))"
+ },
+ {
+  "id": "O6",
+  "title": "判据八：相撞判断区分大小写",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (names.has(a.toLowerCase())) {",
+  "to": "if (names.has(a)) {"
+ },
+ {
+  "id": "O7",
+  "title": "判据八：相撞记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `仓 ${r.name} 的历史别名 ${pyReprStr(a)} 与在册仓名相撞",
+  "to": "out.push(finding(NAME, FAIL, `仓 ${r.name} 的历史别名 ${pyReprStr(a)} 与在册仓名相撞"
+ },
+ {
+  "id": "O8",
+  "title": "判据八：相撞后仍扫描",
+  "file": "src/checks/cross_repo.ts",
+  "from": "        continue\n      }\n      todo.push([r, a])",
+  "to": "      }\n      todo.push([r, a])"
+ },
+ {
+  "id": "O9",
+  "title": "判据八：没有待扫别名也往下",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (!todo.length) return out\n",
+  "to": ""
+ },
+ {
+  "id": "O10",
+  "title": "判据八：不限 .git 的仓",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (const r of repos.filter((x) => x._is_git)) {",
+  "to": "for (const r of repos.filter((x) => x._exists)) {"
+ },
+ {
+  "id": "O11",
+  "title": "判据八：召回出错不 continue",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (err) { errs.push(`${r.name}：${err}`); continue }",
+  "to": "    if (err) { errs.push(`${r.name}：${err}`) }"
+ },
+ {
+  "id": "O12",
+  "title": "判据八：frozen 不豁免",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (inFrozen(cfg, rel) || RENAME_MARKERS.some(",
+  "to": "if (RENAME_MARKERS.some("
+ },
+ {
+  "id": "O13",
+  "title": "判据八：改名标记不豁免",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (inFrozen(cfg, rel) || RENAME_MARKERS.some((m) => line.includes(m) || line.toLowerCase().includes(m))) continue",
+  "to": "if (inFrozen(cfg, rel)) continue"
+ },
+ {
+  "id": "O14",
+  "title": "判据八：改名标记只按原文找",
+  "file": "src/checks/cross_repo.ts",
+  "from": "RENAME_MARKERS.some((m) => line.includes(m) || line.toLowerCase().includes(m))",
+  "to": "RENAME_MARKERS.some((m) => line.includes(m))"
+ },
+ {
+  "id": "O15",
+  "title": "判据八：自仓与别仓归属写反",
+  "file": "src/checks/cross_repo.ts",
+  "from": "(r._abs === owner._abs ? mine : cross)",
+  "to": "(r._abs !== owner._abs ? mine : cross)"
+ },
+ {
+  "id": "O16",
+  "title": "判据八：召回出错不记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (errs.length) {\n    out.push(finding(NAME, UNDETERMINED, `有 ${errs.length} 次",
+  "to": "  if (false) {\n    out.push(finding(NAME, UNDETERMINED, `有 ${errs.length} 次"
+ },
+ {
+  "id": "O17",
+  "title": "判据八：PASS 不要求召回没出错",
+  "file": "src/checks/cross_repo.ts",
+  "from": "} else if (!errs.length) {",
+  "to": "} else {"
+ },
+ {
+  "id": "O18",
+  "title": "判据八：跨仓命中记未定",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, FAIL, `历史别名仍被别的仓当作现称使用",
+  "to": "out.push(finding(NAME, UNDETERMINED, `历史别名仍被别的仓当作现称使用"
+ },
+ {
+  "id": "O19",
+  "title": "判据八：文件数按行数算",
+  "file": "src/checks/cross_repo.ts",
+  "from": "new Set(cross.map((x) => x.split(':')[0])).size",
+  "to": "cross.length"
+ },
+ {
+  "id": "O20",
+  "title": "判据八：where 不截到全角括号前",
+  "file": "src/checks/cross_repo.ts",
+  "from": "where: cross[0]!.split('（')[0],",
+  "to": "where: cross[0],"
+ },
+ {
+  "id": "O21",
+  "title": "判据八：跨仓命中列全部",
+  "file": "src/checks/cross_repo.ts",
+  "from": "${cross.slice(0, MAX_LISTED).join('；')}${how}",
+  "to": "${cross.join('；')}${how}"
+ },
+ {
+  "id": "O22",
+  "title": "判据八：自仓命中不记",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  if (mine.length) {",
+  "to": "  if (false) {"
+ },
+ {
+  "id": "O23",
+  "title": "判据八：自仓命中记 FAIL",
+  "file": "src/checks/cross_repo.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `历史别名在它自己那个仓里还出现",
+  "to": "out.push(finding(NAME, FAIL, `历史别名在它自己那个仓里还出现"
+ },
+ {
+  "id": "O24",
+  "title": "判据八：自仓命中列全部",
+  "file": "src/checks/cross_repo.ts",
+  "from": "${mine.slice(0, MAX_LISTED).join('；')}",
+  "to": "${mine.join('；')}"
+ },
+ {
+  "id": "O25",
+  "title": "判据八：PASS 证据里扫了几个仓写成全部仓",
+  "file": "src/checks/cross_repo.ts",
+  "from": "扫了 ${repos.filter((r) => r._is_git).length} 个仓",
+  "to": "扫了 ${repos.length} 个仓"
+ },
+ {
+  "id": "O26",
+  "title": "判据八：别名清单用逗号连",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const al = todo.map(([o, a]) => `${o.name}←${a}`).join('、')",
+  "to": "const al = todo.map(([o, a]) => `${o.name}←${a}`).join(',')"
+ },
+ {
+  "id": "P1",
+  "title": "git grep 解析：循环上限不减 1",
+  "file": "src/checks/cross_repo.ts",
+  "from": "for (let i = 1; i < toks.length - 1; i += 2) {",
+  "to": "for (let i = 1; i < toks.length; i += 2) {"
+ },
+ {
+  "id": "P2",
+  "title": "git grep 解析：换行取最后一个",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const nl = rest.indexOf('\\n')",
+  "to": "const nl = rest.lastIndexOf('\\n')"
+ },
+ {
+  "id": "P3",
+  "title": "git grep 解析：下一条路径含开头换行",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const nxt = nl < 0 ? '' : rest.slice(nl + 1)",
+  "to": "const nxt = nl < 0 ? '' : rest.slice(nl)"
+ },
+ {
+  "id": "P4",
+  "title": "git grep 解析：行文不截到换行前",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const line = nl < 0 ? rest : rest.slice(0, nl)",
+  "to": "const line = rest"
+ },
+ {
+  "id": "P5",
+  "title": "git grep 解析：行号不校验",
+  "file": "src/checks/cross_repo.ts",
+  "from": "    if (!isPyDigitStr(toks[i]!)) return [null,",
+  "to": "    if (false) return [null,"
+ },
+ {
+  "id": "P6",
+  "title": "git grep 解析：行文截 120 改 119",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(line), 120)",
+  "to": "headChars(pyStrip(line), 119)"
+ },
+ {
+  "id": "P7",
+  "title": "git grep 解析：行文截 120 改 121",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(line), 120)",
+  "to": "headChars(pyStrip(line), 121)"
+ },
+ {
+  "id": "P8",
+  "title": "git grep 解析：行文不去首尾空白",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(line), 120)",
+  "to": "headChars(line, 120)"
+ },
+ {
+  "id": "P9",
+  "title": "git grep 解析：行文按码元截",
+  "file": "src/checks/cross_repo.ts",
+  "from": "headChars(pyStrip(line), 120)",
+  "to": "pyStrip(line).slice(0, 120)"
+ },
+ {
+  "id": "P10",
+  "title": "git grep 解析：不要求末尾路径为空",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (toks.length % 2 === 0 || path) return",
+  "to": "if (toks.length % 2 === 0) return"
+ },
+ {
+  "id": "P11",
+  "title": "git grep 解析：不要求记号数奇数",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (toks.length % 2 === 0 || path) return",
+  "to": "if (path) return"
+ },
+ {
+  "id": "P12",
+  "title": "git grep 解析：报错序号加 1",
+  "file": "src/checks/cross_repo.ts",
+  "from": "第 ${hits.length} 条命中的行号不是数字",
+  "to": "第 ${hits.length + 1} 条命中的行号不是数字"
+ },
+ {
+  "id": "P13",
+  "title": "git grep 解析：行号允许空串",
+  "file": "src/checks/cross_repo.ts",
+  "from": "const isPyDigitStr = (s: string): boolean => s.length > 0 && isPyDigit(s)",
+  "to": "const isPyDigitStr = (s: string): boolean => isPyDigit(s)",
+  "unobservable": "等价：行号为空串时，`isPyDigit(\"\")` 本身就返回 false（实测），所以 `s.length > 0 &&` 是多余的守卫；Python 的 `\"\".isdigit()` 也是 False"
+ },
+ {
+  "id": "Q1",
+  "title": "git grep 调用：不加 -I",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'--no-color', '-I', '-n', '-z', '-F', ",
+  "to": "'--no-color', '-n', '-z', '-F', "
+ },
+ {
+  "id": "Q2",
+  "title": "git grep 调用：不加 -F",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'-n', '-z', '-F', ...needles",
+  "to": "'-n', '-z', ...needles"
+ },
+ {
+  "id": "Q3",
+  "title": "git grep 调用：多别名不逐个 -e",
+  "file": "src/checks/cross_repo.ts",
+  "from": "...needles.flatMap((n) => ['-e', n])",
+  "to": "...needles"
+ },
+ {
+  "id": "Q4",
+  "title": "git grep 调用：退出码 1（无命中）当错误",
+  "file": "src/checks/cross_repo.ts",
+  "from": "if (r.status !== 0 && r.status !== 1) return",
+  "to": "if (r.status !== 0) return"
+ },
+ {
+  "id": "Q5",
+  "title": "git grep 调用：不加 -n",
+  "file": "src/checks/cross_repo.ts",
+  "from": "'-I', '-n', '-z'",
+  "to": "'-I', '-z'"
+ },
+ {
+  "id": "Q6",
+  "title": "git grep 调用：不记调用次数",
+  "file": "src/checks/cross_repo.ts",
+  "from": "  __testCalls.grep.push([...needles])\n",
+  "to": ""
+ }
+]

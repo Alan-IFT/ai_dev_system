@@ -240,7 +240,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/dates`（日期运算 `todayLocal`/`addDays`/`compareDays` 从 `exceptions.ts` 移来，`freshness` 也用）
     - [x] `core/text`（`splitLinesPy` 增 `keepends`，在 `yaml.ts`；`exists` 并入 `core/fs.ts`——`layout` 用到）
     - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
-  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）　[x] evidence（2026-10-07，§12.27）　[x] adoption（2026-10-07，§12.28）　[x] single_authority（2026-10-07，§12.29）
+  - [ ] （core 总项：只剩 `tracked.ts`，推迟到汇总层）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）　[x] evidence（2026-10-07，§12.27）　[x] adoption（2026-10-07，§12.28）　[x] single_authority（2026-10-07，§12.29）　[x] cross_repo（2026-10-08，§12.30）
   - [ ] derived　[ ] evidence　[ ] adoption　[ ] single_authority　[ ] cross_repo　[ ] check_all
 - [ ] 阶段 3：采用项目迁移材料
 - [ ] 阶段 4：清理
@@ -579,6 +579,18 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 - **对 `cross_repo` 的预告**：它的默认规则文件清单 `[".harness/rules/", ".claude/", "AGENTS.md", "CLAUDE.md"]` 里有 `.claude/` 与 `CLAUDE.md`，属于设计 §6 已决定清除的 Claude Code 残留。cms 的 `project.yaml` 自己写了 `rule_files`（含 `.claude/`、`CLAUDE.md`，并注明「删了是放宽扫描」），所以黄金样本在该仓不受影响；其余三仓没有声明 `repos`，`cross_repo` 记「单仓项目」SKIP。迁移时默认清单去掉这两项，登记为有意差异。
 
+### 12.30 第十个检查器 `cross_repo`：第一次有意偏离 Python 的默认值、一个把"一致"做空的回放缺口、与"先量后写"
+
+- **证据**：4 个真实仓逐条一致（1、1、11、1 条；cms 有 1 条带登记认领，`registered` 字段待汇总层）；selftest 17 条集合相同；**148 个整仓场景**（`golden/unit/cr-scenarios.json`，Python 完整输出逐字段回放）加纯函数样本（`_name_appears` 80、`_has_status_token` 46、`_has_invalidation_marker` 34、`_link_targets` 107、`_parse_grep_z` 35）；变异 318 条：Windows 与 Ubuntu 各跑完整一遍，其中 18 条如实标注（每条有穷举或 Python 实测的等价证据，摘标注复验确认确实抓不住）、1 条由类型系统守住（O2）、1 条只在 POSIX 上可区分（E13，在 Ubuntu 上验证）、其余全部被测试抓住。
+- **第一次有意偏离 Python 的默认值，登记为设计决定而非 D 项**：退役仓默认规则文件清单 Python 版是 `[.harness/rules/, .claude/, AGENTS.md, CLAUDE.md]`，TS 版去掉 `.claude/` 与 `CLAUDE.md`（Claude Code 的落点，D-135 已废弃）。**对黄金样本零影响**：cms 的 `project.yaml` 自己写了 `layout.rule_files`，三个单仓项目走"单仓不适用"；只有项目**不写** `rule_files` 且退役仓仍按旧宿主落地时才不同。因此整仓场景里的退役仓**都显式写 `rule_files`**（等于不走默认清单），默认清单这一项在 `test/check-cross-repo.test.mjs` 里单独断言，并用一条变异（A1：默认清单多一项 `CLAUDE.md`）钉住"去掉了"。自检夹具里的入口文件由 `CLAUDE.md` 改为 `AGENTS.md`（探针标题与 id 不变，因为入口名是配置而不是写死的）。
+- **契约 §5 要同步，且要在阶段 4 之前而不是之后改**：`tools/std/CONTRACT.md` 的 `layout.rule_files` 一行明文写着缺省取常量 `.harness/rules/`、`.claude/`、`AGENTS.md`、`CLAUDE.md`，并把后两个说成"兼容候选名"。TS 版缺省已去掉这两项，契约不改就成了"文档说一套、实现做一套"（同一事实两种说法，01 §2 N2）。这属于采用方可见的接口变化，随发版说明告知；同步改动见本提交的契约一行。另：Python 版第 36–37 行的注释记着"曾有一个顶层 `rule_files` 回退、已删"，TS 版文件头照抄了这句，**不是本次新删的**，不算本轮的改动。
+- **一个把"一致"做空的回放缺口（本轮最值得记的教训）**：场景样本里有 `ops`（建目录符号链接、悬空文件符号链接），**Python 生成端建了，TS 回放端第一版没建**——回放时这些场景按"没有符号链接"跑，居然也"一致"，因为两边都没读到它们。直到第一轮变异里 `E7`（进入符号链接目录）、`E23` 这类变异没被抓住，才发现回放缺了这一步。修好后这些场景才真有区分力，同时变异 E7/E23/I4/I5/N15/N18 等一批立刻被抓住。**规矩**：样本生成端做的每一件事，回放端必须做同样的一件；"全绿"不等于"回放了你以为回放的东西"，所以加新的 `ops` 种类时，要同步加一条**会因为回放端漏做而变红**的场景（例如目录符号链接指向仓外、里面放断链：若被进入则多报）。
+- **边界字符类要逐码点量，不要凭印象**：`_name_appears` 的边界类 `[0-9A-Za-z_\-]` 在 Python 的 `re.I` 下，除 ASCII 外还匹配 İ ı ſ K 四个码点，JS 的 `iu` 只带 ſ K，漏 İ ı——与 `core/docs` 的 D11 同一个缺口。第一版 TS 把边界类写成不折叠的 ASCII，一个纯函数样本（`İSYS_OLD`）就暴露了。修法是显式并上 `\u0130\u0131`，并用**逐码点穷举**核对（TS 与 Python 的匹配集逐码点相同，作为前缀会挡住名字的非 ASCII 码点两边都是那四个）。
+- **两处跨平台差异靠 Ubuntu 才露出来，都是样本生成端的问题而非检查器的问题**：①`evidence` 里带绝对路径（判据二的 PASS 证据）的分隔符随平台，样本里 `<ROOT>` 之后的路径统一成 `/` 再存、再比；②两个场景的输入含 Windows 盘符/UNC 形态的链接，POSIX 上 `isAbsolute` 不认，改成两平台一致的形态。**这是第二次**"Windows 上全绿、Ubuntu 上才暴露"（上一次是 D8 的 `O_NOFOLLOW`），所以 Ubuntu 验证不是可选项。
+- **标注项的证据**：A32、B1、C3、C4、C6、D3、D4、D7、D8、E9、E25、E49、F8、I2、J3、J5、K3、P13。其中 `D7` 用穷举（4 字母表 1–6 位共 5460 个串，先 # 后 ? 与先 ? 后 # 完全相同），`D3`/`D8` 用逐码点验证（Python 的 29 个空白码点，能混进捕获组的 0 个），`B1`/`A32` 靠"中文无大小写"与"已归档是归档的超串"，`C6`/`E25`/`J3` 靠"调用点传入的都已是绝对规范路径"。
+- **O2 的类型守住**：把 `if (!Array.isArray(fn))` 改成恒假后，后面的 `fn.map` 在类型 `{}` 上不存在，TypeScript 报 TS2339，编译即拒绝。标 `typeGuarded`，不计入"被测试抓住"。
+- **对 `check_all` 汇总层的预告**：判据八的 `git grep` 子进程用 `hardenedEnv`（与 `drift`、`freshness` 同），Python 版是继承当前环境——这里 TS 比 Python 更严，属安全加固方向的有意差异，已记 D9；`__testCalls` 计数器只为自检里"一仓一次 git grep"那条探针（B20）留，生产路径恒不读它。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -639,6 +651,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-08 | **第十个检查器 `cross_repo` 迁完**，记 §12.30；**第一次有意偏离 Python 的默认值**（退役仓默认规则文件清单去掉 `.claude/` 与 `CLAUDE.md`，对黄金样本零影响）；暴露并修复一个把"一致"做空的回放缺口（样本生成端建了符号链接而回放端没建，相关场景按"没有符号链接"跑也"一致"）；边界字符类逐码点量出 İ ı 的缺口 | 4 个真实仓逐条一致、selftest 17 条集合相同、148 个整仓场景、变异 318 条两平台各跑完整一遍；Ubuntu 暴露两处样本生成端的跨平台问题 |
 | 2026-10-07 | **第九个检查器 `single_authority` 迁完**，记 §12.29；新增**整仓场景样本**（`golden/unit/sa-scenarios.json`，24 个场景，Python 完整输出逐字段回放）；**登记 D21**（子模块形态的路径在 Windows 上 Python 记「读不了」是平台副作用，TS 两平台统一为「不在」）；追查一个「偶发失败」时发现源码里留着两处变异后的文本（来源**未明**，如实记为未解），立下「变异作业结束、中断或出现无法解释的不稳定后，用清单反查源码」的固定动作 | 4 个真实仓逐条一致、selftest 18 条集合相同、变异 243 条（15 条如实标注）；第一轮漏 78 条，几乎全落在「多文件整体行为」，靠场景样本补上 |
 | 2026-10-07 | **第八个检查器 `adoption` 迁完**，记 §12.28；**第一个有意删掉一部分的检查器**（内嵌 `.std/` 机制与 Claude Code 免审批清单不迁，用户选「两条残留 SKIP 都不迁」）；新增 `golden/expected-changes.json`（预期消失/新增/改名的机器可读清单，不静默、必须写理由）；**修复第二个潜伏在已提交 core 里的缺陷**（`pyStr` 对映射走 `JSON.stringify`） | 4 个真实仓每仓 3 条逐条一致（另 2 条预期消失）、selftest 8 条集合相同、变异 82 条；穷举证明 `B9` 等价而不是盲区；`run` 不包 `runGuarded` 与 Python 一致 |
 | 2026-10-07 | **第七个检查器 `evidence` 迁完**，记 §12.27；新增 `isPyDigit`（Python `str.isdigit()` 的等价物，`\\p{Nd}` 并上 128 个非 Nd 的数字码点）、`pyLstrip`（提到 core）、`foldRegexSource` 导出；**修复一个潜伏在已提交 core 里的缺陷**（`findField` 的字段名带连字符时整条抛 SyntaxError，`440d0f5`） | 4 个真实仓 29 条逐条一致、selftest 17 条集合相同、变异 311 条；摘标注复验后又验出一批真盲区；**每迁一个检查器前要先对它复用的 core 函数问「Python 能做而 JS 某标志下会抛」** |

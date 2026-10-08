@@ -232,7 +232,7 @@ export function decodeUtf8Sig(data: Buffer): string {
  * 都遵循 Unicode 的「最大子部分」替换（一个被截断的多字节序列替换成**一个** U+FFFD）。
  * 所以直接用 TextDecoder（不 fatal、不 ignoreBOM 之外的特殊处理）；是否逐样本相同由黄金样本逐条钉住，不靠这条注释。
  */
-function decodeUtf8Replace(d: Buffer): string {
+export function decodeUtf8Replace(d: Buffer): string {
   return new TextDecoder('utf-8', { fatal: false, ignoreBOM: true }).decode(d)
 }
 

@@ -69,6 +69,12 @@ export declare const __testHooks: {
 export declare function readBytes(path: string, root?: string | null, head?: number | null): Buffer;
 /** 与 Python `bytes.decode('utf-8-sig', 'replace')` 同义：去**一个**开头的 BOM；非法序列按 Python 的规则替换成 U+FFFD。 */
 export declare function decodeUtf8Sig(data: Buffer): string;
+/**
+ * Python 的 `decode('utf-8', 'replace')` 与 WHATWG（Node 的 TextDecoder）在「怎么数 U+FFFD」上规则相同——
+ * 都遵循 Unicode 的「最大子部分」替换（一个被截断的多字节序列替换成**一个** U+FFFD）。
+ * 所以直接用 TextDecoder（不 fatal、不 ignoreBOM 之外的特殊处理）；是否逐样本相同由黄金样本逐条钉住，不靠这条注释。
+ */
+export declare function decodeUtf8Replace(d: Buffer): string;
 /** 读文本：UTF-8，解不开的字节替换，行尾归一为 \n。走 readBytes，同一套护栏与上限。 */
 export declare function readText(path: string, root?: string | null, head?: number | null): string;
 /**
