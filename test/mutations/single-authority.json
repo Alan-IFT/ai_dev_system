@@ -1,0 +1,1719 @@
+[
+ {
+  "id": "A1",
+  "title": "文档后缀表：少 .md",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.markdown', '.txt', '.rst', '.adoc', '.org']"
+ },
+ {
+  "id": "A2",
+  "title": "文档后缀表：少 .markdown",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.md', '.txt', '.rst', '.adoc', '.org']"
+ },
+ {
+  "id": "A3",
+  "title": "文档后缀表：少 .txt",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.md', '.markdown', '.rst', '.adoc', '.org']"
+ },
+ {
+  "id": "A4",
+  "title": "文档后缀表：少 .rst",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.md', '.markdown', '.txt', '.adoc', '.org']"
+ },
+ {
+  "id": "A5",
+  "title": "文档后缀表：少 .adoc",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.md', '.markdown', '.txt', '.rst', '.org']"
+ },
+ {
+  "id": "A6",
+  "title": "文档后缀表：少 .org",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.md', '.markdown', '.txt', '.rst', '.adoc']"
+ },
+ {
+  "id": "A7",
+  "title": "文档后缀表：多 .html",
+  "file": "src/checks/single_authority.ts",
+  "from": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org']",
+  "to": "['.md', '.markdown', '.txt', '.rst', '.adoc', '.org', '.html']"
+ },
+ {
+  "id": "A8",
+  "title": "汇总 SKIP 的代表位置数 5→4",
+  "file": "src/checks/single_authority.ts",
+  "from": "const MAX_DISCARDED_SAMPLES = 5 //",
+  "to": "const MAX_DISCARDED_SAMPLES = 4 //"
+ },
+ {
+  "id": "A9",
+  "title": "默认连续行数 3→2",
+  "file": "src/checks/single_authority.ts",
+  "from": "const DEFAULT_MIN_LINES = 3",
+  "to": "const DEFAULT_MIN_LINES = 2"
+ },
+ {
+  "id": "A10",
+  "title": "默认有效字符 60→59",
+  "file": "src/checks/single_authority.ts",
+  "from": "const DEFAULT_MIN_CHARS = 60",
+  "to": "const DEFAULT_MIN_CHARS = 59"
+ },
+ {
+  "id": "A11",
+  "title": "单类上限 30→31",
+  "file": "src/checks/single_authority.ts",
+  "from": "const MAX_FINDINGS_PER_KIND = 30 //",
+  "to": "const MAX_FINDINGS_PER_KIND = 31 //"
+ },
+ {
+  "id": "A12",
+  "title": "逐字节相同的最小有效字符 20→19",
+  "file": "src/checks/single_authority.ts",
+  "from": "const MIN_FILE_EFFECTIVE = 20 //",
+  "to": "const MIN_FILE_EFFECTIVE = 19 //"
+ },
+ {
+  "id": "A13",
+  "title": "文本块长度上限 2000→1999",
+  "file": "src/checks/single_authority.ts",
+  "from": "const MAX_BLOCK_LINES = 2000",
+  "to": "const MAX_BLOCK_LINES = 1999"
+ },
+ {
+  "id": "A14",
+  "title": "名词取键 2→3 个码点",
+  "file": "src/checks/single_authority.ts",
+  "from": "const CLAIM_NOUN_KEY = 2",
+  "to": "const CLAIM_NOUN_KEY = 3"
+ },
+ {
+  "id": "A15",
+  "title": "数值声明至少 3 个文件→2 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "const CLAIM_MIN_FILES = 3",
+  "to": "const CLAIM_MIN_FILES = 2"
+ },
+ {
+  "id": "B1",
+  "title": "有效字符：标点表少 ·",
+  "file": "src/checks/single_authority.ts",
+  "from": "·—–-_=*#>|",
+  "to": "—–-_=*#>|"
+ },
+ {
+  "id": "B2",
+  "title": "有效字符：标点表少 …",
+  "file": "src/checks/single_authority.ts",
+  "from": "【】〔〕…　`",
+  "to": "【】〔〕　`"
+ },
+ {
+  "id": "B3",
+  "title": "有效字符：不并 Python 空白集",
+  "file": "src/checks/single_authority.ts",
+  "from": "${escClass(PUNCT)}${PY_WHITESPACE}]+`",
+  "to": "${escClass(PUNCT)}]+`"
+ },
+ {
+  "id": "B4",
+  "title": "有效字符：标点转义时不转义反斜杠",
+  "file": "src/checks/single_authority.ts",
+  "from": "c.replace(/[\\\\\\]^-]/g, '\\\\$&')",
+  "to": "c.replace(/[\\]^-]/g, '\\\\$&')"
+ },
+ {
+  "id": "B5",
+  "title": "有效字符：不带 u 标志",
+  "file": "src/checks/single_authority.ts",
+  "from": "${PY_WHITESPACE}]+`, 'gu')",
+  "to": "${PY_WHITESPACE}]+`, 'g')",
+  "unobservable": "等价（穷举）：有效字符正则的字符类里全是 BMP 字符，没有代理对；对 BMP 全部 65536 个单字符及代理对样例，带 u 与不带 u 的替换结果完全相同（差异数 0）"
+ },
+ {
+  "id": "C1",
+  "title": "isDoc：反斜杠不归一",
+  "file": "src/checks/single_authority.ts",
+  "from": "const p = rel.replaceAll('\\\\', '/')",
+  "to": "const p = rel"
+ },
+ {
+  "id": "C2",
+  "title": "isDoc：文件名开头的点也当后缀分隔",
+  "file": "src/checks/single_authority.ts",
+  "from": "while (lead < name.length && name[lead] === '.') lead++",
+  "to": ""
+ },
+ {
+  "id": "C3",
+  "title": "isDoc：点必须不在文件名首（> 代替 >=）",
+  "file": "src/checks/single_authority.ts",
+  "from": "const ext = dot >= lead && lead < name.length ? name.slice(dot) : ''",
+  "to": "const ext = dot > lead && lead < name.length ? name.slice(dot) : ''",
+  "unobservable": "等价（穷举）：对由 {. a m d} 拼成的 0–6 位共 5461 个文件名，`dot >= lead` 与 `dot > lead` 给出的后缀完全相同——`dot === lead` 只在文件名全是点时发生，此时 `lead < name.length` 已为假"
+ },
+ {
+  "id": "C4",
+  "title": "isDoc：全是点的文件名也有后缀",
+  "file": "src/checks/single_authority.ts",
+  "from": "const ext = dot >= lead && lead < name.length ? name.slice(dot) : ''",
+  "to": "const ext = dot >= lead ? name.slice(dot) : ''",
+  "unobservable": "等价（穷举）：同 C3，5461 个文件名里去掉 `lead < name.length` 条件后的后缀与原版完全相同——全是点的名字里 `lastIndexOf(\".\")` 落在末尾，`slice(dot)` 是单个点，而 DOC_SUFFIXES 里没有 \".\""
+ },
+ {
+  "id": "C5",
+  "title": "isDoc：后缀不转小写",
+  "file": "src/checks/single_authority.ts",
+  "from": "DOC_SUFFIXES.includes(ext.toLowerCase())",
+  "to": "DOC_SUFFIXES.includes(ext)"
+ },
+ {
+  "id": "C6",
+  "title": "isDoc：文件名取整条路径（不切目录）",
+  "file": "src/checks/single_authority.ts",
+  "from": "const name = p.slice(slash + 1)",
+  "to": "const name = p"
+ },
+ {
+  "id": "D1",
+  "title": "结构行：标题不判",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (RE_HEADING.test(line)) return true\n",
+  "to": ""
+ },
+ {
+  "id": "D2",
+  "title": "结构行：分隔线不判",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (RE_HR.test(line)) return true\n",
+  "to": ""
+ },
+ {
+  "id": "D3",
+  "title": "结构行：表格分隔行不判",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (RE_TABLE_CHARS.test(line) && [...line].slice(1).includes('|')) return true",
+  "to": "  if (false) return true"
+ },
+ {
+  "id": "D4",
+  "title": "结构行：纯链接行不判",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (RE_ONLY_LINK.test(line)) return true\n",
+  "to": ""
+ },
+ {
+  "id": "D5",
+  "title": "结构行：裸 URL 不判",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (RE_BARE_URL.test(line)) return true\n",
+  "to": ""
+ },
+ {
+  "id": "D6",
+  "title": "表格分隔行：竖线要求从第 1 个字符起（slice(0)）",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...line].slice(1).includes('|')",
+  "to": "[...line].slice(0).includes('|')"
+ },
+ {
+  "id": "D7",
+  "title": "表格分隔行：竖线要求从第 3 个字符起（slice(2)）",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...line].slice(1).includes('|')",
+  "to": "[...line].slice(2).includes('|')"
+ },
+ {
+  "id": "D8",
+  "title": "表格分隔行：按码元切（line.slice(1)）",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...line].slice(1).includes('|')",
+  "to": "line.slice(1).includes('|')",
+  "unobservable": "等价：isStructural 里 `[...line].slice(1)` 与 `line.slice(1)` 的差别只在首字符是代理对时；而这一分支之前先要求 `RE_TABLE_CHARS.test(line)`，字符类里没有代理对，首字符是 emoji 的行早已不匹配"
+ },
+ {
+  "id": "D9",
+  "title": "表格分隔行：字符集少冒号",
+  "file": "src/checks/single_authority.ts",
+  "from": "RE_TABLE_CHARS = new RegExp(`^[${PY_WHITESPACE}:",
+  "to": "RE_TABLE_CHARS = new RegExp(`^[${PY_WHITESPACE}"
+ },
+ {
+  "id": "D10",
+  "title": "表格分隔行：字符集少竖线",
+  "file": "src/checks/single_authority.ts",
+  "from": "-|]*$`)",
+  "to": "-]*$`)"
+ },
+ {
+  "id": "D11",
+  "title": "标题缩进上限 3→4",
+  "file": "src/checks/single_authority.ts",
+  "from": "`^${WS}{0,3}#{1,6}${WS}`",
+  "to": "`^${WS}{0,4}#{1,6}${WS}`"
+ },
+ {
+  "id": "D12",
+  "title": "标题缩进上限 3→2",
+  "file": "src/checks/single_authority.ts",
+  "from": "`^${WS}{0,3}#{1,6}${WS}`",
+  "to": "`^${WS}{0,2}#{1,6}${WS}`"
+ },
+ {
+  "id": "D13",
+  "title": "标题 # 个数上限 6→7",
+  "file": "src/checks/single_authority.ts",
+  "from": "`^${WS}{0,3}#{1,6}${WS}`",
+  "to": "`^${WS}{0,3}#{1,7}${WS}`"
+ },
+ {
+  "id": "D14",
+  "title": "标题 # 个数上限 6→5",
+  "file": "src/checks/single_authority.ts",
+  "from": "`^${WS}{0,3}#{1,6}${WS}`",
+  "to": "`^${WS}{0,3}#{1,5}${WS}`"
+ },
+ {
+  "id": "D15",
+  "title": "标题 # 后不要求空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "`^${WS}{0,3}#{1,6}${WS}`",
+  "to": "`^${WS}{0,3}#{1,6}`"
+ },
+ {
+  "id": "D16",
+  "title": "分隔线最少 3 个→4 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "(-{3,}|",
+  "to": "(-{4,}|"
+ },
+ {
+  "id": "D17",
+  "title": "分隔线 = 最少 3 个→4 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "_{3,}|={3,})",
+  "to": "_{3,}|={4,})"
+ },
+ {
+  "id": "D18",
+  "title": "分隔线 _ 最少 3 个→4 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "_{3,}|={3,})",
+  "to": "_{4,}|={3,})"
+ },
+ {
+  "id": "D19",
+  "title": "纯链接行：行尾标点少 ；",
+  "file": "src/checks/single_authority.ts",
+  "from": "(?:[，,。.；;]${WS}*)?$`)",
+  "to": "(?:[，,。.;]${WS}*)?$`)"
+ },
+ {
+  "id": "D20",
+  "title": "纯链接行：行尾标点少 ，",
+  "file": "src/checks/single_authority.ts",
+  "from": "(?:[，,。.；;]${WS}*)?$`)",
+  "to": "(?:[,。.；;]${WS}*)?$`)"
+ },
+ {
+  "id": "D21",
+  "title": "裸 URL：只认 http",
+  "file": "src/checks/single_authority.ts",
+  "from": "<?https?://",
+  "to": "<?http://"
+ },
+ {
+  "id": "D22",
+  "title": "裸 URL：不认前导列表记号",
+  "file": "src/checks/single_authority.ts",
+  "from": "`^${WS}*(?:[-*+]${WS}*)?<?https?://",
+  "to": "`^${WS}*<?https?://"
+ },
+ {
+  "id": "D23",
+  "title": "围栏：~ 围栏最少 3 个→4 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "|~{3,})",
+  "to": "|~{4,})"
+ },
+ {
+  "id": "D24",
+  "title": "围栏：反引号围栏最少 3 个→4 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "{3,}|~",
+  "to": "{4,}|~"
+ },
+ {
+  "id": "E1",
+  "title": "围栏闭合：不要求同字符",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (m && m[1]![0] === fence[0] && m[1]!.length >= fence.length && !pyStrip(m[2]!)) fence = null",
+  "to": "if (m && m[1]!.length >= fence.length && !pyStrip(m[2]!)) fence = null"
+ },
+ {
+  "id": "E2",
+  "title": "围栏闭合：不要求不短于开围栏",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (m && m[1]![0] === fence[0] && m[1]!.length >= fence.length && !pyStrip(m[2]!)) fence = null",
+  "to": "if (m && m[1]![0] === fence[0] && !pyStrip(m[2]!)) fence = null"
+ },
+ {
+  "id": "E3",
+  "title": "围栏闭合：长度比较改 >",
+  "file": "src/checks/single_authority.ts",
+  "from": "m[1]!.length >= fence.length",
+  "to": "m[1]!.length > fence.length"
+ },
+ {
+  "id": "E4",
+  "title": "围栏闭合：不要求其后只有空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (m && m[1]![0] === fence[0] && m[1]!.length >= fence.length && !pyStrip(m[2]!)) fence = null",
+  "to": "if (m && m[1]![0] === fence[0] && m[1]!.length >= fence.length) fence = null"
+ },
+ {
+  "id": "E5",
+  "title": "围栏闭合：其后空白判断用 JS trim",
+  "file": "src/checks/single_authority.ts",
+  "from": "!pyStrip(m[2]!)) fence = null",
+  "to": "!m[2]!.trim()) fence = null"
+ },
+ {
+  "id": "E6",
+  "title": "围栏开启：反引号围栏的信息串含反引号也开（行内代码不豁免）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (m && !(m[1]![0] === '`' && m[2]!.includes('`'))) { fence = m[1]!; continue }",
+  "to": "if (m) { fence = m[1]!; continue }"
+ },
+ {
+  "id": "E7",
+  "title": "围栏开启：豁免也用于 ~ 围栏",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (m && !(m[1]![0] === '`' && m[2]!.includes('`'))) { fence = m[1]!; continue }",
+  "to": "if (m && !m[2]!.includes('`')) { fence = m[1]!; continue }"
+ },
+ {
+  "id": "E8",
+  "title": "围栏：按 \\n 切行",
+  "file": "src/checks/single_authority.ts",
+  "from": "const lines = splitLinesPy(text)\n  for (let i = 0; i < lines.length; i++) {",
+  "to": "const lines = text.split('\\n')\n  for (let i = 0; i < lines.length; i++) {"
+ },
+ {
+  "id": "E9",
+  "title": "围栏：行号从 0 起",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push([i + 1, raw])",
+  "to": "out.push([i, raw])"
+ },
+ {
+  "id": "E10",
+  "title": "围栏：开围栏行也产出",
+  "file": "src/checks/single_authority.ts",
+  "from": "{ fence = m[1]!; continue }",
+  "to": "{ fence = m[1]!; out.push([i + 1, raw]); continue }"
+ },
+ {
+  "id": "F1",
+  "title": "有效行：行首尾不去空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "    const s = pyStrip(raw)\n    if (!s) continue",
+  "to": "    const s = raw\n    if (!s) continue"
+ },
+ {
+  "id": "F2",
+  "title": "有效行：行首尾去空白改用 JS trim",
+  "file": "src/checks/single_authority.ts",
+  "from": "    const s = pyStrip(raw)\n    if (!s) continue",
+  "to": "    const s = raw.trim()\n    if (!s) continue"
+ },
+ {
+  "id": "F3",
+  "title": "有效行：空行不跳过",
+  "file": "src/checks/single_authority.ts",
+  "from": "    if (!s) continue\n    if (!effectiveChars(s)) continue",
+  "to": "    if (!effectiveChars(s)) continue",
+  "unobservable": "等价：空行的有效字符恒为空串，被紧随其后的「有效字符为空则丢弃」判据挡掉，所以先判不判空行结果相同（Python 同一结构）"
+ },
+ {
+  "id": "F4",
+  "title": "有效行：纯标点行不跳过",
+  "file": "src/checks/single_authority.ts",
+  "from": "    if (!effectiveChars(s)) continue\n",
+  "to": ""
+ },
+ {
+  "id": "F5",
+  "title": "有效行：结构行不跳过",
+  "file": "src/checks/single_authority.ts",
+  "from": "    if (isStructural(raw)) continue\n",
+  "to": ""
+ },
+ {
+  "id": "F6",
+  "title": "有效行：结构行用去空白后的行判",
+  "file": "src/checks/single_authority.ts",
+  "from": "    if (isStructural(raw)) continue",
+  "to": "    if (isStructural(s)) continue"
+ },
+ {
+  "id": "F7",
+  "title": "有效行：空白不折叠",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push([lineno, s.replace(RE_WS_RUN, ' ')])",
+  "to": "out.push([lineno, s])"
+ },
+ {
+  "id": "F8",
+  "title": "有效行：空白折叠成两个空格",
+  "file": "src/checks/single_authority.ts",
+  "from": "s.replace(RE_WS_RUN, ' ')",
+  "to": "s.replace(RE_WS_RUN, '  ')"
+ },
+ {
+  "id": "F9",
+  "title": "有效行：折叠用 JS \\s",
+  "file": "src/checks/single_authority.ts",
+  "from": "s.replace(RE_WS_RUN, ' ')",
+  "to": "s.replace(/\\s+/g, ' ')"
+ },
+ {
+  "id": "F10",
+  "title": "叙述行：空行判断用 JS trim",
+  "file": "src/checks/single_authority.ts",
+  "from": "unfenced(text).filter(([, raw]) => pyStrip(raw))",
+  "to": "unfenced(text).filter(([, raw]) => raw.trim())"
+ },
+ {
+  "id": "F11",
+  "title": "叙述行：空行也保留",
+  "file": "src/checks/single_authority.ts",
+  "from": "unfenced(text).filter(([, raw]) => pyStrip(raw))",
+  "to": "unfenced(text)"
+ },
+ {
+  "id": "G1",
+  "title": "派生工件声明：不是列表也当列表",
+  "file": "src/checks/single_authority.ts",
+  "from": "pyTruthy(list) && Array.isArray(list) ? list : []",
+  "to": "Array.isArray(list) ? list : []",
+  "unobservable": "等价：list 为空数组时，原版取 []、变异取 list（也是空数组），循环 0 次；list 不是数组时两者都取 []"
+ },
+ {
+  "id": "G2",
+  "title": "派生工件声明：条目不是映射也接收",
+  "file": "src/checks/single_authority.ts",
+  "from": "item && typeof item === 'object' && !Array.isArray(item) && pyTruthy(",
+  "to": "item && typeof item === 'object' && pyTruthy(",
+  "unobservable": "等价：YAML 解析器产出的数组没有自定义属性，数组上 `.artifact` 恒为 undefined，pyTruthy(undefined) 为假，变异放行数组条目也不会加入集合"
+ },
+ {
+  "id": "G3",
+  "title": "派生工件声明：artifact 为空也接收",
+  "file": "src/checks/single_authority.ts",
+  "from": " && pyTruthy((item as Record<string, unknown>).artifact)) {",
+  "to": ") {"
+ },
+ {
+  "id": "G4",
+  "title": "派生工件声明：开头的 ./ 不去",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.add(stripDotSlash(",
+  "to": "out.add(("
+ },
+ {
+  "id": "G5",
+  "title": "派生工件声明：反斜杠不归一",
+  "file": "src/checks/single_authority.ts",
+  "from": ".artifact).replaceAll('\\\\', '/')))",
+  "to": ".artifact)))"
+ },
+ {
+  "id": "G6",
+  "title": "排除：frozen 不排除",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (inFrozen(cfg, rel)) return",
+  "to": "  if (false) return"
+ },
+ {
+  "id": "G7",
+  "title": "排除：派生工件不排除",
+  "file": "src/checks/single_authority.ts",
+  "from": "  if (derived.has(stripDotSlash(rel.replaceAll('\\\\', '/')))) return",
+  "to": "  if (false) return"
+ },
+ {
+  "id": "G8",
+  "title": "排除：待排除路径的 ./ 不去",
+  "file": "src/checks/single_authority.ts",
+  "from": "derived.has(stripDotSlash(rel.replaceAll(",
+  "to": "derived.has((rel.replaceAll("
+ },
+ {
+  "id": "G9",
+  "title": "排除：待排除路径的反斜杠不归一",
+  "file": "src/checks/single_authority.ts",
+  "from": "derived.has(stripDotSlash(rel.replaceAll('\\\\', '/')))",
+  "to": "derived.has(stripDotSlash(rel))",
+  "posixOnly": "Windows 的文件名不允许反斜杠，只有 POSIX 上能构造「文件名本身含反斜杠」；直接断言在 check-single-authority.test.mjs，Ubuntu 上验证"
+ },
+ {
+  "id": "G10",
+  "title": "去 ./：只去开头的点",
+  "file": "src/checks/single_authority.ts",
+  "from": "s.replace(/^[./]+/, '')",
+  "to": "s.replace(/^[.]+/, '')"
+ },
+ {
+  "id": "G11",
+  "title": "去 ./：只去开头的斜杠",
+  "file": "src/checks/single_authority.ts",
+  "from": "s.replace(/^[./]+/, '')",
+  "to": "s.replace(/^[/]+/, '')"
+ },
+ {
+  "id": "G12",
+  "title": "去 ./：只去一个",
+  "file": "src/checks/single_authority.ts",
+  "from": "s.replace(/^[./]+/, '')",
+  "to": "s.replace(/^[./]/, '')"
+ },
+ {
+  "id": "H1",
+  "title": "收集：归档/派生不计数不跳过",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (excluded(cfg, rel, derived)) { notes.excluded++; continue }",
+  "to": "if (false) { notes.excluded++; continue }"
+ },
+ {
+  "id": "H2",
+  "title": "收集：排除不计数",
+  "file": "src/checks/single_authority.ts",
+  "from": "{ notes.excluded++; continue }",
+  "to": "{ continue }"
+ },
+ {
+  "id": "H3",
+  "title": "收集：超大不计数",
+  "file": "src/checks/single_authority.ts",
+  "from": "{ notes.skipped_big++; notes.big_paths.push(rel); continue }",
+  "to": "{ notes.big_paths.push(rel); continue }"
+ },
+ {
+  "id": "H4",
+  "title": "收集：超大不记路径",
+  "file": "src/checks/single_authority.ts",
+  "from": "{ notes.skipped_big++; notes.big_paths.push(rel); continue }",
+  "to": "{ notes.skipped_big++; continue }"
+ },
+ {
+  "id": "H5",
+  "title": "收集：已删文件按读不了处理（不认 ENOENT）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (code === 'ENOENT' || (exc instanceof NotRegular && isDir(path)))",
+  "to": "if ((exc instanceof NotRegular && isDir(path)))"
+ },
+ {
+  "id": "H6",
+  "title": "收集：子模块目录按读不了处理（不认目录）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (code === 'ENOENT' || (exc instanceof NotRegular && isDir(path)))",
+  "to": "if (code === 'ENOENT')"
+ },
+ {
+  "id": "H7",
+  "title": "收集：不认 NotRegular 也当目录",
+  "file": "src/checks/single_authority.ts",
+  "from": "(exc instanceof NotRegular && isDir(path))",
+  "to": "(isDir(path))"
+ },
+ {
+  "id": "H8",
+  "title": "收集：已删文件不计 absent",
+  "file": "src/checks/single_authority.ts",
+  "from": "{ notes.absent++; continue }",
+  "to": "{ continue }",
+  "unobservable": "等价（死计数）：Python 版 `_collect` 里 `notes[\"absent\"]` 只被写入、从未被任何地方读取（整个文件里 absent 只出现两次：初始化与自增）；它不进摘要、不进任何 finding"
+ },
+ {
+  "id": "H9",
+  "title": "收集：读不了不计数",
+  "file": "src/checks/single_authority.ts",
+  "from": "      notes.unreadable++\n",
+  "to": ""
+ },
+ {
+  "id": "H10",
+  "title": "收集：读不了不记路径",
+  "file": "src/checks/single_authority.ts",
+  "from": "      notes.unreadable_paths.push(`${rel}（${excName(exc)}）`)",
+  "to": ""
+ },
+ {
+  "id": "H11",
+  "title": "收集：读不了的路径不带异常名",
+  "file": "src/checks/single_authority.ts",
+  "from": "notes.unreadable_paths.push(`${rel}（${excName(exc)}）`)",
+  "to": "notes.unreadable_paths.push(rel)"
+ },
+ {
+  "id": "H12",
+  "title": "收集：含 NUL 不当二进制",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (data.includes(0)) { notes.skipped_binary++; continue }",
+  "to": "if (false) { notes.skipped_binary++; continue }"
+ },
+ {
+  "id": "H13",
+  "title": "收集：二进制不计数",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (data.includes(0)) { notes.skipped_binary++; continue }",
+  "to": "if (data.includes(0)) { continue }"
+ },
+ {
+  "id": "H14",
+  "title": "收集：非法 UTF-8 不当二进制",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (diagnoseUtf8(data) !== null) { notes.skipped_binary++; continue }",
+  "to": "if (false) { notes.skipped_binary++; continue }"
+ },
+ {
+  "id": "H15",
+  "title": "收集：非法 UTF-8 的二进制不计数",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (diagnoseUtf8(data) !== null) { notes.skipped_binary++; continue }",
+  "to": "if (diagnoseUtf8(data) !== null) { continue }"
+ },
+ {
+  "id": "H16",
+  "title": "收集：解码时丢掉开头的 BOM",
+  "file": "src/checks/single_authority.ts",
+  "from": "new TextDecoder('utf-8', { ignoreBOM: true }).decode(data)",
+  "to": "new TextDecoder('utf-8').decode(data)"
+ },
+ {
+  "id": "H17",
+  "title": "收集：不过读文件护栏（不传 root）",
+  "file": "src/checks/single_authority.ts",
+  "from": "data = readBytes(path, root)",
+  "to": "data = readBytes(path)"
+ },
+ {
+  "id": "H18",
+  "title": "收集：权限错误的异常名写 OSError",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (code === 'EACCES' || code === 'EPERM') return 'PermissionError'",
+  "to": "if (code === 'EACCES' || code === 'EPERM') return 'OSError'"
+ },
+ {
+  "id": "I1",
+  "title": "判据 1：哈希改 sha1",
+  "file": "src/checks/single_authority.ts",
+  "from": "createHash('sha256').update(data)",
+  "to": "createHash('sha1').update(data)"
+ },
+ {
+  "id": "I2",
+  "title": "判据 1：一份也成组（> 0）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (v.length > 1 && [...effectiveChars(v[0]![1])].length >= MIN_FILE_EFFECTIVE)",
+  "to": "if (v.length > 0 && [...effectiveChars(v[0]![1])].length >= MIN_FILE_EFFECTIVE)"
+ },
+ {
+  "id": "I3",
+  "title": "判据 1：三份才成组（> 2）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (v.length > 1 && [...effectiveChars(v[0]![1])].length >= MIN_FILE_EFFECTIVE)",
+  "to": "if (v.length > 2 && [...effectiveChars(v[0]![1])].length >= MIN_FILE_EFFECTIVE)"
+ },
+ {
+  "id": "I4",
+  "title": "判据 1：有效字符下限不看",
+  "file": "src/checks/single_authority.ts",
+  "from": "v.length > 1 && [...effectiveChars(v[0]![1])].length >= MIN_FILE_EFFECTIVE",
+  "to": "v.length > 1"
+ },
+ {
+  "id": "I5",
+  "title": "判据 1：有效字符下限含等于改成不含（>）",
+  "file": "src/checks/single_authority.ts",
+  "from": ".length >= MIN_FILE_EFFECTIVE)",
+  "to": ".length > MIN_FILE_EFFECTIVE)"
+ },
+ {
+  "id": "I6",
+  "title": "判据 1：有效字符数按码元",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...effectiveChars(v[0]![1])].length >= MIN_FILE_EFFECTIVE",
+  "to": "effectiveChars(v[0]![1]).length >= MIN_FILE_EFFECTIVE"
+ },
+ {
+  "id": "I7",
+  "title": "判据 1：组内路径不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "v.map((x) => x[0]).sort(cmpCodepoint)",
+  "to": "v.map((x) => x[0])"
+ },
+ {
+  "id": "I8",
+  "title": "判据 1：组内路径按码元排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "v.map((x) => x[0]).sort(cmpCodepoint)",
+  "to": "v.map((x) => x[0]).sort()"
+ },
+ {
+  "id": "I9",
+  "title": "判据 1：不留代表（dupRels 含全部）",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (const r of rels.slice(1)) dupRels.add(r)",
+  "to": "for (const r of rels) dupRels.add(r)"
+ },
+ {
+  "id": "I10",
+  "title": "判据 1：不排除其余副本（dupRels 空）",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (const r of rels.slice(1)) dupRels.add(r)",
+  "to": "for (const r of rels.slice(1)) void r"
+ },
+ {
+  "id": "I11",
+  "title": "判据 1：组按首路径码元排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...dupes.keys()].sort((a, b) => cmpCodepoint(dupes.get(a)![0]!, dupes.get(b)![0]!))",
+  "to": "[...dupes.keys()].sort((a, b) => (dupes.get(a)![0]! < dupes.get(b)![0]! ? -1 : 1))"
+ },
+ {
+  "id": "I12",
+  "title": "判据 1：组不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...dupes.keys()].sort((a, b) => cmpCodepoint(dupes.get(a)![0]!, dupes.get(b)![0]!))",
+  "to": "[...dupes.keys()]",
+  "unobservable": "等价：run 里对判据 1 的组按首路径码点序排序，而 identicalFiles 的组本身按「该组第一个文件在 files 里的次序」插入；files 来自 git ls-files，已是码点序（实测 21 个含 CJK、全角、非 BMP、点号与连字符的路径，git 输出等于码点序），所以插入次序恒等于首路径升序，再排序是恒等。只有直接喂乱序 files 才可观察，而生产入口只有 git"
+ },
+ {
+  "id": "I13",
+  "title": "判据 1：上限判断 >= 改 >",
+  "file": "src/checks/single_authority.ts",
+  "from": "const rels = dupes.get(h)!\n    if (shown >= MAX_FINDINGS_PER_KIND) break",
+  "to": "const rels = dupes.get(h)!\n    if (shown > MAX_FINDINGS_PER_KIND) break"
+ },
+ {
+  "id": "I14",
+  "title": "判据 1：上限不限制",
+  "file": "src/checks/single_authority.ts",
+  "from": "const rels = dupes.get(h)!\n    if (shown >= MAX_FINDINGS_PER_KIND) break",
+  "to": "const rels = dupes.get(h)!"
+ },
+ {
+  "id": "I15",
+  "title": "判据 1：命中记 UNDETERMINED",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, FAIL, `${rels.length} 个文件内容逐字节相同",
+  "to": "out.push(finding(NAME, UNDETERMINED, `${rels.length} 个文件内容逐字节相同"
+ },
+ {
+  "id": "I16",
+  "title": "判据 1：where 丢掉",
+  "file": "src/checks/single_authority.ts",
+  "from": "      where: rels[0]!, why: '01 §1 G2 同一事实只有一个维护位置",
+  "to": "      why: '01 §1 G2 同一事实只有一个维护位置"
+ },
+ {
+  "id": "I17",
+  "title": "判据 1：evidence 摘要取 15 位",
+  "file": "src/checks/single_authority.ts",
+  "from": "sha256=${h.slice(0, 16)}",
+  "to": "sha256=${h.slice(0, 15)}"
+ },
+ {
+  "id": "I18",
+  "title": "判据 1：溢出条件 > 改 >=",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (dupes.size > shown) {",
+  "to": "if (dupes.size >= shown) {"
+ },
+ {
+  "id": "I19",
+  "title": "判据 1：溢出不记",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (dupes.size > shown) {",
+  "to": "if (false) {"
+ },
+ {
+  "id": "I20",
+  "title": "判据 1：溢出条数写总数",
+  "file": "src/checks/single_authority.ts",
+  "from": "`还有 ${dupes.size - shown} 组逐字节相同的文件未逐条列出`",
+  "to": "`还有 ${dupes.size} 组逐字节相同的文件未逐条列出`"
+ },
+ {
+  "id": "I21",
+  "title": "判据 1：无副本不记 PASS",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (dupes.size === 0) out.push(finding(NAME, PASS, '没有内容逐字节相同的两个文件'",
+  "to": "if (false) out.push(finding(NAME, PASS, '没有内容逐字节相同的两个文件'"
+ },
+ {
+  "id": "J1",
+  "title": "判据 2：跳过副本不跳",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (skipRels.has(rel)) continue",
+  "to": ""
+ },
+ {
+  "id": "J2",
+  "title": "判据 2：行数不足的文件不跳过",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (sig.length < minLines) continue",
+  "to": "if (sig.length < 1) continue",
+  "unobservable": "等价：`sig.length < minLines` 的跳过与不跳过结果相同——不跳过时窗口循环 `i < sig.length - minLines + 1` 为 0 次，一个窗口也产生不了（实测两个 2 行文件、minLines=3，原版返回 []）"
+ },
+ {
+  "id": "J3",
+  "title": "判据 2：窗口字符数不足 < 改 <=",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (width < minChars) continue",
+  "to": "if (width <= minChars) continue"
+ },
+ {
+  "id": "J4",
+  "title": "判据 2：窗口字符数不判",
+  "file": "src/checks/single_authority.ts",
+  "from": "      if (width < minChars) continue\n",
+  "to": ""
+ },
+ {
+  "id": "J5",
+  "title": "判据 2：窗口字符数按码元",
+  "file": "src/checks/single_authority.ts",
+  "from": "sig.map((x) => [...effectiveChars(x[1])].length)",
+  "to": "sig.map((x) => effectiveChars(x[1]).length)"
+ },
+ {
+  "id": "J6",
+  "title": "判据 2：滑动窗口少减一行",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (i) width += eff[i + minLines - 1]! - eff[i - 1]!",
+  "to": "if (i) width += eff[i + minLines - 1]!"
+ },
+ {
+  "id": "J7",
+  "title": "判据 2：滑动窗口加错行",
+  "file": "src/checks/single_authority.ts",
+  "from": "width += eff[i + minLines - 1]! - eff[i - 1]!",
+  "to": "width += eff[i + minLines - 2]! - eff[i - 1]!"
+ },
+ {
+  "id": "J8",
+  "title": "判据 2：窗口哈希换分隔符",
+  "file": "src/checks/single_authority.ts",
+  "from": "chunk.map((x) => x[1]).join('\\n')",
+  "to": "chunk.map((x) => x[1]).join('')"
+ },
+ {
+  "id": "J9",
+  "title": "判据 2：窗口哈希改 sha256 前缀以外（用行号）",
+  "file": "src/checks/single_authority.ts",
+  "from": "const h = createHash('sha1').update(joined, 'utf8').digest('hex')",
+  "to": "const h = createHash('sha1').update(joined + rel, 'utf8').digest('hex')"
+ },
+ {
+  "id": "J10",
+  "title": "判据 2：同文件重复也算（size < 1）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (new Set(occ.map((o) => o[0])).size < 2) continue",
+  "to": "if (new Set(occ.map((o) => o[0])).size < 1) continue"
+ },
+ {
+  "id": "J11",
+  "title": "判据 2：至少 3 个文件才报（size < 3）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (new Set(occ.map((o) => o[0])).size < 2) continue",
+  "to": "if (new Set(occ.map((o) => o[0])).size < 3) continue"
+ },
+ {
+  "id": "J12",
+  "title": "判据 2：已覆盖也报（去 covered 判断）",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (occ.every((o) => covered.get(o[0])?.has(o[1]))) continue",
+  "to": ""
+ },
+ {
+  "id": "J13",
+  "title": "判据 2：已覆盖判断改 some",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (occ.every((o) => covered.get(o[0])?.has(o[1]))) continue",
+  "to": "if (occ.some((o) => covered.get(o[0])?.has(o[1]))) continue"
+ },
+ {
+  "id": "J14",
+  "title": "判据 2：不延长（length 恒为最小行数）",
+  "file": "src/checks/single_authority.ts",
+  "from": "while (length < MAX_BLOCK_LINES) {",
+  "to": "while (false) {"
+ },
+ {
+  "id": "J15",
+  "title": "判据 2：延长条件 hs.size !== 1 改 > 1",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (hs.has(undefined) || hs.size !== 1) break",
+  "to": "if (hs.has(undefined) || hs.size > 1) break",
+  "unobservable": "等价：`hs` 是对 work 里各出现位置的下一窗口哈希取的 Set；work 来自 occ（至少 2 个文件），非空，所以 size ≥ 1，size===0 不可达，`!== 1` 与 `> 1` 对所有可达的 size 给出相同结论"
+ },
+ {
+  "id": "J16",
+  "title": "判据 2：延长遇缺窗口不停",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (hs.has(undefined) || hs.size !== 1) break",
+  "to": "if (hs.size !== 1) break"
+ },
+ {
+  "id": "J17",
+  "title": "判据 2：延长一次加 2 行",
+  "file": "src/checks/single_authority.ts",
+  "from": "      work = nxt\n      length += 1",
+  "to": "      work = nxt\n      length += 2"
+ },
+ {
+  "id": "J18",
+  "title": "判据 2：覆盖少记一行",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (let k = i; k < i + length; k++) s.add(k)",
+  "to": "for (let k = i; k < i + length - 1; k++) s.add(k)"
+ },
+ {
+  "id": "J19",
+  "title": "判据 2：覆盖只记首窗口",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (let k = i; k < i + length; k++) s.add(k)",
+  "to": "s.add(i)"
+ },
+ {
+  "id": "J20",
+  "title": "判据 2：出现位置不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "occ.map((o): [string, number] => [o[0], o[2]]).sort((a, b) => cmpCodepoint(a[0], b[0]) || a[1] - b[1])",
+  "to": "occ.map((o): [string, number] => [o[0], o[2]])"
+ },
+ {
+  "id": "J21",
+  "title": "判据 2：出现位置同文件不按行号排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "cmpCodepoint(a[0], b[0]) || a[1] - b[1])",
+  "to": "cmpCodepoint(a[0], b[0]))",
+  "unobservable": "等价：places 先按文件路径排，路径相同时 Array.prototype.sort 是稳定的，而 occ 里同一文件的窗口是按 i 递增加入的，所以去掉第二关键字（行号）次序不变"
+ },
+ {
+  "id": "J22",
+  "title": "判据 2：出现位置按码元排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "cmpCodepoint(a[0], b[0]) || a[1] - b[1])",
+  "to": "(a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0) || a[1] - b[1])"
+ },
+ {
+  "id": "J23",
+  "title": "判据 2：首行取最后一处",
+  "file": "src/checks/single_authority.ts",
+  "from": "first: occ[0]![3],",
+  "to": "first: occ[occ.length - 1]![3],",
+  "unobservable": "等价：窗口的哈希覆盖首行本身，同一哈希的所有出现位置首行文字必然相同，取 occ[0] 还是最后一个，first 都一样"
+ },
+ {
+  "id": "J24",
+  "title": "判据 2：按出现次数顺序报告改成倒序",
+  "file": "src/checks/single_authority.ts",
+  "from": "  for (const h of order) {\n    const occ = byHash.get(h)!",
+  "to": "  for (const h of [...order].reverse()) {\n    const occ = byHash.get(h)!"
+ },
+ {
+  "id": "K1",
+  "title": "分流：文档判据改成全部在文档",
+  "file": "src/checks/single_authority.ts",
+  "from": "(rep.places.some(([r]) => isDoc(r)) ? docBlocks : codeBlocks)",
+  "to": "(rep.places.every(([r]) => isDoc(r)) ? docBlocks : codeBlocks)"
+ },
+ {
+  "id": "K2",
+  "title": "分流：非文档也报",
+  "file": "src/checks/single_authority.ts",
+  "from": "(rep.places.some(([r]) => isDoc(r)) ? docBlocks : codeBlocks)",
+  "to": "(docBlocks)"
+ },
+ {
+  "id": "K3",
+  "title": "判据 2：上限判断 >= 改 >",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (const rep of docBlocks) {\n    if (shown >= MAX_FINDINGS_PER_KIND) break",
+  "to": "for (const rep of docBlocks) {\n    if (shown > MAX_FINDINGS_PER_KIND) break"
+ },
+ {
+  "id": "K4",
+  "title": "判据 2：命中记 UNDETERMINED",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, FAIL, `${rep.length} 行实质文本重复出现在",
+  "to": "out.push(finding(NAME, UNDETERMINED, `${rep.length} 行实质文本重复出现在"
+ },
+ {
+  "id": "K5",
+  "title": "判据 2：where 取最后一处",
+  "file": "src/checks/single_authority.ts",
+  "from": "where: `${rep.places[0]![0]}:${rep.places[0]![1]}`,",
+  "to": "where: `${rep.places[rep.places.length - 1]![0]}:${rep.places[rep.places.length - 1]![1]}`,"
+ },
+ {
+  "id": "K6",
+  "title": "判据 2：首行取 79 个码点",
+  "file": "src/checks/single_authority.ts",
+  "from": "evidence: `首行：${headChars(rep.first, 80)}；${threshNote}`",
+  "to": "evidence: `首行：${headChars(rep.first, 79)}；${threshNote}`"
+ },
+ {
+  "id": "K7",
+  "title": "判据 2：首行按码元截 80",
+  "file": "src/checks/single_authority.ts",
+  "from": "evidence: `首行：${headChars(rep.first, 80)}；${threshNote}`",
+  "to": "evidence: `首行：${rep.first.slice(0, 80)}；${threshNote}`"
+ },
+ {
+  "id": "K8",
+  "title": "判据 2：溢出条件 > 改 >=",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (docBlocks.length > shown) {",
+  "to": "if (docBlocks.length >= shown) {"
+ },
+ {
+  "id": "K9",
+  "title": "判据 2：溢出条数写总数",
+  "file": "src/checks/single_authority.ts",
+  "from": "`还有 ${docBlocks.length - shown} 处重复文本块未逐条列出`",
+  "to": "`还有 ${docBlocks.length} 处重复文本块未逐条列出`"
+ },
+ {
+  "id": "K10",
+  "title": "判据 2：非文档汇总 SKIP 记 UNDETERMINED",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, SKIP, `另有 ${codeBlocks.length} 组重复文本块",
+  "to": "out.push(finding(NAME, UNDETERMINED, `另有 ${codeBlocks.length} 组重复文本块"
+ },
+ {
+  "id": "K11",
+  "title": "判据 2：汇总的代表位置不限数量",
+  "file": "src/checks/single_authority.ts",
+  "from": "codeBlocks.slice(0, MAX_DISCARDED_SAMPLES).map((rep)",
+  "to": "codeBlocks.map((rep)"
+ },
+ {
+  "id": "K12",
+  "title": "判据 2：汇总不写「共 N 组」",
+  "file": "src/checks/single_authority.ts",
+  "from": "${codeBlocks.length > MAX_DISCARDED_SAMPLES ? `（共 ${codeBlocks.length} 组，只列前 ${MAX_DISCARDED_SAMPLES} 组）` : ''}",
+  "to": ""
+ },
+ {
+  "id": "K13",
+  "title": "判据 2：汇总条件 > 改 >=",
+  "file": "src/checks/single_authority.ts",
+  "from": "${codeBlocks.length > MAX_DISCARDED_SAMPLES ?",
+  "to": "${codeBlocks.length >= MAX_DISCARDED_SAMPLES ?"
+ },
+ {
+  "id": "K14",
+  "title": "判据 2：无文档时记 PASS 而不是未定",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, '没有可比对的文档文件，判据 2 给不出结论'",
+  "to": "out.push(finding(NAME, PASS, '没有可比对的文档文件，判据 2 给不出结论'"
+ },
+ {
+  "id": "K15",
+  "title": "判据 2：有文档无重复不记 PASS",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, PASS, '没有跨文件重复的实质文本块（至少一处在文档里的）'",
+  "to": "out.push(finding(NAME, UNDETERMINED, '没有跨文件重复的实质文本块（至少一处在文档里的）'"
+ },
+ {
+  "id": "K16",
+  "title": "判据 2：阈值取自配置时仍写默认说明",
+  "file": "src/checks/single_authority.ts",
+  "from": "usedDefault.length ? `用的是默认值",
+  "to": "true ? `用的是默认值"
+ },
+ {
+  "id": "L1",
+  "title": "判据 3：序数不排除",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (ordinalEnds.has(m.index)) continue",
+  "to": ""
+ },
+ {
+  "id": "L2",
+  "title": "判据 3：序数终点比较偏一位",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (ordinalEnds.has(m.index)) continue",
+  "to": "if (ordinalEnds.has(m.index + 1)) continue"
+ },
+ {
+  "id": "L3",
+  "title": "判据 3：序数终点算错（不加匹配长度）",
+  "file": "src/checks/single_authority.ts",
+  "from": "o.index + o[0].length))",
+  "to": "o.index))"
+ },
+ {
+  "id": "L4",
+  "title": "判据 3：数字不去千分位逗号",
+  "file": "src/checks/single_authority.ts",
+  "from": "const num = m[1]!.replaceAll(',', '')",
+  "to": "const num = m[1]!"
+ },
+ {
+  "id": "L5",
+  "title": "判据 3：名词键按码元截",
+  "file": "src/checks/single_authority.ts",
+  "from": "headChars(m[3]!, CLAIM_NOUN_KEY)",
+  "to": "m[3]!.slice(0, CLAIM_NOUN_KEY)",
+  "unobservable": "等价：名词字符类是 `[\\u4e00-\\u9fa5A-Za-z][\\u4e00-\\u9fa5A-Za-z_·]{0,3}`，全部在 BMP，按码元截与按码点截对任何匹配到的名词相同"
+ },
+ {
+  "id": "L6",
+  "title": "判据 3：键取全长名词",
+  "file": "src/checks/single_authority.ts",
+  "from": "headChars(m[3]!, CLAIM_NOUN_KEY)",
+  "to": "m[3]!"
+ },
+ {
+  "id": "L7",
+  "title": "判据 3：同文件只记第一次→记最后一次",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (!slot.places.has(rel)) slot.places.set(rel, [lineno, m[0]])",
+  "to": "slot.places.set(rel, [lineno, m[0]])"
+ },
+ {
+  "id": "L8",
+  "title": "判据 3：链接不遮盖",
+  "file": "src/checks/single_authority.ts",
+  "from": "const line = maskLinks(raw)",
+  "to": "const line = raw"
+ },
+ {
+  "id": "L9",
+  "title": "判据 3：用有效行而不是叙述行",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (const [lineno, raw] of proseLines(text)) {",
+  "to": "for (const [lineno, raw] of significantLines(text)) {"
+ },
+ {
+  "id": "L10",
+  "title": "判据 3：文件数门槛 < 改 <=",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (v.places.size < CLAIM_MIN_FILES) claims.delete(id)",
+  "to": "if (v.places.size <= CLAIM_MIN_FILES) claims.delete(id)"
+ },
+ {
+  "id": "L11",
+  "title": "判据 3：不过滤文件数",
+  "file": "src/checks/single_authority.ts",
+  "from": "  for (const [id, v] of claims) if (v.places.size < CLAIM_MIN_FILES) claims.delete(id)\n",
+  "to": ""
+ },
+ {
+  "id": "L12",
+  "title": "判据 3：数字前回看不排除小数点",
+  "file": "src/checks/single_authority.ts",
+  "from": "(?<![0-9.])([1-9]",
+  "to": "(?<![0-9])([1-9]"
+ },
+ {
+  "id": "L13",
+  "title": "判据 3：数字前回看不排除数字",
+  "file": "src/checks/single_authority.ts",
+  "from": "(?<![0-9.])([1-9]",
+  "to": "(?<![.])([1-9]"
+ },
+ {
+  "id": "L14",
+  "title": "判据 3：首位可取 0",
+  "file": "src/checks/single_authority.ts",
+  "from": "([1-9][0-9]{0,2}(?:,[0-9]{3})+|[1-9][0-9]+)",
+  "to": "([0-9][0-9]{0,2}(?:,[0-9]{3})+|[0-9][0-9]+)"
+ },
+ {
+  "id": "L15",
+  "title": "判据 3：千分位组不限三位",
+  "file": "src/checks/single_authority.ts",
+  "from": "(?:,[0-9]{3})+|",
+  "to": "(?:,[0-9]{2,3})+|"
+ },
+ {
+  "id": "L16",
+  "title": "判据 3：不认千分位",
+  "file": "src/checks/single_authority.ts",
+  "from": "([1-9][0-9]{0,2}(?:,[0-9]{3})+|[1-9][0-9]+)",
+  "to": "([1-9][0-9]+)"
+ },
+ {
+  "id": "L17",
+  "title": "判据 3：单个数字也算",
+  "file": "src/checks/single_authority.ts",
+  "from": "|[1-9][0-9]+)${WS}*`",
+  "to": "|[1-9][0-9]*)${WS}*`"
+ },
+ {
+  "id": "L18",
+  "title": "判据 3：量词少 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "(个|份|条|",
+  "to": "(份|条|"
+ },
+ {
+  "id": "L19",
+  "title": "判据 3：量词少 份",
+  "file": "src/checks/single_authority.ts",
+  "from": "(个|份|条|",
+  "to": "(个|条|"
+ },
+ {
+  "id": "L20",
+  "title": "判据 3：量词少 步",
+  "file": "src/checks/single_authority.ts",
+  "from": "|人|家|款|批|行|列|字|步)",
+  "to": "|人|家|款|批|行|列|字)"
+ },
+ {
+  "id": "L21",
+  "title": "判据 3：量词少 家",
+  "file": "src/checks/single_authority.ts",
+  "from": "|人|家|款|批|行|列|字|步)",
+  "to": "|人|款|批|行|列|字|步)"
+ },
+ {
+  "id": "L22",
+  "title": "判据 3：量词少 张",
+  "file": "src/checks/single_authority.ts",
+  "from": "|条|张|处|项|次|篇|",
+  "to": "|条|处|项|次|篇|"
+ },
+ {
+  "id": "L23",
+  "title": "判据 3：量词少 轮",
+  "file": "src/checks/single_authority.ts",
+  "from": "|篇|轮|页|套|组|类|种|台|块|",
+  "to": "|篇|页|套|组|类|种|台|块|"
+ },
+ {
+  "id": "L24",
+  "title": "判据 3：量词多 位",
+  "file": "src/checks/single_authority.ts",
+  "from": "|人|家|款|批|行|列|字|步)",
+  "to": "|人|家|款|批|行|列|字|步|位)"
+ },
+ {
+  "id": "L25",
+  "title": "判据 3：名词首字符类不含大写字母",
+  "file": "src/checks/single_authority.ts",
+  "from": "A-Za-z][\\\\u4e00-\\\\u9fa5A-Za-z_·]{0,3})`",
+  "to": "A-Za-z][\\\\u4e00-\\\\u9fa5a-z_·]{0,3})`"
+ },
+ {
+  "id": "L26",
+  "title": "判据 3：名词后续字符少 ·",
+  "file": "src/checks/single_authority.ts",
+  "from": "A-Za-z_·]{0,3})`",
+  "to": "A-Za-z_]{0,3})`"
+ },
+ {
+  "id": "L27",
+  "title": "判据 3：名词后续字符少 _",
+  "file": "src/checks/single_authority.ts",
+  "from": "A-Za-z_·]{0,3})`",
+  "to": "A-Za-z·]{0,3})`"
+ },
+ {
+  "id": "L28",
+  "title": "判据 3：名词后续最多 3→2 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "A-Za-z_·]{0,3})`",
+  "to": "A-Za-z_·]{0,2})`"
+ },
+ {
+  "id": "L29",
+  "title": "判据 3：名词后续最多 3→4 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "A-Za-z_·]{0,3})`",
+  "to": "A-Za-z_·]{0,4})`"
+ },
+ {
+  "id": "L30",
+  "title": "序数前缀：并列序数不吃",
+  "file": "src/checks/single_authority.ts",
+  "from": "`第${WS}*(?:[0-9]+${WS}*、${WS}*)*`",
+  "to": "`第${WS}*`"
+ },
+ {
+  "id": "L31",
+  "title": "序数前缀：并列顿号后不吃空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "[0-9]+${WS}*、${WS}*)*`",
+  "to": "[0-9]+${WS}*、)*`"
+ },
+ {
+  "id": "L32",
+  "title": "序数前缀：「第」后不吃空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "`第${WS}*(?:",
+  "to": "`第(?:"
+ },
+ {
+  "id": "L33",
+  "title": "序数前缀：数字与顿号之间不吃空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "[0-9]+${WS}*、",
+  "to": "[0-9]+、"
+ },
+ {
+  "id": "L34",
+  "title": "链接遮盖：按码元数补空格",
+  "file": "src/checks/single_authority.ts",
+  "from": "' '.repeat([...m].length)",
+  "to": "' '.repeat(m.length)"
+ },
+ {
+  "id": "L35",
+  "title": "链接遮盖：链接目标可含左括号",
+  "file": "src/checks/single_authority.ts",
+  "from": "\\]\\([^()\\n]*\\)/g",
+  "to": "\\]\\([^)\\n]*\\)/g"
+ },
+ {
+  "id": "L36",
+  "title": "链接遮盖：链接文本可含方括号",
+  "file": "src/checks/single_authority.ts",
+  "from": "/\\[[^[\\]\\n]*\\]\\(",
+  "to": "/\\[[^\\]\\n]*\\]\\("
+ },
+ {
+  "id": "M1",
+  "title": "判据 3：非文档判据改成全部在文档",
+  "file": "src/checks/single_authority.ts",
+  "from": "(([...v.places.keys()].some((r) => isDoc(r))) ? claims : codeClaims)",
+  "to": "(([...v.places.keys()].every((r) => isDoc(r))) ? claims : codeClaims)"
+ },
+ {
+  "id": "M2",
+  "title": "判据 3：排序先名词键",
+  "file": "src/checks/single_authority.ts",
+  "from": "cmpCodepoint(a.key[1], b.key[1]) || cmpCodepoint(a.key[2], b.key[2]) || cmpCodepoint(a.key[0], b.key[0])",
+  "to": "cmpCodepoint(a.key[2], b.key[2]) || cmpCodepoint(a.key[1], b.key[1]) || cmpCodepoint(a.key[0], b.key[0])"
+ },
+ {
+  "id": "M3",
+  "title": "判据 3：排序不看数字",
+  "file": "src/checks/single_authority.ts",
+  "from": " || cmpCodepoint(a.key[0], b.key[0])",
+  "to": ""
+ },
+ {
+  "id": "M4",
+  "title": "判据 3：排序不看量词",
+  "file": "src/checks/single_authority.ts",
+  "from": "cmpCodepoint(a.key[1], b.key[1]) || cmpCodepoint(a.key[2], b.key[2])",
+  "to": "cmpCodepoint(a.key[2], b.key[2])"
+ },
+ {
+  "id": "M5",
+  "title": "判据 3：数字按字典序排（数值序被破坏）",
+  "file": "src/checks/single_authority.ts",
+  "from": "cmpCodepoint(a.key[0], b.key[0])",
+  "to": "(Number(a.key[0]) - Number(b.key[0]))"
+ },
+ {
+  "id": "M6",
+  "title": "判据 3：整体不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "  claims.sort(byKey)\n",
+  "to": ""
+ },
+ {
+  "id": "M7",
+  "title": "判据 3：非文档组不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "  codeClaims.sort(byKey)\n",
+  "to": ""
+ },
+ {
+  "id": "M8",
+  "title": "判据 3：上限判断 >= 改 >",
+  "file": "src/checks/single_authority.ts",
+  "from": "for (const c of claims) {\n    if (shown >= MAX_FINDINGS_PER_KIND) break",
+  "to": "for (const c of claims) {\n    if (shown > MAX_FINDINGS_PER_KIND) break"
+ },
+ {
+  "id": "M9",
+  "title": "判据 3：位置不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...c.places].map(([r, v]) => `${r}:${v[0]}`).sort(cmpCodepoint)",
+  "to": "[...c.places].map(([r, v]) => `${r}:${v[0]}`)"
+ },
+ {
+  "id": "M10",
+  "title": "判据 3：位置按码元排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...c.places].map(([r, v]) => `${r}:${v[0]}`).sort(cmpCodepoint)",
+  "to": "[...c.places].map(([r, v]) => `${r}:${v[0]}`).sort()"
+ },
+ {
+  "id": "M11",
+  "title": "判据 3：标题样本取最后一个文件",
+  "file": "src/checks/single_authority.ts",
+  "from": "const sample = [...c.places.values()][0]![1]",
+  "to": "const sample = [...c.places.values()][c.places.size - 1]![1]"
+ },
+ {
+  "id": "M12",
+  "title": "判据 3：标题样本不去空白",
+  "file": "src/checks/single_authority.ts",
+  "from": "「${pyStrip(sample)}」出现在",
+  "to": "「${sample}」出现在",
+  "unobservable": "等价：命中原文 `m[0]` 以数字开头、以名词字符结尾，首尾不可能是空白；对 6 条代表性命中，strip 改变的为 0"
+ },
+ {
+  "id": "M13",
+  "title": "判据 3：id 键丢掉（id 变成标题哈希）",
+  "file": "src/checks/single_authority.ts",
+  "from": "kind: 'count-claim', key: `${c.key[0]}:${c.key[1]}:${c.key[2]}`,",
+  "to": "kind: 'count-claim',"
+ },
+ {
+  "id": "M14",
+  "title": "判据 3：id 键不含名词",
+  "file": "src/checks/single_authority.ts",
+  "from": "key: `${c.key[0]}:${c.key[1]}:${c.key[2]}`",
+  "to": "key: `${c.key[0]}:${c.key[1]}`"
+ },
+ {
+  "id": "M15",
+  "title": "判据 3：命中记 FAIL",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, `同一数值声明",
+  "to": "out.push(finding(NAME, FAIL, `同一数值声明"
+ },
+ {
+  "id": "M16",
+  "title": "判据 3：where 取最后一处",
+  "file": "src/checks/single_authority.ts",
+  "from": "      where: loc[0]!,",
+  "to": "      where: loc[loc.length - 1]!,"
+ },
+ {
+  "id": "M17",
+  "title": "判据 3：溢出条件 > 改 >=",
+  "file": "src/checks/single_authority.ts",
+  "from": "if (claims.length > shown) {",
+  "to": "if (claims.length >= shown) {"
+ },
+ {
+  "id": "M18",
+  "title": "判据 3：溢出条数写总数",
+  "file": "src/checks/single_authority.ts",
+  "from": "`还有 ${claims.length - shown} 组疑似重复数值未逐条列出`",
+  "to": "`还有 ${claims.length} 组疑似重复数值未逐条列出`"
+ },
+ {
+  "id": "M19",
+  "title": "判据 3：非文档汇总记 UNDETERMINED",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, SKIP, `另有 ${codeClaims.length} 组重复数值声明",
+  "to": "out.push(finding(NAME, UNDETERMINED, `另有 ${codeClaims.length} 组重复数值声明"
+ },
+ {
+  "id": "M20",
+  "title": "判据 3：汇总代表位置取最后一个文件",
+  "file": "src/checks/single_authority.ts",
+  "from": "[...c.places].sort((a, b) => cmpCodepoint(a[0], b[0]))[0]!",
+  "to": "[...c.places].sort((a, b) => cmpCodepoint(a[0], b[0]))[c.places.size - 1]!"
+ },
+ {
+  "id": "M21",
+  "title": "判据 3：汇总代表位置不排序",
+  "file": "src/checks/single_authority.ts",
+  "from": "`${r}:${v[0]}` }).sort(cmpCodepoint)",
+  "to": "`${r}:${v[0]}` })"
+ },
+ {
+  "id": "M22",
+  "title": "判据 3：汇总代表位置不限数量",
+  "file": "src/checks/single_authority.ts",
+  "from": "codeClaims.slice(0, MAX_DISCARDED_SAMPLES).map(",
+  "to": "codeClaims.map("
+ },
+ {
+  "id": "M23",
+  "title": "判据 3：汇总不写「共 N 组」",
+  "file": "src/checks/single_authority.ts",
+  "from": "${codeClaims.length > MAX_DISCARDED_SAMPLES ? `（共 ${codeClaims.length} 组，只列前 ${MAX_DISCARDED_SAMPLES} 组）` : ''}",
+  "to": ""
+ },
+ {
+  "id": "M24",
+  "title": "判据 3：无文档记 PASS",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, UNDETERMINED, '没有可比对的文档文件，判据 3 给不出结论'",
+  "to": "out.push(finding(NAME, PASS, '没有可比对的文档文件，判据 3 给不出结论'"
+ },
+ {
+  "id": "M25",
+  "title": "判据 3：有文档无重复数值不记 PASS",
+  "file": "src/checks/single_authority.ts",
+  "from": "out.push(finding(NAME, PASS, '没有同一「数字+量词+名词」组合跨文件出现在文档里'",
+  "to": "out.push(finding(NAME, UNDETERMINED, '没有同一「数字+量词+名词」组合跨文件出现在文档里'"
+ },
+ {
+  "id": "N1",
+  "title": "主流程：列不出文件记 FAIL",
+  "file": "src/checks/single_authority.ts",
+  "from": "return [finding(NAME, UNDETERMINED, '列不出 git 跟踪的文件，本检查未执行'",
+  "to": "return [finding(NAME, FAIL, '列不出 git 跟踪的文件，本检查未执行'"
+ },
+ {
+  "id": "N2",
+  "title": "主流程：没有文本文件记 PASS",
+  "file": "src/checks/single_authority.ts",
+  "from": "return [finding(NAME, UNDETERMINED, '没有可比对的文本文件'",
+  "to": "return [finding(NAME, PASS, '没有可比对的文本文件'"
+ },
+ {
+  "id": "N3",
+  "title": "主流程：没有文本文件时 evidence 不写二进制数",
+  "file": "src/checks/single_authority.ts",
+  "from": "，二进制 ${notes!.skipped_binary} 个`",
+  "to": "`"
+ },
+ {
+  "id": "N4",
+  "title": "主流程：阈值只认 duplicate_min_lines（chars 恒默认）",
+  "file": "src/checks/single_authority.ts",
+  "from": "let minChars = cfgGet(cfg, 'budgets.duplicate_min_chars') as number | null | undefined",
+  "to": "let minChars = undefined as number | null | undefined"
+ },
+ {
+  "id": "N5",
+  "title": "主流程：阈值 lines 恒默认",
+  "file": "src/checks/single_authority.ts",
+  "from": "let minLines = cfgGet(cfg, 'budgets.duplicate_min_lines') as number | null | undefined",
+  "to": "let minLines = undefined as number | null | undefined"
+ },
+ {
+  "id": "N6",
+  "title": "主流程：默认说明少 lines",
+  "file": "src/checks/single_authority.ts",
+  "from": "usedDefault.push(`duplicate_min_lines=${DEFAULT_MIN_LINES}`)",
+  "to": ""
+ },
+ {
+  "id": "N7",
+  "title": "主流程：默认说明少 chars",
+  "file": "src/checks/single_authority.ts",
+  "from": "usedDefault.push(`duplicate_min_chars=${DEFAULT_MIN_CHARS}`)",
+  "to": ""
+ },
+ {
+  "id": "N8",
+  "title": "主流程：读不了与超大的汇总先后",
+  "file": "src/checks/single_authority.ts",
+  "from": "[[notes!.unreadable_paths, 'unreadable', '读不了'], [notes!.big_paths, 'too-big', `超过 ${MAX_READ_BYTES} 字节未读`]]",
+  "to": "[[notes!.big_paths, 'too-big', `超过 ${MAX_READ_BYTES} 字节未读`], [notes!.unreadable_paths, 'unreadable', '读不了']]"
+ },
+ {
+  "id": "N9",
+  "title": "主流程：汇总路径只列 9 个",
+  "file": "src/checks/single_authority.ts",
+  "from": "paths.slice(0, 10).join('；') + (paths.length > 10 ? `；另有 ${paths.length - 10} 个未列出` : '')",
+  "to": "paths.slice(0, 9).join('；') + (paths.length > 10 ? `；另有 ${paths.length - 10} 个未列出` : '')"
+ },
+ {
+  "id": "N10",
+  "title": "主流程：汇总「另有」门槛 > 改 >=",
+  "file": "src/checks/single_authority.ts",
+  "from": "(paths.length > 10 ? `；另有",
+  "to": "(paths.length >= 10 ? `；另有"
+ },
+ {
+  "id": "N11",
+  "title": "主流程：汇总「另有 N 个」写总数",
+  "file": "src/checks/single_authority.ts",
+  "from": "`；另有 ${paths.length - 10} 个未列出`",
+  "to": "`；另有 ${paths.length} 个未列出`"
+ },
+ {
+  "id": "N12",
+  "title": "主流程：汇总的 kind 丢掉（id 变成标题哈希）",
+  "file": "src/checks/single_authority.ts",
+  "from": "        kind, reason: '没读到内容的文件不参与三条判据",
+  "to": "        reason: '没读到内容的文件不参与三条判据"
+ },
+ {
+  "id": "N13",
+  "title": "主流程：文档数不数",
+  "file": "src/checks/single_authority.ts",
+  "from": "const docCount = files.filter(([rel]) => isDoc(rel)).length",
+  "to": "const docCount = files.length"
+ },
+ {
+  "id": "N14",
+  "title": "主流程：不过 runGuarded",
+  "file": "src/checks/single_authority.ts",
+  "from": "return runGuarded(NAME, doRun, cfg)",
+  "to": "return doRun(cfg)"
+ },
+ {
+  "id": "N15",
+  "title": "主流程：二进制数不进摘要",
+  "file": "src/checks/single_authority.ts",
+  "from": "跳过二进制 ${notes!.skipped_binary} 个、超大",
+  "to": "跳过二进制 0 个、超大"
+ },
+ {
+  "id": "N16",
+  "title": "主流程：读不了数不进摘要",
+  "file": "src/checks/single_authority.ts",
+  "from": "、读不了 ${notes!.unreadable} 个`",
+  "to": "、读不了 0 个`"
+ },
+ {
+  "id": "S1",
+  "title": "scope：覆盖项少一条",
+  "file": "src/checks/single_authority.ts",
+  "from": "      `算文档的后缀：${DOC_SUFFIXES.join(' ')}`,\n",
+  "to": ""
+ },
+ {
+  "id": "S2",
+  "title": "scope：未覆盖项少一条",
+  "file": "src/checks/single_authority.ts",
+  "from": "      '不判断成组的两份里哪一份该是权威——那是人的取舍，不是机械判定',\n",
+  "to": ""
+ },
+ {
+  "id": "S3",
+  "title": "scope：frozen 为空不写「（未配置）」",
+  "file": "src/checks/single_authority.ts",
+  "from": "|| '（未配置）'}",
+  "to": "|| ''}"
+ },
+ {
+  "id": "S4",
+  "title": "scope：frozen 元素用逗号连",
+  "file": "src/checks/single_authority.ts",
+  "from": ".map((x) => String(x)).join('、')",
+  "to": ".map((x) => String(x)).join(',')"
+ }
+]

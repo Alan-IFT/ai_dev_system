@@ -25,6 +25,7 @@ layout:
     - docs/参考资料
     - docs/参考资料-Claude
     - docs/审计记录
+    - golden                          # 迁移期对照物（Python 版黄金样本，含各检查器自检用例的输入字面量），重构设计阶段 4 随 Python 版整体删除；届时移除本行
 
 metadata_required:                    # 01 §3.5 六类里本仓只有架构一类；决策日志是逐行日期的表，不列入（D-112）
   - docs/架构确定.md
