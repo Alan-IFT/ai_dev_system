@@ -159,11 +159,13 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 迁移一个采用项目 = 以下步骤，**每步有验证与回退**：
 
+> **本节写于阶段 0，已被 §12.33、§12.34 改写，以那两节为准。**下面是当时的初稿，留作对照：与现状的主要差异是——`STANDARD_VERSION` 不是"改成指向插件版本"而是**删除**（版本由锁文件钉、报告自带摘要）；标准正文不是留在项目里而是由插件以技能分发；迁移不由脚本写文件而是 `std-check migrate` 只读出方案。
+
 1. 装好新插件（DSH Plugins 页填 git 地址，钉 tag）。
-2. 把项目的 `governance/STANDARD_VERSION` 改成指向插件版本（格式见阶段 3 定稿）。
+2. ~~把项目的 `governance/STANDARD_VERSION` 改成指向插件版本~~ → 删除它（§12.33 二）。
 3. 项目提交钩子改调 `std-check`（由插件提供的命令；具体怎么在钩子里找到它——见 §11 Q3）。
 4. 删除 `.std/` 目录（`git rm -r .std`）；清 `project.yaml` 里 `.std` 的 frozen 声明与 `AGENTS.md` 加载合同里的 `.std/` 路径。
-5. 跑 `std-check`，读数应与迁移前**逐 id 相同**（`.std/` 相关 id 除外），不同则回退。
+5. 跑 `std-check`，读数应与迁移前**逐 id 相同**（`.std/` 相关 id 与 adoption 的版本记录两条除外），不同则回退。
 - 回退：`git revert` 该迁移提交即可（`.std/` 在历史里）。
 - 三个项目各自的特殊点（已知）：CMS 的 `.pre-commit-config.yaml` 里 `entry` 是 YAML 折叠块；Reservoir 钩子是 `.githooks/pre-commit`；PMC 的钩子是自己的 `tools/hooks/common.sh`，不调用公共片段。
 
@@ -216,7 +218,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 设计文档已提交推送（本文）——提交 `2fdb501`，`check_all` 含本文退出 0；变异验证（给本文加坏链接）退出 1 并指到本文，还原后 0
   - [x] 黄金样本已生成并校验可复现——`golden/samples/` 5 个文件：`std`/`reservoir`/`cms`/`pmc` 四个仓的 finding 清单 + `selftest-probes.json`（228 条探针）；`golden/make_golden.py` 重跑后四个仓样本与落盘逐字节相同；`selftest-probes.json` 连跑两次一致
   - [x] 废弃残留清单已落盘——`golden/residue-baseline.txt`（口径与基线读数见 §12.1）
-- [ ] 阶段 1：骨架与守卫（**进行中**，下面分项）
+- [x] 阶段 1：骨架与守卫（2026-10-06 完成，下面分项全勾）
   - [x] 1-a Q3 实测定案、`tsc` 可用性（`ac0e2b5`）
   - [x] 1-b TS 工程骨架：`package.json`（`dsh.manifestVersion`、`bundle.patch`、`engines`）、`tsconfig.json`、`cordis.patch.yml`（`name` 与包名同为 `ai-dev-std`）、`scripts/check-lib-sync.mjs`；`tsc` 7.0.2 构建通过
   - [x] 1-c 守卫迁 TS：`src/guard/{policy,index}.ts` + 根入口 `src/index.ts`；**行为不变**——现役 JS 守卫基线 471 条（470 过、0 败、1 跳）与 TS 编译产物上的结果逐项相同；变异验证（把「.std 只读 deny」改 allow）后 16 条变红、还原后回到 0 败
@@ -225,7 +227,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 1-f 守卫测试在 **Ubuntu 24.04 容器**里全过：用 Node **22.19.0**（`engines` 下限）与 **24.21.0** 各跑一遍——`pnpm install --frozen-lockfile`、`tsc` 构建、`check-lib-sync` 退出 0、构建后 `git status` 为空（lib 与提交一致）、`node --test "test/*.test.mjs"` 471 条、0 失败、22 条跳过（只在 Windows 成立的路径语义，跳过不算通过）
   - [x] 1-g **真实 DSH 里从 git 地址经 DSH 自己的安装通道装入，守卫生效**（2026-10-06，提交 `fac60ca`）。做法与范围见 §12.3；**未覆盖的两项**（`ask` 的真实批准流程、桌面版 Plugins 页的点击安装）在 §12.3 逐条写明，不算已验证
   - [x] 1-h 新路径保护：做成插件配置 `protect`（Alan 2026-10-06 选 B），默认空；37 条单测；6 种变异验证（首轮 2 种没被抓住，补用例后全部抓住）；真实 DSH 里端到端验证配置传递，含对照实验。做法与取舍见 §12.4。**`standard/` 的保护未做**——该目录阶段 2 之后才存在，不预先写规则
-- [ ] 阶段 2：检查器迁移（**进行中**）
+- [x] 阶段 2：检查器迁移（2026-10-08 完成：十个检查器 + 汇总层，下面分项全勾；Python 版仍在，阶段 4 才删）
   - [ ] core（拆成多文件，下面逐个勾）：
     - [x] `core/finding.ts`（三态、id、`normalizeKey`、Python 空白集合 `PY_WHITESPACE`、`pyStrip`、`encodeSurrogateEscape`）
     - [x] `core/yaml.ts`（严格 YAML 子集解析器）、`core/dates.ts`（`parseDate`，D1）
@@ -242,7 +244,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
     - [x] `core/tracked.ts`（`trackedFiles`、`withScanMemo`、`markdownUnder`、`workItems`、`cmpCodepoint`；**不带 `.std/` 自排除**，见 D17 与 §12.19）
   - [x] （core 总项：`tracked.ts` 随汇总层迁完，2026-10-08）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）　[x] evidence（2026-10-07，§12.27）　[x] adoption（2026-10-07，§12.28）　[x] single_authority（2026-10-07，§12.29）　[x] cross_repo（2026-10-08，§12.30）
   - [x] derived　[x] evidence　[x] adoption　[x] single_authority　[x] cross_repo　[x] check_all（2026-10-08，§12.32）
-- [ ] 阶段 3：采用项目迁移材料
+- [x] 阶段 3：采用项目迁移材料（2026-10-09：标准技能分发 §12.33、`adoption` 改造 §12.33 五、`std-check migrate` §12.34；三个真实项目的方案已只读生成；**迁移本身不执行**，等阶段 5 发布新 tag 并装入后由 Alan 决定）
 - [ ] 阶段 4：清理
 - [ ] 阶段 5：收尾验证
 
@@ -727,6 +729,22 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **三个真实项目只写材料**：每个项目一份"改什么、验什么、怎么回退"，**不执行**（硬约束 4）。回退 = `git revert` 迁移提交。
 - **三个项目的专属点**（读真实文件所得，不是推测）：Reservoir 钩子是 `.githooks/pre-commit`，`exec "$PY" .std/tools/std/check_all.py`，借 `pick-python.sh`；CMS 是 `.pre-commit-config.yaml` 的折叠块（`entry: >-`），且 `layout.rule_files` **自己声明**了 `.claude/` 与 `CLAUDE.md`（"退役仓可能仍按旧宿主落地，删了是放宽扫描"）——**保不保留是 CMS 自己的决定**，脚本只列出、不替它定；PMC 的钩子是自己的 `tools/hooks/{pre-commit,pre-push,common.sh}`，选 Python 用自己的 `hook_pick_python`，大量 `docs/plans/`、`分析/` 历史文档引用 `.std/` 路径——**历史记录，不改**。
 
+### 12.34 阶段 3 的迁移命令 `std-check migrate`：只读方案，不写项目（2026-10-09）
+
+**形状（Alan 选）**：命令**只读**，输出迁移方案；执行交给会话里的 agent，用平台已有的 edit／write／审批，人审阅。**不做 `--apply`**——写文件意味着写前备份、原子写、失败回滚、不碰 `.git`、拒绝脏工作区，是本仓从没有过的、安全敏感的一整套；三个项目的钩子又是三种形态，各要一个解析器。让模型逐步执行同样的步骤，既复用平台的审批，又不引入这套代码，也符合"能由模型可靠完成的不写成长期维护的代码"。
+
+**方案的构成**：每一步标 `确定`（给精确的 git 命令）或 `需判断`（只给命中的行号与原文加建议，不替人定），都带验证与回退。次序固定且有理由：**先改钩子、再删 `.std/`**——反过来旧钩子找不到检查器，提交会被拒；钩子步骤在新插件未装入 profile 时标 `blocked` 并说清缺什么（失败关闭，不假装能调）。检测靠 `$DSH_PROFILE_DIR/node_modules/ai-dev-std/lib/cli.js` 是否存在；DSH 之外没有该变量就如实说检测不到。
+
+**对三个真实项目实读后发现并修掉的缺陷**（只读了它们的文件，一字节没写）：①我原先把每个"固定候选钩子文件"都列成要改的——PMC 的 `tools/hooks/pre-commit` 不调检查器（闸门①已搬到 pre-push），列它是造假工作；现在固定候选也必须**真的调用旧检查器**才算。②钩子目录里的 `README.md` 只是写着旧命令的文档，不是钩子；现在 `.md`／`.txt` 不算钩子，它归"文档引用"一步。③ `frozen` 里认 `.std` 项最初用 `\b` 词边界，会把 `.std-cache`、`.std.bak` 当成要删的（`-` 与 `.` 两侧也是词边界）——改成锚定行尾。三处都是测试或实读才暴露，不是读代码能看出来的。
+
+**端到端验证**：测试在临时仓里造带 `.std/` 副本的采用项目（三种钩子形态，文本取自三个项目的实物），**按方案的确定性步骤真执行一遍**，对比迁移前后 `std-check --json`：id 集合除"扫描面变小导致标题里的数变了"的成对 PASS（links 的"扫了 N 份"，同检查器、同为 PASS、同位置才算成对）外不变，状态不变，退出码不变，adoption 的输出前后完全一致。**这条端到端测试第一次就抓出一条我没预料的差异**（`links` 的聚合 PASS 因扫描面变小而换了 id），所以"成对"的口径是从实测里长出来的，不是预先设计的。
+
+**验证数字**：测试 1285 条（Windows 通过，Ubuntu 容器同样 0 败）；变异 29 条，28 条抓住、1 条有实测证据的不可观察（`runMigrate` 的 catch 是程序错误兜底——实测 `plan` 对任何字符串根含 NUL、不存在、指向文件都不抛，只有非字符串根才抛，而命令行的根恒为字符串）。
+
+**三个真实项目的方案（只读生成，未执行）**：Reservoir 与 CMS 各是 钩子→删 `.std/`→删版本声明→`frozen`→文档引用→对账 六步，钩子分别是 `.githooks/pre-commit` 与 `.pre-commit-config.yaml` 的折叠块；PMC 钩子只有 `tools/hooks/pre-push` 一处。**这三份方案现在都因"新插件还没装入 profile"而钩子步骤 blocked**——这是真实状态，不是缺陷：执行迁移的前提是先用 git 地址安装并重启 DSH，阶段 5 的"发布新 tag 并从 tag 安装验证"之后才具备。
+
+**没做、明确留给后面**：①`AGENTS.md` 等自然语言文档里 `.std/` 引用怎么改措辞——方案只列命中，由会话模型处理、人审阅；②CMS 自己声明的 `layout.rule_files` 含 `.claude/` 与 `CLAUDE.md`（"退役仓可能仍按旧宿主落地，删了是放宽扫描"）——保不保留是 CMS 自己的决定，脚本只列出、不替它定；③PMC 里大量历史计划／复核文档引用 `.std/` 路径——历史记录，方案已排除、不改；④设计 §12.33 的"AI 维护配置、放宽须人确认"里程碑。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -788,6 +806,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-09 | **阶段 3 材料完成**：`std-check migrate`（只读方案，不写项目）记 §12.34；对三个真实项目实读后修掉三处缺陷（固定候选钩子也须真调旧检查器、钩子目录里的 .md 不是钩子、frozen 项不能用词边界）；端到端测试按方案真执行一遍并对比迁移前后，**第一次就抓出一条没预料的差异**（links 聚合 PASS 换 id），"成对"口径从中长出；§8 标注已被取代 | 测试 1285 条 Windows／Ubuntu 均 0 败；变异 29 条，28 抓住、1 条有实测证据的不可观察；四个真实仓整体比对仍逐条一致 |
 | 2026-10-09 | **阶段 3 第 1、2 项完成并更正一处**：标准技能提供者（`registerProvider`，五条技能，`skills/` 登记为 derived，`source_rev` 取源文件 git blob 哈希且与 `git hash-object` 实测一致）；`adoption` 不再读 `STANDARD_VERSION`（预期消失 +2 条 finding、+7 条探针）；**实测推翻「删 18 处冗余声明零行为变化」**——证据文字会变（"项目未校准"），第 3 项撤出 | 技能 9 条测试；adoption 变异 18/19 抓住、1 条有 Python 实测证据的等价项；四个真实仓整体比对仍逐条一致；全量 1252 通过 0 失败 |
 | 2026-10-09 | **阶段 3 设计落盘**（§12.33），改写 §8：采用项目不再放标准正文与版本声明——版本由 lockfile 钉、报告自动带摘要，正文由插件以技能分发（读 deepseek-harness 源码验证 `registerProvider` 可行）；`project.yaml` 输入面只读审计（18 处冗余声明、13/19 条落点冗余/必须声明）；"AI 维护配置、放宽检查须人确认"记为下一个里程碑，不与迁移绑定 | 源码出处见 §12.33 一；审计读数见 §12.33 三；`files` 白名单不含 `标准/` 的缺口已发现，待入包 |
 | 2026-10-08 | **汇总层 `check_all` 迁完**，记 §12.32；新增 `std-check` 命令入口（`bin`）；发现并修复迁来的 `pyStrip` 是平方级（10 万空白 11 秒）、夹具 git 调用未清钩子注入的 `GIT_DIR`（真实复现过 `core.bare` 被改）；`check-py-semantics` 加 `process.exit` 规则并扩到检查器与汇总层 | 4 个真实仓整体逐条一致含 `registered` 字段；自检集合与样本相同；变异 156 条 Windows 全抓住（5 条有实测证据的不可观察）；Ubuntu 全量测试 0 败，变异另有 2 条 winOnly |

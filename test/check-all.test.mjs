@@ -629,8 +629,8 @@ test('runAll：登记 join 在检查器全部跑完之后；cfg._exceptions 在�
 // ---------------- main / 参数 ----------------
 
 test('parseArgs：位置参数是项目根；--config 两种写法；认不出的参数与多余位置参数报错而不是静默忽略', () => {
-  assert.deepEqual(parseArgs([]), { root: '.', selftest: false, json: false, noScope: false, config: null })
-  assert.deepEqual(parseArgs(['p', '--json', '--no-scope', '--selftest', '--config', 'c.yaml']), { root: 'p', selftest: true, json: true, noScope: true, config: 'c.yaml' })
+  assert.deepEqual(parseArgs([]), { root: '.', selftest: false, json: false, noScope: false, config: null, migrate: false })
+  assert.deepEqual(parseArgs(['p', '--json', '--no-scope', '--selftest', '--config', 'c.yaml']), { root: 'p', selftest: true, json: true, noScope: true, config: 'c.yaml', migrate: false })
   assert.equal(parseArgs(['--config=c.yaml']).config, 'c.yaml')
   assert.equal(typeof parseArgs(['--config']), 'string'); assert.match(parseArgs(['--config']), /需要一个路径/)
   assert.match(parseArgs(['--nope']), /不认识的参数：--nope/); assert.match(parseArgs(['a', 'b']), /多余的位置参数：b/)
