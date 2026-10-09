@@ -63,9 +63,11 @@ const PY_WS_CHAR = new RegExp(`^${WS}$`)
 function isPyWs(ch: string): boolean {
   return PY_WS_CHAR.test(ch)
 }
-const PY_RSTRIP = new RegExp(`${WS}+$`)
+/** Python 的 `str.rstrip()`。不用 `/WS+$/`：长空白行上是平方级回溯（同 `pyStrip`），逐码元从尾扫。 */
 function rstripPy(s: string): string {
-  return s.replace(PY_RSTRIP, '')
+  let b = s.length
+  while (b > 0 && isPyWs(s[b - 1]!)) b--
+  return b === s.length ? s : s.slice(0, b) // py-semantics-ok: 按已扫出的码元下标切，空白集都在 BMP
 }
 
 /**

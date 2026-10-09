@@ -13,6 +13,9 @@
 //   6. `.slice(0, <大写常量>)` 与 `.slice(0, <≥ 3 位的数字>)` —— Python 的 `s[:n]` 按码点，JS 的 slice 按 UTF-16 码元，BMP 之外的字符少取（D18）；
 //      进判据的截取用 `headChars`。纯展示的截断（evidence 里的前 N 字）加 `// py-semantics-ok: 展示` 并说明。列表元素个数的 slice（`paths.slice(0, LIST_CAP)`）不是字符串切分，
 //      同样加标注——**标注是让「我知道这里在切什么」可见**，不是绕过。
+//   7. `process.exit(`                          —— 它同步结束进程、接不住（Python 的 `sys.exit` 抛 `SystemExit`，汇总层能转未定；Node 里没有对应物）。
+//      检查器里出现它，一个检查器就能把整次扫描连同其它检查器的结论一起带走（设计 §12.31 取舍 3）。**这条还扫 src/checks/ 与汇总层**
+//      （check_all.ts、main.ts、selftest*.ts）；唯一该设退出码的地方是 cli.ts，且用 `process.exitCode =`（不立即结束）。
 // 例外：写在**注释里**的不算；确有理由的在那一行末尾加 `// py-semantics-ok: 理由`（理由必填）。
 //
 // 用法：node scripts/check-py-semantics.mjs        退出码 0 通过、1 有违规、2 脚本自己跑不了
@@ -37,6 +40,7 @@ function stripLine(line) {
 }
 
 const RULES = [
+  { id: 'process-exit', re: /\bprocess\.exit\s*\(/, scope: 'wide', why: '`process.exit()` 同步结束进程、接不住：检查器崩溃只许表现为抛异常，汇总层才能转未定（设计 §12.31 取舍 3）；要设退出码用 `process.exitCode =`（只在 cli.ts）' },
   { id: 'trim', re: /\.(trim|trimStart|trimEnd)\(/, why: 'JS 的 trim 与 Python 的 strip 空白集合不同（D6）；用 pyStrip' },
   { id: 'slice-cu', re: /\.slice\(\s*0\s*,\s*([A-Z][A-Z0-9_]*|[0-9]{3,})\s*\)/, why: '`.slice(0, N)` 按 UTF-16 码元截，Python 的 `[:N]` 按码点（D18）；进判据的截取用 headChars，展示用的加 `// py-semantics-ok: 展示`' },
 ]
@@ -61,9 +65,18 @@ function stripComment(line) {
 
 let files
 try { files = readdirSync(dir).filter((f) => f.endsWith('.ts')).sort() } catch (e) { console.error('读不了 src/core：' + e.message); process.exit(2) }
+// 宽档：src/checks 与汇总层只跑 scope==='wide' 的规则（目前只有 process-exit）。cli.ts 不在内——它是唯一设退出码的地方（用 process.exitCode）。
+const srcDir = join(root, 'src')
+const WIDE_TOP = ['check_all.ts', 'main.ts', 'selftest.ts', 'selftest_shared.ts', 'selftest_git.ts']
+const wide = []
+try {
+  for (const f of readdirSync(join(srcDir, 'checks')).filter((x) => x.endsWith('.ts')).sort()) wide.push(['checks/' + f, join(srcDir, 'checks', f)])
+} catch { /* 没有 src/checks（如测试里的最小临时仓）就只扫 core */ }
+for (const f of WIDE_TOP) { const p = join(srcDir, f); try { readFileSync(p); wide.push([f, p]) } catch { /* 没有就不扫 */ } }
 const bad = []
-for (const f of files) {
-  const lines = readFileSync(join(dir, f), 'utf8').split('\n')
+const targets = [...files.map((f) => [f, join(dir, f), false]), ...wide.map(([f, p]) => [f, p, true])]
+for (const [f, path, onlyWide] of targets) {
+  const lines = readFileSync(path, 'utf8').split('\n')
   let inBlock = false
   lines.forEach((raw, i) => {
     const t = raw.trim()
@@ -75,12 +88,13 @@ for (const f of files) {
     if (ok) return
     const code = stripComment(raw)
     const skeleton = stripLine(raw)
-    for (const r of RULES) if (r.re.test(skeleton)) bad.push(`${f}:${i + 1}  [${r.id}] ${r.why}\n      ${t.slice(0, 120)}`)
+    for (const r of RULES) if ((!onlyWide || r.scope === 'wide') && r.re.test(skeleton)) bad.push(`${f}:${i + 1}  [${r.id}] ${r.why}\n      ${t.slice(0, 120)}`)
+    if (onlyWide) return
     for (const r of REGEX_RULES) {
       const probe = r.allow ? code.replace(r.allow, '') : code
       if (r.re.test(probe)) bad.push(`${f}:${i + 1}  [${r.id}] ${r.why}\n      ${t.slice(0, 120)}`)
     }
   })
 }
-if (bad.length) { console.error(`src/core 里有 ${bad.length} 处可能悄悄偏离 Python 语义的写法：\n` + bad.join('\n')); process.exit(1) }
-console.log(`src/core 无偏离 Python 语义的写法（扫了 ${files.length} 个文件）`)
+if (bad.length) { console.error(`src 里有 ${bad.length} 处可能悄悄偏离 Python 语义（或会带走整次扫描）的写法：\n` + bad.join('\n')); process.exit(1) }
+console.log(`src/core 无偏离 Python 语义的写法（扫了 ${files.length} 个文件；另扫 ${wide.length} 个检查器与汇总层文件的 process.exit）`)

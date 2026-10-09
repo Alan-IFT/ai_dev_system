@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { PY_WHITESPACE, pyStrip, normalizeKey, findingId, finding, encodeSurrogateEscape, PASS, FAIL, SKIP, UNDETERMINED } from '../lib/core/finding.js'
+import { PY_WHITESPACE, pyStrip, pyLstrip, normalizeKey, findingId, finding, encodeSurrogateEscape, PASS, FAIL, SKIP, UNDETERMINED } from '../lib/core/finding.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const unit = (name) => JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', name), 'utf8'))
@@ -62,4 +62,31 @@ test('finding：非法状态抛；未定与不适用必须给 reason；registere
   assert.equal(f.registered, null); assert.equal(f.where, null); assert.equal(f.why, '')
   assert.equal(finding('c', FAIL, 't', { kind: 'k', key: 'a b' }).id, 'c/k/a_b')
   assert.equal(finding('c', UNDETERMINED, 't', { reason: 'r', kind: 'k', key: '  ' }).id, 'c/k', 'key 全空白等同没给')
+})
+
+test('pyStrip / pyLstrip 线性：10 万个空白夹在两端之间不得是平方级（改前一条 /^WS+|WS+$/ 正则，10 万空白要 11 秒；全仓近百处调用都经它）', () => {
+  const t0 = performance.now()
+  assert.equal(pyStrip('a' + ' '.repeat(100000) + 'b').length, 100002)
+  assert.equal(pyStrip(' '.repeat(100000) + 'b' + ' '.repeat(100000)), 'b')
+  assert.equal(pyLstrip(' '.repeat(100000) + 'b'), 'b')
+  const spent = (performance.now() - t0) / 1000
+  assert.ok(spent < 1, `三次调用共 ${spent.toFixed(2)}s，超过 1s（线性实现应在毫秒级）`)
+})
+
+test('pyLstrip 只去左边（Python 的 str.lstrip()）：右边的空白原样留着；全空白得空串；BOM 不去', () => {
+  assert.equal(pyLstrip(' \t\u3000x \u3000'), 'x \u3000')
+  assert.equal(pyLstrip('   '), '')
+  assert.equal(pyLstrip(''), '')
+  assert.equal(pyLstrip('\ufeff x'), '\ufeff x', 'U+FEFF 不是 Python 空白（D6）')
+  assert.equal(pyLstrip('x  '), 'x  ')
+})
+
+test('pyStrip 与旧正则实现对同一批边界输入逐条相同（线性化没改语义）', () => {
+  const ws = new RegExp(`[${PY_WHITESPACE}]`)
+  const old = (s) => s.replace(new RegExp(`^[${PY_WHITESPACE}]+|[${PY_WHITESPACE}]+$`, 'g'), '')
+  const alphabet = ['a', ' ', '\t', '\u3000', '\ufeff', '\u0085', '\u001c', '😀']
+  let n = 0
+  const walk = (s, depth) => { assert.equal(pyStrip(s), old(s), JSON.stringify(s)); n++; if (depth) for (const c of alphabet) walk(s + c, depth - 1) }
+  walk('', 5)
+  assert.ok(n > 30000 && ws.test(' '))
 })

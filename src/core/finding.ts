@@ -19,8 +19,13 @@ export interface Finding {
   why: string
   reason: string
   evidence: string
-  /** 例外登记由 check_all 在全部检查跑完之后贴上（契约 §9）；检查器自己不填。 */
-  registered: string | null
+  /** 例外登记由 check_all 在全部检查跑完之后贴上（契约 §9）；检查器自己不填。贴上的是登记行的编号与到期日（`YYYY-MM-DD`），不改 status。 */
+  registered: Registered | null
+}
+
+export interface Registered {
+  id: string
+  expires: string
 }
 
 /**
@@ -29,17 +34,27 @@ export interface Finding {
  */
 export const PY_WHITESPACE = '\\t\\n\\v\\f\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000'
 const PY_WS_RUN = new RegExp(`[${PY_WHITESPACE}]+`, 'g')
-const PY_WS_EDGE = new RegExp(`^[${PY_WHITESPACE}]+|[${PY_WHITESPACE}]+$`, 'g')
+const PY_WS_CHAR = new RegExp(`^[${PY_WHITESPACE}]$`)
+const isWs = (ch: string): boolean => PY_WS_CHAR.test(ch)
 
-/** 等价于 Python 的 `str.strip()`（不带参数）。 */
+/**
+ * 等价于 Python 的 `str.strip()`（不带参数）。
+ *
+ * **不用 `/^WS+|WS+$/` 一条正则**：`WS+$` 在「中间夹一大片空白、末尾不是空白」的串上，每个空白起点都吞完整片再发现不在末尾、回溯重试，是平方级——
+ * 10 万个空格的一行要 11 秒，而 `pyStrip` 全仓有近百处调用，配置文件、文档头部都经它。两端各一次线性扫描，BMP 空白都是单个码元，按码元扫即可。
+ */
 export function pyStrip(s: string): string {
-  return s.replace(PY_WS_EDGE, '')
+  let a = 0, b = s.length
+  while (a < b && isWs(s[a]!)) a++
+  while (b > a && isWs(s[b - 1]!)) b--
+  return a === 0 && b === s.length ? s : s.slice(a, b) // py-semantics-ok: 按已扫出的码元下标切，空白集都在 BMP，不涉及码点计数
 }
 
-const PY_WS_LEAD = new RegExp(`^[${PY_WHITESPACE}]+`)
 /** 等价于 Python 的 `str.lstrip()`（不带参数）：只去开头的 Python 空白。 */
 export function pyLstrip(s: string): string {
-  return s.replace(PY_WS_LEAD, '')
+  let a = 0
+  while (a < s.length && isWs(s[a]!)) a++
+  return a === 0 ? s : s.slice(a) // py-semantics-ok: 同 pyStrip
 }
 
 /**

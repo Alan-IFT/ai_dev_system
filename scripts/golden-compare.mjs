@@ -81,14 +81,13 @@ for (const inp of manifest.inputs) {
     const droppedHere = wantAll.length - want.length
     const g = new Map(got.map((f) => [key(f), f])), w = new Map(want.map((f) => [key(f), f]))
     const onlyGot = [...g.keys()].filter((k) => !w.has(k)), onlyWant = [...w.keys()].filter((k) => !g.has(k))
-    // `registered` 是 check_all 的 `_join_exceptions` 贴上的（检查器自己永远产出 null，Python 上实测：单跑 drift.run 得 null，贴完登记后与整体样本完全相同）。
-    // 汇总层还没迁，TS 侧没有这一步，所以**样本里 registered 非空的条目只比 (id, status, where)**，并把这类条数显式打印出来——不静默跳过；
-    // 汇总层迁完后改回全口径（把 REGISTERED_PENDING 设为 false）。
-    const REGISTERED_PENDING = true
+    // `registered` 是汇总层（check_all.ts 的 joinExceptions）贴上的，检查器自己永远产出 null（Python 上实测：单跑 drift.run 得 null，贴完登记后与整体样本完全相同）。
+    // 本脚本直接调检查器的 run、不经汇总层，所以**样本里 registered 非空的条目这里只比 (id, status, where)**，并把条数显式打印出来——不静默跳过。
+    // `registered` 字段的完整比对由 `scripts/golden-compare-all.mjs` 承担（跑整个 runAll，含登记 join）。
     const skippedRegistered = want.filter((f) => f.registered).length
-    const diff = [...g.keys()].filter((k) => w.has(k) && (g.get(k).status !== w.get(k).status || (!REGISTERED_PENDING && (g.get(k).registered ?? null) !== (w.get(k).registered ?? null))))
+    const diff = [...g.keys()].filter((k) => w.has(k) && g.get(k).status !== w.get(k).status)
     ran++
-    if (!onlyGot.length && !onlyWant.length && !diff.length) console.log(`✓ ${inp.name.padEnd(10)} ${name}：${want.length} 条逐条一致${skippedRegistered ? `（其中 ${skippedRegistered} 条样本带登记认领 registered，待汇总层迁完后才比该字段）` : ''}${droppedHere ? `；另有 ${droppedHere} 条样本按 golden/expected-changes.json 预期消失（${[...vanished.keys()].join('、')}），未比` : ''}`)
+    if (!onlyGot.length && !onlyWant.length && !diff.length) console.log(`✓ ${inp.name.padEnd(10)} ${name}：${want.length} 条逐条一致${skippedRegistered ? `（其中 ${skippedRegistered} 条样本带登记认领 registered，该字段由 golden-compare-all.mjs 整体比对）` : ''}${droppedHere ? `；另有 ${droppedHere} 条样本按 golden/expected-changes.json 预期消失（${[...vanished.keys()].join('、')}），未比` : ''}`)
     else {
       bad++
       console.log(`✗ ${inp.name.padEnd(10)} ${name}：期望 ${want.length} 条、实得 ${got.length} 条`)

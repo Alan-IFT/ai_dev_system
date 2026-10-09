@@ -25,7 +25,7 @@ import { cfgGet, pyStr, pyTruthy, type Config } from '../core/cfg.js'
 import type { YamlValue } from '../core/yaml.js'
 import { foldRegexSource, headChars, inFrozen } from '../core/docs.js'
 import { FAIL, PASS, SKIP, UNDETERMINED, finding, pyStrip, type Finding } from '../core/finding.js'
-import { writeText } from '../core/fixture.js'
+import { fixtureEnv, writeText } from '../core/fixture.js'
 import { hardenedEnv } from '../core/git.js'
 import { inside, isDir, isFile, exists, readBytes, decodeUtf8Replace } from '../core/fs.js'
 import { excTypeName, outsideRoot, probe, probeCrashed, runGuarded, unreadable } from '../core/shell.js'
@@ -848,7 +848,7 @@ function aliasProbe(tmps: string[], body: string, former: string[], rel = 'docs/
     const d = join(tmp, nm)
     writeText(join(d, 'AGENTS.md'), `# ${nm}\n\n权威见 [系统仓](../sys/AGENTS.md)。\n`)
     if (nm === 'app') writeText(join(d, rel), body + '\n')
-    for (const arg of [['init', '-q'], ['add', '-A']]) spawnSync('git', ['-C', d, ...GIT_QUIET, ...arg], { timeout: 60_000 })
+    for (const arg of [['init', '-q'], ['add', '-A']]) spawnSync('git', ['-C', d, ...GIT_QUIET, ...arg], { timeout: 60_000, env: fixtureEnv() })
   }
   const got = run({ _root: tmp, layout: { entry: ['AGENTS.md'], frozen }, repos: [{ name: 'sys', path: 'sys', role: 'system', former_names: former }, { name: 'app', path: 'app', role: 'app' }] }).filter((f) => f.title.includes('历史别名'))
   return [got.map((f) => f.status), got.map((f) => f.title).join(' | ') || '无']
@@ -963,7 +963,7 @@ export function selftest(): Finding[] {
         const d = join(tmp, nm)
         writeText(join(d, 'AGENTS.md'), `# ${nm}\n\n权威见 [系统仓](../sys/AGENTS.md)。\n`)
         writeText(join(d, 'docs', 'n.md'), '见 SYS_OLD 与 APP_OLD。\n')
-        for (const arg of [['init', '-q'], ['add', '-A']]) spawnSync('git', ['-C', d, ...arg], { timeout: 60_000 })
+        for (const arg of [['init', '-q'], ['add', '-A']]) spawnSync('git', ['-C', d, ...arg], { timeout: 60_000, env: fixtureEnv() })
       }
       __testCalls.grep.length = 0
       let got: Finding[]

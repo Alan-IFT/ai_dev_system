@@ -1,0 +1,30 @@
+[
+  {
+    "id": "S1",
+    "title": "pyStrip 回退成一条 /^WS+|WS+$/ 正则（平方级回溯）",
+    "file": "src/core/finding.ts",
+    "from": "  let a = 0, b = s.length\n  while (a < b && isWs(s[a]!)) a++\n  while (b > a && isWs(s[b - 1]!)) b--\n  return a === 0 && b === s.length ? s : s.slice(a, b) // py-semantics-ok: 按已扫出的码元下标切，空白集都在 BMP，不涉及码点计数",
+    "to": "  return s.replace(new RegExp(`^[${PY_WHITESPACE}]+|[${PY_WHITESPACE}]+$`, 'g'), '')"
+  },
+  {
+    "id": "S2",
+    "title": "pyStrip 只去左边",
+    "file": "src/core/finding.ts",
+    "from": "  while (b > a && isWs(s[b - 1]!)) b--\n  return a === 0 && b === s.length",
+    "to": "  return a === 0 && b === s.length"
+  },
+  {
+    "id": "S3",
+    "title": "pyStrip 只去右边",
+    "file": "src/core/finding.ts",
+    "from": "  while (a < b && isWs(s[a]!)) a++\n  while (b > a && isWs(s[b - 1]!)) b--",
+    "to": "  while (b > a && isWs(s[b - 1]!)) b--"
+  },
+  {
+    "id": "S4",
+    "title": "pyLstrip 多去了右边",
+    "file": "src/core/finding.ts",
+    "from": "  while (a < s.length && isWs(s[a]!)) a++\n  return a === 0 ? s : s.slice(a)",
+    "to": "  while (a < s.length && isWs(s[a]!)) a++\n  return pyStrip(a === 0 ? s : s.slice(a))"
+  }
+]

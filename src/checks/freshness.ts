@@ -28,7 +28,7 @@ import {
   isTailoredOut, isWorkItemName, itemStatus, normRel, rebaseDocs, statusKind, under, workRoot,
 } from '../core/docs.js'
 import { FAIL, PASS, SKIP, UNDETERMINED, PY_WHITESPACE, finding, pyStrip, type Finding } from '../core/finding.js'
-import { gitTrack, writeText } from '../core/fixture.js'
+import { fixtureEnv, gitTrack, writeText } from '../core/fixture.js'
 import { __testHooks, exists as pathExists, isDir, isFile, readText } from '../core/fs.js'
 import { hardenedEnv, shallowProblem } from '../core/git.js'
 import { pyRepr } from '../core/repr.js'
@@ -700,7 +700,7 @@ export function selftest(): Finding[] {
         const [cfg, err] = sample(tmp, `updated_at: ${fresh}\n`, '# WI-0001\n\n状态：in_progress\n\n' + body)
         if (!err) { // 退到提交时间的那支按 100 天前提交
           const when = `${old} 12:00:00 +0000`
-          spawnSync('git', ['-C', tmp, '-c', 'user.name=a', '-c', 'user.email=a@b', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 's'], { timeout: 60_000, env: { ...process.env, GIT_COMMITTER_DATE: when, GIT_AUTHOR_DATE: when } })
+          spawnSync('git', ['-C', tmp, '-c', 'user.name=a', '-c', 'user.email=a@b', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 's'], { timeout: 60_000, env: fixtureEnv({ GIT_COMMITTER_DATE: when, GIT_AUTHOR_DATE: when }) })
         }
         got[tag] = err ? err : run(cfg).filter((f) => (f.where ?? '') === 'work/WI-0001-x.md').map((f) => f.status)
       }
@@ -753,7 +753,7 @@ export function selftest(): Finding[] {
       writeText(join(src, 'work', 'WI-0001-x.md'), '# WI-0001\n\n状态：in_progress\n')
       writeText(join(src, 'docs', 'architecture', 'a.md'), `updated_at: ${fresh}\n`)
       const when = `${old} 12:00:00 +0000`
-      const env = { ...process.env, GIT_COMMITTER_DATE: when, GIT_AUTHOR_DATE: when }
+      const env = fixtureEnv({ GIT_COMMITTER_DATE: when, GIT_AUTHOR_DATE: when })
       const gid = ['-c', 'user.name=a', '-c', 'user.email=a@b', '-c', 'commit.gpgsign=false']
       const steps: string[][] = [
         ['git', '-c', 'init.defaultBranch=main', 'init', '-q', src],
@@ -765,7 +765,7 @@ export function selftest(): Finding[] {
       let err: string | null = null
       for (let i = 0; i < steps.length; i++) {
         const cmd = steps[i]!
-        const r = spawnSync(cmd[0]!, cmd.slice(1), { timeout: 60_000, env: i < 4 ? env : process.env })
+        const r = spawnSync(cmd[0]!, cmd.slice(1), { timeout: 60_000, env: i < 4 ? env : fixtureEnv() })
         if (r.status !== 0) { err = `${cmd.slice(0, 4).join(' ')} 退出码 ${r.status}`; break }
       }
       const got: Record<string, string[]> = {}
@@ -793,7 +793,7 @@ export function selftest(): Finding[] {
       ]
       for (const [when, cmd] of steps) {
         if (cmd[0] === '@write') { writeText(cmd[1]!, 'x\n'); continue }
-        const env = when ? { ...process.env, GIT_COMMITTER_DATE: `${when} 12:00:00 +0000`, GIT_AUTHOR_DATE: `${when} 12:00:00 +0000` } : process.env
+        const env = when ? fixtureEnv({ GIT_COMMITTER_DATE: `${when} 12:00:00 +0000`, GIT_AUTHOR_DATE: `${when} 12:00:00 +0000` }) : fixtureEnv()
         const r = spawnSync(cmd[0]!, cmd.slice(1), { timeout: 60_000, env })
         if (r.status !== 0) { err = `${cmd.slice(0, 4).join(' ')} 退出码 ${r.status}`; break }
       }

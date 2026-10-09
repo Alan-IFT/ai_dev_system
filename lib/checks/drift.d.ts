@@ -36,6 +36,8 @@ export declare function latestDay(epochSeconds: number): CalDate;
 export declare function candidates(text: string): Array<[number, string]>;
 /** `git blame -p` 的 committer-time 与行头解析。纯函数（输入是 blame 的文本输出），便于对样本逐条比对。返回 [{行号: [sha, 日期|null]}, 问题|null]。 */
 export declare function parseBlame(text: string): [Map<number, [string, CalDate | null]> | null, string | null];
+/** `git blame -p` 的行级提交时间。返回 [{行号: [sha, 日期]}, 问题]。 */
+export declare function blame(root: string, rel: string): [Map<number, [string, CalDate | null]> | null, string | null];
 /** 返回 [目录相对路径, 是否项目声明, 说不通时的 Finding]。 */
 export declare function adrDir(cfg: Config, root: string, files: readonly string[], docsRoot: string): [string | null, boolean, Finding | null];
 export declare function revisionHits(text: string): Array<[number, string, string]>;

@@ -17,5 +17,21 @@
     "added_probes": [
       { "id": "adoption/f32dd8ac", "reason": "替代 adoption/d5d57eb2 的前一半：compatibility.policy（01 §5.3）缺、空串、空列表、false 判 FAIL，有值（字符串、映射、0）PASS。原探针把它与免审批清单的通配放行合在一条里，后一半随废弃宿主删除，前一半不能跟着丢" }
     ]
+  },
+  "check_all": {
+    "vanished_probes": [
+      { "id": "shared-fact/251040cc", "reason": "内嵌仓 .std/ 有未暂存改动：adoption 必须报 embedded-modified FAIL——对象是 .std/ 内嵌机制，D-135 起采用项目不再内嵌 .std/，adoption 的该判据已于 §12.28 删除，没有对象" },
+      { "id": "stdlib/7011541d", "reason": "1200 层嵌套不抛 RecursionError——Python 递归上限的专有现象；TS 版 YAML 解析的深度限制是 MAX_DEPTH 抛 ConfigError，由 test/yaml.test.mjs 直接钉" },
+      { "id": "stdlib/c7bca0ea", "reason": "read_bytes 每读一份只做 3 次 realpath——对象是 Python 的 os.path.realpath 调用次数（性能计数）；TS 用 realpathSync.native，次数由 test/fs.test.mjs 钉" },
+      { "id": "stdlib/c563c6ba", "reason": "settings.json 深嵌套记这一条未定——对象是 adoption._settings_allow 读 .claude/settings.json，该判据已于 §12.28 随 Claude Code 宿主一起删除" },
+      { "id": "stdlib/b1ec005d", "reason": "stdlib 与检查器按源码加载，不读 __pycache__ 里的 pyc——Node 没有 pyc；ESM 加载的就是 lib/*.js，其与 src/ 的一致性由 check-lib-sync 钉" },
+      { "id": "stdlib/b73f92ac", "reason": "一次扫描 discover 一次、ls-files 同模式不重跑、缓存随扫描关闭——TS 没有 discover（检查器在 checks/index.ts 的显式表里登记，设计 §12.31 取舍 4）；ls-files 缓存的断言保留为 added_probes 里的替代探针" },
+      { "id": "stdlib/fe15947f", "reason": "字面在项目之外的路径不做 realpath 探测——对象是 Python 里对 os.path.realpath 的替换计数；TS 的 inside() 在 fs.ts 里有同义断言（test/fs.test.mjs），且无法替换 ESM 命名导出来计数" },
+      { "id": "stdlib/831d0e65", "reason": "工具目录里同名标准库模块不被导入执行——Python 的 sys.path[0] 劫持；Node 的模块解析不吃这个" },
+      { "id": "stdlib/efb0793f", "reason": "检查器里 sys.exit(0) 转未定——Node 的 process.exit 同步结束进程、接不住；TS 版改为机械禁止检查器代码里出现 process.exit（scripts/check-py-semantics.mjs 扩展，设计 §12.31 取舍 3），见 added_probes" }
+    ],
+    "added_probes": [
+      { "id": "stdlib/3ac5e0b9", "reason": "替代 stdlib/efb0793f 的『检查器崩溃转未定』：Node 里检查器调 process.exit 接不住，由 scripts/check-py-semantics.mjs 的 process-exit 规则在源码层机械禁止（test/py-semantics.test.mjs 钉）；剩下唯一的崩溃形态是抛出任何东西，含 JS 特有的非 Error（字符串、undefined），这条钉它在自检与运行两处都转未定" }
+    ]
   }
 }

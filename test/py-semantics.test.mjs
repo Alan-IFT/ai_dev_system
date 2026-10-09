@@ -12,13 +12,13 @@ const here = dirname(fileURLToPath(import.meta.url))
 const script = join(here, '..', 'scripts', 'check-py-semantics.mjs')
 
 /** 在临时仓里放一份脚本拷贝与一个 src/core/x.ts，运行脚本，返回 { status, out }。 */
-function run(line) {
+function run(line, rel = 'src/core/x.ts') {
   const tmp = mkdtempSync(join(tmpdir(), 'pysem-'))
   try {
-    mkdirSync(join(tmp, 'scripts')); mkdirSync(join(tmp, 'src', 'core', ''), { recursive: true })
+    mkdirSync(join(tmp, 'scripts')); mkdirSync(join(tmp, 'src', 'core', ''), { recursive: true }); mkdirSync(join(tmp, 'src', 'checks'), { recursive: true })
     copyFileSync(script, join(tmp, 'scripts', 'check-py-semantics.mjs'))
     writeFileSync(join(tmp, 'package.json'), '{"type":"module"}')
-    writeFileSync(join(tmp, 'src', 'core', 'x.ts'), line + '\n')
+    writeFileSync(join(tmp, ...rel.split('/')), line + '\n')
     const r = spawnSync(process.execPath, [join(tmp, 'scripts', 'check-py-semantics.mjs')], { encoding: 'utf8' })
     return { status: r.status, out: (r.stdout || '') + (r.stderr || '') }
   } finally { rmSync(tmp, { recursive: true, force: true }) }
@@ -54,6 +54,19 @@ test('脚本必须放行的合规写法（不误报，退出码 0）', () => {
   const flagged = []
   for (const [name, line] of MUST_PASS) { const r = run(line); if (r.status !== 0) flagged.push({ name, line, status: r.status, out: r.out.slice(0, 160) }) }
   assert.deepEqual(flagged, [])
+})
+
+test('process.exit 在 core、checks、汇总层任何一处出现都被抓住（接不住的退出会带走整次扫描）；process.exitCode 与注释里的放行', () => {
+  const where = ['src/core/x.ts', 'src/checks/x.ts', 'src/check_all.ts', 'src/main.ts', 'src/selftest_git.ts']
+  const missed = where.filter((rel) => { const r = run('if (bad) process.exit(2)', rel); return !(r.status === 1 && r.out.includes('process-exit')) })
+  assert.deepEqual(missed, [])
+  // 宽档不套用 core 的其它规则：检查器里的 .trim( 不在本脚本管辖内（那是 core 的 Python 语义约束）
+  assert.equal(run('const a = s.trim()', 'src/checks/x.ts').status, 0)
+  // cli.ts 是唯一设退出码的地方，用 process.exitCode（不立即结束）；脚本不扫 cli.ts
+  assert.equal(run('process.exit(1)', 'src/cli.ts').status, 0)
+  assert.equal(run('process.exitCode = 1', 'src/checks/x.ts').status, 0)
+  assert.equal(run('// 不要写 process.exit(1)', 'src/checks/x.ts').status, 0)
+  assert.equal(run('process.exit(1) // py-semantics-ok: 测试夹具的子进程入口', 'src/checks/x.ts').status, 0)
 })
 
 test('真实 src/core 当前无违规（这条红了说明有人写了会偏离 Python 语义的代码）', () => {

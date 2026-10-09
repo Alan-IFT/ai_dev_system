@@ -18,8 +18,12 @@
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "std-check": "lib/cli.js"
+  },
   "files": [
     "lib",
+    "tools/std/CONTRACT.md",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"

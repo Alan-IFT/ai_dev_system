@@ -5,6 +5,18 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { hardenedEnv } from './git.js'
+
+/**
+ * 夹具 git 子进程的环境：去掉钩子注入的 GIT_DIR 等仓库定位变量，再加固。
+ *
+ * **这是 Python 版入口 `scrub_git_env()` 在 TS 里的对应物**（D9：TS 不改本进程环境，所以不能靠入口一次性清；每个 spawn 自己带干净环境）。
+ * 漏了它，从 git worktree 提交时 pre-commit 钩子里的绝对 `GIT_DIR` 会压过夹具命令的 `-C`，夹具整批落进调用方的真实仓、把 `core.bare` 改成 true——
+ * 这就是 `shared-fact/b340a2ab` 那条自检复现的真实事故。`extra` 是本次调用要额外加的变量（如固定提交时间）。
+ */
+export function fixtureEnv(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return { ...(hardenedEnv(process.env) as NodeJS.ProcessEnv), ...extra }
+}
 
 /** 写文本文件：UTF-8、LF（不做行尾转换），父目录不存在就建。 */
 export function writeText(path: string, text: string): void {
@@ -23,8 +35,8 @@ export const GIT_FIXTURE_ID: readonly string[] = [
 ]
 
 /** 在本工具自建的夹具仓里跑一条 git；退出码非 0 即抛。 */
-export function gitFixture(repo: string, args: readonly string[], env?: NodeJS.ProcessEnv): void {
-  const r = spawnSync('git', ['-C', repo, '-c', 'init.defaultBranch=main', ...GIT_FIXTURE_ID, ...args], { timeout: 60_000, env: env ?? process.env })
+export function gitFixture(repo: string, args: readonly string[], extraEnv?: NodeJS.ProcessEnv): void {
+  const r = spawnSync('git', ['-C', repo, '-c', 'init.defaultBranch=main', ...GIT_FIXTURE_ID, ...args], { timeout: 60_000, env: fixtureEnv(extraEnv) })
   if (r.status !== 0) throw new Error(`git ${args.join(' ')} 退出码 ${r.status}：${(r.stderr ?? Buffer.alloc(0)).toString('utf8').slice(0, 200)}`) // py-semantics-ok: 展示——夹具报错文字，不进判据
 }
 
@@ -37,13 +49,13 @@ export function gitTrack(tmp: string, when?: string): string | null {
     ['git', '-c', 'init.defaultBranch=main', 'init', '-q', tmp],
     ['git', '-C', tmp, '-c', 'core.autocrlf=false', '-c', 'core.safecrlf=false', 'add', '-A', '-f'],
   ]
-  let env: NodeJS.ProcessEnv | undefined
+  let extra: NodeJS.ProcessEnv | undefined
   if (when) {
     cmds.push(['git', '-C', tmp, ...GIT_FIXTURE_ID, 'commit', '-q', '-m', 's'])
-    env = { ...process.env, GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when }
+    extra = { GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when }
   }
   for (const cmd of cmds) {
-    const r = spawnSync(cmd[0]!, cmd.slice(1), { timeout: 60_000, encoding: 'utf8', env: env ?? process.env })
+    const r = spawnSync(cmd[0]!, cmd.slice(1), { timeout: 60_000, encoding: 'utf8', env: fixtureEnv(extra) })
     if (r.error) return `${cmd[0]} 跑不了：${r.error.message}`
     if (r.status !== 0) return `${cmd.slice(0, 3).join(' ')} 退出码 ${r.status}：${(r.stderr || '').slice(0, 200)}` // py-semantics-ok: 展示——夹具报错文字；cmd 是数组，不是字符串切分
   }

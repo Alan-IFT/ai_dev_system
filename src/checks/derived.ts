@@ -16,7 +16,7 @@ import { join } from 'node:path'
 import { cfgGet, pyStr, pyTruthy, type Config } from '../core/cfg.js'
 import { headChars } from '../core/docs.js'
 import { FAIL, PASS, SKIP, UNDETERMINED, finding, pyStrip, type Finding } from '../core/finding.js'
-import { gitFixture, writeText } from '../core/fixture.js'
+import { fixtureEnv, gitFixture, writeText } from '../core/fixture.js'
 import { isFile, readBytes } from '../core/fs.js'
 import { hardenedEnv, shallowProblem } from '../core/git.js'
 import { probe, probeCrashed, runGuarded } from '../core/shell.js'
@@ -275,7 +275,7 @@ function checkOne(root: string, idx: number, item: Decl, shallow: string | null,
 function commit(root: string, rel: string, body: string, when: string): void {
   writeText(join(root, rel), body)
   gitFixture(root, ['add', '--', rel])
-  gitFixture(root, ['commit', '-q', '-m', `add ${rel}`], { ...process.env, GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when })
+  gitFixture(root, ['commit', '-q', '-m', `add ${rel}`], { GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when })
 }
 
 const SRC = '{"modules": ["inventory", "settlement"]}\n'
@@ -316,7 +316,7 @@ export function selftest(): Finding[] {
       const tmp = mk(); const src = join(tmp, 'src'), dst = join(tmp, 'dst')
       mkdirSync(src, { recursive: true }); repo(src)
       commit(src, 'docs/map.html', GOOD, '2026-01-01T00:00:00 +0000'); commit(src, 'src/map.json', SRC, '2026-02-01T00:00:00 +0000')
-      spawnSync('git', ['clone', '-q', '--depth', '1', 'file://' + (process.platform === 'win32' ? '/' : '') + src.replaceAll('\\', '/'), dst], { timeout: GIT_TIMEOUT_MS })
+      spawnSync('git', ['clone', '-q', '--depth', '1', 'file://' + (process.platform === 'win32' ? '/' : '') + src.replaceAll('\\', '/'), dst], { timeout: GIT_TIMEOUT_MS, env: fixtureEnv() })
       const got = run({ _root: dst, derived: [decl('docs/map.html', 'src/map.json')] }).map((f): [string, string] => [f.status, f.id])
       const ok = got.some(([st, id]) => st === UNDETERMINED && id === `${NAME}/no-commit-time/docs/map.html`) && !got.some(([st, id]) => st === PASS && id.includes('不落后'))
       results.push(probe(NAME, ok, '反例：浅克隆下取不到真实提交先后，陈旧与否记未定', { evidence: `实得 ${J(got)}`, why: '01 §2 N1：浅克隆的提交时间是克隆时刻，判不了先后' }))

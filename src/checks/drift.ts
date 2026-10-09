@@ -26,7 +26,7 @@ import { addDays, compareDays, todayLocal, toIso, validDate, type CalDate } from
 import { DEFAULT_WORK_ROOT, LIST_CAP, STATUS_CANDIDATES, WORK_ITEM_NAME, docsRootOf, headChars, inFrozen, normRel, rebaseDocs, under, workRoot } from '../core/docs.js'
 import { firstMdTable } from '../core/exceptions.js'
 import { FAIL, PASS, SKIP, UNDETERMINED, PY_WHITESPACE, finding, pyStrip, type Finding } from '../core/finding.js'
-import { gitTrack, writeText } from '../core/fixture.js'
+import { fixtureEnv, gitTrack, writeText } from '../core/fixture.js'
 import { exists as pathExists, inside, isDir, isFile, readBytes, readText } from '../core/fs.js'
 import { filterEnv, hardenedEnv } from '../core/git.js'
 import { pyRepr } from '../core/repr.js'
@@ -194,7 +194,7 @@ export function parseBlame(text: string): [Map<number, [string, CalDate | null]>
 }
 
 /** `git blame -p` 的行级提交时间。返回 [{行号: [sha, 日期]}, 问题]。 */
-function blame(root: string, rel: string): [Map<number, [string, CalDate | null]> | null, string | null] {
+export function blame(root: string, rel: string): [Map<number, [string, CalDate | null]> | null, string | null] {
   const base = hardenedEnv(process.env) as Record<string, string | undefined>
   const env = filterEnv(root, base)
   if (env === null) return [null, '列不出被扫仓配置的过滤器（git config 失败或超时），不在未压住过滤器时读工作区']
@@ -259,7 +259,8 @@ const dirnameOf = (r: string): string => { const i = r.lastIndexOf('/'); return 
 
 /** Python 的 `s.lstrip(chars)`：去开头属于 chars 的字符（按码点；chars 全是 BMP 字符，逐个码元去即可）。 */
 const lstripChars = (s: string, chars: string): string => { let i = 0; while (i < s.length && chars.includes(s[i]!)) i++; return s.slice(i) }
-const rstripPy = (s: string): string => pyStrip(s.replace(new RegExp(`^${WS}+`), '')) === '' ? '' : s.replace(new RegExp(`${WS}+$`), '')
+/** Python 的 `str.rstrip()`：整行全空白得空串，否则去尾部空白。逐码元从尾扫，不用 `/WS+$/`（长空白行上平方级回溯，同 `pyStrip`）。 */
+const rstripPy = (s: string): string => { let b = s.length; while (b > 0 && pyStrip(s[b - 1]!) === '') b--; return b === s.length ? s : s.slice(0, b) } // py-semantics-ok: 按已扫出的码元下标切，空白集都在 BMP
 
 export function revisionHits(text: string): Array<[number, string, string]> {
   const out: Array<[number, string, string]> = []
@@ -840,7 +841,7 @@ export function selftest(): Finding[] {
       writeText(join(tmp, 'docs', 'a.md'), '# 样本\x0c分页\u2028续\r孤立回车\n- 2026-09-22 裁定 X。\n')
       let err: string | null = null
       if (fmt) {
-        const r = spawnSync('git', ['init', '-q', `--object-format=${fmt}`, tmp], { timeout: 60_000 })
+        const r = spawnSync('git', ['init', '-q', `--object-format=${fmt}`, tmp], { timeout: 60_000, env: fixtureEnv() })
         err = r.status === 0 ? null : `git init --object-format 退出码 ${r.status}`
       }
       err = err ?? gitTrack(tmp, COMMIT_DATE)
