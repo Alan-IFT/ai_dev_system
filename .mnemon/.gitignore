@@ -1,9 +1,0 @@
-# dsh-mnemon storage (storageScope: workspace).
-# Tracked: runtime/ (MEMORY.md, memories.json) and documents/ (Markdown + index.json).
-# Ignored: Memory Spaces SQLite, Provider state (may hold credentials), locks, temp files.
-/data/
-/state/
-/active
-*.lock
-*.tmp
-.dsh-pack-stage-*/
