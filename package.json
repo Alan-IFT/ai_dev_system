@@ -23,6 +23,7 @@
   },
   "files": [
     "lib",
+    "skills",
     "tools/std/CONTRACT.md",
     "cordis.patch.yml",
     "README.md",

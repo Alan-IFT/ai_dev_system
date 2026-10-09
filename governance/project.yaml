@@ -35,6 +35,80 @@ budgets:
   stale_days: 90
   work_item_stale_days: 14
 
+derived:                              # 01 §3.4 / 02 §9：随插件分发的标准技能是从标准生成的派生缓存；权威是 标准/ 与 templates/，重建命令 node scripts/build-skills.mjs
+  - artifact: skills/std-01-project-management.md
+    source: 标准/01-项目管理标准.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-02-architecture.md
+    source: 标准/02-项目架构描述规范.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-03-agent-context.md
+    source: 标准/03-Agent信息获取与上下文管理.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-04-reliability-ops.md
+    source: 标准/04-可靠性安全与运行维护.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/ADR.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/AGENTS.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/ARCHITECTURE.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/CONTEXT_MANIFEST.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/EVAL_MANIFEST.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/PRD.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/PROJECT_STATUS.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/README.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/SESSION_HANDOFF.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/WORK_ITEM.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/code-review.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/commit-and-version.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/delivery-gates.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/failure-log.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/observability.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/security.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/std-handoff.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/std-reviewer.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/agent-skills/testing.md
+    regen: node scripts/build-skills.mjs
+  - artifact: skills/std-templates.md
+    source: templates/文件树与落地路径.md
+    regen: node scripts/build-skills.mjs
+
 tailoring:
   - check: cross-repo
     applicable: false
