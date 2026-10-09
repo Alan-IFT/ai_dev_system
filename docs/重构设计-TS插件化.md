@@ -591,6 +591,58 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **O2 的类型守住**：把 `if (!Array.isArray(fn))` 改成恒假后，后面的 `fn.map` 在类型 `{}` 上不存在，TypeScript 报 TS2339，编译即拒绝。标 `typeGuarded`，不计入"被测试抓住"。
 - **对 `check_all` 汇总层的预告**：判据八的 `git grep` 子进程用 `hardenedEnv`（与 `drift`、`freshness` 同），Python 版是继承当前环境——这里 TS 比 Python 更严，属安全加固方向的有意差异，已记 D9；`__testCalls` 计数器只为自检里"一仓一次 git grep"那条探针（B20）留，生产路径恒不读它。
 
+### 12.31 汇总层 `check_all`：迁移设计（动手前，2026-10-08）
+
+**这是最后一块，也是唯一一块"不是检查器"的。** 它不判任何文档的对错，它负责：①把 11 个检查器串起来（发现、自检闸门、异常转未定、封签）；②例外登记的 join（唯一改 `registered` 的地方）；③出报告（文本、JSON、退出码）；④钉住"检查器自己是哪一套"（契约 §8 的身份）；⑤跨检查器的自检（同一事实只报一次这类，单个检查器看不见别人）。读完 Python 版 2061 行（`check_all.py`）后定如下。
+
+**行为清单（TS 版必须与 Python 版逐 id 相同；括号内是 Python 行号）**
+
+| # | 行为 | 说明 |
+|---|---|---|
+| 1 | 身份（`tool_identity`、`_identity_finding`、`_identity_void_finding`、`_sealed`；69–183、1859） | 扫描前后各取一次文件哈希，不一致整份作废只留一条未定。**哈希的文件集在 TS 版必须重新定义**，见下面"取舍 1" |
+| 2 | 发现与闸门（`discover`、`_gated_by_selftest`、`_run_one`；185–275） | 每个检查器先过自检闸门（自检不足 2 条、有一条不 PASS、没有自检、自检崩溃都转未定），再 `run`；`run` 的异常也转未定 |
+| 3 | 裁剪名校验（`_tailoring_unknown`；245） | 写了不存在的检查器名，记 `tailoring/unknown-check/<名>` 未定 |
+| 4 | `run_all`（1642） | 先 git 版本检查（过旧→整份未定）、再读配置（读不到→整份未定）、再裁剪名、再在 `scan_memo` 内跑全部检查器、再算覆盖边界、再 join 登记、最后封签 |
+| 5 | 例外登记 join（`_join_exceptions`、`_own_exceptions`；1725–1856） | **只在这里改 `registered`，不改 `status`**。过期/孤儿/坏行各出一条未定；项目自有例外（规则列不含 `/`）过期未关闭出 FAIL |
+| 6 | 报告（`render`、`_safe`、`config_outside_root`；1884–2015） | 首部身份行、配置行、排除行、登记行、计数行；FAIL→未定（未登记在前）→不适用逐条列；覆盖边界；结论行。**控制字符转义是安全属性**（文件名能伪造"结论："行），不能省 |
+| 7 | `main`（2027） | `--selftest`/`--json`/`--no-scope`/`--config`；退出码 FAIL→1、未登记未定→2、否则 0；自身崩溃→输出一行、退出 2 |
+| 8 | 自检（`--selftest` 与闸门之外的）| `_contract_examples_selftest`（3 条）、`_entry_smoke_selftest`（1 条）、`_shared_fact_selftest`（6 条，一条内含多个子断言）、`_embedded_readonly_selftest`（1 条，**对象已废弃**）、`_git_env_selftest`（1 条）、`_hostile_git_config_selftest`（1 条）、`_stdlib_selftest`（约 66 条，stdlib 层） |
+
+**取舍 1：TS 版的"检查器身份"哈希什么？** Python 版哈希 `check_all.py + stdlib.py + CONTRACT.md + checks/check_*.py`（源码文件）。TS 版的"决定行为的内容"是 `lib/**/*.js`（运行的是它），`src/` 只是它的来源，`lib/` 又由 `check-lib-sync` 钉住等于 `src/` 的构建。所以**哈希 `lib/` 下全部 `.js` + `CONTRACT.md`**（行尾归一化规则不变）；`lib/` 与 `src/` 的一致性由第四道闸门管，不由身份管（两者职责不同：身份回答"这次报告是哪一套跑出来的"，不回答"这一套是不是由当前源码构建的"）。**这会让 `tool-identity` 一项必然与黄金样本不同**，已在 §6 登记为预期差异，对比时排除。
+
+**取舍 2：Python 专有机制不迁，各自写清为什么没有对象。** 以下 stdlib 层探针在 TS 里没有可断言的对象，**不复刻、不假装通过**，在 `golden/expected-changes.json` 的 `vanished_probes` 里各写一条理由：
+
+| 探针（id 前缀 `stdlib/`） | 为什么没有对象 |
+|---|---|
+| `7011541d` 1200 层嵌套不抛 `RecursionError` | Python 递归上限；TS 版 YAML 解析的深度限制是另一个机制，由 `yaml.ts` 自己的测试钉（已有） |
+| `c7bca0ea` `read_bytes` 只做 3 次 `realpath` | 性能计数，对象是 Python 的 `os.path.realpath`；TS 用 `realpathSync.native`，次数由 `fs.ts` 的测试钉 |
+| `b1ec005d` 按源码加载、不读 `__pycache__` 里的 pyc | Node 没有 pyc；ESM 加载的就是 `lib/*.js`，其一致性由 `check-lib-sync` 钉 |
+| `831d0e65` 工具目录里同名标准库模块不被执行 | Python 的 `sys.path[0]` 劫持；Node 的模块解析不吃这个 |
+| `efb0793f` 检查器里 `sys.exit(0)` 转未定 | Node 没有 `sys.exit` 抛 `SystemExit`；`process.exit` 会直接结束进程，不是可捕获的异常——**这反而是个要正视的差异**，见取舍 3 |
+| `fe15947f` 字面在项目之外的路径不做 `realpath` 探测 | 这条对象是 `inside()`，TS 版 `fs.ts` 已迁并有同义断言（`fs.test.mjs`） |
+| `b73f92ac` 一次扫描 `discover` 一次、`ls-files` 不重跑 | TS 没有 `discover`（检查器在编译期登记，见取舍 4）；`ls-files` 缓存的断言保留，改成计数 `spawnSync` 调用 |
+
+另 `_embedded_readonly_selftest`（`shared-fact/251040cc`）的对象是 `.std/` 内嵌机制，已于 adoption 迁移时登记废弃（§12.28），不迁。
+
+**取舍 3：检查器里调 `process.exit` 怎么办。** Python 里 `sys.exit` 抛 `SystemExit`，汇总层能接住并转未定。Node 里 `process.exit()` 同步结束进程，**接不住**。TS 版的做法：检查器代码里**不许出现 `process.exit`**（用 `scripts/check-py-semantics.mjs` 同类的机械检查拦：`src/checks/` 与 `src/core/` 下出现即红）；这样"检查器崩溃"只剩抛异常一种形态，汇总层 `try/catch` 全接。这条规矩替代 `efb0793f`，但**不是同一个断言**，所以在 `added_probes` 里登记为新探针。
+
+**取舍 4：检查器怎么登记，不再用目录扫描。** Python 版 `discover()` 扫 `checks/check_*.py` 并按文件名排序加载——TS 编译后的 `lib/checks/` 也可以扫，但**扫目录让"新增一个文件就多一个检查器"，与身份哈希互相牵制**（契约 §8 特意写了"新增一个 `check_*.py` 也算变"）。TS 版改成**一张显式表**（`src/checks/index.ts`，11 项 `{name, module}`，按 Python 的排序结果固定次序），好处：次序确定不靠文件系统、增减检查器要改这张表（被 `check-lib-sync` 与测试钉住）、不需要动态 `import`。**输出次序必须与 Python 相同**（报告里的逐条次序按检查器次序），黄金样本按 `(check,id)` 排序比对，所以次序不影响验收，但文本报告的可读性要求保持。
+
+**取舍 5：`registered` 汇入与 `REGISTERED_PENDING`。** 汇总层迁完后，`golden-compare` 的 `REGISTERED_PENDING` 置 `false`，样本里 13+1 条带 `registered` 的条目从此完整比对（`id` + 到期日）。到期日来自**运行日**，样本在生成日冻结，`golden-compare` 已经冻结 `Date` 到 `MANIFEST.generated_at` 中午，登记册里写的绝对日期（如 `2027-03-02`）与之比较结果不变。
+
+**取舍 6：`cli.ts` 与 `std-check`。** 设计 §3 早定 `src/cli.ts` 是命令行入口，`package.json` 的 `bin` 声明 `std-check`。汇总层迁完才有东西可调，所以 CLI **在这一步一起做**：`std-check [项目根] [--selftest] [--json] [--no-scope] [--config PATH]`，参数与退出码与 `check_all.py` 一致。本仓提交闸门第一道从 `python tools/std/check_all.py` **改成 `node lib/cli.js`**（阶段 3 的前置；钩子的改动需要你批准，见下）。
+
+**验收口径**
+
+1. 4 个真实仓：`std-check` 对每个仓的 `(check,id,status,where,registered)` 与黄金样本逐条相同；`tool-identity` 一项按预期差异排除。
+2. `--selftest`：探针 (id,status) 集合与黄金样本相同，`vanished_probes`/`added_probes` 各有理由、被脚本打印。
+3. `main` 的 argv 与退出码：`--json`、`--no-scope`、`--selftest`、`--config` 内外、未登记未定→2、FAIL→1。
+4. 报告渲染：控制字符转义（含 U+2028/2029、ESC、双向控制符）、"结论"行只在末尾一处、登记行"N 行有效，其中 M 行已过期"措辞。
+5. 变异验证：对 `check_all.ts` 的每个判断分支至少一条变异，Windows 与 Ubuntu 各跑完整一遍。
+6. 本仓 `std-check` 退出码与 Python 版 `check_all.py` 相同（0），耗时在同一量级。
+
+**写入范围**：`src/check_all.ts`（汇总）、`src/cli.ts`、`src/checks/index.ts`、`src/core/` 里补 `scrubGitEnv`/`embeddedStdRel` 的对应物（后者废弃，见 D17）、`golden/expected-changes.json`、`scripts/golden-compare.mjs`（`REGISTERED_PENDING`）、`package.json`（`bin`）、测试与变异清单。**不碰** `tools/std/`（Python 版，阶段 4 才删）、`tools/dsh-std/`（用户真实 profile 在用）。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
