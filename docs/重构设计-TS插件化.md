@@ -657,6 +657,68 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - **一个事故，如实记**：中途 `mutate.mjs` 被我用 `job_kill` 取消，但它在 Windows 上收不到 `SIGINT`（`process.on('SIGINT')` 对 `TerminateProcess` 无效），源码留在了被变异的状态。因为 `src/check_all.ts` 当时是**未跟踪的新文件**，git 里没有它的版本，唯一的原文是 `mutate.mjs` 的临时备份——我先把备份另存一份、再终止进程、再拷回，并核对 156 个 `from` 各恰好出现一次才确认还原。**如果备份没有，这个文件就丢了。** 规矩：对未跟踪的源文件跑变异前先 `git add -N` 或另存；取消变异用等它自己跑完，不用 `job_kill`。
 - **Ubuntu**（`ubuntu:24.04` 容器）：全量测试 0 败；变异 156 条，149 条抓住，5 条与 Windows 相同的有证据不可观察，**另 2 条只在 Windows 上可区分、标 `winOnly`**（A5 `listJs` 不排序：容器里 `readdirSync` 的次序恰为码点序，实测；I4 展示路径换反斜杠：POSIX 路径本来不含反斜杠）。这是第三次 Ubuntu 与 Windows 在目录读取次序/路径形态上给出不同可观察性（cross-repo 的 E18/N8、本层的 A5/I4），规律已稳定：**凡变异依赖「目录读取次序」或「路径分隔符」的，只能在 Windows 上验证，Ubuntu 上必然等价。**
 
+### 12.33 阶段 3 设计：采用项目不再放标准——版本由锁文件钉、正文由插件以技能分发、项目只留检查开关（动手前，2026-10-09）
+
+**这一节改写了 §8。** 起因是 Alan 连续三问：①既然是插件，标准正文为什么还要在项目里留副本（`.std/`）？②`STANDARD_VERSION` 为什么要人维护？③`governance/` 在 DSH 生态里没有别的插件这样做，有必要留吗？下面是读了源码与三个采用项目的真实配置之后的答案，**不是凭印象**。
+
+#### 一、读源码得到的事实（deepseek-ai/deepseek-harness，`master`）
+
+| 事实 | 出处 | 结论 |
+|---|---|---|
+| `ctx.skills.registerProvider(() => provider)` 同步注册一个技能提供者，返回 disposer；`provider` 有 `name`、`list()`（候选）、`get(candidate)`（按需返回完整正文） | `docs/subsystems/skills.md`、`packages/skill/skill/README.md` | **插件可以随装随带地提供技能，不需要用户复制到 `~/.dsh/skills`** |
+| 官方样例 `dsh-skill-badge` 全文约 40 行：`inject: ['skills']`，`apply(ctx)` 里 `registerProvider`，正文放包内 `assets/*.md`，`resourceBase` 指向包内目录 | `packages/skill/skill-badge/src/index.ts` | 我们要做的就是这个形态，没有未验证的 API |
+| `dsh-tool-skill` 提供模型可见的目录与 `skill` 加载工具、`/name` 直接调用；`modelInvocable`/`userInvocable` 调用策略 | 同上 | 装了它的会话自动有"按需加载"，**与"沿用会话所选模型"一致：标准以技能形态交给会话模型，由它决定读哪一节** |
+| 其它 DSH 插件的状态：`~/.dsh/plugins/<名>/*.json`（跟用户/机器走）与 profile 里的挂载行 `config`（偏好） | 本机 profile 实查 | **没有插件在用户项目里留文件**——但它们存的全是**用户级**状态，而我们存的是**项目事实**（见三） |
+| 现在的 `package.json` `files` 白名单**不含 `标准/`、`templates/`** | `package.json` | **目前装到 profile 里的包没有标准正文**——分发正文要先把它们放进包 |
+
+#### 二、`STANDARD_VERSION` 的真实功能与去路
+
+读 01 §8 与 `adoption.ts`：它承载"项目显式评估后才升级、不在任务中自动跟随"这条治理要求，防的是"标准悄悄变了、检查结论随之变了"。**但 `adoption` 对它的值一个字也不核对**（源码自述"记得对不对一处也不判"），三个项目的升级记录里还留着"pull 后未改版本号 → 多 1 条 FAIL"这种顺序坑。**一份人维护、机器不核对的声明——这是最该被消灭的那类东西。**
+
+**去路：不留。**版本钉由 profile 的 `package.json` + `pnpm-lock.yaml` 承担（`dsh plugin add …#<tag>` 本来就写进去，机器维护、有完整性校验），报告里**自动**带上"本次检查依据的版本摘要"（已有的 `tool-identity` 摘要覆盖 `lib/` 与契约，再把 `标准/` 与 `templates/` 的内容哈希并入，改动量很小）。"项目显式评估升级"变成：升级是一次显式的 `dsh plugin update`，留痕在 lockfile 的 git 历史里；评估材料是升级前后同一项目的 `std-check --json` 逐 id 差异——**由工具产生，不由人记**。
+
+**接受的代价**（如实）：profile 是用户级的，三个项目共用一个 profile，所以**不能各自钉在不同版本**。这条能力（§10 的"采用项目钉旧 tag 不受影响"）在"只有一个维护者"的现状下是为不存在的场景付费；将来真有第二个使用者，再加"项目可选声明期望版本、不符则记未定"，是向后兼容的增量，现在不做。
+
+#### 三、`governance/project.yaml`：审计读数（只读，四份真实配置）
+
+| 读数 | 数 |
+|---|---|
+| 各项目声明的键数 | std 15、reservoir 17、cms 19、pmc 20 |
+| **与缺省值逐字相同的声明**（删了零行为变化） | **18 处**：`budgets.entry_lines`（4/4）、`stale_days`（3/4）、`work_item_stale_days`（3/4）、`layout.docs_root`（4/4）、`layout.work_root`（2）、`metadata_fields`（2） |
+| 落点声明（`layout.artifacts` + `entry`）共 33 条 | 候选已覆盖的 13 条（冗余）；候选**不**覆盖、必须声明的 19 条；无候选表的 1 条 |
+
+**读数修正了我先前的一个说法**：我曾说"指向性事实 AI 自己能找到，可以删"。19 条必须声明的里，很多是项目的**真实设计选择**——Reservoir 与 CMS 把 `status`、`acceptance`、`handoff` 三个 role **全指向同一个目录** `docs/state/work`（"一件工作项一份文件，状态、验收、交接都在里面"），注释里写明"与 work_current 同指，不另造第二处状态表示"。检查器按候选去找 `WORK.md` 找不到就只会记未定。**所以这些声明不是"没约定好位置"，而是"项目对标准某条要求的映射"**——这正是 Alan 最初设想里**本该由 AI 根据标准生成并维护**的东西。区别在于：这不是"删除"，而是"**改变谁来写**"。
+
+**放手给 AI 的分界线是方向，不是类别**（回应 Alan"现在 AI 对软件工程的熟悉高于工程师"）：
+
+| 方向 | 谁可以改 | 例 |
+|---|---|---|
+| **描述现状**（让检查更准、更严） | AI 自主维护，提交即可 | 落点映射、`frozen` 收窄、`metadata_required` 扩大、预算收紧、`repos` |
+| **放宽检查**（让检查更松） | AI 可以提议，**须有人确认** | `tailoring`、`exceptions`、预算调大、把目录移进 `frozen`、`rule_files` 收窄 |
+
+原因**不是"AI 不懂工程"**，而是利益冲突：让被检查的一方（同一个 AI）自己决定"这项我不用查了"，等于运动员兼裁判。"把目录移进 `frozen`"是典型陷阱——它既是"描述现状"又是"放宽检查"。这个判断**可以做成确定性的**：`std-check` 对比提交前后的配置，凡使检查覆盖范围缩小的变更标 `放宽` 并要求批准，变严的放行。
+
+#### 四、阶段 3 的范围（Alan 2026-10-09 确认）
+
+**做**（确定、可由黄金样本证明零行为变化）：
+1. **`标准/` 与 `templates/` 入包**，插件新增**标准技能提供者**（`registerProvider`，正文随包、只读）；`files` 白名单补上，**有测试断言装到的包里有它们**。
+2. **删 `.std/`**（`git rm -r .std`）、**删 `governance/STANDARD_VERSION`**；`adoption` 检查器的"版本记录"判据随之改写（见下）。
+3. **删 18 处与缺省相同的冗余声明**（机械、零行为变化）。
+4. **提交钩子**改调 `std-check`（§4.1 已实测的写法：用 `DSH_HOME` 定位 node，不依赖 PATH）。
+5. **`AGENTS.md` 等自然语言文档不由脚本改**：脚本只输出"命中行 + 建议改法"清单，交会话模型逐项处理、人审阅（与偏好"可由模型可靠完成的理解、判断、归纳不写成需长期维护的代码"一致）。
+
+**不做、记为下一个里程碑**：落点映射由 AI 生成维护、"放宽检查须人确认"的确定性判定。它改变检查器输入语义，黄金样本会有大量有意差异，**不与分发方式的改变绑在一起**——否则出了差异分不清是哪件事引起的。
+
+#### 五、`adoption` 检查器怎么改（需要同步，避免文档先于实现）
+
+"版本记录"判据的对象（`governance/STANDARD_VERSION`）消失，原判据意图是"升级是显式的、可追溯的"。TS 版改为：①读**报告自带的版本摘要**（工具自己产生，不再需要项目记）；②`compatibility.policy` 判据**不变**（它读 `project.yaml`，与版本无关）；③黄金样本里 `adoption/version-record*` 等 id 登记为 `vanished_findings`（理由：对象已由 lockfile 取代）。**这是对已验收的 `adoption` 的又一次有意改动，要走与 §12.28 同样的登记流程。**
+
+#### 六、验证与回退
+
+- **合成夹具**（本仓内，`test/fixtures/adopter/`）：含 `.std/` 副本、`governance/STANDARD_VERSION`、三种钩子形态（`.githooks/pre-commit`、pre-commit 框架的折叠块 YAML、自写的 `tools/hooks/common.sh`）、冗余声明、`CLAUDE.md`/`.claude/` 残留。迁移前后各跑 `std-check`，**逐 id 对比**，差异只允许来自登记的预期消失项。
+- **三个真实项目只写材料**：每个项目一份"改什么、验什么、怎么回退"，**不执行**（硬约束 4）。回退 = `git revert` 迁移提交。
+- **三个项目的专属点**（读真实文件所得，不是推测）：Reservoir 钩子是 `.githooks/pre-commit`，`exec "$PY" .std/tools/std/check_all.py`，借 `pick-python.sh`；CMS 是 `.pre-commit-config.yaml` 的折叠块（`entry: >-`），且 `layout.rule_files` **自己声明**了 `.claude/` 与 `CLAUDE.md`（"退役仓可能仍按旧宿主落地，删了是放宽扫描"）——**保不保留是 CMS 自己的决定**，脚本只列出、不替它定；PMC 的钩子是自己的 `tools/hooks/{pre-commit,pre-push,common.sh}`，选 Python 用自己的 `hook_pick_python`，大量 `docs/plans/`、`分析/` 历史文档引用 `.std/` 路径——**历史记录，不改**。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -718,6 +780,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-09 | **阶段 3 设计落盘**（§12.33），改写 §8：采用项目不再放标准正文与版本声明——版本由 lockfile 钉、报告自动带摘要，正文由插件以技能分发（读 deepseek-harness 源码验证 `registerProvider` 可行）；`project.yaml` 输入面只读审计（18 处冗余声明、13/19 条落点冗余/必须声明）；"AI 维护配置、放宽检查须人确认"记为下一个里程碑，不与迁移绑定 | 源码出处见 §12.33 一；审计读数见 §12.33 三；`files` 白名单不含 `标准/` 的缺口已发现，待入包 |
 | 2026-10-08 | **汇总层 `check_all` 迁完**，记 §12.32；新增 `std-check` 命令入口（`bin`）；发现并修复迁来的 `pyStrip` 是平方级（10 万空白 11 秒）、夹具 git 调用未清钩子注入的 `GIT_DIR`（真实复现过 `core.bare` 被改）；`check-py-semantics` 加 `process.exit` 规则并扩到检查器与汇总层 | 4 个真实仓整体逐条一致含 `registered` 字段；自检集合与样本相同；变异 156 条 Windows 全抓住（5 条有实测证据的不可观察）；Ubuntu 全量测试 0 败，变异另有 2 条 winOnly |
 | 2026-10-08 | **第十个检查器 `cross_repo` 迁完**，记 §12.30；**第一次有意偏离 Python 的默认值**（退役仓默认规则文件清单去掉 `.claude/` 与 `CLAUDE.md`，对黄金样本零影响）；暴露并修复一个把"一致"做空的回放缺口（样本生成端建了符号链接而回放端没建，相关场景按"没有符号链接"跑也"一致"）；边界字符类逐码点量出 İ ı 的缺口 | 4 个真实仓逐条一致、selftest 17 条集合相同、148 个整仓场景、变异 318 条两平台各跑完整一遍；Ubuntu 暴露两处样本生成端的跨平台问题 |
 | 2026-10-07 | **第九个检查器 `single_authority` 迁完**，记 §12.29；新增**整仓场景样本**（`golden/unit/sa-scenarios.json`，24 个场景，Python 完整输出逐字段回放）；**登记 D21**（子模块形态的路径在 Windows 上 Python 记「读不了」是平台副作用，TS 两平台统一为「不在」）；追查一个「偶发失败」时发现源码里留着两处变异后的文本（来源**未明**，如实记为未解），立下「变异作业结束、中断或出现无法解释的不稳定后，用清单反查源码」的固定动作 | 4 个真实仓逐条一致、selftest 18 条集合相同、变异 243 条（15 条如实标注）；第一轮漏 78 条，几乎全落在「多文件整体行为」，靠场景样本补上 |
