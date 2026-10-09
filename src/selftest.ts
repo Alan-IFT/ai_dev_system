@@ -336,7 +336,8 @@ export function stdlibSelftest(): Finding[] {
       {
         const proj = fresh('p33'), outd = fresh('p33-out')
         // D-135：adoption 不再读 .claude/settings.json（免审批清单判据记 SKIP），该链接已无对象，从用例里去掉
-        const links: Record<string, string> = { 'governance/STANDARD_VERSION': 'sv', 'AGENTS.md': 'agents.md', dec: 'dec', 'st.md': 'st.md' }
+        // 设计 §12.33：adoption 也不再读 governance/STANDARD_VERSION（版本改由锁文件钉住），这条链接同样去掉；出仓的探测对象剩 drift 读的 dec 与 st.md
+        const links: Record<string, string> = { 'AGENTS.md': 'agents.md', dec: 'dec', 'st.md': 'st.md' }
         let ok = true
         try {
           for (const [rel, tgt] of Object.entries(links)) { mkdirSync(dirname(join(proj, rel)), { recursive: true }); symlinkSync(join(outd, tgt), join(proj, rel)) }
@@ -349,11 +350,11 @@ export function stdlibSelftest(): Finding[] {
           }
           const absent = probeAll()
           mkdirSync(join(outd, 'dec'), { recursive: true })
-          for (const tgt of ['sv', 'agents.md', 'st.md']) writeText(join(outd, tgt), 'x\n')
+          for (const tgt of ['agents.md', 'st.md']) writeText(join(outd, tgt), 'x\n')
           const present = probeAll()
           const outs = absent[0].map(([, i]) => i).filter((i) => i.includes('/outside-root/')).sort()
           const diffs = absent[0].filter((x) => !present[0].some((y) => J(y) === J(x)))
-          add('出仓软链接：目标在不在结论一致，且记 outside-root', J(absent) === J(present) && outs.length === 3, [outs, diffs])
+          add('出仓软链接：目标在不在结论一致，且记 outside-root', J(absent) === J(present) && outs.length === 2, [outs, diffs])
         }
       }
       // R1-06：已声明入口撑过读取上限，照数行（下界）判超预算 FAIL，不落未定
