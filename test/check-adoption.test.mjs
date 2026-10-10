@@ -1,15 +1,11 @@
-// adoption 检查器的验收测试：selftest 的 (id,status) 集合与 Python 黄金样本相同（扣掉 golden/expected-changes.json 里预期消失/新增的）；对 4 个真实仓逐条一致；变异验证靠这里的直接断言变红。
-// 期望值取自 Python 版实测。Python 版 run() 多出的内嵌只读、免审批清单两条 SKIP，以及设计 §12.33 起移除的版本记录判据（STANDARD_VERSION），都不迁，见 expected-changes.json。
+// adoption 检查器的验收测试：selftest 的 (id,status) 清单钉在 test/cases/selftest-ids.mjs；变异验证靠这里的直接断言变红。
+// 最初的清单取自 Python 版实测，但扣掉了 Python 版 run() 多出的内嵌只读、免审批清单两条 SKIP，以及设计 §12.33 起移除的版本记录判据（STANDARD_VERSION），
+// 并加上 TS 新增的两条；这些调整及理由登记在 test/cases/expected-changes.mjs。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { NAME, run, scope, selftest } from '../lib/checks/adoption.js'
-
-const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
-const changes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'expected-changes.json'), 'utf8'))[NAME]
+import { ADOPTION } from './cases/selftest-ids.mjs'
+import { ADOPTION as changes } from './cases/expected-changes.mjs'
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'adoption'))
 
@@ -18,12 +14,10 @@ test('expected-changes.json 里的每一条都有理由（不静默）', () => {
   for (const v of changes.renamed_findings) assert.ok(v.from && v.to && v.reason.length > 20)
 })
 
-test('selftest：每条都 PASS，且 (id, status) 集合 = 黄金样本 − 预期消失 + TS 新增', () => {
+test('selftest：每条都 PASS，且 (id, status) 清单与 selftest-ids 完全相同', () => {
   const got = selftest()
   assert.deepEqual(got.filter((f) => f.status !== 'PASS').map((f) => `${f.title}｜${f.evidence}`), [])
-  const gone = new Set(changes.vanished_probes.map((v) => v.id))
-  const want = [...probes.filter((p) => !gone.has(p.id)).map((p) => [p.id, p.status]), ...changes.added_probes.map((v) => [v.id, 'PASS'])].sort()
-  assert.deepEqual(got.map((f) => [f.id, f.status]).sort(), want)
+  assert.deepEqual(got.map((f) => [f.id, f.status]).sort(), ADOPTION.map(([id, status]) => [id, status]).sort())
 })
 
 // ---- 直接断言（所有平台都跑）----

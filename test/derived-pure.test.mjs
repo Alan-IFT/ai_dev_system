@@ -7,9 +7,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mentions, headerDeclares, headerGenerationHint, headerOfBytes } from '../lib/checks/derived.js'
 import { decodeUtf8Ignore } from '../lib/core/utf8.js'
+import { DECLARES, DECODE_IGNORE, HEADER_BYTES, HINT, MENTIONS } from './cases/derived.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'derived.json'), 'utf8'))
+const gold = { declares: DECLARES, decode_ignore: DECODE_IGNORE, header_bytes: HEADER_BYTES, hint: HINT, mentions: MENTIONS }
 const bytesOf = (hex) => Buffer.from(hex, 'hex')
 
 test('样本规模', () => assert.ok(gold.mentions.length >= 60 && gold.declares.length >= 35 && gold.hint.length >= 45 && gold.header_bytes.length >= 45 && gold.decode_ignore.length >= 40))

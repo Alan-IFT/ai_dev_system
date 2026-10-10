@@ -10,10 +10,11 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { NAME, run, scope, selftest } from '../lib/checks/entry_budget.js'
 import { loadConfig } from '../lib/core/config.js'
+import { ENTRY_BUDGET } from './cases/selftest-ids.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const probes = ENTRY_BUDGET.map(([id, status]) => ({ id, status }))
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'entry-budget'))
 

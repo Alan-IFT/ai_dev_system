@@ -1,6 +1,6 @@
 ---
 status: active
-updated_at: 2026-10-06
+updated_at: 2026-10-10
 ---
 
 # 重构设计：标准与工具改为一个全 TypeScript 的 DSH 插件包
@@ -793,6 +793,40 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **未覆盖**（同 §12.35）：模型在完整回合里看到并加载技能；桌面 Plugins 页的点击安装；用户真实 profile 的换装（阶段 4）。
 
+### 12.37 黄金数据改为 TS 自己的用例表（阶段 4，2026-10-10）
+
+**起点**：迁移期留下 `golden/`（约 3.7 MB）：24 个 Python 生成脚本、4 个对 Python 的比对脚本，以及 Python 在各输入上的实测输出（`unit/*.json` 25 个、`samples/` 6 个、`expected-changes.json`）。迁移已证毕（删之前最后一次全量比对：各检查器逐个、4 个真实仓整体、汇总层自检全部一致），这些东西的"对象"（Python 版）将被删除，留下的数据若还是"依赖已删系统的外部 JSON"，是长期包袱。Alan 的要求："直接重构成 TS 版本……这样长期来看，维护负担应该会小很多，且更简洁"。
+
+**做法**：`test/fixtures/*.json` 不再作为数据源，改为 `test/cases/*.mjs`——**人读、可 diff、带分组注释的用例表**，期望值今后手工维护（行为有意改变时改这里并说明原因）。两类处理：
+
+| 类 | 做法 | 验收 |
+|---|---|---|
+| 纯函数表（pystr、repr、text、links、evidence、single-authority、derived、freshness、drift、adoption 的 compat、stdlib 的 config／exceptions／shell／pure／fs／git、pathpred、glob、tracked、whitespace、utf8-start） | `scripts/fixture-to-cases.mjs` **无损**搬出：回读后与原 JSON 逐键深度相等；测试只换数据源，逻辑一字不动 | 删夹具前再核对一次逐键相同；数学上不可能让变异结局变坏，所以不再为它们各跑一轮变异 |
+| 有"笛卡尔积"冗余的大表（`stdlib-docs`：172 种文本 × 47 组字段名 = 8178 条，其中 7884 条是"没找到"；`codepoint`：2×5×2×4 网格） | **提炼**：只保留命中行、每种文本在默认名字集下的行，以及变异对比里发现仍需要的行；codepoint 改为公式生成输入加两张小期望表 | **变异对比**：`scripts/mutate-compare.mjs` 记录提炼前后每条变异的结局，不许有一条变坏。docs 清单 111 条，提炼后 0 条变坏 |
+
+**变异对比第一次就抓出提炼丢了一个类别**：docs 的变异 F31（折叠特例表里误加 ß→s）提炼后不再被抓住——原夹具里只有 3 条（`ß: 1`、`ẞ: 1` 在名字集 `["s"]` 下的"没找到"）能抓住它，而我的取舍规则"每种文本只留默认名字集那一行"把它们丢了。补回 2 条后 111 条全部抓住。**这就是不能凭印象挑"代表"的原因**：变异清单不是装饰，它是提炼的裁判。
+
+**转换器自己的一个坑（也是被核对抓出来的）**：把 `{"__proto__":"x"}` 写成对象字面量 `{ __proto__: x }` 时，JS 把它当"设置原型"而不是自有属性，期望悄悄变成 `{}`——yaml 夹具里"配置写 `__proto__` 键"的 3 条因此在第一次回读时与原 JSON 不等。`fixture-to-cases.mjs` 现在对 `__proto__` 键一律写成计算属性。**无损搬迁必须回读比对，否则这类静默失真看不出**。
+
+**同时发现并修了一条基线里就存在的变异失效**：docs 清单的 F24、H10 两条的锚点早在某次重构后失效（锚点在源码里出现 0 次），`mutate.mjs` 把它们判为"无效"而不是"漏"——上一轮"全部抓住"的说法在这两条上其实没有被验证过。已按现在的源码重写；另有 cross-repo 的 N8（判据七不处理 UNC 路径）在基线里是"没被抓住"：原夹具和现有测试都没有覆盖，补了一条测试（Windows 上才有区分力），再用 N8 单条变异验证抓得住。**盘点基线的价值之一就是暴露这类早就存在的盲区**。
+
+**清单的选取原则**（`selftest-ids`）：各检查器的 `selftest()` 应产出的 (id, status) 清单，取自**黄金探针**而不是当前 selftest 的输出——这样断言与改前等价，不会把"当前的偏差"固化成期望。adoption 一栏已扣掉随废弃机制消失的 11 条、加上 TS 新增的 2 条，理由登记在 `test/cases/expected-changes.mjs`。
+
+**登记（有意不一致）**，原在 `golden/expected-changes.json`，现为 `test/cases/expected-changes.mjs`，Python 版删除后不再被比对脚本读取，只作为"这些检查为什么没有了"的记录，并被两个测试引用：
+
+| 范围 | 条目 | 为什么没有了 |
+|---|---|---|
+| adoption 的 finding | `60a5c980`（内嵌目录只读：非内嵌运行，不适用） | 它的唯一内容是在说一个已不存在的机制（采用项目内嵌 `.std/`，D-135 起不再有） |
+| | `settings-absent`（免审批清单判据本宿主无对象，未判） | 读的是 Claude Code 的 `.claude/settings.json`，该宿主已废弃；DSH 的审批策略是会话级旋钮，没有项目级入库 |
+| | `8baf1c92`、`8714bd62`（`STANDARD_VERSION` 记了版本值／采用日期） | 判据对象（项目里的版本文件）已移除，版本改由 profile 的锁文件钉住、报告自带身份摘要（§12.33） |
+| adoption 的探针 | 11 条消失、2 条新增 | 同上：内嵌机制、版本记录判据随之删除；`compatibility.policy` 与"裁剪 adoption 时不可裁剪"各由一条新探针接住（`f32dd8ac`、`b6031618`） |
+| adoption 的重命名 | `e4ecca44` → `0a63fe45` | "项目已裁剪本检查"的标题去掉了"内嵌目录只读"，id 是标题哈希所以跟着变；四个真实仓都没裁剪 adoption，SKIP 不可登记，无失效后果 |
+| 汇总层的探针 | Python 专有现象 9 条消失、1 条新增 | 递归上限、`realpath` 调用次数、`__pycache__`、`sys.path[0]` 劫持、`sys.exit` 转未定、`discover` 缓存——对象是 Python 的机制，Node 里不存在；`sys.exit` 的替代是 `scripts/check-py-semantics.mjs` 对 `process.exit` 的机械禁止（`stdlib/3ac5e0b9`） |
+
+**当前状态**：`test/cases/` 有 25 个用例表（共约 599 KB），`test/fixtures/` 剩 `codepoint.json`（336 KB）、`cr-scenarios.json`（1056 KB）、`sa-scenarios.json`（167 KB）。三个剩余的是整仓场景快照：`cr-scenarios`（148 个 cross_repo 场景，1 MB）、`sa-scenarios`（24 个 single_authority 场景）、`codepoint`（已改为公式，待变异对比后删）。场景的提炼需要先弄清"每个场景在抓哪些变异"（后台跑 `_distill` 对 318 条变异逐条记录），再决定哪些场景可以合并、哪些必须保留。
+
+**没做、明确留着**：场景快照的提炼（上面）；`golden-compare` 系列脚本已删除，所以"对 4 个真实仓逐条一致"的测试不再存在——这个保护被**有意放弃**（对象是 Python 版），换成的是"`std-check` 对本仓实跑退出 0"与每个检查器的 selftest 清单。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -854,6 +888,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-10 | **黄金数据改为 TS 用例表**，记 §12.37：24 个纯函数夹具无损搬出（回读逐键相同）；stdlib-docs 提炼（变异对比第一次就抓出丢了 F31 类别，补回）；codepoint 改公式；各检查器的 selftest 清单取自黄金探针；expected-changes 登记保留为 `test/cases/expected-changes.mjs`；`mutate-compare.mjs`／`fixture-to-cases.mjs` 两个工具；顺带暴露基线里早就失效的两条变异锚点（F24、H10）与一个真盲区（N8） | 删夹具前每批都做逐键核对；转换器抓出 `__proto__` 静默失真一处 |
 | 2026-10-10 | **打预发布 tag `2026-10-10-pre.1`（`main` 的 `cdca3eb`，不动 `release`）并从 tag 在全新隔离 DSH 里复验**，记 §12.36；已装位置的 `cli.js` 检查本仓与工作区 `lib` 逐条相同、对 Python 只差登记过的 4 条；`migrate` 在已装态下钩子步骤解除 blocked | 隔离环境 `dshtag-*` 全程；探针经真实 `ctx.skills`／`ctx.tools`；用户真实 profile 未动 |
 | 2026-10-10 | **预发布：在真实 DSH 里经安装通道装入验证**，记 §12.35；**抓出单测看不见的缺陷**——技能注册写在 `inject = []` 的守卫 `apply` 里，真实 DSH 取 `ctx.skills` 抛错且被 `try/catch` 吞成一条 warn（功能静默失效）；拆成守卫与技能两个入口、`cordis.patch.yml` 挂两行；禁用 `dsh-skill` 的对照实验证明守卫不受拖累 | 隔离 `DSH_HOME` 全程；探针经真实 `ctx.skills`／`ctx.tools`；技能变异 15 条、1 条类型守住；用户真实 profile 一字未动 |
 | 2026-10-09 | **阶段 3 材料完成**：`std-check migrate`（只读方案，不写项目）记 §12.34；对三个真实项目实读后修掉三处缺陷（固定候选钩子也须真调旧检查器、钩子目录里的 .md 不是钩子、frozen 项不能用词边界）；端到端测试按方案真执行一遍并对比迁移前后，**第一次就抓出一条没预料的差异**（links 聚合 PASS 换 id），"成对"口径从中长出；§8 标注已被取代 | 测试 1285 条 Windows／Ubuntu 均 0 败；变异 29 条，28 抓住、1 条有实测证据的不可观察；四个真实仓整体比对仍逐条一致 |

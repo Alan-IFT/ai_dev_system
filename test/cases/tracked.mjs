@@ -1,0 +1,107 @@
+// tracked 的规格（测试 tracked.test.mjs）
+// 行为规格：各函数在各输入上应有的返回值。最初取自迁移期对 Python 版的实测（原为 tracked.json），Python 版与生成脚本已删除；
+// 今后行为有意改变时手工改这里的期望值并说明原因。提炼的验收见 scripts/mutate-compare.mjs（变异清单每条的结局不许变坏）。
+
+/** cases（22 条） */
+export const CASES = [
+  { files: ['.dot/in.md', '.gitignore', '.hidden.md', 'README.md', 'a,b.md', 'a.MD', 'b.markdown', 'c.txt', 'docs.md', 'docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'e.md.bak', 'm1.json', 'm[1].json', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], patterns: null, problem: null },
+  { files: ['.dot/in.md', '.hidden.md', 'README.md', 'a,b.md', 'docs.md', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], patterns: ['*.md'], problem: null },
+  { files: ['b.markdown'], patterns: ['*.markdown'], problem: null },
+  { files: ['.dot/in.md', '.hidden.md', 'README.md', 'a,b.md', 'b.markdown', 'docs.md', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], patterns: ['*.md', '*.markdown'], problem: null },
+  { files: ['docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md'], patterns: ['docs'], problem: null },
+  { files: ['docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md'], patterns: ['docs/'], problem: null },
+  { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md'], patterns: ['docs/state/work'], problem: null },
+  { files: [], patterns: ['nope'], problem: null },
+  { files: [], patterns: ['*.nope'], problem: null },
+  { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md'], patterns: ['docs/*.md'], problem: null },
+  { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md'], patterns: ['docs/**/*.md'], problem: null },
+  { files: ['.dot/in.md', '.hidden.md', 'README.md', 'a,b.md', 'docs.md', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], patterns: [':(top)*.md'], problem: null },
+  { files: ['a.MD', 'docs/UPPER.MD'], patterns: ['*.MD'], problem: null },
+  { files: [], patterns: ['[ab].md'], problem: null },
+  { files: ['weird[1].md'], patterns: ['weird[1].md'], problem: null },
+  { files: ['m1.json', 'm[1].json'], patterns: ['m[1].json'], problem: null },
+  { files: [], patterns: ['?.md'], problem: null },
+  { files: ['.dot/in.md', '.gitignore', '.hidden.md'], patterns: ['.*'], problem: null },
+  { files: ['中文.md'], patterns: ['中文.md'], problem: null },
+  { files: ['目录/文档.md'], patterns: ['目录'], problem: null },
+  { files: ['.dot/in.md', '.gitignore', '.hidden.md', 'README.md', 'a,b.md', 'a.MD', 'b.markdown', 'c.txt', 'docs.md', 'docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'e.md.bak', 'm1.json', 'm[1].json', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], patterns: [], problem: null },
+  { files: null, patterns: [''], problem: 'git ls-files 退出码 128：fatal: empty string is not a valid pathspec. please use . instead if you meant to match all paths' },
+]
+
+/** files（32 条） */
+export const FILES = [
+  'README.md',
+  'a.MD',
+  'b.markdown',
+  'c.txt',
+  'docs/x.md',
+  'docs/sub/y.md',
+  'docs/sub/deep/z.md',
+  'docs/state/work/WI-001-a.md',
+  'docs/state/work/WI-002-b.md',
+  'docs/state/work/notes.md',
+  'docs/state/work/artifacts/out.md',
+  'docs/state/work/sub/WI-009.md',
+  '中文.md',
+  '目录/文档.md',
+  'sp ace.md',
+  '.hidden.md',
+  '.dot/in.md',
+  'weird[1].md',
+  'w#h.md',
+  'm[1].json',
+  'm1.json',
+  'a,b.md',
+  'dup.md',
+  'x/dup.md',
+  'docs/UPPER.MD',
+  'docs.md',
+  'docsx/n.md',
+  'work/current.md',
+  'e.md.bak',
+  'srt/Ａ.md',
+  'srt/😀.md',
+  'srt/z.md',
+]
+
+/** not_made（3 条） */
+export const NOT_MADE = [
+  'star*.md',
+  'q?.md',
+  'col:on.md',
+]
+
+/** markdown_under（15 项） */
+export const MARKDOWN_UNDER = {
+  '': { files: ['.dot/in.md', '.hidden.md', 'README.md', 'a,b.md', 'a.MD', 'docs.md', 'docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], problem: null },
+  ' docs ': { files: ['docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md'], problem: null },
+  '.': { files: ['.dot/in.md', '.hidden.md', 'README.md', 'a,b.md', 'a.MD', 'docs.md', 'docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md', 'docsx/n.md', 'dup.md', 'sp ace.md', 'srt/z.md', 'srt/Ａ.md', 'srt/😀.md', 'w#h.md', 'weird[1].md', 'work/current.md', 'x/dup.md', '中文.md', '目录/文档.md'], problem: null },
+  './docs': { files: [], problem: null },
+  docs: { files: ['docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md'], problem: null },
+  'docs/': { files: ['docs/UPPER.MD', 'docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md', 'docs/sub/deep/z.md', 'docs/sub/y.md', 'docs/x.md'], problem: null },
+  'docs/state/work': { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md'], problem: null },
+  'docs/state/work/': { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/artifacts/out.md', 'docs/state/work/notes.md', 'docs/state/work/sub/WI-009.md'], problem: null },
+  'docs/sub': { files: ['docs/sub/deep/z.md', 'docs/sub/y.md'], problem: null },
+  'docs/sub/deep': { files: ['docs/sub/deep/z.md'], problem: null },
+  'docs\\sub': { files: ['docs/sub/deep/z.md', 'docs/sub/y.md'], problem: null },
+  docsx: { files: ['docsx/n.md'], problem: null },
+  nope: { files: [], problem: null },
+  work: { files: ['work/current.md'], problem: null },
+  '目录': { files: ['目录/文档.md'], problem: null },
+}
+
+/** work_items（12 项） */
+export const WORK_ITEMS = {
+  '': { files: ['.hidden.md', 'README.md', 'a,b.md', 'a.MD', 'docs.md', 'dup.md', 'sp ace.md', 'w#h.md', 'weird[1].md', '中文.md'], problem: null },
+  ' docs/state/work ': { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/notes.md'], problem: null },
+  '.': { files: ['.hidden.md', 'README.md', 'a,b.md', 'a.MD', 'docs.md', 'dup.md', 'sp ace.md', 'w#h.md', 'weird[1].md', '中文.md'], problem: null },
+  './docs/state/work': { files: [], problem: null },
+  docs: { files: ['docs/UPPER.MD', 'docs/x.md'], problem: null },
+  'docs/state/work': { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/notes.md'], problem: null },
+  'docs/state/work/': { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/notes.md'], problem: null },
+  'docs/state/work/artifacts': { files: ['docs/state/work/artifacts/out.md'], problem: null },
+  'docs/sub': { files: ['docs/sub/y.md'], problem: null },
+  'docs\\state\\work': { files: ['docs/state/work/WI-001-a.md', 'docs/state/work/WI-002-b.md', 'docs/state/work/notes.md'], problem: null },
+  nope: { files: [], problem: null },
+  work: { files: ['work/current.md'], problem: null },
+}

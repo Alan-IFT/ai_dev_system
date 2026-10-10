@@ -5,9 +5,10 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pyRepr } from '../lib/core/repr.js'
+import { STR, OTHER, NONPRINTABLE_RANGES } from './cases/repr.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'repr.json'), 'utf8'))
+const gold = { str: STR, other: OTHER, nonprintable_ranges: NONPRINTABLE_RANGES }
 
 test('样本规模', () => assert.ok(gold.str.length >= 60 && gold.other.length >= 30 && gold.nonprintable_ranges.length > 100))
 

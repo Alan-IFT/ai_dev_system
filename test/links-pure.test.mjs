@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { maskCode, slug, atxTitle, titles, anchorsOf, unquote, _regexForTest } from '../lib/checks/links.js'
+import { ANCHORS, ATX, LINKS, MASK, SKIP, SLUG, SPACESET, SUFFIX, TITLES, UNQUOTE, WINABS, WORDSET_COUNT, LN_MINUS_W, W_MINUS_LN } from './cases/links.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'links.json'), 'utf8'))
+const gold = { anchors: ANCHORS, atx: ATX, links: LINKS, mask: MASK, skip: SKIP, slug: SLUG, spaceset: SPACESET, suffix: SUFFIX, titles: TITLES, unquote: UNQUOTE, winabs: WINABS, wordset_count: WORDSET_COUNT, LN_minus_w: LN_MINUS_W, w_minus_LN: W_MINUS_LN }
 const cmp = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 test('样本规模', () => assert.ok(gold.slug.length >= 250 && gold.mask.length >= 40 && gold.titles.length >= 50 && gold.links.length >= 80 && gold.unquote.length >= 80))

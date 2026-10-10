@@ -1,44 +1,40 @@
-// core/docs 的单元测试：对着 Python 版的黄金样本（golden/unit/stdlib-docs.json）逐条比对。
+// core/docs 的单元测试：对着 test/cases/docs-cases.mjs 里的行为规格（各函数在各输入上应有的返回值）逐条比对。
+// 规格最初取自 Python 版 stdlib 的实测，Python 版已删除；用例表按行为类别分组，期望值今后手工维护。
 // find_field 的正则依赖 Python re 的语义（Unicode 大小写折叠、空白集合、回看、行首），是最容易在 JS 里悄悄不同的地方，输入给得最密。
-// 黄金样本里的长输入只存了长度与 sha1，测试按同样的生成规则重建并核对 sha1。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createHash } from 'node:crypto'
+import { join } from 'node:path'
+import { FIELD, FIELD_LONG, LONG_TEXTS, HEAD, STATUS, CLEAN, UNDER, NAME, REBASE, STATUS_KIND_CFGS, STATUS_KIND, CFG, ENTRY_FS } from './cases/docs-cases.mjs'
 import { findField, headOf, itemStatus, clean, under, isWorkItemName, rebaseDocs, docsRootOf, workRoot, entryFiles, inFrozen, isTailoredOut, artifactTailored, dateFieldsOf, statusKind, normRel, ENTRY_CANDIDATES, STATUS_FIELDS } from '../lib/core/docs.js'
 
-const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-docs.json'), 'utf8'))
 
 const canon = (v) => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
 const run = (fn) => { try { return { ok: fn() } } catch (e) { return { raised: e.name } } }
-const sha1 = (s) => createHash('sha1').update(s, 'utf8').digest('hex').slice(0, 10)
 
-// 长输入按黄金样本脚本里的生成规则重建
-const LONG = [
-  'x'.repeat(500), '*'.repeat(5000), '*'.repeat(5000) + '状态：z', '状态' + '*'.repeat(5000) + '：z', '状态：z' + '*'.repeat(5000), ' '.repeat(5000) + '状态：z', '\n'.repeat(3000) + '状态：z',
-  'x'.repeat(4100) + '\n状态：late', '状态：early\n' + 'x'.repeat(4100), '---\n' + 'a: b\n'.repeat(1000) + 'status: late\n---\n', '# T\n' + 'x'.repeat(3990) + '\n## S\n状态：z',
-]
-const longBySha = new Map(LONG.map((t) => [sha1(t), t]))
-const resolveText = (label) => typeof label === 'string' ? label : (longBySha.get(label.sha1) ?? assert.fail(`长输入 ${label.sha1}（${label.len}）重建不出来`))
-
-test('黄金样本规模：各部分都不为空', () => {
-  assert.ok(gold.field.length >= 2000 && gold.head.length >= 25 && gold.status.length >= 25 && gold.under.length >= 20 && gold.name.length >= 20 && gold.rebase.length >= 15 && gold.cfg.length >= 30 && gold.status_kind.length >= 600 && Object.keys(gold.status_kind_cfgs).length === 3)
-  assert.ok(gold.field.some((x) => x.out.ok && x.out.ok[0] !== null) && gold.field.some((x) => x.out.ok && x.out.ok[0] === null))
+test('规格表规模：各部分都不为空，findField 既有命中也有未命中', () => {
+  assert.ok(FIELD.length >= 300 && FIELD_LONG.length >= 10 && HEAD.length >= 25 && STATUS.length >= 25 && UNDER.length >= 20 && NAME.length >= 20 && REBASE.length >= 15 && CFG.length >= 30 && STATUS_KIND.length >= 100 && Object.keys(STATUS_KIND_CFGS).length === 3)
+  assert.ok(FIELD.some(([, , o]) => o[0] !== null) && FIELD.some(([, , o]) => o[0] === null))
 })
 
-test('findField：全部输入（文本 × 名字集合）对 Python 逐条一致，含 Unicode 大小写折叠与满行星号', () => {
+test('findField：规格表全部用例（含 Unicode 大小写折叠、强调标记、字段名里的标点）', () => {
   const wrong = []
-  for (const g of gold.field) {
-    const text = resolveText(g.text)
-    const got = run(() => findField(text, g.names))
-    if (!same(got, g.out)) wrong.push({ text: typeof g.text === 'string' ? g.text.slice(0, 30) : g.text, names: g.names, want: g.out, got })
+  for (const [text, names, want] of FIELD) {
+    const got = run(() => findField(text, names))
+    if (!same(got, { ok: want })) wrong.push({ text: text.slice(0, 30), names, want, got })
   }
   assert.deepEqual(wrong.slice(0, 6), [], `不一致共 ${wrong.length} 条`)
+})
+
+test('findField：长输入（满行星号、满行空白、几千行空行、4000 字符边界）', () => {
+  const wrong = []
+  for (const [key, names, want] of FIELD_LONG) {
+    const got = run(() => findField(LONG_TEXTS[key](), names))
+    if (!same(got, { ok: want })) wrong.push({ key, names, want, got })
+  }
+  assert.deepEqual(wrong, [])
 })
 
 test('findField 是线性的：满行星号、满行空白、几千行空行，各自在 1 秒内（原写法曾是平方级，R1-01、R2-11）', () => {
@@ -49,20 +45,20 @@ test('findField 是线性的：满行星号、满行空白、几千行空行，�
   }
 })
 
-test('headOf / itemStatus：对 Python 逐条一致（YAML 头、第一个二级标题之前、4000 字符上限）', () => {
+test('headOf / itemStatus：YAML 头、第一个二级标题之前、4000 字符上限', () => {
   const wrong = []
-  for (const g of gold.head) {
-    const text = resolveText(g.text)
+  for (const [raw, wantHead, wantStatus] of HEAD) {
+    const text = typeof raw === 'string' ? raw : LONG_TEXTS[raw.long]()
     const got = { out: run(() => headOf(text)), status: run(() => itemStatus(text)) }
-    if (!same(got.out, g.out) || !same(got.status, g.status)) wrong.push({ text: typeof g.text === 'string' ? g.text.slice(0, 30) : g.text, want: { out: g.out, status: g.status }, got })
+    if (!same(got.out, wantHead) || !same(got.status, wantStatus)) wrong.push({ text: text.slice(0, 30), want: { out: wantHead, status: wantStatus }, got })
   }
   assert.deepEqual(wrong.slice(0, 4), [], `不一致共 ${wrong.length} 条`)
-  const s = gold.status.filter((g) => !same(run(() => itemStatus(g.text)), g.out)).map((g) => g.text)
+  const s = STATUS.filter(([text, want]) => !same(run(() => itemStatus(text)), want)).map(([text]) => text)
   assert.deepEqual(s, [])
 })
 
 /** 含反斜杠的路径：Windows 上 `\` 是分隔符，POSIX 上不是（basename 不切）。黄金样本记录的是生成它的平台（Windows）。 */
-const platformName = (g) => (process.platform !== 'win32' && g.rel.includes('\\') ? { ok: false } : g.out)
+const platformName = (rel, want) => (process.platform !== 'win32' && typeof rel === 'string' && rel.includes('\\') ? { ok: false } : want)
 
 test('isWorkItemName 的平台语义：反斜杠只在 Windows 上是路径分隔符（Linux 上 Python 同样返回 False，已在容器里实测）', () => {
   assert.equal(isWorkItemName('docs/WI-002.md'), true); assert.equal(isWorkItemName('WI-002.md'), true)
@@ -74,7 +70,7 @@ test('isWorkItemName 的平台语义：反斜杠只在 Windows 上是路径分�
 const KNOWN_DIFF_NAME = new Set(['WI-１２３.md']) // D4：Python 的 \d 认全角数字，TS 只认 ASCII 0-9
 
 test('D4 在工作项命名上：全角数字不算数字（Python 的 \\d 会认）；ASCII 照常', () => {
-  assert.equal(gold.name.find((g) => g.rel === 'WI-１２３.md').out.ok, true, '黄金样本记录的是 Python 的行为')
+  assert.equal(NAME.find(([rel]) => rel === 'WI-１２３.md')[1].ok, true, '规格表记录的是 Python 的行为')
   assert.equal(isWorkItemName('WI-１２３.md'), false); assert.equal(isWorkItemName('WI-123.md'), true); assert.equal(isWorkItemName('WI-12.md'), false)
 })
 
@@ -98,23 +94,23 @@ test('D12：layout.frozen 不是列表时永不命中（Python 会逐字符迭�
   assert.equal(inFrozen({ layout: { frozen: ['docs/archive'] } }, 'docs/archive/a.md'), true)
 })
 
-test('clean / under / isWorkItemName / rebaseDocs：对 Python 逐条一致', () => {
-  const w1 = gold.clean.filter((g) => !same(run(() => clean(g.in)), g.out)).map((g) => g.in)
-  const w2 = gold.under.filter((g) => !same(run(() => under(g.rel, g.sub)), g.out)).map((g) => [g.rel, g.sub])
+test('clean / under / isWorkItemName / rebaseDocs：规格表', () => {
+  const w1 = CLEAN.filter(([input, want]) => !same(run(() => clean(input)), want)).map(([input]) => input)
+  const w2 = UNDER.filter(([rel, sub, want]) => !same(run(() => under(rel, sub)), want)).map(([rel, sub]) => [rel, sub])
   // 黄金样本在 Windows 上生成：`docs\WI-002.md` 里 `\` 是路径分隔符（os.path.basename 认）。Linux 上 Python 自己对它也返回 False（容器里实测过），
   // 所以这类输入按平台期望——是路径语义差异，不是实现差异。其余输入两个平台一致。
-  const w3 = gold.name.filter((g) => !KNOWN_DIFF_NAME.has(g.rel) && !same(run(() => isWorkItemName(g.rel)), platformName(g))).map((g) => g.rel)
-  const w4 = gold.rebase.filter((g) => !same(run(() => rebaseDocs(g.rel, g.docs_root)), g.out)).map((g) => [g.rel, g.docs_root])
+  const w3 = NAME.filter(([rel, want]) => !KNOWN_DIFF_NAME.has(rel) && !same(run(() => isWorkItemName(rel)), platformName(rel, want))).map(([rel]) => rel)
+  const w4 = REBASE.filter(([rel, root, want]) => !same(run(() => rebaseDocs(rel, root)), want)).map(([rel, root]) => [rel, root])
   assert.deepEqual({ w1, w2, w3, w4 }, { w1: [], w2: [], w3: [], w4: [] })
 })
 
 // ---- 配置派生：配置原文取自黄金样本（不在测试里手抄第二份）----
 
-test('配置派生函数（docsRootOf、workRoot、entryFiles、isTailoredOut、artifactTailored、dateFieldsOf、inFrozen）对 Python 逐条一致', () => {
+test('配置派生函数（docsRootOf、workRoot、entryFiles、isTailoredOut、artifactTailored、dateFieldsOf、inFrozen）：规格表', () => {
   const root = mkdtempSync(join(tmpdir(), 'tsdocs-'))
   try {
     const wrong = []
-    for (const g of gold.cfg) {
+    for (const g of CFG) {
       const cfg = { ...g.config, _root: root }
       const got = {
         docs_root_of: run(() => docsRootOf(cfg)), work_root: run(() => workRoot(cfg)), entry_files: run(() => entryFiles(cfg)), date_fields_of: run(() => dateFieldsOf(cfg)),
@@ -122,7 +118,7 @@ test('配置派生函数（docsRootOf、workRoot、entryFiles、isTailoredOut、
         artifact_tailored: Object.fromEntries(['status', 'acceptance', 'handoff', 'entry'].map((r) => [r, run(() => artifactTailored(cfg, r))])),
         in_frozen: Object.fromEntries(['docs/archive/a.md', 'docs/archive', 'docs/archivex/a.md', 'old/x', 'old', 'docs\\archive\\a.md', 'other', ''].map((p) => [p, run(() => inFrozen(cfg, p))])),
       }
-      for (const k of Object.keys(got)) { if (D12_SKIP.has(g.name + ':' + k)) continue /* D12：配置形状非法，上游 loadConfig 已拒收，Python 的行为是偶然的 */; if (!same(got[k], g[k])) wrong.push({ name: g.name, field: k, want: g[k], got: got[k] }) }
+      for (const k of Object.keys(got)) { if (D12_SKIP.has(g.name + ':' + k)) continue /* D12：配置形状非法，上游 loadConfig 已拒收，Python 的行为是偶然的 */; if (!same(got[k], g.expect[k])) wrong.push({ name: g.name, field: k, want: g.expect[k], got: got[k] }) }
     }
     assert.deepEqual(wrong.slice(0, 4), [], `不一致共 ${wrong.length} 条`)
   } finally { rmSync(root, { recursive: true, force: true }) }
@@ -130,7 +126,7 @@ test('配置派生函数（docsRootOf、workRoot、entryFiles、isTailoredOut、
 
 test('entryFiles 依赖文件系统：候选存在与否、同时存在、出仓的候选照算命中、大小写（Windows 不区分而 Linux 区分，按平台比对）', () => {
   const wrong = []
-  for (const g of gold.entry_fs) {
+  for (const g of ENTRY_FS) {
     if (g.name === 'context_symlink_out') continue
     const t = mkdtempSync(join(tmpdir(), 'tsdocs-'))
     try {
@@ -150,15 +146,14 @@ test('entryFiles：CONTEXT.md 是指向仓外的符号链接时，出仓的候�
     writeFileSync(join(o, 'secret.md'), 'x'); writeFileSync(join(t, 'AGENTS.md'), 'x')
     symlinkSync(join(o, 'secret.md'), join(t, 'CONTEXT.md'), 'file')
     const got = run(() => entryFiles({ _root: t }))
-    const want = gold.entry_fs.find((g) => g.name === 'context_symlink_out')
+    const want = ENTRY_FS.find((g) => g.name === 'context_symlink_out')
     if (want.symlink) assert.ok(same(got, want.result), JSON.stringify({ want: want.result, got }))
     assert.deepEqual(got.ok[0], ['CONTEXT.md'], '出仓的候选照算命中，排在 AGENTS.md 之前')
   } finally { rmSync(t, { recursive: true, force: true }); rmSync(o, { recursive: true, force: true }) }
 })
 
-test('statusKind：3 套配置 × 路径 × 状态值，对 Python 逐条一致', () => {
-  const cfgs = gold.status_kind_cfgs
-  const wrong = gold.status_kind.filter((g) => !same(run(() => statusKind(cfgs[g.cfg], g.rel, g.status)), g.out)).map((g) => [g.cfg, g.rel, g.status])
+test('statusKind：3 套配置 × 路径 × 状态值', () => {
+  const wrong = STATUS_KIND.filter(([cfg, rel, status, want]) => !same(run(() => statusKind(STATUS_KIND_CFGS[cfg], rel, status)), want)).map(([cfg, rel, status]) => [cfg, rel, status])
   assert.deepEqual(wrong.slice(0, 6), [], `不一致共 ${wrong.length} 条`)
 })
 

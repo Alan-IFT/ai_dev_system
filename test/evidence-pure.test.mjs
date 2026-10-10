@@ -7,9 +7,10 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { labelField, unknownLabel, isSep, splitRow, mapHeader, isPlaceholder, evidenceSections, parseListBlocks, parseTableBlocks, judge, isPyDigit } from '../lib/checks/evidence.js'
+import { BLOCKS, IS_PLACEHOLDER, IS_SEP, ISDIGIT_RANGES, JUDGE, LABEL_FIELD, MAP_HEADER, SECTIONS, SPLIT_ROW, UNKNOWN_LABEL } from './cases/evidence.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'evidence.json'), 'utf8'))
+const gold = { blocks: BLOCKS, is_placeholder: IS_PLACEHOLDER, is_sep: IS_SEP, isdigit_ranges: ISDIGIT_RANGES, judge: JUDGE, label_field: LABEL_FIELD, map_header: MAP_HEADER, sections: SECTIONS, split_row: SPLIT_ROW, unknown_label: UNKNOWN_LABEL }
 const bad = (arr, f) => arr.filter((g) => JSON.stringify(f(g)) !== JSON.stringify(g.out)).map((g) => ({ in: String(g.in).slice(0, 40), want: g.out, got: f(g) }))
 
 test('样本规模', () => assert.ok(gold.label_field.length >= 130 && gold.unknown_label.length >= 95 && gold.is_sep.length >= 40 && gold.split_row.length >= 25 && gold.map_header.length >= 30 && gold.is_placeholder.length >= 65 && gold.sections.length >= 45 && gold.blocks.length >= 40))

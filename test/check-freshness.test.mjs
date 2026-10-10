@@ -9,9 +9,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { NAME, run, scope, selftest } from '../lib/checks/freshness.js'
 import { addDays, todayLocal, toIso } from '../lib/core/dates.js'
+import { FRESHNESS } from './cases/selftest-ids.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const probes = FRESHNESS.map(([id, status]) => ({ id, status }))
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'freshness'))
 

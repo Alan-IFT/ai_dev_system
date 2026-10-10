@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { effectiveChars, isDoc, isStructural, unfenced, significantLines, proseLines, maskLinks, RE_ORDINAL_PREFIX, countClaims, stripDotSlash } from '../lib/checks/single_authority.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'single-authority.json'), 'utf8'))
+const gold = { effective_chars: EFFECTIVE_CHARS, is_doc: IS_DOC, is_structural: IS_STRUCTURAL, unfenced: UNFENCED, significant: SIGNIFICANT, mask_links: MASK_LINKS, ordinal: ORDINAL, count_claims: COUNT_CLAIMS, lstrip_dotslash: LSTRIP_DOTSLASH }
 const bad = (arr, f) => arr.filter((g) => JSON.stringify(f(g)) !== JSON.stringify(g.out)).map((g) => ({ in: String(g.in).slice(0, 40), want: g.out, got: f(g) }))
 
 test('样本规模', () => assert.ok(gold.effective_chars.length >= 70 && gold.is_doc.length >= 50 && gold.is_structural.length >= 90 && gold.unfenced.length >= 37 && gold.significant.length >= 37 && gold.mask_links.length >= 28 && gold.ordinal.length >= 23 && gold.count_claims.length >= 120 && gold.lstrip_dotslash.length >= 18))
@@ -39,6 +39,7 @@ test('stripDotSlash：全部路径对 Python 的 lstrip("./") 逐条一致（字
 
 // ---- duplicateBlocks / identicalFiles 的整体行为：直接喂 files（绕过 git 的次序），期望值取自 Python 版同输入的实测 ----
 import { duplicateBlocks, identicalFiles } from '../lib/checks/single_authority.js'
+import { EFFECTIVE_CHARS, IS_DOC, IS_STRUCTURAL, UNFENCED, SIGNIFICANT, MASK_LINKS, ORDINAL, COUNT_CLAIMS, LSTRIP_DOTSLASH } from './cases/single-authority.mjs'
 const SHARED3 = '退款口径由结算模块单独维护别处引用它的接口而不抄写规则。\n抄写会在下一次口径变化时留下一份不会更新的旧值。\n因此本节只给出指针具体数值到结算模块文档去读。\n'
 const own = (k) => `# 文${k}\n独占${k}篇甲一说明此文件专属内容。\n独占${k}篇乙二说明此文件专属内容。\n`
 const mkf = (pairs) => pairs.map(([n, t]) => [n, t, Buffer.from(t, 'utf8')])

@@ -8,9 +8,10 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { globIn, globAny } from '../lib/core/glob.js'
+import * as G from './cases/glob.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'glob.json'), 'utf8'))
+const gold = { cases: G.CASES, patterns: G.PATTERNS, root_names: G.ROOT_NAMES, tree: G.TREE, platform: G.PLATFORM }
 
 const canMake = (rel) => !(process.platform === 'win32' && /[*?"<>|:\n]/.test(rel))
 let base, linked = false

@@ -9,9 +9,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { isFile, isDir, lexists, exists } from '../lib/core/fs.js'
+import * as G from './cases/pathpred.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'pathpred.json'), 'utf8'))
+const gold = { cases: G.CASES, platform: G.PLATFORM }
 
 const FILES = ['f.md', 'empty.md', 'a b.md', '中文.md', 'sub/g.md'], DIRS = ['d', 'd2/inner']
 let tmp, linked = false

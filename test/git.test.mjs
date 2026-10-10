@@ -10,9 +10,10 @@ import { join, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { GIT_HARDEN_CONFIG, GIT_HARDEN_ENV, GIT_LOCAL_ENV, hardenedEnv, gitVersionProblem, filterEnv, shallowProblem, _clearFilterEnvCache } from '../lib/core/git.js'
+import * as G from './cases/stdlib-git.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-git.json'), 'utf8'))
+const gold = { scrub: G.SCRUB, version: G.VERSION }
 
 test('gitVersionProblem：对 Python 黄金样本逐条一致', () => {
   assert.ok(gold.version.length >= 10)

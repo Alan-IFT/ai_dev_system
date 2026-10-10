@@ -9,11 +9,12 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { run } from '../lib/checks/single_authority.js'
+import { SCENARIOS } from './cases/sa-scenarios.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'sa-scenarios.json'), 'utf8'))
+const gold = { scenarios: SCENARIOS }
 
-// 与 make_scen_sa.py 的 tag / seq_lines 同一份算法（Python 里 CH 是 40 个汉字；第三位取 i // 1600）
+// 场景里的 seq／rep 内容按这里的 tag／seqLines 展开（最初与 Python 生成脚本同一份算法）（Python 里 CH 是 40 个汉字；第三位取 i // 1600）
 const CH = [...'甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往']
 const tag = (i) => CH[i % 40] + CH[Math.floor(i / 40) % 40] + CH[Math.floor(i / 1600) % 40]
 const seqLines = (n, salt = 0) => Array.from({ length: n }, (_, i) => [tag(salt + i), '内容', tag(salt + i * 3 + 1), '说明', tag(salt + i * 5 + 2), '记录', tag(salt + i * 11 + 4), '备注', tag(salt + i * 13 + 5), '结尾'].join(''))

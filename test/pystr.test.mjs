@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pyStr } from '../lib/core/cfg.js'
+import { CASES } from './cases/pystr.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'pystr.json'), 'utf8'))
+const gold = { cases: CASES }
 
 test('样本规模', () => assert.ok(gold.cases.length >= 60))
 

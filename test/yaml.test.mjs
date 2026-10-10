@@ -8,9 +8,10 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { parseYamlSubset, stripComment, splitLinesPy, ConfigError } from '../lib/core/yaml.js'
 import { parseDate, toIso } from '../lib/core/dates.js'
+import { FINDING_ID, NORMALIZE_KEY, PARSE_DATE, STRIP_COMMENT, YAML } from './cases/stdlib-pure.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-pure.json'), 'utf8'))
+const gold = { finding_id: FINDING_ID, normalize_key: NORMALIZE_KEY, parse_date: PARSE_DATE, strip_comment: STRIP_COMMENT, yaml: YAML }
 
 /**
  * 黄金样本是 json.dump(sort_keys=True) 写的，键按字典序；TS 对象保持插入序。键序**不是**解析结果的一部分（配置是映射，不是有序对），

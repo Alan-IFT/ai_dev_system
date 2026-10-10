@@ -8,9 +8,10 @@ import { join, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { trackedFiles, markdownUnder, workItems, withScanMemo, cmpCodepoint } from '../lib/core/tracked.js'
+import * as G from './cases/tracked.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'tracked.json'), 'utf8'))
+const gold = { cases: G.CASES, files: G.FILES, not_made: G.NOT_MADE, markdown_under: G.MARKDOWN_UNDER, work_items: G.WORK_ITEMS }
 
 let tmp
 const gitq = (args, cwd) => spawnSync('git', ['-C', cwd ?? tmp, '-c', 'init.defaultBranch=main', '-c', 'user.email=a@b.c', '-c', 'user.name=n', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', ...args], { encoding: 'utf8' })

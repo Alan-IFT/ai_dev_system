@@ -11,9 +11,10 @@ import { loadExceptions, _exClosed, mdCells, firstMdTable, exField, EXCEPTION_MA
 import { addDays, compareDays } from '../lib/core/dates.js'
 import { toIso } from '../lib/core/dates.js'
 import { loadConfig } from '../lib/core/config.js'
+import * as G from './cases/stdlib-exceptions.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-exceptions.json'), 'utf8'))
+const gold = { cells: G.CELLS, closed: G.CLOSED, field: G.FIELD, layout: G.LAYOUT, load: G.LOAD, raw: G.RAW, table: G.TABLE, today: G.TODAY }
 const TODAY = { year: 2026, month: 10, day: 6 }
 
 const canon = (v) => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v

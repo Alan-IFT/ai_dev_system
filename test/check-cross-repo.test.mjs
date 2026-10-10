@@ -8,9 +8,10 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { NAME, run, scope, selftest } from '../lib/checks/cross_repo.js'
+import { CROSS_REPO } from './cases/selftest-ids.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const probes = CROSS_REPO.map(([id, status]) => ({ id, status }))
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'cross-repo'))
 
@@ -49,6 +50,15 @@ test('规则展开：条目里的反斜杠归一成 /（变异 E13；Windows 上
   const t = mk(); put(t, [...base, ['old/sub/rule.md', '规则\n']])
   const r = retired(run(cfgOf(t, { layout: { entry: ['AGENTS.md'], rule_files: ['sub\\rule.md'] } })))
   assert.deepEqual(r.map((f) => [f.status, f.title, f.where]), [['FAIL', '退役仓 old（role=retired）仍有 1 份文件可被当作现行规则读入', 'old/sub/rule.md']], '反斜杠被当成目录分隔符才找得到 sub/rule.md；不归一时 POSIX 上把它当文件名里的字符，找不到，仓里就没有可读的规则文件')
+})
+
+test('判据七：UNC 路径（\\\\srv\\share）与 / 开头的链接按「宿主绝对路径」记未定，不当相对路径去解析、也不报断链（变异 N8；UNC 只有 Windows 的 isAbsolute 认，所以这条在 Windows 上才有区分力）', { skip: process.platform === 'win32' ? false : 'POSIX 上 \\\\srv\\share 是普通相对路径名，此条与原代码等价' }, () => {
+  // 盘符形态（C:\x、C:/x）到不了这里：linkTargets 先按「带协议」过滤掉（SCHEME 匹配 `C:`），与 Python 版一致——所以只有 UNC 与 / 开头走 isAbsolute 分支
+  const t = mk(); put(t, [...base, ['old/notes.md', '[c](\\\\srv\\share\\c.md) [d](/etc/d.md) [ok](../sys/AGENTS.md)\n']])
+  const r = run(cfgOf(t)).filter((f) => f.title.includes('指向绝对路径'))
+  assert.equal(r.length, 1); assert.equal(r[0].status, 'UNDETERMINED'); assert.equal(r[0].title, '仓 old 有 2 处引用指向绝对路径，本机不可判')
+  assert.match(r[0].evidence, /^共 2 处，列前 2：notes\.md -> \\\\srv\\share\\c\.md；notes\.md -> \/etc\/d\.md$/)
+  assert.ok(!run(cfgOf(t)).some((f) => f.status === 'FAIL'), 'UNC 路径不能被当成相对路径解析成断链')
 })
 
 test('scope：覆盖项与未覆盖项的条数随 former_names 有无而变（6/15 与 7/14）；默认规则文件清单写进文案；入口未配置写「（未配置）」', () => {

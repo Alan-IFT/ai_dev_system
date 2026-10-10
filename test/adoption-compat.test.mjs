@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compatibility } from '../lib/checks/adoption.js'
+import { COMPAT, COMPAT_SHAPES } from './cases/adoption.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'adoption.json'), 'utf8'))
+const gold = { compat: COMPAT, compat_shapes: COMPAT_SHAPES }
 
 test('样本规模', () => assert.ok(gold.compat.length >= 24 && gold.compat_shapes.length >= 10))
 

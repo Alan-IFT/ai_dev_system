@@ -7,9 +7,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { candidates, revisionHits, indexTarget, latestDay, parseBlame, WI_PATTERN_FOR_TEST, WI_FIELD_PATTERN_FOR_TEST } from '../lib/checks/drift.js'
 import { toIso } from '../lib/core/dates.js'
+import { BLAME_HEAD, BLAME_TEXT, CANDIDATES, INDEX_TARGET, LATEST_DAY, REVISION_HITS, WI } from './cases/drift.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'drift.json'), 'utf8'))
+const gold = { blame_head: BLAME_HEAD, blame_text: BLAME_TEXT, candidates: CANDIDATES, index_target: INDEX_TARGET, latest_day: LATEST_DAY, revision_hits: REVISION_HITS, wi: WI }
 const NON_ASCII_DIGIT = /[\uff10-\uff19\u0660-\u0669\u06f0-\u06f9]/
 const rows = (l) => l.map((x) => [x[0], x[1]])
 

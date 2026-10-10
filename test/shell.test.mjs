@@ -11,9 +11,10 @@ import { undeterminedFromException, runGuarded, probe, probeCrashed, unreadable,
 import { finding, PASS, FAIL, UNDETERMINED, SKIP } from '../lib/core/finding.js'
 import { OutsideRoot, TooLarge, NotRegular } from '../lib/core/fs.js'
 import { ConfigError } from '../lib/core/yaml.js'
+import * as G from './cases/stdlib-shell.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-shell.json'), 'utf8'))
+const gold = { agg: G.AGG, exc: G.EXC, once: G.ONCE, outside: G.OUTSIDE, probe: G.PROBE, run_guarded: G.RUN_GUARDED, unreadable: G.UNREADABLE, work_root_absent: G.WORK_ROOT_ABSENT }
 
 const canon = (v) => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))

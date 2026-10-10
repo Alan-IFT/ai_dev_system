@@ -8,9 +8,10 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { NAME, run, scope, selftest, adrDir } from '../lib/checks/drift.js'
+import { DRIFT } from './cases/selftest-ids.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const probes = DRIFT.map(([id, status]) => ({ id, status }))
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'drift'))
 

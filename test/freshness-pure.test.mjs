@@ -7,9 +7,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { sectionBody, lastTransition, age, intBudget, note, metadataRequirement } from '../lib/checks/freshness.js'
 import { toIso } from '../lib/core/dates.js'
+import { AGE, INT_BUDGET, LAST_TRANSITION, METADATA_REQUIREMENT, NOTE, SECTION, SECTION_OTHER_KW } from './cases/freshness.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'freshness.json'), 'utf8'))
+const gold = { age: AGE, int_budget: INT_BUDGET, last_transition: LAST_TRANSITION, metadata_requirement: METADATA_REQUIREMENT, note: NOTE, section: SECTION, section_other_kw: SECTION_OTHER_KW }
 const NON_ASCII_DIGIT = /[\uff10-\uff19\u0660-\u0669\u06f0-\u06f9]/
 
 test('样本规模', () => assert.ok(gold.section.length >= 30 && gold.last_transition.length >= 45 && gold.age.length >= 10 && gold.int_budget.length >= 15 && gold.metadata_requirement.length >= 25))

@@ -4,10 +4,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { STRIP as WS_STRIP, RE_S as WS_RE_S } from './cases/whitespace.mjs'
+import { NORMALIZE_KEY, FINDING_ID } from './cases/stdlib-pure.mjs'
 import { PY_WHITESPACE, pyStrip, pyLstrip, normalizeKey, findingId, finding, encodeSurrogateEscape, PASS, FAIL, SKIP, UNDETERMINED } from '../lib/core/finding.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const unit = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'))
+const unit = (name) => ({ 'whitespace.json': { strip: WS_STRIP, re_s: WS_RE_S }, 'stdlib-pure.json': { normalize_key: NORMALIZE_KEY, finding_id: FINDING_ID } })[name]
 
 test('PY_WHITESPACE 逐码点等于 Python 的 str.strip() 与 re 的 \\s（0 到 0x10FFFF 全部码点，设计 §12.6 D6）', () => {
   const gold = unit('whitespace.json')

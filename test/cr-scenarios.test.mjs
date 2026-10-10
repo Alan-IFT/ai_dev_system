@@ -9,9 +9,10 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { run, nameAppears, hasStatusToken, hasInvalidationMarker, linkTargets, parseGrepZ } from '../lib/checks/cross_repo.js'
+import { SCENARIOS, GENERATED } from './cases/cross-repo-scenarios.mjs'
+import { NAME_APPEARS, STATUS_TOKEN, MARKER, LINK_TARGETS, PARSE_GREP_Z } from './cases/cross-repo-pure.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'cr-scenarios.json'), 'utf8'))
 
 const tmps = []
 test.after(() => { for (const t of tmps) rmSync(t, { recursive: true, force: true, maxRetries: 3 }) })
@@ -35,7 +36,8 @@ function build(sc) {
 const slashes = (s) => s.replace(/<ROOT>([^\s；）、:]*)/g, (_, rest) => '<ROOT>' + rest.replaceAll('\\', '/'))
 const norm = (rows, root) => rows.map((r) => ({ ...r, ...Object.fromEntries(['title', 'reason', 'why', 'evidence'].map((k) => [k, slashes(r[k].replaceAll(root.replaceAll('\\', '/'), '<ROOT>').replaceAll(root, '<ROOT>'))])) }))
 
-for (const sc of gold.scenarios) {
+for (const sc0 of SCENARIOS) {
+  const sc = sc0.files[0]?.[0] === '@生成' ? { ...sc0, files: GENERATED[sc0.files[0][1]]() } : sc0
   test(`场景 ${sc.name}：${sc.note}`, () => {
     const root = build(sc)
     const cfg = { _root: root, layout: sc.cfg_layout, repos: sc.repos, ...sc.extra }
@@ -44,10 +46,10 @@ for (const sc of gold.scenarios) {
   })
 }
 
-const bad = (arr, f) => arr.filter((g) => JSON.stringify(f(g)) !== JSON.stringify(g[g.length - 1])).map((g) => ({ in: JSON.stringify(g.slice(0, -1)).slice(0, 60), want: g[g.length - 1], got: f(g) }))
-test('nameAppears：全部输入对 Python 逐条一致（ASCII 边界类、IGNORECASE 的 Unicode 折叠含 İ ı ſ K、正则元字符转义）', () => assert.deepEqual(bad(gold.pure.name_appears, (g) => nameAppears(g[0], g[1])).slice(0, 3), []))
-test('hasStatusToken：全部行对 Python 逐条一致（英文状态词按记号认，中文按子串）', () => assert.deepEqual(bad(gold.pure.status_token, (g) => hasStatusToken(g[0])).slice(0, 3), []))
-test('hasInvalidationMarker：全部文本对 Python 逐条一致（中文原文子串、英文小写后子串）', () => assert.deepEqual(bad(gold.pure.marker, (g) => hasInvalidationMarker(g[0])).slice(0, 3), []))
-test('linkTargets：全部文本对 Python 逐条一致（内联与引用式、尖括号、标题、锚点与查询、协议头、去重保序）', () => assert.deepEqual(bad(gold.pure.link_targets, (g) => linkTargets(g[0])).slice(0, 3), []))
-test('parseGrepZ：全部输入对 Python 逐条一致（NUL 记号流、路径含换行、行号非数字、记号数不成对、行文截 120 个码点）', () => assert.deepEqual(bad(gold.pure.parse_grep_z, (g) => parseGrepZ(g[0])).slice(0, 3), []))
-test('样本规模', () => assert.ok(gold.scenarios.length >= 60 && gold.pure.name_appears.length >= 55 && gold.pure.link_targets.length >= 75))
+const bad = (rows, f) => rows.filter((r) => JSON.stringify(f(r)) !== JSON.stringify(r[r.length - 1])).map((r) => ({ in: JSON.stringify(r.slice(0, -1)).slice(0, 60), want: r[r.length - 1], got: f(r) }))
+test('nameAppears：ASCII 边界类、IGNORECASE 的 Unicode 折叠含 İ ı ſ K、正则元字符转义', () => assert.deepEqual(bad(NAME_APPEARS, (r) => nameAppears(r[0], r[1])).slice(0, 3), []))
+test('hasStatusToken：英文状态词按记号认，中文按子串', () => assert.deepEqual(bad(STATUS_TOKEN, (r) => hasStatusToken(r[0])).slice(0, 3), []))
+test('hasInvalidationMarker：中文原文子串、英文小写后子串', () => assert.deepEqual(bad(MARKER, (r) => hasInvalidationMarker(r[0])).slice(0, 3), []))
+test('linkTargets：内联与引用式、尖括号、标题、锚点与查询、协议头、去重保序', () => assert.deepEqual(bad(LINK_TARGETS, (r) => linkTargets(r[0])).slice(0, 3), []))
+test('parseGrepZ：NUL 记号流、路径含换行、行号非数字、记号数不成对、行文截 120 个码点', () => assert.deepEqual(bad(PARSE_GREP_Z, (r) => parseGrepZ(r[0])).slice(0, 3), []))
+test('规格表规模', () => assert.ok(NAME_APPEARS.length >= 55 && LINK_TARGETS.length >= 75 && STATUS_TOKEN.length >= 40 && MARKER.length >= 30 && PARSE_GREP_Z.length >= 30))

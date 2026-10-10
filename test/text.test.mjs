@@ -7,9 +7,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { splitLinesPy } from '../lib/core/yaml.js'
 import { pyStrip } from '../lib/core/finding.js'
+import { SPLITLINES, UPPER } from './cases/text.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'text.json'), 'utf8'))
+const gold = { splitlines: SPLITLINES, upper: UPPER }
 
 test('样本规模', () => assert.ok(gold.splitlines.length >= 150 && gold.upper.length >= 30))
 

@@ -8,9 +8,10 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readBytes, readText, countLines, inside, guard, MAX_READ_BYTES, OutsideRoot, TooLarge, NotRegular, __testHooks as __hooks } from '../lib/core/fs.js'
+import * as G from './cases/stdlib-fs.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-fs.json'), 'utf8'))
+const gold = { _max_read_bytes: G.MAX_READ_BYTES, count_lines: G.COUNT_LINES, guard: G.GUARD, inside: G.INSIDE, read_bytes: G.READ_BYTES, read_bytes_head4: G.READ_BYTES_HEAD4, read_bytes_noroot: G.READ_BYTES_NOROOT, read_text: G.READ_TEXT, read_text_head5: G.READ_TEXT_HEAD5 }
 
 const B = (...a) => Buffer.from(a)
 const FILES = [
