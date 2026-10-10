@@ -245,7 +245,13 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] （core 总项：`tracked.ts` 随汇总层迁完，2026-10-08）　[x] entry_budget（2026-10-06，§12.16）　[x] layout（2026-10-06，§12.18）　[x] links（2026-10-06，§12.20）　[x] freshness（2026-10-06，§12.23）　[x] drift（2026-10-07，§12.24）　[x] derived（2026-10-07，§12.26）　[x] evidence（2026-10-07，§12.27）　[x] adoption（2026-10-07，§12.28）　[x] single_authority（2026-10-07，§12.29）　[x] cross_repo（2026-10-08，§12.30）
   - [x] derived　[x] evidence　[x] adoption　[x] single_authority　[x] cross_repo　[x] check_all（2026-10-08，§12.32）
 - [x] 阶段 3：采用项目迁移材料（2026-10-09：标准技能分发 §12.33、`adoption` 改造 §12.33 五、`std-check migrate` §12.34；三个真实项目的方案已只读生成；**迁移本身不执行**，等阶段 5 发布新 tag 并装入后由 Alan 决定）
-- [ ] 阶段 4：清理
+- [ ] 阶段 4：清理（部分完成，见下；剩余项等 Alan 决定，§12.38 末）
+  - [x] 黄金数据改为 TS 用例表，删 `golden/` 与 Python 生成／比对脚本（§12.37）
+  - [x] 三个 Python 元治理脚本迁 Node 或并入 std-check；提交钩子全 Node（§12.38 一、二）
+  - [x] 删 `tools/std/` 的 Python 检查器、`stdlib.py`、`pick-python.sh`（§12.38 三）
+  - [x] 规范正文、模板、示例项目、`tools/std/{README,CONTRACT}.md` 改成无 `.std/` 的新模型（§12.38 五）
+  - [x] 入口候选去 `CLAUDE.md`（§12.38 六）
+  - [ ] 守卫里 `.std/` 只读判定（待 Alan 定）　[ ] 删 `tools/dsh-std/`（待换装真实 profile，需授权）　[ ] 冻结历史从 `main` 移除（Q2，tag 已打）　[ ] 删本地 `governance/STANDARD_VERSION`　[ ] `release` 分支与 D-108（待 Alan 定）
 - [ ] 阶段 5：收尾验证
 
 ### 12.1 阶段 0 的真实口径（TS 版对比时必须按这个来，不是按我设想的来）
@@ -823,9 +829,41 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | adoption 的重命名 | `e4ecca44` → `0a63fe45` | "项目已裁剪本检查"的标题去掉了"内嵌目录只读"，id 是标题哈希所以跟着变；四个真实仓都没裁剪 adoption，SKIP 不可登记，无失效后果 |
 | 汇总层的探针 | Python 专有现象 9 条消失、1 条新增 | 递归上限、`realpath` 调用次数、`__pycache__`、`sys.path[0]` 劫持、`sys.exit` 转未定、`discover` 缓存——对象是 Python 的机制，Node 里不存在；`sys.exit` 的替代是 `scripts/check-py-semantics.mjs` 对 `process.exit` 的机械禁止（`stdlib/3ac5e0b9`） |
 
-**当前状态**：`test/cases/` 有 25 个用例表（共约 599 KB），`test/fixtures/` 剩 `codepoint.json`（336 KB）、`cr-scenarios.json`（1056 KB）、`sa-scenarios.json`（167 KB）。三个剩余的是整仓场景快照：`cr-scenarios`（148 个 cross_repo 场景，1 MB）、`sa-scenarios`（24 个 single_authority 场景）、`codepoint`（已改为公式，待变异对比后删）。场景的提炼需要先弄清"每个场景在抓哪些变异"（后台跑 `_distill` 对 318 条变异逐条记录），再决定哪些场景可以合并、哪些必须保留。
+**当前状态（终态，2026-10-10 补）**：`test/fixtures/` 目录已不存在，33 个夹具全部换成 `test/cases/*.mjs`。后三个也已做完：`sa-scenarios`（24 个整仓场景）无损搬出；`cr-scenarios`（148 个场景，1 MB）先对 318 条变异逐条记录“哪些场景抓住它”（后台约 80 分钟）——结论是 148 个场景**每一个都至少抓住一条变异**，贪心最小覆盖也要 77 个，且 99 条变异只被 1 个场景抓住，所以**不合并、不删场景**，只把两个超大场景（6005 份 md、64 KB 头部）改成生成式，1056 KB → 474 KB，回读逐项相同；`codepoint` 改公式后 7 条变异全部抓住。`expected-changes` 的登记保留为 `test/cases/expected-changes.mjs`。
 
-**没做、明确留着**：场景快照的提炼（上面）；`golden-compare` 系列脚本已删除，所以"对 4 个真实仓逐条一致"的测试不再存在——这个保护被**有意放弃**（对象是 Python 版），换成的是"`std-check` 对本仓实跑退出 0"与每个检查器的 selftest 清单。
+**没做、明确留着**：`golden-compare` 系列脚本已删除，所以“对 4 个真实仓逐条一致”的测试不再存在——这个保护被**有意放弃**（对象是 Python 版），换成的是“`std-check` 对本仓实跑退出 0”与每个检查器的 selftest 清单。
+
+### 12.38 阶段 4 的其余部分：删 Python 栈、元治理脚本迁 Node、钩子全 Node、清规范与模板里的 `.std/` 模型（2026-10-10）
+
+**起点与顺序**：§12.37 之后，仓里还剩 `tools/std/` 的 Python 检查器、`docs/附录-载体实例/` 下三个 Python 元治理脚本，以及规范正文、模板、示例项目里仍按“内嵌 `.std/` + 手写 `STANDARD_VERSION`”写的指导。按“先让替代品站住、再删旧物”做。
+
+**一、三个元治理脚本（Alan 的选择）**
+
+| 脚本 | 处置 | 对拍 |
+|---|---|---|
+| `linkcheck.py` | 直接删，并入 std-check 的 `links` | 逐文件比对抽出的链接目标：只在 linkcheck 里有的目标全是嵌套图片链接 `[![](img)](url)` 的内层图片目标，只出现在归档区的抓取原文里，不影响断链判定 |
+| `check_normative_force.py` | 迁成 `scripts/check-normative-force.mjs` | 造 30 个坏仓场景（C1～C10 每类、FATAL 三种、生效集为空、强调标记、日历翻页……），Python 与 Node 的 stdout 与退出码逐字相同（Windows 上归一 `\r\n` 与路径分隔符）；有自己的测试与变异清单，变异全部抓住 |
+| `repo_counts.py` | 迁成 `scripts/repo-counts.mjs` | 六行输出在本仓真实数据上逐行相同；有自己的测试与变异清单，变异全部抓住 |
+
+变异验证抓出的测试盲区都已补（上下文合同进 C5 但不要求 `governed_by`、`PROJECT_STATUS` 可声明语料版本号、C 码按字符串序而非数字序、空账本 0 行、emoji 按码点计、外部链接与代码块里的举例链接不计、“无”开头的格不产生绑定）。有一个变异（`lines('')` 的特判）被证明与原代码等价，对应的冗余分支已删。
+
+**二、提交钩子全 Node，且验证了“能拦”**：四道（std-check、check-normative-force、check-lib-sync、check-py-semantics）。在**用户 cmd 的真实环境**（无 `DSH_HOME`、PATH 里没有 node 也没有 python）下真仓四道全过 31 秒；在临时拷贝里逐道造坏，四类都拦在该拦的那道（坏链接→std-check、删 `governed_by`→normative-force、手改 `lib`→lib-sync、`src/core` 写 `.trim()`→py-semantics）。选 node 的回退链 `$DSH_HOME` → `$USERPROFILE/.dsh` → PATH；这是**第三次**“在受控环境验证过、在真实环境出问题”（前两次是 PATH 里的商店占位 python、DSH_HOME 缺失），这次改成直接用真实环境的最小集验证。**教训写下来的形式**：验证钩子用的环境要取自使用者真正敲命令的那个终端，而不是我自己的会话环境。
+
+**三、删 Python 栈（16 个文件）**：新钩子的第一道在我提交时真的拦下了我——删掉 Python 文件后，历史叙述里 34 处指向它们的可点击链接成了断链。处置（Alan 选方案 3）：只把链接**目标**改成归档 tag `archive-pre-ts-refactor` 上的永久链接，链接文字与周围正文一字不动；逐文件核对“抹掉所有链接目标后其余内容逐字相同”，8 个文件通过。其中 6 个是冻结区的审计记录，只改目标。
+
+**四、主仓改公开（Alan 2026-10-10）带来的一个后果**：此前这些永久链接匿名打开是 404（仓库当时私有，用 `gh` 带认证才读得到），现在改公开后匿名 `curl` 对仓库首页、`raw.githubusercontent.com` 与 `blob` 页面（含中文路径编码后的）全部 200。**但这也让一批已生效的前提失效了**：D-108（已接受）的阻断范围含“阻止把私有 `main` 上交付面以外的任何内容推到公开仓”，会话交接、`tools/std/README` 的发布段都写着“`main` 含不可公开的脚手架”。主仓公开后 `main` 本身就是公开的。**D-108 怎么处置、`ai-dev-std` 这个公开发布仓去留，是 Alan 的决定，本节不替他定**；在他定之前，发布流程这一段原样保留。
+
+**五、清规范与模板里的 `.std/` 模型（Alan 选 A：全改）**：这些是交付给采用项目的文本，所以单独成提交便于审。改法的原则是**换载体、不丢治理意图**：
+- `标准/01` §8 的“版本可追溯、升级是显式动作、评估材料由工具产生”保留，载体从 `STANDARD_VERSION` 换成锁定文件加报告自带摘要；“缺陷回到标准仓修”保留，渠道改指向仓库 issues。
+- 示例项目删了 `governance/STANDARD_VERSION` 与 `layout.entry` 里一个根本不存在的 `CLAUDE.md` 声明（目录里没有这个文件，检查器因此对示例项目报“入口缺失”——那是个现成的假 FAIL）。
+- `tools/std/README.md` 大幅缩短：“接入一个项目”整段（subtree、`.std/`、`pick-python.sh` 钩子）换成“装插件、锁文件钉版本、`std-check migrate`、钩子自己带 node”。保留的三节（首跑怎么读、未定项怎么登记、已知误报形态）逐字来自旧版，只改了两处涉及废弃机制的句子。重写时对着源码核了接口名，**抓到并改正了我凭记忆写错的三处**（`writeFiles`/`gitTrack` 在 `fixture.ts` 不在 `shell.ts`；`protect` 是插件挂载配置的键不是 `governance/` 的；命中 `protect` 是“先问人”不是“拒绝”）。
+- `tools/std/CONTRACT.md`：19 个 Python 标识符换成 TS 名并逐个核对导出存在；接口与 Finding 两个示例块改成 TS 形状；“内嵌目录不扫、是否被改”一段改为“不再有这类对象”；身份哈希的文件清单改为 `lib/**/*.js` 加契约；`scrub_git_env` 对应 `hardenedEnv`（**行为差异**：返回加固后的环境副本，不改进程环境）。
+
+**六、入口候选里的 `CLAUDE.md`**：`ENTRY_CANDIDATES` 去掉它，`ENTRY_FS` 新增两个反例（`CLAUDE.md` 单独存在不被认；与 `AGENTS.md` 同在时只取后者且不再提它）。对四个仓（只读）改前改后的 `layout` 输出**逐字相同**，因为这四个仓都不依赖该候选。
+
+**七、残留读数与退出判据的现实**：同一口径（`Claude Code|CLAUDE.md|.claude/|claude plugin|.std/|git subtree|STANDARD_VERSION`）下，排除冻结区、历史叙述、生成物与旧插件后仍有命中，但**多数不是残留而是功能**：`std-check migrate` 要识别并指导删除采用项目里的旧物，必须点名它们；守卫的 `.std/` 只读判定与它在 `test/regress.test.mjs`、`test/policy.test.mjs` 里的断言（共 132 处命中）在 `tools/dsh-std` 和 `src/guard` 里；反例测试要断言“不再认 `CLAUDE.md`”。所以设计 §7 阶段 4 的退出判据“现行文件对这些字样零命中”**字面上不可达**，要改成“命中只出现在 (a) 迁移功能及其测试、(b) 守卫的 `.std/` 判定（待 Alan 定，见下）、(c) 明示‘已删除’的反例与说明里”。这是对 §7 的一次修正，不是放宽——放宽的话会连 (a)(c) 之外的新增命中也放过，所以改成了**可机械核对的白名单**。
+
+**待 Alan 决定**（阶段 4 剩余项都卡在这里）：①守卫里 `.std/` 只读判定：删（推荐）/保留到三个项目迁完/改成 `protect` 缺省；②D-108 与 `ai-dev-std` 公开仓的去留；③是否授权把真实 profile 从 `link:` 旧插件换成新插件（改 `~/.dsh`），之后才能删 `tools/dsh-std/`。
 
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
@@ -888,6 +926,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-10 | **阶段 4 其余部分**，记 §12.38：三个元治理脚本迁 Node（对拍 30 个坏仓场景逐字一致）；钩子全 Node 且在用户 cmd 的真实环境下验证“能过、能拦”；删 Python 栈 16 个文件；主仓改公开后永久链接匿名 200；规范正文、模板、示例项目、`tools/std` 两份文档改成无 `.std/` 的新模型；入口候选去 `CLAUDE.md`（四个仓输出逐字不变）；§7 阶段 4 退出判据字面不可达，改为可机械核对的白名单 | 新钩子在删 Python 后真的拦下一次提交（34 处断链）；重写 README 时对着源码抓到我凭记忆写错的三处 |
 | 2026-10-10 | **黄金数据改为 TS 用例表**，记 §12.37：24 个纯函数夹具无损搬出（回读逐键相同）；stdlib-docs 提炼（变异对比第一次就抓出丢了 F31 类别，补回）；codepoint 改公式；各检查器的 selftest 清单取自黄金探针；expected-changes 登记保留为 `test/cases/expected-changes.mjs`；`mutate-compare.mjs`／`fixture-to-cases.mjs` 两个工具；顺带暴露基线里早就失效的两条变异锚点（F24、H10）与一个真盲区（N8） | 删夹具前每批都做逐键核对；转换器抓出 `__proto__` 静默失真一处 |
 | 2026-10-10 | **打预发布 tag `2026-10-10-pre.1`（`main` 的 `cdca3eb`，不动 `release`）并从 tag 在全新隔离 DSH 里复验**，记 §12.36；已装位置的 `cli.js` 检查本仓与工作区 `lib` 逐条相同、对 Python 只差登记过的 4 条；`migrate` 在已装态下钩子步骤解除 blocked | 隔离环境 `dshtag-*` 全程；探针经真实 `ctx.skills`／`ctx.tools`；用户真实 profile 未动 |
 | 2026-10-10 | **预发布：在真实 DSH 里经安装通道装入验证**，记 §12.35；**抓出单测看不见的缺陷**——技能注册写在 `inject = []` 的守卫 `apply` 里，真实 DSH 取 `ctx.skills` 抛错且被 `try/catch` 吞成一条 warn（功能静默失效）；拆成守卫与技能两个入口、`cordis.patch.yml` 挂两行；禁用 `dsh-skill` 的对照实验证明守卫不受拖累 | 隔离 `DSH_HOME` 全程；探针经真实 `ctx.skills`／`ctx.tools`；技能变异 15 条、1 条类型守住；用户真实 profile 一字未动 |
