@@ -28,6 +28,6 @@
  {"id":"G29","title":"状态入口：复制／下载覆盖状态入口不问","file":"src/guard/policy.ts","from":"if (cands.some((c) => isStateFile(c, root, cwd))) ask = '复制或下载可能覆盖状态入口 / 失败清单（01 §5.5）'","to":""},
  {"id":"G30","title":"通配符：删除类命令的通配可能匹配受保护文件时不问","file":"src/guard/policy.ts","from":"if (hit) { ask = hit[1] === 'state'","to":"if (hit && !hit) { ask = hit[1] === 'state'"},
  {"id":"G31","title":"写动词判定：写类命令的参数里有受保护路径不问","file":"src/guard/policy.ts","from":"            const why = protectedPath(c, root, cwd, protect) || (cwd !== r ? protectedPath(c, root, r, protect) : null)\n            if (why) { ask = why; break }","to":""},
- {"id":"G33","title":"normalizeForCompare：Windows 上不小写（大小写绕过）","file":"src/guard/policy.ts","from":"    s = s.toLowerCase()\n  }\n  return s","to":"  }\n  return s"},
+ {"id":"G33","title":"normalizeForCompare：Windows 上不小写（大小写绕过）。小写只在 IS_WIN 分支内，POSIX 上与原代码等价","file":"src/guard/policy.ts","from":"    s = s.toLowerCase()\n  }\n  return s","to":"  }\n  return s","winOnly":true},
  {"id":"G34","title":"commitMessageProblem：不检查首行格式","file":"src/guard/policy.ts","from":"export function commitMessageProblem(first: string): string | null {","to":"export function commitMessageProblem(first: string): string | null {\n  if (true) return null"}
 ]
