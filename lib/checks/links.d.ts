@@ -9,7 +9,7 @@ export declare const _regexForTest: {
     LINE_SUFFIX_RE: RegExp;
     WIN_ABS_RE: RegExp;
 };
-/** 把围栏代码块与行内代码涂白，行号与列位置不变。举例里的链接不算断链——本仓 docs/附录-载体实例/linkcheck.py 记下的真实教训（Case C-011）。 */
+/** 把围栏代码块与行内代码涂白，行号与列位置不变。举例里的链接不算断链——本仓当年的 linkcheck 脚本（已并入本检查器）记下的真实教训（Case C-011）。 */
 export declare function maskCode(text: string): string;
 /**
  * GitHub 风格锚点：去内联标记与标点、小写、空格转连字符。

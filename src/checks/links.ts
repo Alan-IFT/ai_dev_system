@@ -65,7 +65,7 @@ const HEADING_RE = /^(#{1,6})[ \t]+(.*)$/
 const EXPLICIT_ANCHOR_PY = new RegExp(`<[Aa]${WS}+(?:[Ii\u0130\u0131][Dd]|[Nn][Aa][Mm][Ee])${WS}*=${WS}*["']([^"']+)["']`, 'g')
 const CJK_RE = /[^\x00-\x7f]/
 
-/** 把围栏代码块与行内代码涂白，行号与列位置不变。举例里的链接不算断链——本仓 docs/附录-载体实例/linkcheck.py 记下的真实教训（Case C-011）。 */
+/** 把围栏代码块与行内代码涂白，行号与列位置不变。举例里的链接不算断链——本仓当年的 linkcheck 脚本（已并入本检查器）记下的真实教训（Case C-011）。 */
 export function maskCode(text: string): string {
   const blank = (m: string): string => [...m].map((c) => (c === NL ? c : ' ')).join('')
   let t = text.replace(/```[\s\S]*?```/g, blank)
