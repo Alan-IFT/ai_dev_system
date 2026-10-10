@@ -178,8 +178,8 @@ test('JS 与 Python 的 Unicode 大小写折叠差异被显式补上：İ ı（U
   assert.deepEqual(findField('é: 1', ['É']), ['1', 'É'], '非 ASCII 字母的普通大小写对两边一致')
 })
 
-test('normRel 与 ENTRY_CANDIDATES：废弃候选 CLAUDE.md 仍在（阶段 4 统一清，不在此顺手删）', () => {
-  assert.equal(normRel(' a\\b '), 'a/b'); assert.deepEqual([...ENTRY_CANDIDATES], ['CONTEXT.md', 'AGENTS.md', 'CLAUDE.md'])
+test('normRel 与 ENTRY_CANDIDATES：CLAUDE.md（Claude Code 时代的兼容名）不再是候选', () => {
+  assert.equal(normRel(' a\\b '), 'a/b'); assert.deepEqual([...ENTRY_CANDIDATES], ['CONTEXT.md', 'AGENTS.md'])
 })
 
 function canSymlink() {

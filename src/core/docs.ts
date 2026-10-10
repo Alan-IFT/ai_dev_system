@@ -3,7 +3,7 @@
 //
 // 迁移约束：`find_field` 的正则依赖 Python `re` 的语义——Unicode 大小写折叠、`\s` 的集合、`(?<=…)` 回看、`re.M`——这些都是 JS 里最容易悄悄不同的地方，
 // 所以黄金样本给得最密（规模见设计文档 §12.13，不在这里重复数字），并逐码点比对了大小写折叠（见 `foldRegexSource`）。
-// 废弃项：入口候选里的 `CLAUDE.md` 是 Claude Code 时代的兼容名（D-135），**本块保持原行为不动，阶段 4 统一清**——现在删会让黄金样本对不上。
+// 入口候选里不再有 `CLAUDE.md`（Claude Code 时代的兼容名，D-135；阶段 4 已清，设计 §12.38）。
 
 import { join } from 'node:path'
 import { cfgGet, DOC_STATES, leadWord, pyStr, pyTruthy, stateClass, type Config } from './cfg.js'
@@ -162,11 +162,8 @@ export const STATUS_CANDIDATES: readonly string[] = ['WORK.md', 'docs/state/STAT
 export const ACCEPTANCE_CANDIDATES: readonly string[] = ['ACCEPTANCE.md', 'docs/product/acceptance']
 /** 会话交接没在 layout.artifacts.handoff 声明落点时的候选。 */
 export const HANDOFF_CANDIDATES: readonly string[] = ['work/handoff.md', 'docs/state/handoff']
-/**
- * ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。`CLAUDE.md` 是 Claude Code 时代的**兼容候选名**（D-135：受支持宿主只有 DeepSeek Harness）。
- * **本块保持原行为，阶段 4 统一清**——现在删会让黄金样本里依赖它的几条对不上。
- */
-export const ENTRY_CANDIDATES: readonly string[] = ['CONTEXT.md', 'AGENTS.md', 'CLAUDE.md']
+/** ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。 */
+export const ENTRY_CANDIDATES: readonly string[] = ['CONTEXT.md', 'AGENTS.md']
 
 /** 文档根：`layout.docs_root`，未配则取 DEFAULT_DOCS_ROOT。返回 [相对路径, 证据注记]。 */
 export function docsRootOf(cfg: Config): [string, string] {

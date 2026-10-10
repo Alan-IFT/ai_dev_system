@@ -52,10 +52,7 @@ export declare const STATUS_CANDIDATES: readonly string[];
 export declare const ACCEPTANCE_CANDIDATES: readonly string[];
 /** 会话交接没在 layout.artifacts.handoff 声明落点时的候选。 */
 export declare const HANDOFF_CANDIDATES: readonly string[];
-/**
- * ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。`CLAUDE.md` 是 Claude Code 时代的**兼容候选名**（D-135：受支持宿主只有 DeepSeek Harness）。
- * **本块保持原行为，阶段 4 统一清**——现在删会让黄金样本里依赖它的几条对不上。
- */
+/** ★ 入口没在 layout.entry 声明时的候选，按此顺序取第一个存在的。 */
 export declare const ENTRY_CANDIDATES: readonly string[];
 /** 文档根：`layout.docs_root`，未配则取 DEFAULT_DOCS_ROOT。返回 [相对路径, 证据注记]。 */
 export declare function docsRootOf(cfg: Config): [string, string];
