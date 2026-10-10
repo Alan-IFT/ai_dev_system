@@ -2,7 +2,7 @@
 # 提交闸门（Gate 合同见仓库工作须知 §7）：四道都跑，任一非 0 即拒绝提交，退出码取最大者。安装（每个克隆一次）：git config core.hooksPath .githooks
 # 通过时只报一行、失败时只打失败那几道的全量输出：提交的输出会进 agent 上下文，成功路径不该占上下文。
 #
-# 全部是 Node（重构设计 §12.38：钩子里不再有 Python）。选 node：DSH 导出 DSH_HOME，它的 node 固定在 $DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/（重构设计 §4.1 实测）。
+# 全部是 Node（重构设计 §12.38：钩子里不再有 Python）。五道：std-check、check-normative-force、check-lib-sync、check-py-semantics、check-residue。选 node：DSH 导出 DSH_HOME，它的 node 固定在 $DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/（重构设计 §4.1 实测）。
 # 在 DSH 之外（系统终端手敲 git commit、CI）没有 DSH_HOME：依次回退到 $USERPROFILE/.dsh/ 下同位置的 node（Windows 终端里只有 USERPROFILE），再到 PATH 上的 node；都没有就失败关闭，不当通过（01 §2 N1）。
 # 路径含空格（用户名、DSH_HOME 里常见）：解释器路径一律带引号用，不拼进字符串再不加引号展开。
 NODE=""
@@ -36,5 +36,9 @@ fi
 if [ -f scripts/check-py-semantics.mjs ]; then
   run_gate "scripts/check-py-semantics.mjs" "$NODE" scripts/check-py-semantics.mjs
 fi
-[ $fail -eq 0 ] && echo "提交闸门：四道通过"
+# 第五道：废弃技术栈的字样（口径与白名单见 scripts/check-residue.mjs）只许出现在白名单里（重构设计 §7 阶段 4 的退出判据，§12.38 七）。
+if [ -f scripts/check-residue.mjs ]; then
+  run_gate "scripts/check-residue.mjs" "$NODE" scripts/check-residue.mjs
+fi
+[ $fail -eq 0 ] && echo "提交闸门：五道通过"
 exit $fail
