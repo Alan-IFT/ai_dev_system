@@ -771,6 +771,28 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **未覆盖（诚实标明）**：①**技能在一次完整 agent 回合里被模型看到并加载**——隔离 home 没有 API 凭据，`MISSING_CREDENTIAL` 在挂载完成之后才退出；`dsh-tool-skill` 的目录渲染与 `skill` 加载工具我只验证到"注册表里有、`get` 能取"，没验证到"模型的目录里出现"。②桌面版 Plugins 页的点击安装，同 §12.3。③**用户真实 profile**（`link:` 指向旧的 `tools/dsh-std`）一字未动，换装留到阶段 4。④探针里 `ctx.skills.snapshot()` 不带 `cwd` 选项也能取到，但项目级技能（`.dsh/skills`）的作用域差异我没单独验。
 
+### 12.36 预发布 tag `2026-10-10-pre.1`：从 tag 装入的复验（2026-10-10）
+
+**tag 的选择**：打在 `main` 的 `cdca3eb` 上，带注解，**不动 `release` 分支**（仍是 `d7f8b1f`）。命名沿用日期惯例加 `-pre` 后缀以区别于发布 tag。理由（Alan 确认）：`release` 是采用项目 `git subtree` 拉取的分支，现在放的仍是旧的发布物；把 TS 栈推上去会让三个项目下次 `subtree pull` 时在 `.std/` 里冒出 `package.json`、`lib/`。装插件用 `github:Alan-IFT/ai_dev_system#<tag>`，本来就读 `main`；`main` 含内部脚手架（`golden/`、审计记录），但装到的包因 `files` 白名单不含它们。`release` 的改动留到阶段 4 清理时一并做。
+
+**复验**（全新的隔离 `DSH_HOME`，与 §12.35 的环境无关；用户真实 profile 未动）：
+
+| 实测 | 结果 |
+|---|---|
+| `dsh plugin --profile tg add github:Alan-IFT/ai_dev_system#2026-10-10-pre.1` | 退出 0；锁文件解析到 `cdca3eb…` 全 40 位；profile 的依赖行就是这条 tag 引用 |
+| 装到的包 | `lib/`、`skills/`（五技能加 `index.json`）、`tools/`（仅 `CONTRACT.md`）、`cordis.patch.yml`、`package.json`、`README.md`、`LICENSE`；`exports` 有 `.`、`./skills`、`./cordis.patch.yml`、`./package.json`；`src test docs golden scripts 标准 templates tools/dsh-std tools/std/check_all.py` 都不在 |
+| 合并配置 | 两行：`ai-dev-std` 与 `ai-dev-std-skills` |
+| 启动 | 输出里没有 `ai-dev-std` 的报错或 pending 行 |
+| 探针经真实 `ctx.skills` | 五条 `std-*` 齐，提供者 `ai-dev-std-standard`、来源 `bundled`、`complete: true`，正文字节与工作区一致，头部带 `source_rev` |
+| 探针经真实 `tools/pre-execute` | 写 `.std/` 被拒、不落盘；写普通文件放行 |
+| 用**已装位置**的 `lib/cli.js`（钩子将来的调用形态）检查本仓 | 退出 0，约 26 秒；与工作区自己的 `lib` **逐 id 逐状态相同**（92 对 92） |
+| 同一个已装 `cli.js` 对 Python 检查器 | 只差登记过的 4 条 adoption（版本记录两条 PASS、内嵌与免审批清单两条 SKIP）加身份条目——**没有未登记的差异** |
+| `DSH_PROFILE_DIR` 指向已装 profile 时跑 `migrate` | `pluginInstalled` 变为 true，PMC 的钩子步骤不再 `blocked`——**"先装插件才能改钩子"这条前置检测在真实安装态下被验证了**（此前只在"未装"一侧验证过） |
+
+**对阶段 5 的意义**：阶段 5 要求"发布新 tag 并在真实 DSH 里从该 tag 安装验证"。这次已经用预发布 tag 走完了全部流程；正式发布时的差别只在 tag 名与它打在哪个分支，流程已验证。**阶段 5 剩下的是阶段 4 清理之后的全量复验，以及 `release` 分支的最终处置。**
+
+**未覆盖**（同 §12.35）：模型在完整回合里看到并加载技能；桌面 Plugins 页的点击安装；用户真实 profile 的换装（阶段 4）。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -832,6 +854,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-10 | **打预发布 tag `2026-10-10-pre.1`（`main` 的 `cdca3eb`，不动 `release`）并从 tag 在全新隔离 DSH 里复验**，记 §12.36；已装位置的 `cli.js` 检查本仓与工作区 `lib` 逐条相同、对 Python 只差登记过的 4 条；`migrate` 在已装态下钩子步骤解除 blocked | 隔离环境 `dshtag-*` 全程；探针经真实 `ctx.skills`／`ctx.tools`；用户真实 profile 未动 |
 | 2026-10-10 | **预发布：在真实 DSH 里经安装通道装入验证**，记 §12.35；**抓出单测看不见的缺陷**——技能注册写在 `inject = []` 的守卫 `apply` 里，真实 DSH 取 `ctx.skills` 抛错且被 `try/catch` 吞成一条 warn（功能静默失效）；拆成守卫与技能两个入口、`cordis.patch.yml` 挂两行；禁用 `dsh-skill` 的对照实验证明守卫不受拖累 | 隔离 `DSH_HOME` 全程；探针经真实 `ctx.skills`／`ctx.tools`；技能变异 15 条、1 条类型守住；用户真实 profile 一字未动 |
 | 2026-10-09 | **阶段 3 材料完成**：`std-check migrate`（只读方案，不写项目）记 §12.34；对三个真实项目实读后修掉三处缺陷（固定候选钩子也须真调旧检查器、钩子目录里的 .md 不是钩子、frozen 项不能用词边界）；端到端测试按方案真执行一遍并对比迁移前后，**第一次就抓出一条没预料的差异**（links 聚合 PASS 换 id），"成对"口径从中长出；§8 标注已被取代 | 测试 1285 条 Windows／Ubuntu 均 0 败；变异 29 条，28 抓住、1 条有实测证据的不可观察；四个真实仓整体比对仍逐条一致 |
 | 2026-10-09 | **阶段 3 第 1、2 项完成并更正一处**：标准技能提供者（`registerProvider`，五条技能，`skills/` 登记为 derived，`source_rev` 取源文件 git blob 哈希且与 `git hash-object` 实测一致）；`adoption` 不再读 `STANDARD_VERSION`（预期消失 +2 条 finding、+7 条探针）；**实测推翻「删 18 处冗余声明零行为变化」**——证据文字会变（"项目未校准"），第 3 项撤出 | 技能 9 条测试；adoption 变异 18/19 抓住、1 条有 Python 实测证据的等价项；四个真实仓整体比对仍逐条一致；全量 1252 通过 0 失败 |
