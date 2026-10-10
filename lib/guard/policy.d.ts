@@ -32,8 +32,6 @@ export interface DecideOpts {
 export declare const MAX_CMD = 8192;
 /** 把路径规整成可比较的形式：Win32 会忽略每段尾部的点与空格，并认 \\?\ 前缀；NTFS 的 `:流名` 后缀不改变文件本身；Windows 上还要忽略大小写。 */
 export declare function normalizeForCompare(p: string): string;
-/** 路径是否落在内嵌标准目录（.std/）之下。base 缺省为 root（虚拟 cwd 时传入）。 */
-export declare function inEmbeddedStd(p: string, root?: string, base?: string): boolean;
 /** 路径是否是需要先问的受保护文件（改钩子、改入口合同、改守卫自身）；返回理由或 null。 */
 export declare function protectedPath(p: string, root?: string, base?: string, protect?: string[]): string | null;
 /**

@@ -11,11 +11,11 @@ const sh = (command) => ({ name: process.platform === 'win32' ? 'pwsh' : 'bash',
 
 const cases = [
   // [标题, exec, 期望 kind]
-  // —— 内嵌目录只读：写工具 deny ——
-  ['write .std/ 内文件 => deny', { name: 'write', arguments: { file_path: '.std/标准/README.md' } }, 'deny'],
-  ['edit .std/ 内文件 => deny', { name: 'edit', arguments: { file_path: '.std/x.md' } }, 'deny'],
-  ['write 绝对路径落在 .std 下 => deny', { name: 'write', arguments: { file_path: `${ROOT}${process.platform === 'win32' ? '\\' : '/'}.std${process.platform === 'win32' ? '\\' : '/'}a.md` } }, 'deny'],
-  ['write 路径含 .. 绕回 .std => deny', { name: 'write', arguments: { file_path: 'docs/../.std/a.md' } }, 'deny'],
+  // —— protect 里列了 .std 当靶子：写工具 ask（守卫已无 deny，设计 §12.38）——
+  ['write .std/ 内文件 => ask', { name: 'write', arguments: { file_path: '.std/标准/README.md' } }, 'ask'],
+  ['edit .std/ 内文件 => ask', { name: 'edit', arguments: { file_path: '.std/x.md' } }, 'ask'],
+  ['write 绝对路径落在 .std 下 => ask', { name: 'write', arguments: { file_path: `${ROOT}${process.platform === 'win32' ? '\\' : '/'}.std${process.platform === 'win32' ? '\\' : '/'}a.md` } }, 'ask'],
+  ['write 路径含 .. 绕回 .std => ask', { name: 'write', arguments: { file_path: 'docs/../.std/a.md' } }, 'ask'],
   ['write 普通文件 => allow', { name: 'write', arguments: { file_path: 'docs/a.md' } }, 'allow'],
   ['write 名字像 .std 的别的目录 => allow', { name: 'write', arguments: { file_path: '.stdx/a.md' } }, 'allow'],
   // —— 受保护文件：ask ——
@@ -23,8 +23,8 @@ const cases = [
   ['改 AGENTS.md => ask', { name: 'write', arguments: { file_path: 'AGENTS.md' } }, 'ask'],
   ['改 .githooks/pre-commit => ask', { name: 'edit', arguments: { file_path: '.githooks/pre-commit' } }, 'ask'],
   ['改守卫插件自身 => ask', { name: 'edit', arguments: { file_path: 'tools/dsh-std/lib/policy.js' } }, 'ask'],
-  // —— 命令：写 .std deny ——
-  ['重定向写 .std => deny', sh('echo x > .std/a.md'), 'deny'],
+  // —— 命令：写 protect 项 .std ——
+  ['重定向写 .std => ask', sh('echo x > .std/a.md'), 'ask'],
   ['Set-Content 写 .std => ask（带 .std 的写类命令，写目标不猜，交给人）', sh("Set-Content .std/a.md 'x'"), 'ask'],
   ['Remove-Item .std => ask（带 .std 的写类命令，写目标不猜，交给人）', sh('Remove-Item -Recurse .std'), 'ask'],
   ['只读 .std（Get-Content）=> allow', sh('Get-Content .std/标准/README.md'), 'allow'],
@@ -68,7 +68,7 @@ test('用例表非空（空用例表不得算通过）', () => {
 
 for (const [title, exec, want] of cases) {
   test(title, () => {
-    const got = decide(exec, { root: ROOT })
+    const got = decide(exec, { root: ROOT, protect: ['.std'] })
     assert.equal(got.kind, want, `实得 ${JSON.stringify(got)}`)
     if (want !== 'allow') assert.ok(got.reason && got.reason.length > 0, 'ask/deny 必须带理由')
   })
@@ -113,7 +113,6 @@ const protectCases = [
   ['pwsh cd 进 protect 目录后写 => ask', sh('cd src/guard; Set-Content a.ts x'), ['src/guard'], 'ask'],
   ['命令替换里写 protect 内文件 => ask', sh('echo $(Set-Content src/guard/a.ts x)'), ['src/guard'], 'ask'],
   ['内嵌 bash -c 里写 protect 内文件 => ask', { name: 'bash', arguments: { command: "bash -c 'echo x > src/guard/a.ts'" } }, ['src/guard'], 'ask'],
-  ['protect 不削弱 .std 只读：写 .std/ 仍是 deny', { name: 'write', arguments: { file_path: '.std/x.md' } }, ['src/guard'], 'deny'],
 ]
 test('protect 用例表非空（空用例表不得算通过）', () => { assert.ok(protectCases.length >= 20) })
 for (const [title, exec, protect, want] of protectCases) {
@@ -127,9 +126,9 @@ test('protect 会让三种判定之外多出的 ask 都带 reason（给人看的
   assert.equal(v.kind, 'ask'); assert.ok(typeof v.reason === 'string' && v.reason.length > 0)
 })
 
-test('分布：三种判定都至少出现一次（防判定器退化成恒 allow）', () => {
-  const kinds = new Set(cases.map(([, e]) => decide(e, { root: ROOT }).kind))
-  assert.deepEqual([...kinds].sort(), ['allow', 'ask', 'deny'])
+test('分布：allow 与 ask 都至少出现一次（防判定器退化成恒 allow 或恒 ask）', () => {
+  const kinds = new Set(cases.map(([, e]) => decide(e, { root: ROOT, protect: ['.std'] }).kind))
+  assert.deepEqual([...kinds].sort(), ['allow', 'ask'])   // 本守卫不再产出 deny（设计 §12.38）
 })
 
 test('commitMessageProblem：合格与不合格', () => {
@@ -164,13 +163,13 @@ test('适配层：enabled=false 不注册任何监听', () => {
   assert.equal(ctx.handlers.length, 0)
 })
 
-test('适配层：写 .std 被 deny；普通写走下游（allow）', async () => {
+test('适配层：写受保护的 AGENTS.md 被 ask；普通写走下游（allow）', async () => {
   const ctx = fakeCtx()
   apply(ctx, { root: ROOT })
   const [, fn] = ctx.handlers[0]
   const allow = async () => ({ kind: 'allow' })
-  const d = await fn({ name: 'write', arguments: { file_path: '.std/a.md' } }, allow)
-  assert.equal(d.kind, 'deny')
+  const d = await fn({ name: 'write', arguments: { file_path: 'AGENTS.md' } }, allow)
+  assert.equal(d.kind, 'ask')
   const ok = await fn({ name: 'write', arguments: { file_path: 'docs/a.md' } }, allow)
   assert.equal(ok.kind, 'allow')
 })
@@ -193,4 +192,27 @@ test('适配层：判定器抛异常时按未定处理（ask），不放行', as
   const d = await fn(exec, async () => ({ kind: 'allow' }))
   assert.equal(d.kind, 'ask')
   assert.match(d.reason, /未定/)
+})
+
+// —— 补：变异验证（test/mutations/guard.json）发现原用例不触发差异的三处 ——
+test('protect 非数组被整体忽略，且不会把空串当成“整个项目都受保护”：写项目内各种普通路径都 allow', () => {
+  for (const protect of ['x', 7, null, { a: 1 }, undefined]) {
+    for (const f of ['x', 'docs/a.md', '.', 'a/b']) {
+      assert.equal(decide({ name: 'write', arguments: { file_path: f } }, { root: ROOT, protect }).kind, 'allow', JSON.stringify([f, protect]))
+    }
+  }
+})
+
+test('decide 自己吃抛错的 name／arguments（getter、Proxy）：一律 ask，不抛、不放行', () => {
+  const bad = [
+    { get name() { throw new Error('boom') }, arguments: {} },
+    { name: 'write', get arguments() { throw new Error('boom') } },
+    new Proxy({}, { get() { throw new Error('proxy boom') } }),
+  ]
+  for (const e of bad) { const v = decide(e, { root: ROOT }); assert.equal(v.kind, 'ask'); assert.match(v.reason, /未定/) }
+})
+
+test('从标准输入读命令的解释器、编码后的命令：守卫看不见内容 => ask；给了命令串或脚本文件、只问版本 => allow（它们在别处判或是盲区）', () => {
+  for (const c of ['bash', 'sh', 'pwsh', 'cmd', 'zsh -i', 'bash -', 'pwsh -EncodedCommand AAA', 'powershell -enc AAA']) assert.equal(decide(sh(c), { root: ROOT }).kind, 'ask', c)
+  for (const c of ['bash script.sh', 'bash --version']) assert.equal(decide(sh(c), { root: ROOT }).kind, 'allow', c)
 })

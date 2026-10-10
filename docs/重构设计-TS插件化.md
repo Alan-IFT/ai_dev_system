@@ -152,7 +152,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | **1 骨架与守卫** | TS 工程骨架（`package.json` 合规、`tsconfig`、构建、`lib/` 同步校验）；守卫迁为 TS；真实 DSH 里经 git 地址安装验证 | `tsc` 通过；守卫测试 ≥ 现有 471 条且全过（Windows 与 Ubuntu 容器）；**真实 DSH Plugins 页用 git 地址装入后，写 `standard/` 被拒且已落盘文件为零**；`lib/` 与 `src/` 一致校验已接进钩子 | 是——此时 Python 检查器仍是现役 |
 | **2 检查器迁移** | `core` + 12 检查器 + `check_all` + selftest 夹具 | 每个检查器：TS 与黄金样本逐 id 零差异；`--selftest` 的变异验证全迁且通过；TS `check_all` 在本仓退出码与 Python 版一致 | 每迁完一个检查器可停 |
 | **3 采用项目迁移材料** | 写迁移步骤文档与脚本（**不执行**） | 步骤在一个**本仓内的合成夹具项目**上演练通过；三项目逐个写出「改什么、验什么、怎么回退」 | 是 |
-| **4 清理** | 删 Python 版与 `golden/`；清 Claude Code 残留；冻结历史处理 | `git grep` 在现行文件中对 `Claude Code`/`CLAUDE.md`/`.claude/`/`.std/` 零命中（冻结历史按下条）；**冻结历史先打 `archive-pre-ts-refactor` tag，再从 `main` 移除或留作仅历史**——此条需 Alan 确认（§11 Q2） | 否——删了就不能回退，必须在 tag 之后 |
+| **4 清理** | 删 Python 版与 `golden/`；清 Claude Code 残留；冻结历史处理 | 废弃技术栈字样（口径与白名单见 `scripts/check-residue.mjs`，Alan 2026-10-10 认可）**只出现在白名单里**，白名单外零命中，由提交钩子的第五道机械核对（原写“现行文件零命中”字面不可达，见 §12.38 七）；**冻结历史先打 `archive-pre-ts-refactor` tag，再从 `main` 移除或留作仅历史**——此条需 Alan 确认（§11 Q2） | 否——删了就不能回退，必须在 tag 之后 |
 | **5 收尾验证** | Windows + Ubuntu 容器全量；文档与实际对齐 | 两个平台全量测试与 `std-check` 退出 0；设计文档 §12 与实际一致；发布新 tag 并在真实 DSH 里从该 tag 安装验证 | — |
 
 ## 8. 采用项目迁移（本阶段只写材料，不执行）
@@ -251,7 +251,8 @@ ai_dev_system/                      ← 仓库根 = 插件包根
   - [x] 删 `tools/std/` 的 Python 检查器、`stdlib.py`、`pick-python.sh`（§12.38 三）
   - [x] 规范正文、模板、示例项目、`tools/std/{README,CONTRACT}.md` 改成无 `.std/` 的新模型（§12.38 五）
   - [x] 入口候选去 `CLAUDE.md`（§12.38 六）
-  - [ ] 守卫里 `.std/` 只读判定（待 Alan 定）　[ ] 删 `tools/dsh-std/`（待换装真实 profile，需授权）　[ ] 冻结历史从 `main` 移除（Q2，tag 已打）　[ ] 删本地 `governance/STANDARD_VERSION`　[ ] `release` 分支与 D-108（待 Alan 定）
+  - [x] 守卫里 `.std/` 只读判定拆除，守卫变异清单 31/31（§12.38 八）　[x] 残留白名单检查做成第五道钩子（§12.38 九）
+  - [ ] 删 `tools/dsh-std/`（等 Alan 在 Plugins 页换装真实 profile）　[ ] 冻结历史从 `main` 移除（Q2，tag 已打）　[ ] 删本地 `governance/STANDARD_VERSION`　[ ] D-108 与公开仓 `ai-dev-std`（起草决策条目，给 Alan 过目后才动公开仓）
 - [ ] 阶段 5：收尾验证
 
 ### 12.1 阶段 0 的真实口径（TS 版对比时必须按这个来，不是按我设想的来）
@@ -863,7 +864,17 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **七、残留读数与退出判据的现实**：同一口径（`Claude Code|CLAUDE.md|.claude/|claude plugin|.std/|git subtree|STANDARD_VERSION`）下，排除冻结区、历史叙述、生成物与旧插件后仍有命中，但**多数不是残留而是功能**：`std-check migrate` 要识别并指导删除采用项目里的旧物，必须点名它们；守卫的 `.std/` 只读判定与它在 `test/regress.test.mjs`、`test/policy.test.mjs` 里的断言（共 132 处命中）在 `tools/dsh-std` 和 `src/guard` 里；反例测试要断言“不再认 `CLAUDE.md`”。所以设计 §7 阶段 4 的退出判据“现行文件对这些字样零命中”**字面上不可达**，要改成“命中只出现在 (a) 迁移功能及其测试、(b) 守卫的 `.std/` 判定（待 Alan 定，见下）、(c) 明示‘已删除’的反例与说明里”。这是对 §7 的一次修正，不是放宽——放宽的话会连 (a)(c) 之外的新增命中也放过，所以改成了**可机械核对的白名单**。
 
-**待 Alan 决定**（阶段 4 剩余项都卡在这里）：①守卫里 `.std/` 只读判定：删（推荐）/保留到三个项目迁完/改成 `protect` 缺省；②D-108 与 `ai-dev-std` 公开仓的去留；③是否授权把真实 profile 从 `link:` 旧插件换成新插件（改 `~/.dsh`），之后才能删 `tools/dsh-std/`。
+**Alan 的回答（2026-10-10）**：认可白名单口径；①②③与冻结历史“按推荐做”。
+
+**八、守卫的 `.std/` 判定拆除（①）**：守卫的**仅有的两个 `deny` 来源**都是 `.std/`（写工具写 `.std/`、重定向到 `.std/`），所以拆完守卫**只产出 `ask` 与 `allow`**，合并时仍保留“下游 deny 不被降级”。这不是删几行：`redirectTargets`、`lex`、`cd` 虚拟 cwd、路径规整这些机制对 `protect` 清单和 `AGENTS.md`/钩子同样在用，只是测试借 `.std/` 当靶子。做法与验证：
+- **先建网再拆**：守卫原先没有自己的变异清单（只有 1-c 记过“把 .std deny 改 allow 后 16 条变红”）。建了 `test/mutations/guard.json`（31 条，覆盖受保护路径、`protect` 规整、写工具与 shell 的 ask 分支、命令替换与内嵌命令、`cd` 虚拟 cwd、状态入口、受控 git、通配、路径规整、`stricter` 排序）。**首轮基线暴露了 6 处盲区或等价变异**：其中 3 条补了测试（`protect` 非数组被整体忽略且不把空串当全部受保护；`decide` 吃抛错的 getter／Proxy；从标准输入读命令的解释器），3 条经实证等价后删除（根外路径恒返回 null 所以 `..` 检查冗余；两个分支被前一路判过而不可达）。
+- **拆**：删 `inEmbeddedStd`、`stdHit`、两处 deny、`GLOB_TARGETS` 的 `.std` 项与相关 ask 文案；`test/regress.test.mjs`、`test/policy.test.mjs` 把靶子换成 `protect:['.std']` 的普通受保护路径、期望 `deny`→`ask`；有 4 条按原意删或换（`cp .std 到别处` 与 `rm .st*` 删，`cd other` 一条换成按虚拟 cwd 与项目根两种解析都要问）。
+- **拆后同一份 31 条变异清单仍是 31/31**，没有覆盖丢失。全量测试 0 失败（条数随增删用例变化，不在此抄，现跑现读）。
+- **一个顺手的更正**：我换靶子时把 `cd other; echo x > sub/a` 的期望写成 `allow`，实测是 `ask`——因为 `cd` 可能没生效，按项目根解析会命中受保护的 `sub`，守卫宁可多问。这是原有的保守设计，期望改回 `ask`。
+
+**九、残留白名单检查做成第五道钩子（Alan 认可的口径）**：`scripts/check-residue.mjs`，每项白名单写理由；`test/residue.test.mjs`（8 条）加 `test/mutations/residue.json`（23 条，全部抓住）。变异首轮暴露 3 处盲区（`.json` 扩展名、中文路径被 git 转义、白名单顺序语义——最后一条经实证等价，删除）。**白名单的粒度本身被测试钉住**：同一目录下“相近但不同”的路径（`docs/决策日志副本.md`、`src/core/fs.ts`、`tools/std/NOTES.md`……）不放行，防止白名单被写成前缀通配。钩子第五道在用户 cmd 的真实环境下验证：干净仓通过，新增一句 `.std/` 被它拦下。
+
+**仍待办**：②D-108 与 `ai-dev-std`；③换装真实 profile 后删 `tools/dsh-std/`——**真实 profile 由桌面版独占管理，命令行改会与运行中的桌面应用争用状态，所以这一步由 Alan 在 Plugins 页操作**，备份已做在 `~/.dsh/profiles/desktop.backup-before-ai-dev-std-20261010`；冻结历史移除。
 
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
