@@ -77,7 +77,7 @@ tools/result           只观察，结果已冻结
 | 常驻指令 | 提示词前缀型（CLAUDE.md 拼入） | 持久基线消息 + 字节预算裁剪并告知模型 | **是** |
 | 状态 | 独立状态工件（TodoWrite / 计划文件） | 日志投影型，无第二份存储 | **是** |
 
-**一个必须说清的坑**：DSH 的 `dsh-hooks-claude-code` 能直接跑 Claude Code 格式的 `hooks.json`。**走这条桥接落地不算原生执行层**——那是同一份外部钩子换了个宿主执行，且保留了已退出支持的格式依赖。本仓的执行层是原生 Cordis 插件 [`tools/dsh-std/`](../../tools/dsh-std/README.md)（订阅 `tools/pre-execute`），**没有走桥**。桥接只能用作迁移期的过渡。
+**一个必须说清的坑**：DSH 的 `dsh-hooks-claude-code` 能直接跑 Claude Code 格式的 `hooks.json`。**走这条桥接落地不算原生执行层**——那是同一份外部钩子换了个宿主执行，且保留了已退出支持的格式依赖。本仓的执行层是原生 Cordis 插件 `dsh-project-std`（守卫在 `src/guard/`，订阅 `tools/pre-execute`；用法见 [tools/std/README](../../tools/std/README.md)「DSH 接法」），**没有走桥**。桥接只能用作迁移期的过渡。
 
 ## 5. 一处冲突：一手证实，待裁
 
@@ -91,7 +91,7 @@ WX-29 §5.2 曾以 S1 二手材料登记过一条冲突。**本次读一手包�
 
 ## 6. 三项原未定的查证结果（2026-10-04，DSH 0.2.0-rc.2，读包源码与 README，V1 一手；**仍未实机运行**）
 
-原写「写第一个插件前必须查的三条，现在记为未定，不猜」。本轮写了插件（[`tools/dsh-std/`](../../tools/dsh-std/README.md)），先查了：
+原写「写第一个插件前必须查的三条，现在记为未定，不猜」。本轮写了插件（`src/guard/`，用法见 [tools/std/README](../../tools/std/README.md)「DSH 接法」），先查了：
 
 1. **`ctx.tools.guard()` 能否从项目本地文件注册？** 能，但不是「放进项目目录就生效」。插件是 Cordis 包，经 profile 装入：profile 的 `package.json` 依赖加 `dsh.profile.bundles`（插件管理页也能选），包带一个 `cordis.patch.yml` 的 `insert` 列表（社区包 `dsh-user-prompt` 即此形态）；`cordis-plugin-loader` 另支持 `name: './plugins/example'` 这种路径形态的条目。**所以守卫属于宿主 profile，不属于项目仓**——采用项目的仓里不放它，这与上一代接法把配置写进项目 `.claude/settings.json` 不同。
 2. **守卫是全局还是 per-agent 作用域？** 两者都有：`dsh-tools` 源码注释原文——「A plain-context guard applies globally; one registered through `agent.ctx` applies only to that agent.」本插件订阅的是 `tools/pre-execute`（普通 context，全局）。子 agent 是否继承该订阅、与 `restrict()` 的关系**没实测**。
@@ -99,7 +99,7 @@ WX-29 §5.2 曾以 S1 二手材料登记过一条冲突。**本次读一手包�
 
 **读源码顺带得到的另外几条事实**（都进了插件设计）：`tools/pre-execute` 返回 `allow／deny／ask`，`ask` 经 `dsh-user-approval`，应答缺席即拒绝（`serviceAsk`）；**`tools/pre-execute` 不能改写参数**（dsh-tools README「Known Limitations」）；内置写类工具是 `write`／`edit`（参数 `file_path`），shell 是 `pwsh`（Windows）或 `bash`（POSIX），参数 `command`；`dsh-hooks-claude-code` 的 `PreToolUse` 实现正是订阅 `tools/pre-execute` 后把外部命令的输出翻成 deny／ask——即桥接与原生插件落在同一个缝上，差别只在判定逻辑是外部进程还是进程内代码。
 
-**2026-10-05 更新**：插件已在本机真实会话里被调用（见 `tools/dsh-std/README` 的实测表）。**仍未知（不猜）：** 本插件与同样订阅 `tools/pre-execute` 的 `dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs` 的先后顺序；子 agent 是否继承全局守卫。
+**2026-10-05 更新**：插件已在本机真实会话里被调用（见 `tools/std/README`「DSH 接法」的“已验证”）。**仍未知（不猜）：** 本插件与同样订阅 `tools/pre-execute` 的 `dsh-workspace-changes`、`dsh-experimental-auto-review`、`dsh-tool-jobs` 的先后顺序；子 agent 是否继承全局守卫。
 
 ## 7. 本表其它不回答的问题
 

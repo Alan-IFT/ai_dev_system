@@ -1,12 +1,9 @@
 /** 命令长度上限：超过则不分析，直接 ask（防 ReDoS，也防把超长命令当「已审」放行）。 */
-/** 判定结果。deny 无法由人批准，所以只给不需要猜的字面事实；其余不确定一律 ask。 */
+/** 判定结果。只有 allow 与 ask：deny 人批准不了，而命令串分析是尽力而为的预过滤，不确定一律 ask。 */
 export type Verdict = {
     kind: 'allow';
 } | {
     kind: 'ask';
-    reason: string;
-} | {
-    kind: 'deny';
     reason: string;
 };
 /** 词法方言：bash 用 `\` 转义，PowerShell 用反引号。 */

@@ -1,6 +1,6 @@
 // 判定核心：纯函数，不依赖 DSH，可单独测。
 //
-// 输入是一次工具调用（name + arguments），输出是 {kind:'allow'} | {kind:'ask', reason} | {kind:'deny', reason}。
+// 输入是一次工具调用（name + arguments），输出是 {kind:'allow'} | {kind:'ask', reason}（不产出 deny，见下）。
 // 对应 01 §5.5 受控动作：本仓只列确有对象的几类（D-135 迁入）。
 //
 // 设计约束：
@@ -20,8 +20,8 @@ const WRITE_TOOLS: Record<string, string> = { write: 'file_path', edit: 'file_pa
 const SHELL_TOOLS = new Set(['pwsh', 'bash'])
 const IS_WIN = process.platform === 'win32'
 /** 命令长度上限：超过则不分析，直接 ask（防 ReDoS，也防把超长命令当「已审」放行）。 */
-/** 判定结果。deny 无法由人批准，所以只给不需要猜的字面事实；其余不确定一律 ask。 */
-export type Verdict = { kind: 'allow' } | { kind: 'ask'; reason: string } | { kind: 'deny'; reason: string }
+/** 判定结果。只有 allow 与 ask：deny 人批准不了，而命令串分析是尽力而为的预过滤，不确定一律 ask。 */
+export type Verdict = { kind: 'allow' } | { kind: 'ask'; reason: string }
 /** 词法方言：bash 用 `\` 转义，PowerShell 用反引号。 */
 export type Dialect = 'bash' | 'ps'
 /** 命令替换：text 是 $( ) 或反引号里的内容；at 是它出现时已切出的段数（属于当前正在读的那一段）。 */
@@ -78,7 +78,6 @@ export function protectedPath(p: string, root?: string, base?: string, protect: 
   if (rel === 'context_manifest.md' || rel === 'CONTEXT_MANIFEST.md') return '改默认上下文合同（唯一清单）'
   if (rel === 'agents.md' || rel === 'AGENTS.md') return '改入口指令文件'
   if (rel.startsWith('.githooks/') || rel === '.githooks') return '改提交闸门钩子'
-  if (rel.startsWith('tools/dsh-std/') || rel === 'tools/dsh-std') return '改守卫插件自身（改守卫的人不应由守卫放行）'
   // 插件配置 protect 列出的额外路径：整段匹配（rel 等于它，或在它之下），不是字符串前缀——package.json 不连带 package.json.bak。
   for (const q of protect) if (rel === q || rel.startsWith(q + '/')) return '改插件配置 protect 列出的受保护路径（' + q + '）'
   return null
@@ -652,9 +651,9 @@ const GLOB_TARGETS = [
 /** 重定向目标是文件描述符（`&1`、`2`）或空设备（`$null`、`nul`、`/dev/null`）：不写文件。 */
 function isNullTarget(tg: string): boolean { return /^(&?\d+|\$null|nul|\/dev\/null)$/i.test(tg) }
 
-/** 更严的判定：deny > ask > allow。 */
+/** 更严的判定：ask > allow。 */
 function stricter(a: Verdict, b: Verdict): Verdict {
-  const rank = { allow: 0, ask: 1, deny: 2 }
+  const rank = { allow: 0, ask: 1 }
   return rank[b.kind] > rank[a.kind] ? b : a
 }
 
@@ -716,7 +715,7 @@ function judgeShell(cmd: string, root: string | undefined, depth: number, cwd0: 
   let inner: Verdict = { kind: 'allow' }
   const subsBySeg = new Map<number, string[]>()
   for (const s of lexed.subs) { if (!subsBySeg.has(s.at)) subsBySeg.set(s.at, []); subsBySeg.get(s.at)!.push(s.text) }
-  // 命令替换的求值点在它所在的子命令：用到那一点的虚拟 cwd（`cd tools; echo $(rm dsh-std/…)`）
+  // 命令替换的求值点在它所在的子命令：用到那一点的虚拟 cwd（`cd sub; echo $(rm AGENTS.md)`）
   const judgeSubs = (idx: number): void => { for (const text of subsBySeg.get(idx) || []) inner = stricter(inner, judgeShell(text, root, depth + 1, cwd, dialect, protect)) }
 
   for (let segIdx = 0; segIdx < lexed.segs.length; segIdx++) {

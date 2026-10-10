@@ -12,7 +12,7 @@
  {"id":"G12","title":"decide：shell 命令缺失时放行","file":"src/guard/policy.ts","from":"if (typeof cmd !== 'string') return { kind: 'ask', reason: `${name} 的 command 缺失或类型不对，按未定处理，先问人` }","to":"if (typeof cmd !== 'string') return { kind: 'allow' }"},
  {"id":"G13","title":"decide：超长命令放行（不分析也不问）","file":"src/guard/policy.ts","from":"if (cmd.length > MAX_CMD) {\n      return { kind: 'ask', reason: `命令超过 ${MAX_CMD} 字符，守卫不分析，按未定处理，先问人` }\n    }","to":""},
  {"id":"G14","title":"decide：读 name／arguments 抛错时放行","file":"src/guard/policy.ts","from":"return { kind: 'ask', reason: '工具调用的 name／arguments 读不出来，按未定处理，先问人' }","to":"return { kind: 'allow' }"},
- {"id":"G15","title":"stricter：排序反了（allow 最严）","file":"src/guard/policy.ts","from":"const rank = { allow: 0, ask: 1, deny: 2 }","to":"const rank = { allow: 2, ask: 1, deny: 0 }"},
+ {"id":"G15","title":"stricter：排序反了（allow 最严）","file":"src/guard/policy.ts","from":"const rank = { allow: 0, ask: 1 }","to":"const rank = { allow: 1, ask: 0 }"},
  {"id":"G16","title":"judgeShell：嵌套超深放行","file":"src/guard/policy.ts","from":"if (depth > MAX_DEPTH) return { kind: 'ask', reason: '命令嵌套了太多层（shell 包装、命令替换），守卫不再往里看，先问人' }","to":"if (depth > MAX_DEPTH) return { kind: 'allow' }"},
  {"id":"G17","title":"judgeShell：解析不了的形状放行","file":"src/guard/policy.ts","from":"if (lexed.problem) return { kind: 'ask', reason: `命令里有守卫解析不了的形状（${lexed.problem}），先问人` }","to":"if (lexed.problem) return { kind: 'allow' }"},
  {"id":"G18","title":"judgeShell：命令替换里的命令不判","file":"src/guard/policy.ts","from":"const judgeSubs = (idx: number): void => { for (const text of subsBySeg.get(idx) || []) inner = stricter(inner, judgeShell(text, root, depth + 1, cwd, dialect, protect)) }","to":"const judgeSubs = (idx: number): void => {}"},

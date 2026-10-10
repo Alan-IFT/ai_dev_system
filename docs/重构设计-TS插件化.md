@@ -888,7 +888,27 @@ dsh-project-std/                     ← 仓库根 = 插件包根
 
 **验证**：全量测试 0 失败；五道检查退出 0；隔离 `DSH_HOME` 里从本地路径 `link:` 装入，`dsh --profile <名> --dump-config` 的合并配置里是 `# == dsh-project-std` 与两行 `id: dsh-project-std`／`dsh-project-std-skills`（`name: dsh-project-std/skills`），**旧名 `ai-dev-std` 零命中**。过程中我两次把 `--dump-config` 放错位置（`headless` 是另一个 profile 名，不是子命令），读 `dsh --help` 才改对，没有靠猜第三次。
 
-**对 Alan 的影响**：他的 profile 里旧插件 `dsh-std` 已经卸载，新插件尚未装入；包名变了，所以要等本次改名发布成新预发布标签 `2026-10-10-pre.3` 后再在 Plugins 页装，**不要装 `pre.2`**（它里面的包名还是 `ai-dev-std`）。
+**对 Alan 的影响**：他的 profile 里旧插件 `dsh-std` 已经卸载，新插件尚未装入；包名变了，所以**不要装 `pre.2`**（它里面的包名还是 `ai-dev-std`）。`pre.3` 之后又有了本节之后的清单合规改动，装 `pre.4`（见 §12.40）。
+
+### 12.40 按官方清单规范补齐、删旧插件目录、归档公开仓的实测（2026-10-10）
+
+**一手出处**：官方仓库 `deepseek-ai/deepseek-harness`（默认分支是 `master`，我先按 `main` 取失败）的 `packages/util/package-manifest/README.md`，与收录指南 `awesome-dsh-plugin/contributing.md`。读到的规则：
+- 清单字段是 `dsh.manifestVersion`（`1`）与 `engines.dsh`（SemVer 范围，可含精确预发布版本）；**官方明说安装器与加载器目前不强制检查它们**，所以是声明式，给人和市场看的。
+- **`dsh.compatibility.dshReleases` 不在官方规范里**，是 `dsh-context` 作者自加的字段。不抄，用测试钉住“不写它”。
+- 收录**不要求发 npm**：npm 只是“推荐，免构建授权”；不发 npm 可在条目里加 `tarball:` 指向 GitHub Release。我们本来就把 `lib/` 提交进 git，pnpm 从 git 装包不需要构建授权。
+- peer 范围不带显式预发布分支会静默排除 harness 的预发布构建（§12.39 已实测并补）。
+
+**改了什么**：`engines.dsh` 写 `0.2.0-rc.2`（只在这一个版本上验证过，所以写精确版本，不写没验证的范围）；新增 `test/manifest.test.mjs`（8 条）与 `test/mutations/manifest.json`（25 条，25/25 抓住）钉住收录要求与官方字段；`tools/std/README.md` 加“包里有什么、为什么”一节（`lib/` 提交进 git 的原因、自检夹具不是残留、守卫只询问不拒绝）。
+
+**写进 README 的断言先核实**：我写了“守卫不读不写网络、不碰项目文件、不产出拒绝”。核对守卫产物，发现 `Verdict` 类型里还留着 `{kind:'deny'}`，而守卫早已不产出它——**类型与行为不符**。已把守卫自己的 `Verdict` 收窄为 `allow | ask`（`index.ts` 里合并**下游**的 deny 不受影响，那是别的插件给的）；`stricter` 的排序同步去掉 deny。守卫产物里 `unlink`、`exec(` 的命中经查是命令词表与正则的 `.exec`，不是 I/O。自检夹具“只写系统临时目录”也实测：在一个空目录里跑 `std-check --selftest`，当前目录零变化、被验证仓库的 `git status` 前后相同、系统临时目录无遗留。
+
+**删旧插件目录**：Alan 已在 Plugins 页卸载 `dsh-std`；我核对 profile 的 `package.json`、锁文件、`.modules.yaml` 里都无它（`node_modules/dsh-std` 的符号链接还在，那是桌面版的清理范围，我不碰真实 profile），然后 `git rm -r tools/dsh-std`（7 个文件）。守卫里硬编码的 `tools/dsh-std/` 受保护规则一并删除（“守卫保护自身”交给 `protect` 配置，缺省空，§12.4）；原本把它当靶子的测试换成 `AGENTS.md`／`.githooks`，结构不变，**用例数与结果与改前一致**（422／421／0／1），守卫变异清单 31/31。白名单里给旧插件的豁免项成了死项，同步删除，现 16 项全被用到。
+
+**归档 `Alan-IFT/ai-dev-std` 的实测**（Alan 已归档）：在临时目录里对归档后的仓库匿名 `git subtree add`（tag `2026-10-05`）成功、`git subtree pull`（tag `2026-10-05.1`）成功，`git push --dry-run` 被 403 拒绝。**结论：归档不会断三个旧项目的升级路径**，D-137 里“迁完再归档”的前提据此简化。
+
+**安装名**：Alan 觉得 `github:Alan-IFT/dsh-project-std#2026-10-10-pre.3` 太长。三种缩短办法的取舍：不带标签（跟 `main`，短一半，版本不固定）、发 npm（最短，**不可撤回**且需要账号，等正式标签后再说）、GitHub Release 的 tarball（市场安装用）。Alan 决定按我的推荐：自己的 profile 先用不带标签的写法，发 npm 暂缓。对外文档仍写带标签的稳定写法。
+
+
 
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
@@ -951,6 +971,7 @@ dsh-project-std/                     ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-10 | **按官方清单规范补齐、删旧插件目录、归档公开仓的实测**，记 §12.40：`engines.dsh`、清单合规测试 25/25 变异抓住；README 断言先核实，发现守卫 `Verdict` 类型留着已不产出的 deny 并收窄；删 `tools/dsh-std/` 与守卫里的硬编码规则；归档后 `subtree add/pull` 匿名仍成功 | 官方默认分支是 `master`，按 `main` 取失败；`dsh.compatibility` 不在官方规范里，不抄 |
 | 2026-10-10 | **改名为 dsh-project-std**，记 §12.39：仓库与包名同名；对照 awesome-dsh-plugin 的收录要求，发现 description 与代码不符并改；peer 范围用 pnpm 自带 semver 实测并补预发布分支（纸面，未端到端）；隔离 DSH_HOME 里 dump-config 验证旧名零命中 | `--dump-config` 位置放错两次，读帮助才改对 |
 | 2026-10-10 | **阶段 4 其余部分**，记 §12.38：三个元治理脚本迁 Node（对拍 30 个坏仓场景逐字一致）；钩子全 Node 且在用户 cmd 的真实环境下验证“能过、能拦”；删 Python 栈 16 个文件；主仓改公开后永久链接匿名 200；规范正文、模板、示例项目、`tools/std` 两份文档改成无 `.std/` 的新模型；入口候选去 `CLAUDE.md`（四个仓输出逐字不变）；§7 阶段 4 退出判据字面不可达，改为可机械核对的白名单 | 新钩子在删 Python 后真的拦下一次提交（34 处断链）；重写 README 时对着源码抓到我凭记忆写错的三处 |
 | 2026-10-10 | **黄金数据改为 TS 用例表**，记 §12.37：24 个纯函数夹具无损搬出（回读逐键相同）；stdlib-docs 提炼（变异对比第一次就抓出丢了 F31 类别，补回）；codepoint 改公式；各检查器的 selftest 清单取自黄金探针；expected-changes 登记保留为 `test/cases/expected-changes.mjs`；`mutate-compare.mjs`／`fixture-to-cases.mjs` 两个工具；顺带暴露基线里早就失效的两条变异锚点（F24、H10）与一个真盲区（N8） | 删夹具前每批都做逐键核对；转换器抓出 `__proto__` 静默失真一处 |

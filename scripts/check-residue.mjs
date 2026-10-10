@@ -35,7 +35,6 @@ const ALLOW = [
   [/^(lib|skills)\//, '生成物：随源码与 标准/ 走，源头在白名单里即可'],
   [/^tools\/std\/(README|CONTRACT)\.md$/, '迁移一节与“已删除”说明：必须点名旧物才能讲清楚怎么迁'],
   [/^(标准\/01-项目管理标准\.md|标准\/README\.md|标准\/覆盖与采用检查\.md|README\.md|PROJECT_STATUS\.md|CONTEXT_MANIFEST\.md|docs\/09-跨工具通用性\.md)$/, '规范正文与入口文档里对“宿主已不再支持／该机制已删除”的说明句（D-135）；逐处在 §12.38 复核过'],
-  [/^tools\/dsh-std\//, '旧插件：用户真实 profile 仍 link 到它，换装后整目录删除（设计 §12.38 待办）；删除前不动'],
   [/^scripts\/check-residue\.mjs$/, '本脚本自己：正则里必须写这些字样'],
   [/^test\/residue\.test\.mjs$/, '本脚本的验收测试：造用例必须写这些字样'],
 ]

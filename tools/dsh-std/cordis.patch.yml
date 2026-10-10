@@ -1,8 +1,0 @@
-# dsh-std bundle 层：把守卫挂进 profile。
-# 同 id 的行可在 profile 的 cordis.patch.yml 里覆盖（覆盖会替换整块 config，要写全）。
-- insert:
-    - id: dsh-std
-      name: dsh-std
-      config:
-        enabled: true
-        root: ''            # 项目根；空串 = 取会话工作目录。会话在子目录开时请在 profile 的 cordis.patch.yml 里按 id 覆盖并写上（覆盖会替换整块 config，要写全）

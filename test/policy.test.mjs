@@ -22,7 +22,7 @@ const cases = [
   ['改 CONTEXT_MANIFEST.md => ask', { name: 'edit', arguments: { file_path: 'CONTEXT_MANIFEST.md' } }, 'ask'],
   ['改 AGENTS.md => ask', { name: 'write', arguments: { file_path: 'AGENTS.md' } }, 'ask'],
   ['改 .githooks/pre-commit => ask', { name: 'edit', arguments: { file_path: '.githooks/pre-commit' } }, 'ask'],
-  ['改守卫插件自身 => ask', { name: 'edit', arguments: { file_path: 'tools/dsh-std/lib/policy.js' } }, 'ask'],
+  ['旧插件目录不再是受保护路径（守卫不再硬编码它）：改 tools/dsh-std/lib/policy.js => allow', { name: 'edit', arguments: { file_path: 'tools/dsh-std/lib/policy.js' } }, 'allow'],
   // —— 命令：写 protect 项 .std ——
   ['重定向写 .std => ask', sh('echo x > .std/a.md'), 'ask'],
   ['Set-Content 写 .std => ask（带 .std 的写类命令，写目标不猜，交给人）', sh("Set-Content .std/a.md 'x'"), 'ask'],
