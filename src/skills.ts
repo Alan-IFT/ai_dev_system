@@ -26,8 +26,8 @@ const RESOURCE_BASE = { kind: 'directory', path: fileURLToPath(SKILLS_DIR) } as 
 export interface SkillMeta { name: string; description: string; whenToUse: string }
 
 /** 读 skills/ 下的元信息：每个 `<name>.md` 第一行是生成注释，元信息放在 skills/index.json（由 build-skills 同时生成）。 */
-export function loadMeta(): SkillMeta[] {
-  const raw = JSON.parse(readFileSync(new URL('index.json', SKILLS_DIR), 'utf8')) as unknown
+export function loadMeta(dir: URL = SKILLS_DIR): SkillMeta[] {
+  const raw = JSON.parse(readFileSync(new URL('index.json', dir), 'utf8')) as unknown
   if (!Array.isArray(raw)) throw new TypeError('skills/index.json 应是数组')
   return raw.map((m) => {
     const o = m as Record<string, unknown>

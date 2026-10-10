@@ -15,6 +15,10 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./skills": {
+      "types": "./lib/skills_plugin.d.ts",
+      "default": "./lib/skills_plugin.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },

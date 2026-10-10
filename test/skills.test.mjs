@@ -3,11 +3,13 @@
 // 下面的 `Registry` 是对它们的**忠实最小复刻**（本仓不依赖 @deepseek-ai/dsh-skill，也不该为测试加运行时依赖）；每条校验规则都标了官方源码里对应的错误文案。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { dirname, join, sep } from 'node:path'
 import { PROVIDER_NAME, loadMeta, makeProvider, registerStandardSkills, skillFiles } from '../lib/skills.js'
-import { apply } from '../lib/index.js'
+import * as guardPlugin from '../lib/index.js'
+import * as skillsPlugin from '../lib/skills_plugin.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
@@ -52,6 +54,20 @@ test('元信息：名字合文法、描述非空、与 skills/ 下的文件一�
   assert.equal(new Set(meta.map((m) => m.name)).size, meta.length, '名字不重复')
 })
 
+test('loadMeta：index.json 不是数组、条目缺任何一个字段 → 抛（不带着残缺元信息去注册，官方注册表会拒收缺描述的候选）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'skm-'))
+  const at = (json) => { writeFileSync(join(dir, 'index.json'), json); return pathToFileURL(dir + sep) }
+  try {
+    assert.throws(() => loadMeta(at('{}')), /应是数组/)
+    for (const miss of ['name', 'description', 'whenToUse']) {
+      const e = { name: 'std-x', description: 'd', whenToUse: 'w' }; delete e[miss]
+      assert.throws(() => loadMeta(at(JSON.stringify([e]))), /缺字段/, `缺 ${miss}`)
+    }
+    assert.throws(() => loadMeta(at(JSON.stringify([{ name: 1, description: 'd', whenToUse: 'w' }]))), /缺字段/, 'name 不是字符串')
+    assert.deepEqual(loadMeta(at(JSON.stringify([{ name: 'std-x', description: 'd', whenToUse: 'w', extra: 1 }]))), [{ name: 'std-x', description: 'd', whenToUse: 'w' }], '多余字段丢掉，只留三项')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('list()：每条候选通过官方 validateCandidate；provider 字段等于提供者名；source 是 bundled、rank 600；模型与用户都可调用', async () => {
   const p = makeProvider()
   const cands = await p.list()
@@ -90,21 +106,39 @@ test('没有 skills 服务（没装 dsh-skill）→ 静默跳过，不抛；skil
   assert.equal(registerStandardSkills({ skills: { registerProvider: 'x' } }), undefined)
 })
 
-test('apply：守卫照常挂上；技能服务在则注册；enabled:false 两者都不做；技能注册抛错不带走守卫', () => {
-  const events = [], reg = new Registry(), logs = []
-  const mk = (extra = {}) => ({ on: (n) => events.push(n), skills: reg, logger: () => ({ info: (m) => logs.push(['info', m]), warn: (m) => logs.push(['warn', m]) }), ...extra })
-  apply(mk(), { enabled: true })
-  assert.deepEqual(events, ['tools/pre-execute']); assert.ok(reg.providers.has(PROVIDER_NAME)); assert.ok(logs.some(([k, m]) => k === 'info' && m.includes('registered standard skills')))
-  // enabled:false
-  const reg2 = new Registry(); events.length = 0
-  apply({ on: (n) => events.push(n), skills: reg2 }, { enabled: false })
-  assert.deepEqual(events, []); assert.equal(reg2.providers.size, 0)
-  // 注册抛错：守卫已挂，技能失败只记警告
-  events.length = 0; logs.length = 0
-  apply({ on: (n) => events.push(n), skills: { registerProvider() { throw new Error('boom') } }, logger: () => ({ info() {}, warn: (m) => logs.push(m) }) }, {})
-  assert.deepEqual(events, ['tools/pre-execute'], '守卫不受影响'); assert.ok(logs.some((m) => m.includes('standard skills not registered') && m.includes('boom')))
-  // 无 skills 服务
-  events.length = 0; apply({ on: (n) => events.push(n) }, {}); assert.deepEqual(events, ['tools/pre-execute'])
+test('技能子插件（./skills）：名字与 inject 合同——必须依赖 skills 服务（否则取 ctx.skills 会抛，真实 DSH 里实测过）', () => {
+  assert.equal(skillsPlugin.name, 'ai-dev-std-skills'); assert.deepEqual(skillsPlugin.inject, ['skills'])
+})
+
+test('守卫入口（.）：不依赖任何服务（inject 为空）——缺 dsh-skill 的 profile 里守卫照样起得来；入口不再碰技能', () => {
+  assert.deepEqual(guardPlugin.inject, []); assert.equal(guardPlugin.name, 'ai-dev-std')
+  // 守卫入口的 apply 只挂 tools/pre-execute，不访问 ctx.skills（访问会抛，所以给一个一碰就抛的 ctx）
+  const events = []
+  const ctx = new Proxy({ on: (n) => events.push(n) }, { get: (t, p) => { if (p === 'skills') throw new Error('cannot get property "skills" without inject'); return t[p] } })
+  assert.doesNotThrow(() => guardPlugin.apply(ctx, { enabled: true }))
+  assert.deepEqual(events, ['tools/pre-execute'])
+})
+
+test('技能子插件 apply：注册提供者；enabled:false 什么也不做；注册抛错只记警告不抛；没有 registerProvider 记警告', () => {
+  const reg = new Registry(), logs = []
+  const logger = () => ({ info: (m) => logs.push(['info', m]), warn: (m) => logs.push(['warn', m]) })
+  skillsPlugin.apply({ skills: reg, logger }, { enabled: true })
+  assert.ok(reg.providers.has(PROVIDER_NAME)); assert.ok(logs.some(([k, m]) => k === 'info' && m.includes('registered standard skills')))
+  const reg2 = new Registry(); skillsPlugin.apply({ skills: reg2 }, { enabled: false }); assert.equal(reg2.providers.size, 0)
+  const reg3 = new Registry(); skillsPlugin.apply({ skills: reg3 }, null); assert.ok(reg3.providers.has(PROVIDER_NAME), 'config 为 null 当默认（启用）')
+  logs.length = 0
+  assert.doesNotThrow(() => skillsPlugin.apply({ skills: { registerProvider() { throw new Error('boom') } }, logger }, {}))
+  assert.ok(logs.some(([k, m]) => k === 'warn' && m.includes('standard skills not registered') && m.includes('boom')))
+  logs.length = 0; skillsPlugin.apply({ skills: {}, logger }, {})
+  assert.ok(logs.some(([k, m]) => k === 'warn' && m.includes('没有可用的 skills 服务')))
+})
+
+test('接线：cordis.patch.yml 把同一个包挂成两行（守卫 ai-dev-std 与技能 ai-dev-std/skills）；package.json 的 exports 有 ./skills 且指向 lib/skills_plugin.js', () => {
+  const y = readFileSync(join(root, 'cordis.patch.yml'), 'utf8')
+  assert.match(y, /- id: ai-dev-std\n\s+name: ai-dev-std\n/); assert.match(y, /- id: ai-dev-std-skills\n\s+name: ai-dev-std\/skills\n/)
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+  assert.equal(pkg.exports['./skills'].default, './lib/skills_plugin.js'); assert.equal(pkg.exports['.'].default, './lib/index.js')
+  assert.ok(existsSync(join(root, 'lib', 'skills_plugin.js')), 'exports 指向的文件必须真在 lib 里')
 })
 
 test('技能正文：无相对链接目标残留（316 处在单条技能里会断，生成时去掉了目标）；章内引用写法「NN §x.y」仍在', () => {

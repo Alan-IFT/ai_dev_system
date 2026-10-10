@@ -745,6 +745,32 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **没做、明确留给后面**：①`AGENTS.md` 等自然语言文档里 `.std/` 引用怎么改措辞——方案只列命中，由会话模型处理、人审阅；②CMS 自己声明的 `layout.rule_files` 含 `.claude/` 与 `CLAUDE.md`（"退役仓可能仍按旧宿主落地，删了是放宽扫描"）——保不保留是 CMS 自己的决定，脚本只列出、不替它定；③PMC 里大量历史计划／复核文档引用 `.std/` 路径——历史记录，方案已排除、不改；④设计 §12.33 的"AI 维护配置、放宽须人确认"里程碑。
 
+### 12.35 预发布：在真实 DSH 里经安装通道装入验证——抓出一个单测看不见的缺陷（2026-10-10）
+
+**做法（全程隔离，没碰用户真实的 `~/.dsh`）**：`DSH_HOME` 指向全新的临时目录；先用 `dsh --profile pre --from-default-profile headless` 建 profile，再 `dsh plugin --profile pre add <地址>` 装入（我最初把 `--from-default-profile` 写到了 `plugin` 子命令上，pnpm 报 `Unknown option`，与插件无关——本仓没有 `prepare` 脚本）。先从 GitHub 提交 `e668113` 装，核对装到的包内容与 `files` 白名单；再用 `link:` 指向工作区装修复后的版本。探针是挂在同一 profile 里的临时插件，直接调真实的 `ctx.skills` 与 `ctx.tools.execute`，**不经模型、不需要凭据**。
+
+**装到的包**（实测）：`lib/`、`skills/`（五个技能加 `index.json`）、`tools/std/CONTRACT.md`、`cordis.patch.yml`、`package.json`、`README.md`、`LICENSE`；**没有** `src/ test/ docs/ golden/ scripts/ 标准/ templates/ tools/dsh-std tools/std/check_all.py`——白名单生效，标准正文只以技能形态到达。`node_modules/.bin/` 里有 `std-check`（`.CMD`、`.ps1` 各一）。
+
+**抓出的缺陷**：第一版把技能注册写在守卫的 `apply` 里，守卫入口 `inject = []`。真实 DSH 里 `apply` 取 `ctx.skills` **抛 `cannot get property "skills" without inject`**——Cordis 只允许取已声明的服务。单测用假 `ctx`（一个对象上挂个 `skills`）所以全绿；9 条技能测试加 26 条变异都看不出。**这是一个会让功能静默失效的缺陷**：守卫的 `try/catch` 吞掉了异常，只记一条 `warn`，用户看到的是"装了插件、技能没出现"。我用探针从 `ctx.skills` 的内部层（`layers.global.providers`）里确认提供者名单只有 `filesystem` 与 `dsh-windows-acl`，没有我们的。
+
+**修法与取舍（Alan 选）**：Cordis 的 `inject` 是**整个插件一份**。三条路：①整个插件 `inject = ['skills']`（官方 `skill-badge` 的写法）——没装 dsh-skill 的 profile 里守卫也起不来，守卫的价值就丢了；②在 `apply` 里用 `ctx.inject(['skills'], cb)` 动态等——可行但我没在 DSH 的加载器里实测它；③**拆成两个入口，在 `cordis.patch.yml` 挂成两行**（先例：`dsh-mnemon` 把一个包挂成多行）。选③：守卫（`.`，`inject = []`）不变，技能（`./skills`，`inject = ['skills']`）单独成 `src/skills_plugin.ts`，包的 `exports` 加子路径。
+
+**修复后的真实 DSH 实测**：
+
+| 实测 | 结果 |
+|---|---|
+| 合并配置 `--dump-config` | 有两行：`id: ai-dev-std`（`name: ai-dev-std`）与 `id: ai-dev-std-skills`（`name: ai-dev-std/skills`） |
+| 探针经真实 `ctx.skills.snapshot` | 五条 `std-*` 都在，`complete: true`，提供者 `ai-dev-std-standard`、来源 `bundled`；与官方 `dsh-windows-acl` 的技能并存 |
+| 探针经真实 `ctx.skills.get` | 五条正文字节数与包内文件一致；`resourceBase.kind` 为 `directory`；头部带 `source_rev`；模型与用户都可调用 |
+| `get('std-不存在')`、`get('Std_Bad Name')` | 都返回 `undefined`，不抛（与官方 README 的"非法名返回 undefined"一致） |
+| 守卫：真实 `tools/pre-execute` 管线里 `write`／`edit` 写 `.std/x.md` | 都被拒（"内嵌标准目录 .std/ 只读"），磁盘上无文件 |
+| 守卫：写普通文件 | 放行，文件落盘 |
+| **用 patch 把 `dsh-skill` 按 id 禁用**（模拟没装技能服务） | 启动不失败；日志一行 `ai-dev-std-skills (ai-dev-std/skills): pending (waiting for service: skills)`；**守卫仍然生效**（`.std/` 写入被拒，未落盘）。这条把"拆两个入口"的收益直接验证了 |
+
+**这次又一次证实的规矩**：用假 `ctx` 写的测试只能证明"我对接口的理解自洽"，证明不了"接口真是这样"。§12.3 记过一次（工具渐进注册），这是第二次。**凡注册到宿主服务上的代码，必须至少有一次真实宿主里的探针**；这次的探针做法留在 `test/skills.test.mjs` 的接线断言里（`cordis.patch.yml` 两行、`exports` 子路径、守卫入口 `inject` 为空且不碰 `ctx.skills`），变异清单 15 条中 1 条由类型系统守住、其余全部被抓住。
+
+**未覆盖（诚实标明）**：①**技能在一次完整 agent 回合里被模型看到并加载**——隔离 home 没有 API 凭据，`MISSING_CREDENTIAL` 在挂载完成之后才退出；`dsh-tool-skill` 的目录渲染与 `skill` 加载工具我只验证到"注册表里有、`get` 能取"，没验证到"模型的目录里出现"。②桌面版 Plugins 页的点击安装，同 §12.3。③**用户真实 profile**（`link:` 指向旧的 `tools/dsh-std`）一字未动，换装留到阶段 4。④探针里 `ctx.skills.snapshot()` 不带 `cwd` 选项也能取到，但项目级技能（`.dsh/skills`）的作用域差异我没单独验。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -806,6 +832,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-10 | **预发布：在真实 DSH 里经安装通道装入验证**，记 §12.35；**抓出单测看不见的缺陷**——技能注册写在 `inject = []` 的守卫 `apply` 里，真实 DSH 取 `ctx.skills` 抛错且被 `try/catch` 吞成一条 warn（功能静默失效）；拆成守卫与技能两个入口、`cordis.patch.yml` 挂两行；禁用 `dsh-skill` 的对照实验证明守卫不受拖累 | 隔离 `DSH_HOME` 全程；探针经真实 `ctx.skills`／`ctx.tools`；技能变异 15 条、1 条类型守住；用户真实 profile 一字未动 |
 | 2026-10-09 | **阶段 3 材料完成**：`std-check migrate`（只读方案，不写项目）记 §12.34；对三个真实项目实读后修掉三处缺陷（固定候选钩子也须真调旧检查器、钩子目录里的 .md 不是钩子、frozen 项不能用词边界）；端到端测试按方案真执行一遍并对比迁移前后，**第一次就抓出一条没预料的差异**（links 聚合 PASS 换 id），"成对"口径从中长出；§8 标注已被取代 | 测试 1285 条 Windows／Ubuntu 均 0 败；变异 29 条，28 抓住、1 条有实测证据的不可观察；四个真实仓整体比对仍逐条一致 |
 | 2026-10-09 | **阶段 3 第 1、2 项完成并更正一处**：标准技能提供者（`registerProvider`，五条技能，`skills/` 登记为 derived，`source_rev` 取源文件 git blob 哈希且与 `git hash-object` 实测一致）；`adoption` 不再读 `STANDARD_VERSION`（预期消失 +2 条 finding、+7 条探针）；**实测推翻「删 18 处冗余声明零行为变化」**——证据文字会变（"项目未校准"），第 3 项撤出 | 技能 9 条测试；adoption 变异 18/19 抓住、1 条有 Python 实测证据的等价项；四个真实仓整体比对仍逐条一致；全量 1252 通过 0 失败 |
 | 2026-10-09 | **阶段 3 设计落盘**（§12.33），改写 §8：采用项目不再放标准正文与版本声明——版本由 lockfile 钉、报告自动带摘要，正文由插件以技能分发（读 deepseek-harness 源码验证 `registerProvider` 可行）；`project.yaml` 输入面只读审计（18 处冗余声明、13/19 条落点冗余/必须声明）；"AI 维护配置、放宽检查须人确认"记为下一个里程碑，不与迁移绑定 | 源码出处见 §12.33 一；审计读数见 §12.33 三；`files` 白名单不含 `标准/` 的缺口已发现，待入包 |

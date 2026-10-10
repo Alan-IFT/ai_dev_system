@@ -16,7 +16,7 @@ export interface SkillMeta {
     whenToUse: string;
 }
 /** 读 skills/ 下的元信息：每个 `<name>.md` 第一行是生成注释，元信息放在 skills/index.json（由 build-skills 同时生成）。 */
-export declare function loadMeta(): SkillMeta[];
+export declare function loadMeta(dir?: URL): SkillMeta[];
 interface Candidate {
     name: string;
     description: string;
