@@ -46,4 +46,4 @@
 
 本目录（`标准/`）与 `templates/` 的正文与模板按 **CC BY 4.0** 授权，`tools/std/` 及本仓库中的一切代码按 **MIT** 授权；文中引用的第三方材料版权归原作者，本目录只按各卡登记的边界引用，不改变其许可。
 
-署名写法：`Alan-IFT, ai-dev-std`。许可全文见仓库根目录的 `LICENSE`（MIT）与 `LICENSE-DOCS`（CC BY 4.0）两个文件。
+署名写法：`Alan-IFT, dsh-project-std`。许可全文见仓库根目录的 `LICENSE`（MIT）与 `LICENSE-DOCS`（CC BY 4.0）两个文件。

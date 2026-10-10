@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 
 /** 提供者名。`runtime` 是注册表保留名，不能用。 */
-export const PROVIDER_NAME = 'ai-dev-std-standard'
+export const PROVIDER_NAME = 'dsh-project-std-standard'
 /** 与 `@deepseek-ai/dsh-skill` 的 `BUNDLED_SKILL_RANK` 同值（600）：随包分发的技能。不 import 它，免得为一个常量多一个运行时依赖。 */
 const BUNDLED_SKILL_RANK = 600
 const INVOCATION = { modelInvocable: true, userInvocable: true } as const

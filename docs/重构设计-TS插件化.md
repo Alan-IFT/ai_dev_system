@@ -25,7 +25,7 @@ updated_at: 2026-10-10
 ## 2. 目标与非目标
 
 **目标**
-1. 本仓库（`https://github.com/Alan-IFT/ai_dev_system`）本身就是一个合规的 DSH 插件包，用户经 DSH 自己的安装通道（Plugins 页 / `plugin_manager`，填 git 地址）安装。
+1. 本仓库（`https://github.com/Alan-IFT/dsh-project-std`，原名 `ai_dev_system`）本身就是一个合规的 DSH 插件包，用户经 DSH 自己的安装通道（Plugins 页 / `plugin_manager`，填 git 地址）安装。
 2. 守卫、12 个检查器、`check_all`、`stdlib` 全部用 TypeScript，运行时只有 Node（DSH 自带），**不再依赖 Python**。
 3. 采用项目**不再内嵌 `.std/`**：项目只放自己的文档与 `governance/`，用一行版本声明指向标准版本；标准正文、模板、检查器随插件提供。
 4. 废弃技术栈（Claude Code、`.claude/settings.json`、`CLAUDE.md` 兼容候选名、`.std/` 内嵌机制）从代码、文档、配置中**清除**，不留兼容层。
@@ -40,7 +40,7 @@ updated_at: 2026-10-10
 ## 3. 目标结构
 
 ```text
-ai_dev_system/                      ← 仓库根 = 插件包根
+dsh-project-std/                     ← 仓库根 = 插件包根
 ├─ package.json                     DSH 清单：dsh.manifestVersion=1、dsh.bundle.patch、engines.dsh
 ├─ cordis.patch.yml                 把守卫挂进 profile
 ├─ tsconfig.json
@@ -876,6 +876,20 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **仍待办**：②D-108 与 `ai-dev-std`；③换装真实 profile 后删 `tools/dsh-std/`——**真实 profile 由桌面版独占管理，命令行改会与运行中的桌面应用争用状态，所以这一步由 Alan 在 Plugins 页操作**，备份已做在 `~/.dsh/profiles/desktop.backup-before-ai-dev-std-20261010`；冻结历史移除。
 
+### 12.39 改名为 dsh-project-std（2026-10-10）
+
+**起因**：Alan 要求给仓库取一个有记忆点的名字、把 `ai_dev_system` 与公开仓 `ai-dev-std` 在分发上并成一处，并按 DSH 的插件分发规范分发，方便被插件收录。我读了收录的一手要求（[awesome-dsh-plugin 的贡献指南](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md)、dshmarket 的 README：市场只收 awesome 列表里的来源，投稿是在那边提一个 `data/plugins/<owner>__<repo>.yml`）。**Alan 的决定**：仓库与包名都用 **`dsh-project-std`**（仓库 `Alan-IFT/dsh-project-std`，已在 GitHub 上重命名并验证：新旧地址匿名都返回 200，旧地址自动重定向，`ls-remote` 新地址能看到 `main` 与 `2026-10-10-pre.2`）。
+
+**改了什么**：包名与 `cordis.patch.yml` 的两行挂载（`dsh-project-std`、`dsh-project-std/skills`，id 随之改）、守卫与技能的 `name`、技能提供者名（`dsh-project-std-standard`）、迁移命令检测新插件已装入的路径（`node_modules/dsh-project-std/lib/cli.js`）、`repository`／`homepage`／`bugs`、README 里的安装命令与问题渠道；`origin` 指到新地址。**没改的**：公开发布仓 `Alan-IFT/ai-dev-std` 的名字（它仍叫这个，三个旧项目靠它 `git subtree pull`）——守卫里匹配 `ai-dev-std` 的 ask 规则与它的测试因此保留；设计里 §12.3～§12.37 的实测记录写的是当时用的名字，不回改。
+
+**收录要求逐条对照**（只列与我们现状有关的）：已有 `dsh.bundle` 与根 `cordis.patch.yml`；`package.json` 的 `description` 原写着“标准目录只读”，该判定已删，**描述与代码不符是被打回的头号原因**，已改；仓库还缺 `dsh-plugin` topic（待设）；未发 npm（收录不强制；pnpm 从 git 装包默认拒绝构建脚本，我们靠把 `lib/` 提交进 git 绕开，见 §4）。
+
+**peer 范围的实测**：收录文档警告不带显式预发布分支的范围会静默排除 harness 的预发布构建。用 DSH 自带 pnpm 里的 semver 7.8.4 实测：原范围 `>=0.2.0-rc.2 <0.3.0` 放行 `0.2.0-rc.2/3/10`、`0.2.0`、`0.2.1`，**拒绝 `0.2.1-rc.1`**；加上 `|| >=0.2.1-0 <0.3.0` 后放行它，仍拒绝 `0.2.0-rc.1`、`0.2.0-beta.1`（比我们验证过的最低版本更旧）与 `0.3.0-rc.1`。**这是纸面范围，没有在真实 pnpm 解析里端到端验证**（那需要一个 `0.2.1-rc.x` 的 harness，现在没有）。
+
+**验证**：全量测试 0 失败；五道检查退出 0；隔离 `DSH_HOME` 里从本地路径 `link:` 装入，`dsh --profile <名> --dump-config` 的合并配置里是 `# == dsh-project-std` 与两行 `id: dsh-project-std`／`dsh-project-std-skills`（`name: dsh-project-std/skills`），**旧名 `ai-dev-std` 零命中**。过程中我两次把 `--dump-config` 放错位置（`headless` 是另一个 profile 名，不是子命令），读 `dsh --help` 才改对，没有靠猜第三次。
+
+**对 Alan 的影响**：他的 profile 里旧插件 `dsh-std` 已经卸载，新插件尚未装入；包名变了，所以要等本次改名发布成新预发布标签 `2026-10-10-pre.3` 后再在 Plugins 页装，**不要装 `pre.2`**（它里面的包名还是 `ai-dev-std`）。
+
 ### 12.5 阶段 2 的验收口径（动手前先定，2026-10-06）
 
 **规模实测**：Python 版 10,472 行；`stdlib.py` 1,491 行含约 90 个函数；各文件里引用审计编号或实测缺陷的注释共 **238 处**——每一处是一次真实踩过的坑，迁移时丢一处就是回归。平台相关系统调用（`realpath`、`lstat`、`symlink`、`mkfifo`、`os.open` 等）约 55 处。
@@ -937,6 +951,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-10-06 | 初版 | Alan 决定重构；写完设计文档后才开发 |
+| 2026-10-10 | **改名为 dsh-project-std**，记 §12.39：仓库与包名同名；对照 awesome-dsh-plugin 的收录要求，发现 description 与代码不符并改；peer 范围用 pnpm 自带 semver 实测并补预发布分支（纸面，未端到端）；隔离 DSH_HOME 里 dump-config 验证旧名零命中 | `--dump-config` 位置放错两次，读帮助才改对 |
 | 2026-10-10 | **阶段 4 其余部分**，记 §12.38：三个元治理脚本迁 Node（对拍 30 个坏仓场景逐字一致）；钩子全 Node 且在用户 cmd 的真实环境下验证“能过、能拦”；删 Python 栈 16 个文件；主仓改公开后永久链接匿名 200；规范正文、模板、示例项目、`tools/std` 两份文档改成无 `.std/` 的新模型；入口候选去 `CLAUDE.md`（四个仓输出逐字不变）；§7 阶段 4 退出判据字面不可达，改为可机械核对的白名单 | 新钩子在删 Python 后真的拦下一次提交（34 处断链）；重写 README 时对着源码抓到我凭记忆写错的三处 |
 | 2026-10-10 | **黄金数据改为 TS 用例表**，记 §12.37：24 个纯函数夹具无损搬出（回读逐键相同）；stdlib-docs 提炼（变异对比第一次就抓出丢了 F31 类别，补回）；codepoint 改公式；各检查器的 selftest 清单取自黄金探针；expected-changes 登记保留为 `test/cases/expected-changes.mjs`；`mutate-compare.mjs`／`fixture-to-cases.mjs` 两个工具；顺带暴露基线里早就失效的两条变异锚点（F24、H10）与一个真盲区（N8） | 删夹具前每批都做逐键核对；转换器抓出 `__proto__` 静默失真一处 |
 | 2026-10-10 | **打预发布 tag `2026-10-10-pre.1`（`main` 的 `cdca3eb`，不动 `release`）并从 tag 在全新隔离 DSH 里复验**，记 §12.36；已装位置的 `cli.js` 检查本仓与工作区 `lib` 逐条相同、对 Python 只差登记过的 4 条；`migrate` 在已装态下钩子步骤解除 blocked | 隔离环境 `dshtag-*` 全程；探针经真实 `ctx.skills`／`ctx.tools`；用户真实 profile 未动 |

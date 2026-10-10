@@ -16,7 +16,7 @@ import type { PreToolDecision, ToolExecution } from '@deepseek-ai/dsh-tools'
 import { decide, type Verdict } from './policy.js'
 
 /** Cordis 插件名。 */
-export const name = 'ai-dev-std'
+export const name = 'dsh-project-std'
 
 /** 不依赖任何服务：tools/pre-execute 是 ctx 上的事件，缺 tools 服务时 on 不会触发，也不会崩。 */
 export const inject = []

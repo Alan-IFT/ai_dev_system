@@ -3,7 +3,7 @@
 对着 [`标准/`](../../标准/README.md) 里**能机械判定**的那部分做检查，判不了的如实报"未定"。
 三态定义、退出码规则、检查器接口在同目录 [CONTRACT.md](CONTRACT.md)；本文只讲怎么用，不复述它。
 
-本工具是 TypeScript 写的 DeepSeek Harness（DSH）插件 `ai-dev-std` 的一部分，运行时只有 Node（DSH 自带的那份），**不依赖 Python，也不要求项目内嵌任何标准副本**。
+本工具是 TypeScript 写的 DeepSeek Harness（DSH）插件 `dsh-project-std` 的一部分，运行时只有 Node（DSH 自带的那份），**不依赖 Python，也不要求项目内嵌任何标准副本**。
 
 ## 一条命令
 
@@ -89,7 +89,7 @@
 **标准与工具随 DSH 插件分发，项目里只放自己的东西。** 采用项目自己写的只有 `governance/project.yaml`（与可选的 `exceptions.md`）；
 标准正文是插件提供的技能，检查器是插件的 `std-check` 命令。没有内嵌副本、没有手写的版本声明。
 
-- **安装**（每台机器一次，不在项目里）：`dsh plugin add github:Alan-IFT/ai_dev_system#<标签>`，或在 DSH 的 Plugins 页填同一个 git 地址。
+- **安装**（每台机器一次，不在项目里）：`dsh plugin add github:Alan-IFT/dsh-project-std#<标签>`，或在 DSH 的 Plugins 页填同一个 git 地址。
   标签是仓库上的版本标签；钉哪一版由 profile 的 `package.json` 与 `pnpm-lock.yaml` 承担（机器维护，带完整性校验）。
   **一个 profile 只能钉一个版本**，同一台机器上的几个项目共用它——这是接受的代价（设计文档 §12.33），出现第二个使用者再加“项目可选声明期望版本”。
 - **配置**：照实文件抄 [示例项目 `governance/project.yaml`](../../标准/示例项目-连锁零售中台/governance/project.yaml)，字段语义见 CONTRACT.md §5，本文不另立字段表。
@@ -103,7 +103,7 @@
   先试 `$DSH_HOME/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node`，再试 `$USERPROFILE/.dsh/` 下同位置（Windows 终端里只有 `USERPROFILE`），再试 PATH 上的 `node`；
   一个都找不到就**拒绝提交并说明缺什么**（失败关闭），不放行也不跳过。这是形态示意，不是发布物。
   `std-check` 启动时先去掉 git 给钩子注入的 `GIT_DIR` 等仓库定位变量，从 git worktree 提交也不会把自检夹具写进被扫仓。
-- **报告标准或工具的问题**：到仓库 [`Alan-IFT/ai_dev_system`](https://github.com/Alan-IFT/ai_dev_system/issues) 提 issue，写采用的版本（报告里的摘要或标签）、定位和最小复现；项目侧怎么记见 [01 §8](../../标准/01-项目管理标准.md#adoption)。
+- **报告标准或工具的问题**：到仓库 [`Alan-IFT/dsh-project-std`](https://github.com/Alan-IFT/dsh-project-std/issues) 提 issue，写采用的版本（报告里的摘要或标签）、定位和最小复现；项目侧怎么记见 [01 §8](../../标准/01-项目管理标准.md#adoption)。
 
 **执行层由采用项目自己接**，标准不发**生效的**钩子、流水线或 agent 侧配置——它们随宿主工具变，上游给一份就会过期成第二处权威；`templates/` 里的 agent、skill 文件是供复制的载体实例，拷进项目的 `.agents/` 之后才生效，由采用方自己决定。**唯一例外是插件自带的守卫**（DSH 的受控动作询问，见下节「DSH 接法」），依据是 D-108 登记行的修订句与 D-135（标准仓 `docs/决策日志.md`）。
 `std-check` 判的是本标准要求的工件与结构，不是 [01 §5.6](../../标准/01-项目管理标准.md#gates) 的 G1–G8；测试、格式、依赖审计各按该节写执行点，可与它并列接进同一钩子。承载可以是版本控制钩子、流水线作业或按清单执行的人工步骤，语义相同。

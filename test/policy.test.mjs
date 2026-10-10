@@ -150,10 +150,10 @@ function fakeCtx() {
   }
 }
 
-test('适配层：注册了 tools/pre-execute，且插件名是 ai-dev-std（等于 package.json 的包名，DSH 按它解析；重构设计 §4）', () => {
+test('适配层：注册了 tools/pre-execute，且插件名是 dsh-project-std（等于 package.json 的包名，DSH 按它解析；重构设计 §4）', () => {
   const ctx = fakeCtx()
   apply(ctx, {})
-  assert.equal(name, 'ai-dev-std')
+  assert.equal(name, 'dsh-project-std')
   assert.deepEqual(ctx.handlers.map(([e]) => e), ['tools/pre-execute'])
 })
 

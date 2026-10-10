@@ -190,7 +190,7 @@ test('pluginInstalled：没有 DSH_PROFILE_DIR → 检测不到并说明；profi
   assert.match(pluginInstalled({}).why, /DSH_PROFILE_DIR/)
   const prof = mk()
   assert.match(pluginInstalled({ DSH_PROFILE_DIR: prof }).why, /还没装入/)
-  w(prof, 'node_modules/ai-dev-std/lib/cli.js', '// x\n'); assert.equal(pluginInstalled({ DSH_PROFILE_DIR: prof }), true)
+  w(prof, 'node_modules/dsh-project-std/lib/cli.js', '// x\n'); assert.equal(pluginInstalled({ DSH_PROFILE_DIR: prof }), true)
 })
 
 test('命令行：migrate 只认第一个位置；--json 输出可解析；无需迁移的退出 0；未知参数仍退出 2', () => {

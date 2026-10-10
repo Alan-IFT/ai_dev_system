@@ -15,7 +15,7 @@ export interface Io {
     err: (text: string) => void;
 }
 /**
- * 新插件是否已装入 DSH profile：看 `$DSH_PROFILE_DIR/node_modules/ai-dev-std/lib/cli.js` 在不在。
+ * 新插件是否已装入 DSH profile：看 `$DSH_PROFILE_DIR/node_modules/dsh-project-std/lib/cli.js` 在不在。
  * 只读环境变量与一个文件的存在性；DSH 之外没有 DSH_PROFILE_DIR，如实返回"检测不到"并说明原因——不猜。
  */
 export declare function pluginInstalled(env?: NodeJS.ProcessEnv): true | {

@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 /** 提供者名。`runtime` 是注册表保留名，不能用。 */
-export declare const PROVIDER_NAME = "ai-dev-std-standard";
+export declare const PROVIDER_NAME = "dsh-project-std-standard";
 declare const INVOCATION: {
     readonly modelInvocable: true;
     readonly userInvocable: true;

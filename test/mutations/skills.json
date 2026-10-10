@@ -1,6 +1,6 @@
 [
  {"id":"S1","title":"技能子插件：inject 写成空（真实 DSH 里取 ctx.skills 会抛，首次安装验证时实测到）","file":"src/skills_plugin.ts","from":"export const inject = ['skills']","to":"export const inject: string[] = []"},
- {"id":"S2","title":"技能子插件：插件名写错","file":"src/skills_plugin.ts","from":"export const name = 'ai-dev-std-skills'","to":"export const name = 'ai-dev-std'"},
+ {"id":"S2","title":"技能子插件：插件名写错","file":"src/skills_plugin.ts","from":"export const name = 'dsh-project-std-skills'","to":"export const name = 'dsh-project-std'"},
  {"id":"S3","title":"技能子插件：enabled:false 仍注册","file":"src/skills_plugin.ts","from":"if (config.enabled === false) return","to":""},
  {"id":"S4","title":"技能子插件：注册抛错不兜住（会带走别的插件）","file":"src/skills_plugin.ts","from":"  } catch (error) {\n    logger.warn?.(`${name}: standard skills not registered: ${String(error)}`)\n  }","to":"  } catch (error) {\n    throw error\n  }"},
  {"id":"S5","title":"技能子插件：没有 skills 服务时不记警告（静默吞，用户不知道技能没生效）","file":"src/skills_plugin.ts","from":"    else logger.warn?.(`${name}: 没有可用的 skills 服务，标准技能未注册`)","to":""},
@@ -11,7 +11,7 @@
  {"id":"S10","title":"提供者：get() 返回的定义名与候选名不一致（官方判陈旧选择）","file":"src/skills.ts","from":"name: c.name, description: c.description, whenToUse: c.whenToUse, invocation: c.invocation, provider: c.provider, source: c.source,\n        resourceBase: c.resourceBase, content","to":"name: c.name + 'x', description: c.description, whenToUse: c.whenToUse, invocation: c.invocation, provider: c.provider, source: c.source,\n        resourceBase: c.resourceBase, content"},
  {"id":"S11","title":"提供者：技能对模型不可调用","file":"src/skills.ts","from":"const INVOCATION = { modelInvocable: true, userInvocable: true } as const","to":"const INVOCATION = { modelInvocable: false, userInvocable: true } as const"},
  {"id":"S12","title":"提供者：优先级 rank 改成最先（压过项目自己的同名技能）","file":"src/skills.ts","from":"const BUNDLED_SKILL_RANK = 600","to":"const BUNDLED_SKILL_RANK = 0"},
- {"id":"S13","title":"提供者：用保留名 runtime（官方拒绝）","file":"src/skills.ts","from":"export const PROVIDER_NAME = 'ai-dev-std-standard'","to":"export const PROVIDER_NAME = 'runtime'"},
+ {"id":"S13","title":"提供者：用保留名 runtime（官方拒绝）","file":"src/skills.ts","from":"export const PROVIDER_NAME = 'dsh-project-std-standard'","to":"export const PROVIDER_NAME = 'runtime'"},
  {"id":"S14","title":"注册：skills 服务没有 registerProvider 时不返回 undefined 而抛","file":"src/skills.ts","from":"if (typeof skills?.registerProvider !== 'function') return undefined","to":"if (typeof skills?.registerProvider !== 'function') throw new Error('no registerProvider')"},
  {"id":"S15","title":"元信息：条目缺字段时不报错（删掉整句运行时检查）","file":"src/skills.ts","from":"if (typeof o.name !== 'string' || typeof o.description !== 'string' || typeof o.whenToUse !== 'string') throw new TypeError(`skills/index.json 条目缺字段：${JSON.stringify(m)}`)","to":"","typeGuarded":"这句检查同时是类型收窄：删掉后 name／description／whenToUse 是 unknown，赋给 SkillMeta 编译不过（实测 TS2322）。运行时的行为由 loadMeta 的直接测试钉（缺任一字段都抛）"}
 ]

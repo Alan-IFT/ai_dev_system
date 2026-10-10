@@ -11,7 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { registerStandardSkills } from './skills.js'
 
 /** Cordis 插件名。 */
-export const name = 'ai-dev-std-skills'
+export const name = 'dsh-project-std-skills'
 
 /** 依赖 `skills` 服务（`@deepseek-ai/dsh-skill`）。 */
 export const inject = ['skills']

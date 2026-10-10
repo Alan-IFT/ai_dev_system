@@ -20,7 +20,7 @@
  {"id":"F1","title":"建议：精简掉「失败关闭」的说法","file":"src/migrate.ts","from":"就**失败关闭**（退出 127，说清缺什么），不放行（设计 §4.1）。","to":"就放行。"},
  {"id":"F2","title":"建议：自写钩子的建议不再提醒保持 0 与 2 放行","file":"src/migrate.ts","from":"它把 0 与 2 都放行、只阻断 1，std-check 的退出码语义与旧检查器相同，保持这个处理。","to":"。"},
  {"id":"F3","title":"建议：折叠块不提醒用 ; 连","file":"src/migrate.ts","from":"换行会被折成空格，命令之间要用 `;` 连。","to":"。"},
- {"id":"G1","title":"pluginInstalled：不检查 cli.js 存在（只看有无环境变量）","file":"src/main.ts","from":"return isFile(join(dir, 'node_modules', 'ai-dev-std', 'lib', 'cli.js')) ? true","to":"return true ? true"},
+ {"id":"G1","title":"pluginInstalled：不检查 cli.js 存在（只看有无环境变量）","file":"src/main.ts","from":"return isFile(join(dir, 'node_modules', 'dsh-project-std', 'lib', 'cli.js')) ? true","to":"return true ? true"},
  {"id":"G2","title":"pluginInstalled：没有 DSH_PROFILE_DIR 时当作已装入（该失败关闭）","file":"src/main.ts","from":"if (!dir) return { ok: false, why:","to":"if (!dir) return true || { ok: false, why:"},
  {"id":"G3","title":"migrate 子命令：不限第一位置（位置参数里的 migrate 也当子命令）","file":"src/main.ts","from":"if (t === 'migrate' && i === 0) a.migrate = true","to":"if (t === 'migrate') a.migrate = true"},
  {"id":"G4","title":"migrate：生成失败时退出 0（吞掉错误）","file":"src/main.ts","from":"io.err(`std-check migrate: 生成方案失败：${(exc as Error).name}: ${(exc as Error).message}`)\n    return 2","to":"io.err(`std-check migrate: 生成方案失败：${(exc as Error).name}: ${(exc as Error).message}`)\n    return 0","unobservable":"runMigrate 的 catch 是对「程序错误」的兜底：实测 plan 对任何字符串根（含 NUL、不存在的路径、指向文件的路径）都返回方案而不抛，只有非字符串根才抛 TypeError，而命令行的根恒为字符串（parseArgs 只产字符串）。该分支用真实输入走不到；与 cross-repo／adoption 里同类的\"程序错误兜底\"一样如实标注，不写一条假装覆盖的测试"},

@@ -40,14 +40,14 @@ export interface Io { out: (text: string) => void; err: (text: string) => void }
 const stdio: Io = { out: (t) => process.stdout.write(t + '\n'), err: (t) => process.stderr.write(t + '\n') }
 
 /**
- * 新插件是否已装入 DSH profile：看 `$DSH_PROFILE_DIR/node_modules/ai-dev-std/lib/cli.js` 在不在。
+ * 新插件是否已装入 DSH profile：看 `$DSH_PROFILE_DIR/node_modules/dsh-project-std/lib/cli.js` 在不在。
  * 只读环境变量与一个文件的存在性；DSH 之外没有 DSH_PROFILE_DIR，如实返回"检测不到"并说明原因——不猜。
  */
 export function pluginInstalled(env: NodeJS.ProcessEnv = process.env): true | { ok: false; why: string } {
   const dir = env.DSH_PROFILE_DIR
   if (!dir) return { ok: false, why: '没有 DSH_PROFILE_DIR（不在 DSH 会话里运行）：无法检测新插件是否已装入 profile。在 DSH 会话里重跑本命令，或自行确认后再执行钩子步骤。' }
-  return isFile(join(dir, 'node_modules', 'ai-dev-std', 'lib', 'cli.js')) ? true
-    : { ok: false, why: `profile（${dir}）里没有 node_modules/ai-dev-std/lib/cli.js：新插件还没装入。先在 Plugins 页用 git 地址安装并重启。` }
+  return isFile(join(dir, 'node_modules', 'dsh-project-std', 'lib', 'cli.js')) ? true
+    : { ok: false, why: `profile（${dir}）里没有 node_modules/dsh-project-std/lib/cli.js：新插件还没装入。先在 Plugins 页用 git 地址安装并重启。` }
 }
 
 /** `std-check migrate [项目根] [--json]`：只读，输出迁移方案。退出码 0＝方案已给出（含"无需迁移"）；2＝命令自身出错。 */

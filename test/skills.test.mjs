@@ -107,11 +107,11 @@ test('没有 skills 服务（没装 dsh-skill）→ 静默跳过，不抛；skil
 })
 
 test('技能子插件（./skills）：名字与 inject 合同——必须依赖 skills 服务（否则取 ctx.skills 会抛，真实 DSH 里实测过）', () => {
-  assert.equal(skillsPlugin.name, 'ai-dev-std-skills'); assert.deepEqual(skillsPlugin.inject, ['skills'])
+  assert.equal(skillsPlugin.name, 'dsh-project-std-skills'); assert.deepEqual(skillsPlugin.inject, ['skills'])
 })
 
 test('守卫入口（.）：不依赖任何服务（inject 为空）——缺 dsh-skill 的 profile 里守卫照样起得来；入口不再碰技能', () => {
-  assert.deepEqual(guardPlugin.inject, []); assert.equal(guardPlugin.name, 'ai-dev-std')
+  assert.deepEqual(guardPlugin.inject, []); assert.equal(guardPlugin.name, 'dsh-project-std')
   // 守卫入口的 apply 只挂 tools/pre-execute，不访问 ctx.skills（访问会抛，所以给一个一碰就抛的 ctx）
   const events = []
   const ctx = new Proxy({ on: (n) => events.push(n) }, { get: (t, p) => { if (p === 'skills') throw new Error('cannot get property "skills" without inject'); return t[p] } })
@@ -133,9 +133,9 @@ test('技能子插件 apply：注册提供者；enabled:false 什么也不做；
   assert.ok(logs.some(([k, m]) => k === 'warn' && m.includes('没有可用的 skills 服务')))
 })
 
-test('接线：cordis.patch.yml 把同一个包挂成两行（守卫 ai-dev-std 与技能 ai-dev-std/skills）；package.json 的 exports 有 ./skills 且指向 lib/skills_plugin.js', () => {
+test('接线：cordis.patch.yml 把同一个包挂成两行（守卫 dsh-project-std 与技能 dsh-project-std/skills）；package.json 的 exports 有 ./skills 且指向 lib/skills_plugin.js', () => {
   const y = readFileSync(join(root, 'cordis.patch.yml'), 'utf8')
-  assert.match(y, /- id: ai-dev-std\n\s+name: ai-dev-std\n/); assert.match(y, /- id: ai-dev-std-skills\n\s+name: ai-dev-std\/skills\n/)
+  assert.match(y, /- id: dsh-project-std\n\s+name: dsh-project-std\n/); assert.match(y, /- id: dsh-project-std-skills\n\s+name: dsh-project-std\/skills\n/)
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   assert.equal(pkg.exports['./skills'].default, './lib/skills_plugin.js'); assert.equal(pkg.exports['.'].default, './lib/index.js')
   assert.ok(existsSync(join(root, 'lib', 'skills_plugin.js')), 'exports 指向的文件必须真在 lib 里')
