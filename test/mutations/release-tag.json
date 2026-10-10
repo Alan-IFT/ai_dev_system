@@ -1,0 +1,22 @@
+[
+ {"id":"T1","title":"classify：legacy-date 不认 -pre","file":"scripts/check-release-tag.mjs","from":"/^\\d{4}-\\d{2}-\\d{2}(-pre)?(\\.\\d+)?$/","to":"/^\\d{4}-\\d{2}-\\d{2}(\\.\\d+)?$/"},
+ {"id":"T2","title":"classify：legacy-date 不认 .N 后缀","file":"scripts/check-release-tag.mjs","from":"(-pre)?(\\.\\d+)?$/.test(tag)","to":"(-pre)?$/.test(tag)"},
+ {"id":"T3","title":"classify：不要求 v 前缀（0.1.0 也算 semver）","file":"scripts/check-release-tag.mjs","from":"if (tag.startsWith('v') && SEMVER.test(tag.slice(1))) return 'semver'","to":"if (SEMVER.test(tag.replace(/^v/, ''))) return 'semver'"},
+ {"id":"T4","title":"tagProblems：不检查 version 合法性","file":"scripts/check-release-tag.mjs","from":"if (typeof version !== 'string' || !SEMVER.test(version)) out.push(","to":"if (false) out.push("},
+ {"id":"T5","title":"tagProblems：不检查 v 前缀","file":"scripts/check-release-tag.mjs","from":"if (!tag.startsWith('v')) out.push(","to":"if (false) out.push("},
+ {"id":"T6","title":"tagProblems：标签与 version 不一致也放行","file":"scripts/check-release-tag.mjs","from":"if (tag !== 'v' + version) out.push(","to":"if (false) out.push("},
+ {"id":"T7","title":"tagProblems：比较时忽略 version 的预发布部分","file":"scripts/check-release-tag.mjs","from":"if (tag !== 'v' + version) out.push(","to":"if (tag !== 'v' + String(version).split('-')[0]) out.push("},
+ {"id":"T8","title":"main：不检查本地已有同名标签","file":"scripts/check-release-tag.mjs","from":"if (git('rev-parse', '-q', '--verify', `refs/tags/${tag}`).status === 0) bad.push(","to":"if (false) bad.push("},
+ {"id":"T9","title":"main：不检查远端已有同名标签","file":"scripts/check-release-tag.mjs","from":"if (remote.status === 0 && remote.stdout.trim()) bad.push(","to":"if (false) bad.push("},
+ {"id":"T10","title":"main：查不了远端时当作“标签不存在”放行","file":"scripts/check-release-tag.mjs","from":"else if (remote.status !== 0) bad.push(","to":"else if (false) bad.push("},
+ {"id":"T11","title":"main：不检查工作区是否干净","file":"scripts/check-release-tag.mjs","from":"if (dirty) bad.push(","to":"if (false) bad.push("},
+ {"id":"T12","title":"main：不检查分支是否 main","file":"scripts/check-release-tag.mjs","from":"if (branch !== 'main') bad.push(","to":"if (false) bad.push("},
+ {"id":"T13","title":"main：不检查 HEAD 是否已推送","file":"scripts/check-release-tag.mjs","from":"if (head !== up) bad.push(","to":"if (false) bad.push("},
+ {"id":"T14","title":"main：有否决项时退出码写成 0","file":"scripts/check-release-tag.mjs","from":"for (const b of bad) console.log('  ✗ ' + b); return 1","to":"for (const b of bad) console.log('  ✗ ' + b); return 0"},
+ {"id":"T15","title":"main：不在 git 工作区时退出码写成 0","file":"scripts/check-release-tag.mjs","from":"console.error('不在 git 工作区：' + (r.stderr || '').trim()); return 2","to":"console.error('不在 git 工作区：' + (r.stderr || '').trim()); return 0"},
+ {"id":"T16","title":"main：缺参数时退出码写成 0","file":"scripts/check-release-tag.mjs","from":"console.error('用法：node scripts/check-release-tag.mjs <标签名> | --list'); return 2","to":"console.error('用法：node scripts/check-release-tag.mjs <标签名> | --list'); return 0"},
+ {"id":"T17","title":"main：--list 把 semver 与 legacy-date 的计数搞反","file":"scripts/check-release-tag.mjs","from":"const by = { semver: [], 'legacy-date': [], other: [] }; for (const t of tags) by[classify(t)].push(t)","to":"const by = { semver: [], 'legacy-date': [], other: [] }; for (const t of tags) by[classify(t) === 'semver' ? 'legacy-date' : classify(t) === 'legacy-date' ? 'semver' : 'other'].push(t)"},
+ {"id":"T18","title":"SEMVER：允许前导零（01.0.0）","file":"scripts/check-release-tag.mjs","from":"/^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:","to":"/^(\\d+)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:"},
+ {"id":"T19","title":"SEMVER：不要求 patch 段（1.0 也算）","file":"scripts/check-release-tag.mjs","from":"\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-","to":"\\.(0|[1-9]\\d*)(?:\\.(0|[1-9]\\d*))?(?:-"},
+ {"id":"T20","title":"main：成功信息里的提交号取错（用 up 的前 7 位恒等，等价性由测试判断）","file":"scripts/check-release-tag.mjs","from":"指向 ${head.slice(0, 7)}（main","to":"指向 ${'0000000'}（main"}
+]

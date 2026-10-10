@@ -94,13 +94,22 @@
   被扫项目写任何东西。该路径不存在或解析不了一律记未定，不回退去猜项目布局。
 - `migrate [root]`：只读地输出一份把旧接法（项目内嵌的标准副本、手写的版本声明、调用旧检查器的钩子）迁到本插件的**方案**——命中行与建议改法，不改任何文件；改不改、怎么改由人与会话模型决定。
 
+## 版本与发布
+
+**版本号只有一处权威：`package.json` 的 `version`，遵循 [semver](https://semver.org/lang/zh-CN/)。** 发布标签是 `v` 加这个号（`version` 是 `0.1.0`，标签就是 `v0.1.0`）；两处必须一致，不手工对应。
+
+- **打标签前先跑** `node scripts/check-release-tag.mjs v<版本>`。它只读、不打标签、不推送，逐项核对：标签 = `v` + `version` 且是合法 semver；本地与远端都没有同名标签；工作区干净；当前在 `main`；`HEAD` 已推送且等于 `origin/main`。**查不了远端不当作“标签不存在”**，会明确报未通过。
+- **升版本号**：先改 `package.json` 的 `version`，提交并推送，再打同名标签。破坏性变更升 MAJOR（`0.x` 阶段升 MINOR），向后兼容的新功能升 MINOR，修复升 PATCH；预发布用 semver 的预发布段（`v0.2.0-rc.1`）。
+- **旧日期式标签**（`2026-10-05.1`、`2026-10-10-pre.4` 之类）是迁移期的遗留：保留不动，因为三个仍在用 `git subtree` 的旧项目、以及已装过预发布版本的 profile 锁文件都引用着它们。**新标签一律用 `v` 开头的 semver**；`node scripts/check-release-tag.mjs --list` 能列出现有标签各属哪一类。
+- **打标签与推送是对外可见、难以撤回的动作**（别人的锁文件会引用它），由具名的人执行，不由脚本代劳。
+
 ## 接入一个项目
 
 **标准与工具随 DSH 插件分发，项目里只放自己的东西。** 采用项目自己写的只有 `governance/project.yaml`（与可选的 `exceptions.md`）；
 标准正文是插件提供的技能，检查器是插件的 `std-check` 命令。没有内嵌副本、没有手写的版本声明。
 
-- **安装**（每台机器一次，不在项目里）：`dsh plugin add github:Alan-IFT/dsh-project-std#<标签>`，或在 DSH 的 Plugins 页填同一个 git 地址。
-  标签是仓库上的版本标签；钉哪一版由 profile 的 `package.json` 与 `pnpm-lock.yaml` 承担（机器维护，带完整性校验）。
+- **安装**（每台机器一次，不在项目里）：`dsh plugin add github:Alan-IFT/dsh-project-std#v<版本>`（例如 `#v0.1.0`），或在 DSH 的 Plugins 页填同一个 git 地址。
+  版本标签的写法见下节「版本与发布」；钉哪一版由 profile 的 `package.json` 与 `pnpm-lock.yaml` 承担（机器维护，带完整性校验）。
   **一个 profile 只能钉一个版本**，同一台机器上的几个项目共用它——这是接受的代价（设计文档 §12.33），出现第二个使用者再加“项目可选声明期望版本”。
 - **配置**：照实文件抄 [示例项目 `governance/project.yaml`](../../标准/示例项目-连锁零售中台/governance/project.yaml)，字段语义见 CONTRACT.md §5，本文不另立字段表。
   `tier` 是必填的，不写就得到一条未定；`compatibility.policy` 也是必填的（01 §5.3），缺了判 FAIL——兼容策略正文若已有权威位置，这里写一句指针即可。
