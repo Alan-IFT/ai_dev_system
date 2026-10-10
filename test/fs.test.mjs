@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { readBytes, readText, countLines, inside, guard, MAX_READ_BYTES, OutsideRoot, TooLarge, NotRegular, __testHooks as __hooks } from '../lib/core/fs.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'stdlib-fs.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-fs.json'), 'utf8'))
 
 const B = (...a) => Buffer.from(a)
 const FILES = [

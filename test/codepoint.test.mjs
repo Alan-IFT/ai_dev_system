@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { findField, itemStatus, headOf, headChars, HEAD_CHARS } from '../lib/core/docs.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'codepoint.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'codepoint.json'), 'utf8'))
 
 test('样本规模：含非 BMP 字符、码点数与码元数不同的输入占多数', () => {
   assert.ok(gold.cases.length >= 80)

@@ -13,7 +13,7 @@ import { firstInvalidUtf8 } from '../lib/core/utf8.js'
 import { cfgGet, stateList, stateClass, leadWord, pyTruthy } from '../lib/core/cfg.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'stdlib-config.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-config.json'), 'utf8'))
 
 function canSymlink() {
   const t = mkdtempSync(join(tmpdir(), 'tscfg-sl-'))
@@ -233,7 +233,7 @@ test('leadWord / stateClass：长别名优先；别名之后须是结尾或非�
 
 // ---- utf8.ts ----
 test('firstInvalidUtf8：对 Python 的 UnicodeDecodeError.start 穷举一致（边界字节 × 长度 1 到 4，规格见黄金样本）', () => {
-  const spec = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'utf8-start.json'), 'utf8'))
+  const spec = JSON.parse(readFileSync(join(here, 'fixtures', 'utf8-start.json'), 'utf8'))
   const h = createHash('sha256'); let n = 0, valid = 0
   const rec = (arr) => { const s = firstInvalidUtf8(Uint8Array.from(arr)); h.update(String(s) + ','); if (s === -1) valid++; n++ }
   const gen = (L, pre) => { if (pre.length === L) { rec(pre); return } for (const b of spec.alphabet) gen(L, [...pre, b]) }

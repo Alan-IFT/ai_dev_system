@@ -4,8 +4,7 @@
 //  ③ 变异验证（scripts/mutate.mjs + test/mutations/entry_budget.json）靠这里的断言变红——所以这里要尽量「一处变异、至少一条断言红」。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
+import { readFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +13,7 @@ import { loadConfig } from '../lib/core/config.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'golden', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'entry-budget'))
 
@@ -24,16 +23,6 @@ test('selftest：每条都 PASS，且 (id, status) 集合与黄金样本完全�
   const bad = got.filter((f) => f.status !== 'PASS').map((f) => `${f.title}｜${f.evidence}`)
   assert.deepEqual(bad, [])
   assert.deepEqual(got.map((f) => [f.id, f.status]).sort(), probes.map((p) => [p.id, p.status]).sort())
-})
-
-// ---- ② 真实仓比对：借 scripts/golden-compare.mjs（它建临时 worktree），本测试只调用并断言退出码 ----
-const MANIFEST = join(root, 'golden', 'samples', 'MANIFEST.json')
-const REPOS = ['D:\\Programs\\AI辅助开发规范及工作流确定', 'D:\\Programs\\NFBY_Reservoir', 'D:\\Programs\\NFBY_CMS_FullStack', 'D:\\Programs\\dingcun\\PMC-Planner']
-const haveRepos = process.platform === 'win32' && REPOS.every((p) => existsSync(p))
-test('对 4 个固定提交的真实仓逐条一致（仅本机有这四个仓时跑；Ubuntu 容器里没有，如实 SKIP）', { skip: haveRepos ? false : '本机没有这四个真实仓（只在 Windows 开发机上跑）' }, () => {
-  assert.ok(existsSync(MANIFEST))
-  const r = spawnSync(process.execPath, [join(root, 'scripts', 'golden-compare.mjs'), 'entry-budget'], { encoding: 'utf8' })
-  assert.equal(r.status, 0, r.stdout + r.stderr)
 })
 
 // ---- 直接断言（变异验证用）：不依赖真实仓，每个判据一条或几条 ----

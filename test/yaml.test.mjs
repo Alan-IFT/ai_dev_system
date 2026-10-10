@@ -10,7 +10,7 @@ import { parseYamlSubset, stripComment, splitLinesPy, ConfigError } from '../lib
 import { parseDate, toIso } from '../lib/core/dates.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'stdlib-pure.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-pure.json'), 'utf8'))
 
 /**
  * 黄金样本是 json.dump(sort_keys=True) 写的，键按字典序；TS 对象保持插入序。键序**不是**解析结果的一部分（配置是映射，不是有序对），

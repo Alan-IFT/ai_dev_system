@@ -3,15 +3,14 @@
 // 有意差异（设计 §12.30）：退役仓默认规则文件清单去掉 `.claude/` 与 `CLAUDE.md`——这里单独断言；整仓场景样本里的退役仓都显式写了 layout.rule_files，不走默认清单。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { NAME, run, scope, selftest } from '../lib/checks/cross_repo.js'
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'golden', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'cross-repo'))
 
@@ -20,12 +19,6 @@ test('selftest：每条都 PASS，且 (id, status) 集合与黄金样本完全�
   assert.equal(got.length, 17)
   assert.deepEqual(got.filter((f) => f.status !== 'PASS').map((f) => `${f.title}｜${f.evidence}`), [])
   assert.deepEqual(got.map((f) => [f.id, f.status]).sort(), probes.map((p) => [p.id, p.status]).sort())
-})
-
-const REPOS = ['D:\\Programs\\AI辅助开发规范及工作流确定', 'D:\\Programs\\NFBY_Reservoir', 'D:\\Programs\\NFBY_CMS_FullStack', 'D:\\Programs\\dingcun\\PMC-Planner']
-test('对 4 个固定提交的真实仓逐条一致（仅本机有这四个仓时跑）', { skip: process.platform === 'win32' && REPOS.every((p) => existsSync(p)) ? false : '本机没有这四个真实仓' }, () => {
-  const r = spawnSync(process.execPath, [join(root, 'scripts', 'golden-compare.mjs'), 'cross-repo'], { encoding: 'utf8' })
-  assert.equal(r.status, 0, r.stdout + r.stderr)
 })
 
 const tmps = []

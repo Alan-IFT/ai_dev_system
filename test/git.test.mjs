@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { GIT_HARDEN_CONFIG, GIT_HARDEN_ENV, GIT_LOCAL_ENV, hardenedEnv, gitVersionProblem, filterEnv, shallowProblem, _clearFilterEnvCache } from '../lib/core/git.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'stdlib-git.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-git.json'), 'utf8'))
 
 test('gitVersionProblem：对 Python 黄金样本逐条一致', () => {
   assert.ok(gold.version.length >= 10)

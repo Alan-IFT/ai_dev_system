@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { compatibility } from '../lib/checks/adoption.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'adoption.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'adoption.json'), 'utf8'))
 
 test('样本规模', () => assert.ok(gold.compat.length >= 24 && gold.compat_shapes.length >= 10))
 

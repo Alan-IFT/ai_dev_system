@@ -9,7 +9,7 @@ import { candidates, revisionHits, indexTarget, latestDay, parseBlame, WI_PATTER
 import { toIso } from '../lib/core/dates.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'drift.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'drift.json'), 'utf8'))
 const NON_ASCII_DIGIT = /[\uff10-\uff19\u0660-\u0669\u06f0-\u06f9]/
 const rows = (l) => l.map((x) => [x[0], x[1]])
 

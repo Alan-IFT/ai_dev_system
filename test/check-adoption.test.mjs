@@ -2,15 +2,14 @@
 // 期望值取自 Python 版实测。Python 版 run() 多出的内嵌只读、免审批清单两条 SKIP，以及设计 §12.33 起移除的版本记录判据（STANDARD_VERSION），都不迁，见 expected-changes.json。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { NAME, run, scope, selftest } from '../lib/checks/adoption.js'
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..')
-const probes = JSON.parse(readFileSync(join(root, 'golden', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
-const changes = JSON.parse(readFileSync(join(root, 'golden', 'expected-changes.json'), 'utf8'))[NAME]
+const probes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'samples', 'selftest-probes.json'), 'utf8')).filter((p) => p.check === NAME)
+const changes = JSON.parse(readFileSync(join(root, 'test', 'fixtures', 'expected-changes.json'), 'utf8'))[NAME]
 
 test('NAME 与 Python 版一致', () => assert.equal(NAME, 'adoption'))
 
@@ -25,13 +24,6 @@ test('selftest：每条都 PASS，且 (id, status) 集合 = 黄金样本 − 预
   const gone = new Set(changes.vanished_probes.map((v) => v.id))
   const want = [...probes.filter((p) => !gone.has(p.id)).map((p) => [p.id, p.status]), ...changes.added_probes.map((v) => [v.id, 'PASS'])].sort()
   assert.deepEqual(got.map((f) => [f.id, f.status]).sort(), want)
-})
-
-const REPOS = ['D:\\Programs\\AI辅助开发规范及工作流确定', 'D:\\Programs\\NFBY_Reservoir', 'D:\\Programs\\NFBY_CMS_FullStack', 'D:\\Programs\\dingcun\\PMC-Planner']
-test('对 4 个固定提交的真实仓逐条一致（仅本机有这四个仓时跑；预期消失的未比）', { skip: process.platform === 'win32' && REPOS.every((p) => existsSync(p)) ? false : '本机没有这四个真实仓' }, () => {
-  const r = spawnSync(process.execPath, [join(root, 'scripts', 'golden-compare.mjs'), 'adoption'], { encoding: 'utf8' })
-  assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.match(r.stdout, /预期消失（adoption\/60a5c980、adoption\/settings-absent、adoption\/8baf1c92、adoption\/8714bd62）/, '预期消失的条数与 id 必须每次都打印出来')
 })
 
 // ---- 直接断言（所有平台都跑）----

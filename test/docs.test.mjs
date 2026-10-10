@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto'
 import { findField, headOf, itemStatus, clean, under, isWorkItemName, rebaseDocs, docsRootOf, workRoot, entryFiles, inFrozen, isTailoredOut, artifactTailored, dateFieldsOf, statusKind, normRel, ENTRY_CANDIDATES, STATUS_FIELDS } from '../lib/core/docs.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'stdlib-docs.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'stdlib-docs.json'), 'utf8'))
 
 const canon = (v) => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))

@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { PY_WHITESPACE, pyStrip, pyLstrip, normalizeKey, findingId, finding, encodeSurrogateEscape, PASS, FAIL, SKIP, UNDETERMINED } from '../lib/core/finding.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const unit = (name) => JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', name), 'utf8'))
+const unit = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'))
 
 test('PY_WHITESPACE 逐码点等于 Python 的 str.strip() 与 re 的 \\s（0 到 0x10FFFF 全部码点，设计 §12.6 D6）', () => {
   const gold = unit('whitespace.json')

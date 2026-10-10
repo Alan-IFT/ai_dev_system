@@ -9,7 +9,7 @@ import { mentions, headerDeclares, headerGenerationHint, headerOfBytes } from '.
 import { decodeUtf8Ignore } from '../lib/core/utf8.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'derived.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'derived.json'), 'utf8'))
 const bytesOf = (hex) => Buffer.from(hex, 'hex')
 
 test('样本规模', () => assert.ok(gold.mentions.length >= 60 && gold.declares.length >= 35 && gold.hint.length >= 45 && gold.header_bytes.length >= 45 && gold.decode_ignore.length >= 40))

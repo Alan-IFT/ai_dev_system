@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { pyStr } from '../lib/core/cfg.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'pystr.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'pystr.json'), 'utf8'))
 
 test('样本规模', () => assert.ok(gold.cases.length >= 60))
 

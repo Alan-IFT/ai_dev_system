@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { pyRepr } from '../lib/core/repr.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'repr.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'repr.json'), 'utf8'))
 
 test('样本规模', () => assert.ok(gold.str.length >= 60 && gold.other.length >= 30 && gold.nonprintable_ranges.length > 100))
 

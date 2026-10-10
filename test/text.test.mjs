@@ -9,7 +9,7 @@ import { splitLinesPy } from '../lib/core/yaml.js'
 import { pyStrip } from '../lib/core/finding.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'text.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'text.json'), 'utf8'))
 
 test('样本规模', () => assert.ok(gold.splitlines.length >= 150 && gold.upper.length >= 30))
 

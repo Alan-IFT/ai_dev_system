@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { maskCode, slug, atxTitle, titles, anchorsOf, unquote, _regexForTest } from '../lib/checks/links.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'links.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'links.json'), 'utf8'))
 const cmp = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 test('样本规模', () => assert.ok(gold.slug.length >= 250 && gold.mask.length >= 40 && gold.titles.length >= 50 && gold.links.length >= 80 && gold.unquote.length >= 80))

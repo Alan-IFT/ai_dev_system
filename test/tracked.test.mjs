@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process'
 import { trackedFiles, markdownUnder, workItems, withScanMemo, cmpCodepoint } from '../lib/core/tracked.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'tracked.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'tracked.json'), 'utf8'))
 
 let tmp
 const gitq = (args, cwd) => spawnSync('git', ['-C', cwd ?? tmp, '-c', 'init.defaultBranch=main', '-c', 'user.email=a@b.c', '-c', 'user.name=n', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', ...args], { encoding: 'utf8' })

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { run } from '../lib/checks/single_authority.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'sa-scenarios.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'sa-scenarios.json'), 'utf8'))
 
 // 与 make_scen_sa.py 的 tag / seq_lines 同一份算法（Python 里 CH 是 40 个汉字；第三位取 i // 1600）
 const CH = [...'甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往']

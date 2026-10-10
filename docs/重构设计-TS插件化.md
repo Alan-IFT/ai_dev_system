@@ -217,7 +217,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 - [x] 阶段 0：基线（2026-10-06 完成）
   - [x] 设计文档已提交推送（本文）——提交 `2fdb501`，`check_all` 含本文退出 0；变异验证（给本文加坏链接）退出 1 并指到本文，还原后 0
   - [x] 黄金样本已生成并校验可复现——`golden/samples/` 5 个文件：`std`/`reservoir`/`cms`/`pmc` 四个仓的 finding 清单 + `selftest-probes.json`（228 条探针）；`golden/make_golden.py` 重跑后四个仓样本与落盘逐字节相同；`selftest-probes.json` 连跑两次一致
-  - [x] 废弃残留清单已落盘——`golden/residue-baseline.txt`（口径与基线读数见 §12.1）
+  - [x] 废弃残留清单已落盘——`golden/residue-baseline.txt`（口径与基线读数见 §12.1；阶段 4 随 `golden/` 删除而移到 `docs/归档/残留基线-阶段0.txt`）
 - [x] 阶段 1：骨架与守卫（2026-10-06 完成，下面分项全勾）
   - [x] 1-a Q3 实测定案、`tsc` 可用性（`ac0e2b5`）
   - [x] 1-b TS 工程骨架：`package.json`（`dsh.manifestVersion`、`bundle.patch`、`engines`）、`tsconfig.json`、`cordis.patch.yml`（`name` 与包名同为 `ai-dev-std`）、`scripts/check-lib-sync.mjs`；`tsc` 7.0.2 构建通过
@@ -265,7 +265,7 @@ ai_dev_system/                      ← 仓库根 = 插件包根
 
 **这里有一个我必须如实写下的迁移难点**：各检查器的 selftest 里，探针**大量直接调用私有函数**（如 `check_entry_budget` 的探针调私有 `_docs`/`_entry` 共 44 次、公共 `run` 0 次；`check_drift` 私有 43 次、公共 16 次）。所以 TS 版**不能只实现公共 `run()`**：每个检查器要保留与 Python 版对应的内部函数边界，selftest 才能逐条对应。这会让迁移比「重写判定逻辑」更贴近原结构，是**有意的取舍**——结构上偏离 Python 版越多，探针越难一一对上。
 
-**废弃残留基线**（`golden/residue-baseline.txt`，口径：`Claude Code|claude-code|CLAUDE.md|.claude/|claude plugin|.std/|git subtree` 命中行数，不含 `golden/` 自己；冻结历史在该文件里**按顶层目录汇总、不逐文件列**——第一版逐文件列了归档文章的文件名，文件名里带的数字被 `single-authority` 当成数值声明、判成「同一声明出现在多个文件」，`check_all` 因此退出 2，改成按目录汇总后回到 0；要逐文件清单就现跑同口径，不入库）：
+**废弃残留基线**（`golden/residue-baseline.txt`，阶段 4 起在 `docs/归档/残留基线-阶段0.txt`，口径：`Claude Code|claude-code|CLAUDE.md|.claude/|claude plugin|.std/|git subtree` 命中行数，不含 `golden/` 自己；冻结历史在该文件里**按顶层目录汇总、不逐文件列**——第一版逐文件列了归档文章的文件名，文件名里带的数字被 `single-authority` 当成数值声明、判成「同一声明出现在多个文件」，`check_all` 因此退出 2，改成按目录汇总后回到 0；要逐文件清单就现跑同口径，不入库）：
 
 | 类别 | 文件数 | 行数 | 阶段 4 的目标 |
 |---|---|---|---|

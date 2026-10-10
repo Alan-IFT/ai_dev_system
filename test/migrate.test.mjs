@@ -221,7 +221,7 @@ test('端到端：按方案执行确定性步骤后，std-check 的差异只剩�
   const key = (f) => f.id
   const b = new Map(before.f.map((f) => [key(f), f])), a = new Map(after.f.map((f) => [key(f), f]))
   const gone = [...b.keys()].filter((k) => !a.has(k) && !k.startsWith('tool-identity')), added = [...a.keys()].filter((k) => !b.has(k) && !k.startsWith('tool-identity'))
-  const changes = JSON.parse(readFileSync(join(repo, 'golden', 'expected-changes.json'), 'utf8')).adoption.vanished_findings.map((v) => v.id)
+  const changes = JSON.parse(readFileSync(join(repo, 'test', 'fixtures', 'expected-changes.json'), 'utf8')).adoption.vanished_findings.map((v) => v.id)
   // 「数量写进标题」的 PASS 条目（没有 kind，id＝标题哈希）：删掉 .std/ 后被扫的文件少了，标题里的数变了，id 随之变。
   // 它们必须**成对**出现（消失一条、新增一条，同一检查器、同为 PASS、位置相同），否则就是真丢了检查——不能用「标题变了」当万能借口。
   const pairs = []
@@ -236,7 +236,7 @@ test('端到端：按方案执行确定性步骤后，std-check 的差异只剩�
   assert.deepEqual(added, [], '不应冒出配不上对的新 id')
   const diffStatus = [...a.entries()].filter(([k, f]) => b.has(k) && b.get(k).status !== f.status).map(([k]) => k)
   assert.deepEqual(diffStatus, [], '留下的 id 状态不得变化')
-  // 迁移前后用的都是新检查器，它本来就不再产出版本记录那两条 PASS（相对 Python 黄金样本的消失由 golden-compare 验证）；
+  // 迁移前后用的都是新检查器，它本来就不再产出版本记录那两条 PASS（相对迁移前 Python 版的消失登记在 test/fixtures/expected-changes.json）；
   // 这里钉的是：迁移前后 adoption 的输出完全一致，且只剩 compatibility.policy 一条——删 STANDARD_VERSION 不会让 adoption 变化。
   const ad = (r) => r.f.filter((f) => f.check === 'adoption').map((f) => [f.id, f.status])
   assert.deepEqual(ad(after), ad(before)); assert.deepEqual(ad(after), [['adoption/compatibility-policy', 'PASS']])

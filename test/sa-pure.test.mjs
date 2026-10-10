@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { effectiveChars, isDoc, isStructural, unfenced, significantLines, proseLines, maskLinks, RE_ORDINAL_PREFIX, countClaims, stripDotSlash } from '../lib/checks/single_authority.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'single-authority.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'single-authority.json'), 'utf8'))
 const bad = (arr, f) => arr.filter((g) => JSON.stringify(f(g)) !== JSON.stringify(g.out)).map((g) => ({ in: String(g.in).slice(0, 40), want: g.out, got: f(g) }))
 
 test('样本规模', () => assert.ok(gold.effective_chars.length >= 70 && gold.is_doc.length >= 50 && gold.is_structural.length >= 90 && gold.unfenced.length >= 37 && gold.significant.length >= 37 && gold.mask_links.length >= 28 && gold.ordinal.length >= 23 && gold.count_claims.length >= 120 && gold.lstrip_dotslash.length >= 18))

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { run, nameAppears, hasStatusToken, hasInvalidationMarker, linkTargets, parseGrepZ } from '../lib/checks/cross_repo.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'cr-scenarios.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'cr-scenarios.json'), 'utf8'))
 
 const tmps = []
 test.after(() => { for (const t of tmps) rmSync(t, { recursive: true, force: true, maxRetries: 3 }) })

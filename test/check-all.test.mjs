@@ -644,7 +644,7 @@ test('main：坏参数 → 退出 2 且写 stderr、不写 stdout；每个退出
 })
 
 test('main：真实小项目 --json 输出可解析、含恰好一条身份条目；退出码与 exitCode 一致；--no-scope 不打覆盖边界', () => {
-  // 用假检查器表：真实的 10 个检查器每次要跑 20 多秒，变异验证乘不起；真实检查器的整体行为由 scripts/golden-compare-all.mjs 与 std-check 对本仓的实跑钉
+  // 用假检查器表：真实的 10 个检查器每次要跑 20 多秒，变异验证乘不起；真实检查器的整体行为由 test/check-all-full.test.mjs 与 std-check 对本仓的实跑钉
   const root = project(), out = [], fake = [mod({ run: () => [und('m/u')] })]
   const code = main([root, '--json'], undefined, { out: (t) => out.push(t), err: () => {} }, fake)
   const data = JSON.parse(out.join('\n'))

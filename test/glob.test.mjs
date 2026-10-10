@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { globIn, globAny } from '../lib/core/glob.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'glob.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'glob.json'), 'utf8'))
 
 const canMake = (rel) => !(process.platform === 'win32' && /[*?"<>|:\n]/.test(rel))
 let base, linked = false

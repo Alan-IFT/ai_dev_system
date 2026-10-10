@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { labelField, unknownLabel, isSep, splitRow, mapHeader, isPlaceholder, evidenceSections, parseListBlocks, parseTableBlocks, judge, isPyDigit } from '../lib/checks/evidence.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const gold = JSON.parse(readFileSync(join(here, '..', 'golden', 'unit', 'evidence.json'), 'utf8'))
+const gold = JSON.parse(readFileSync(join(here, 'fixtures', 'evidence.json'), 'utf8'))
 const bad = (arr, f) => arr.filter((g) => JSON.stringify(f(g)) !== JSON.stringify(g.out)).map((g) => ({ in: String(g.in).slice(0, 40), want: g.out, got: f(g) }))
 
 test('样本规模', () => assert.ok(gold.label_field.length >= 130 && gold.unknown_label.length >= 95 && gold.is_sep.length >= 40 && gold.split_row.length >= 25 && gold.map_header.length >= 30 && gold.is_placeholder.length >= 65 && gold.sections.length >= 45 && gold.blocks.length >= 40))
