@@ -38,8 +38,7 @@ retail-core/
 ├─ governance/
 │  ├─ project.yaml                 档次、路径、预算、元信息范围（检查器读的唯一配置）
 │  ├─ GATES.md                     G1–G8 + 项目自加的 G9–G13，及它们用的命令
-│  ├─ exceptions.md                例外登记（带到期）
-│  └─ STANDARD_VERSION             采用的标准修订与采用日期
+│  └─ exceptions.md                例外登记（带到期）
 ├─ docs/
 │  ├─ INDEX.md
 │  ├─ product/
@@ -64,4 +63,4 @@ retail-core/
 └─ services/ apps/ packages/ tests/（代码，本示例不含）
 ```
 
-示例有选择地展开部分模块、决策与任务，其余只给索引形态；因此不是可运行的完整产品仓库。Agent 的实际读取量由任务判断需要决定，不由示例展开数量决定。`governance/STANDARD_VERSION` 记的是本示例当前采用的标准修订（`2026-09-12.1`）与 2025-03-03 的采用日期——展示的是现行形态，不是示例立项当年的取值。**本示例的叙事日期冻结在 2026-09-07**：`tools/std/check_all.py` 扫它时，按真实系统日期算出的陈旧类未定（文档/ADR 超 `stale_days`）与工作项活性 FAIL（`in_progress` 超 `work_item_stale_days` 无转换）都是预期结果，不随时间修——改阈值或平移日期都会把示例变成另一回事。
+示例有选择地展开部分模块、决策与任务，其余只给索引形态；因此不是可运行的完整产品仓库。Agent 的实际读取量由任务判断需要决定，不由示例展开数量决定。本示例不放标准版本声明：版本由工具的依赖锁定文件钉住（见 01 §8）。**本示例的叙事日期冻结在 2026-09-07**：`std-check` 扫它时，按真实系统日期算出的陈旧类未定（文档/ADR 超 `stale_days`）与工作项活性 FAIL（`in_progress` 超 `work_item_stale_days` 无转换）都是预期结果，不随时间修——改阈值或平移日期都会把示例变成另一回事。

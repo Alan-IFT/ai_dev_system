@@ -3,7 +3,7 @@
 # 环境与数据保留见 docs/architecture/overview.md §6/§7；兼容策略的正文在 docs/architecture/
 # invariants.md INV-07 与 docs/architecture/contracts/README.md 的「兼容策略」列，下方 compatibility.policy
 # （01 §5.3 必填）只写指针，不复述。
-# 采用的标准修订不在本文件，见 governance/STANDARD_VERSION（01 §8）
+# 采用的标准版本不在本文件：版本由工具的依赖锁定文件钉住，检查报告自带摘要（01 §8）
 tier: L2                                 # 四人团队（Zhao/Li/Zhou/Wang），有闸门、例外登记与 ADR
 
 compatibility:
@@ -12,8 +12,7 @@ compatibility:
 layout:
   entry:
     - AGENTS.md                          # 唯一加载合同在这一份里
-    - CLAUDE.md                          # 只有一行 @AGENTS.md
-  docs_root: docs
+    docs_root: docs
   work_root: docs/state/work             # 一件一文件，WI-<四位序号>-<短名>.md
   artifacts:                             # 本项目这几件工件的实际落点（01 §3.1 允许按职责合并映射）
     acceptance: docs/product/acceptance  # 一个领域一份，验收 ID 稳定

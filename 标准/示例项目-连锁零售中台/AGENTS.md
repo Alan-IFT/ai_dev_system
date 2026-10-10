@@ -1,6 +1,6 @@
 # AGENTS.md — retail-core 工作规范（常驻核）
 
-**本文件只放"晚一秒就来不及"的规则。** 细则在 `.agents/skills/`，命中才读。标准版本见 `governance/STANDARD_VERSION`。
+**本文件只放"晚一秒就来不及"的规则。** 细则在 `.agents/skills/`，命中才读。标准版本见检查报告里的工具与标准摘要。
 
 ## 0. 项目专属
 
