@@ -10,7 +10,7 @@ source_id：`SRC-GOOG-TEAMWORK`
 
 - **这是产品公告**。它对"我们做了什么、量到了什么"是一手的；对"这些机制在别处也有效"不是。
 - **产出是实测的，机制的贡献是断言的**：文中没有任何消融实验。71% 的 TCSBench、0.71% 的周期对齐误差、2× 吞吐都是**结果**；"因为 pattern 把编排逻辑与 agent 描述解耦了"是**作者的归因**，没有对照。
-- **两处"独立"都不成立**：TCSBench 是 "independently developed **within Google**"；71% 是 "the highest score in our **internal** testing"。按[来源与证据矩阵 §1](../归档/来源与证据矩阵.md#support-types) 的 V1 口径，能说明一手实践与产品机制，不能说明独立复现。
+- **两处"独立"都不成立**：TCSBench 是 "independently developed **within Google**"；71% 是 "the highest score in our **internal** testing"。按[来源与证据矩阵 §1](https://github.com/Alan-IFT/dsh-project-std/blob/archive-pre-ts-refactor/docs/%E5%BD%92%E6%A1%A3/%E6%9D%A5%E6%BA%90%E4%B8%8E%E8%AF%81%E6%8D%AE%E7%9F%A9%E9%98%B5.md#support-types) 的 V1 口径，能说明一手实践与产品机制，不能说明独立复现。
 - **上架版本不是产出这些结果的版本**：原文写 "Some of these results used **higher parallelism than the default**"，且 "The version available on Antigravity balances cost and capability"。
 - 通篇是 Gemini 与 Antigravity 的载体形态（`/teamwork-preview`、pattern、orchestrator）。按 D-020 这些是载体不是语义；本卡记录它们只为回答"这条语义有几种机制类型可以承载"。
 

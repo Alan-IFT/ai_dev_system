@@ -2,7 +2,7 @@
 
 本目录保存“可按需读取”的研究卡片；它们解释某条候选为什么被提出、证据能覆盖哪里、又不能覆盖哪里。它们不属于默认上下文，也不直接构成已生效规则。
 
-完整的 `source_id → claim_id → 推断类型 → 待验证状态` 映射见[研究来源与支撑矩阵](../归档/来源与证据矩阵.md)。
+完整的 `source_id → claim_id → 推断类型 → 待验证状态` 映射见[研究来源与支撑矩阵](https://github.com/Alan-IFT/dsh-project-std/blob/archive-pre-ts-refactor/docs/%E5%BD%92%E6%A1%A3/%E6%9D%A5%E6%BA%90%E4%B8%8E%E8%AF%81%E6%8D%AE%E7%9F%A9%E9%98%B5.md)。
 
 | 编号 | 资料 | 类型 | 用途 |
 |---|---|---|---|
@@ -22,4 +22,4 @@
 - [10-第三轮材料合并卡片](10-第三轮材料合并卡片.md)：ATT-E ～ ATT-Q 共 13 份材料的合并卡片。刻意不逐份建卡，理由见卡片首段。
 - [11-公众号文章卡片](11-公众号文章卡片/README.md)：第四轮 44 篇公众号文章的逐篇阅读卡片（含图与引用资料核对），每篇一卡。
 - [12-第四轮主题综合](12-第四轮主题综合/README.md)：六份主题综合报告，归并 44 张卡片并给出修订建议与冲突裁决。
-- [参考资料-Claude](../参考资料-Claude/README.md)：Anthropic 官方一手材料的阅读卡片，按来源方单独存放；权威登记仍在[来源与证据矩阵](../归档/来源与证据矩阵.md#external-sources)。
+- [参考资料-Claude](../参考资料-Claude/README.md)：Anthropic 官方一手材料的阅读卡片，按来源方单独存放；权威登记仍在[来源与证据矩阵](https://github.com/Alan-IFT/dsh-project-std/blob/archive-pre-ts-refactor/docs/%E5%BD%92%E6%A1%A3/%E6%9D%A5%E6%BA%90%E4%B8%8E%E8%AF%81%E6%8D%AE%E7%9F%A9%E9%98%B5.md#external-sources)。
